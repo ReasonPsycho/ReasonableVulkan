@@ -1,27 +1,63 @@
 {
-  "dependencies" : [ {
-    "name" : "vulkan"
-  }, {
-    "name" : "tracy"
-  }, {
-    "name" : "imgui",
-    "features" : ["vulkan-binding","sdl2-binding"]
-  }, {
-    "name" : "imguizmo"
-  }, {
-    "name" : "stb"
-  }, {
-    "name" : "assimp"
-  }, {
-    "name" : "spdlog"
-  }, {
-    "name" : "glm"
-  }, {
-    "name" : "gtest"
-  }, {
-    "name" : "sdl2",
-    "features" : ["vulkan"]
-  }, {
-    "name" : "vulkan-memory-allocator"
-  } ]
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake-config",
+      "$comment": "vulkan-baseline"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "$comment": "vulkan-baseline"
+    },
+    {
+      "name": "ktx",
+      "features": ["vulkan"],
+      "$comment": "vulkan-baseline"
+    },
+    {
+      "name": "imgui",
+      "features": ["docking-experimental"], //     "features" : ["vulkan-binding","sdl2-binding"]
+      "$comment": "vulkan-baseline, gameengine"
+    },
+    {
+      "name": "glm",
+      "$comment": "vulkan-baseline, gameengine"
+    },
+    {
+      "name": "vulkan",
+      "$comment": "vulkan-baseline, gameengine"
+    },
+    {
+      "name": "tracy",
+      "$comment": "gameengine"
+    },
+    {
+      "name": "imguizmo",
+      "$comment": "gameengine"
+    },
+    {
+      "name": "stb",
+      "$comment": "gameengine"
+    },
+    {
+      "name": "assimp",
+      "$comment": "gameengine"
+    },
+    {
+      "name": "spdlog",
+      "$comment": "gameengine"
+    },
+    {
+      "name": "gtest",
+      "$comment": "gameengine"
+    },
+    {
+      "name": "sdl2",
+      "features": ["vulkan"],
+      "$comment": "gameengine"
+    },
+    {
+      "name": "vulkan-memory-allocator",
+      "$comment": "gameengine"
+    }
+  ]
 }
