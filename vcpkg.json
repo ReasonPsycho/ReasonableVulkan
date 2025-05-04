@@ -15,7 +15,7 @@
     },
     {
       "name": "imgui",
-      "features": ["docking-experimental"], //     "features" : ["vulkan-binding","sdl2-binding"]
+      "features": ["docking-experimental"],
       "$comment": "vulkan-baseline, gameengine"
     },
     {
