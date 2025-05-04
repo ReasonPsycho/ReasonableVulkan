@@ -1,0 +1,46 @@
+#define SDL_MAIN_HANDLED
+
+#include <iostream>
+#include <cstdlib>
+#include <SDL2/SDL.h>
+#include "platform.hpp"
+
+int main(int argc, char *argv[]) {
+    // 1. Initialize platform (SDL window, input, etc.)
+    if (!platform::Init("My Game Engine", 1280, 720)) {
+        return EXIT_FAILURE;
+    }
+
+    /*// 2. Initialize Vulkan or other graphics backend
+    if (!vulkan::Init(platform::GetWindow())) {
+        return EXIT_FAILURE;
+    }
+
+    // 3. Initialize the graphics abstraction
+    gfx::Init();
+
+    // 4. Initialize game systems (ECS, scenes, etc.)
+    game::Init();*/
+
+    // 5. Main loop
+    bool running = true;
+    while (running) {
+        platform::PollEvents(running); // sets `running` to false on quit
+
+        float deltaTime = platform::GetDeltaTime();
+
+        /*game::Update(deltaTime);     // game logic
+        gfx::BeginFrame();           // prepare frame
+        game::Render();              // game rendering logic (calls gfx underneath)
+        gfx::EndFrame();             // submit frame*/
+    }
+
+    // 6. Shutdown
+    /*game::Shutdown();
+    gfx::Shutdown();
+    vulkan::Shutdown();*/
+    platform::Shutdown();
+
+    return EXIT_SUCCESS;
+}
+
