@@ -6,7 +6,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 #define VK_USE_PLATFORM_WIN32_KHR
-#include "vulkanexamplebase.h"
+#include "vulkanRenderer.h"
 
 #if defined(_WIN32)
 #include <vulkan/vulkan_win32.h>
@@ -172,6 +172,10 @@ VkResult VulkanExampleBase::createInstance()
 	}
 
 	return result;
+}
+
+void VulkanExampleBase::render() {
+	//TODO implement
 }
 
 void VulkanExampleBase::renderFrame()
@@ -1353,7 +1357,6 @@ void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			}
 		}
 
-		keyPressed((uint32_t)wParam);
 		break;
 	case WM_KEYUP:
 		if (camera.type == Camera::firstperson)
@@ -1403,11 +1406,6 @@ void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 		viewUpdated = true;
 		break;
 	}
-	case WM_MOUSEMOVE:
-	{
-		handleMouseMove(LOWORD(lParam), HIWORD(lParam));
-		break;
-	}
 	case WM_SIZE:
 		if ((prepared) && (wParam != SIZE_MINIMIZED))
 		{
@@ -1433,8 +1431,6 @@ void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 		resizing = false;
 		break;
 	}
-
-	OnHandleMessage(hWnd, uMsg, wParam, lParam);
 }
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
 int32_t VulkanExampleBase::handleAppInput(struct android_app* app, AInputEvent* event)
@@ -3035,10 +3031,6 @@ void VulkanExampleBase::setupWindow()
 }
 #endif
 
-void VulkanExampleBase::keyPressed(uint32_t) {}
-
-void VulkanExampleBase::mouseMoved(double x, double y, bool & handled) {}
-
 void VulkanExampleBase::buildCommandBuffers() {}
 
 void VulkanExampleBase::createSynchronizationPrimitives()
@@ -3257,39 +3249,6 @@ void VulkanExampleBase::windowResize()
 	prepared = true;
 }
 
-void VulkanExampleBase::handleMouseMove(int32_t x, int32_t y)
-{
-	int32_t dx = (int32_t)mouseState.position.x - x;
-	int32_t dy = (int32_t)mouseState.position.y - y;
-
-	bool handled = false;
-
-	if (settings.overlay) {
-		ImGuiIO& io = ImGui::GetIO();
-		handled = io.WantCaptureMouse && ui.visible;
-	}
-	mouseMoved((float)x, (float)y, handled);
-
-	if (handled) {
-		mouseState.position = glm::vec2((float)x, (float)y);
-		return;
-	}
-
-	if (mouseState.buttons.left) {
-		camera.rotate(glm::vec3(dy * camera.rotationSpeed, -dx * camera.rotationSpeed, 0.0f));
-		viewUpdated = true;
-	}
-	if (mouseState.buttons.right) {
-		camera.translate(glm::vec3(-0.0f, 0.0f, dy * .005f));
-		viewUpdated = true;
-	}
-	if (mouseState.buttons.middle) {
-		camera.translate(glm::vec3(-dx * 0.005f, -dy * 0.005f, 0.0f));
-		viewUpdated = true;
-	}
-	mouseState.position = glm::vec2((float)x, (float)y);
-}
-
 void VulkanExampleBase::windowResized() {}
 
 void VulkanExampleBase::createSurface()
@@ -3321,7 +3280,3 @@ void VulkanExampleBase::createSwapChain()
 }
 
 void VulkanExampleBase::OnUpdateUIOverlay(vks::UIOverlay *overlay) {}
-
-#if defined(_WIN32)
-void VulkanExampleBase::OnHandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {};
-#endif

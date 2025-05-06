@@ -15,14 +15,13 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <imgui.h>
 
 #include <vulkan/vulkan.h>
 #include "VulkanTools.h"
 #include "VulkanDebug.h"
 #include "VulkanBuffer.h"
 #include "VulkanDevice.h"
-
-#include "../external/imgui/imgui.h"
 
 #if defined(__ANDROID__)
 #include "VulkanAndroid.h"

@@ -9,6 +9,7 @@
 
 #include "VulkanUIOverlay.h"
 
+
 namespace vks 
 {
 	UIOverlay::UIOverlay()
