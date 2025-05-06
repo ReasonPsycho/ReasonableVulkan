@@ -1361,15 +1361,13 @@ void VulkanExampleBase::setupConsole(std::string title)
 	SetConsoleTitle(TEXT(title.c_str()));
 }
 
-HWND VulkanExampleBase::setupWindow(HINSTANCE hinstance, WNDPROC wndproc, HWND existingWindow)
-{
+HWND VulkanExampleBase::setupWindow(HINSTANCE hinstance, WNDPROC wndproc, HWND existingWindow) {
 	this->windowInstance = hinstance;
 
 	// Store the existing window handle
 	window = existingWindow;
-    
-	if (!window)
-	{
+
+	if (!window) {
 		std::cerr << "Invalid window handle provided!\n";
 		return nullptr;
 	}
@@ -1381,7 +1379,7 @@ HWND VulkanExampleBase::setupWindow(HINSTANCE hinstance, WNDPROC wndproc, HWND e
 	height = windowRect.bottom - windowRect.top;
 
 	// Set the window procedure
-	SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)wndproc);
+	SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR) wndproc);
 
 	// Still need to register the class for message handling
 	WNDCLASSEX wndClass{};

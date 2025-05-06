@@ -464,8 +464,7 @@ namespace vks
 		return res;
 	}
 
-	bool UIOverlay::inputFloat(const char *caption, float *value, float step, const char *precision)
-	{
+	bool UIOverlay::inputFloat(const char *caption, float *value, float step, const char *precision) {
 		bool res = ImGui::InputFloat(caption, value, step, step * 10.0f, precision);
 		if (res) { updated = true; };
 		return res;

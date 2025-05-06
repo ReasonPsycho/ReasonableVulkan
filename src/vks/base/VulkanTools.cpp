@@ -20,7 +20,7 @@ if (vks::tools::resourcePath != "") {
 #elif defined(VK_EXAMPLE_ASSETS_DIR)
 	return VK_EXAMPLE_ASSETS_DIR;
 #else
-	return "./../res/";
+return "./../res/";
 #endif
 }
 
@@ -34,7 +34,7 @@ if (vks::tools::resourcePath != "") {
 #elif defined(VK_EXAMPLE_SHADERS_DIR)
 	return VK_EXAMPLE_SHADERS_DIR;
 #else
-	return "./../res/shaders/";
+return "./../res/shaders/";
 #endif
 }
 #endif
