@@ -13,14 +13,14 @@
 const std::string getAssetPath()
 {
 if (vks::tools::resourcePath != "") {
-	return vks::tools::resourcePath + "/assets/";
+	return vks::tools::resourcePath + "/res/";
 }
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
 	return "";
 #elif defined(VK_EXAMPLE_ASSETS_DIR)
 	return VK_EXAMPLE_ASSETS_DIR;
 #else
-	return "./../assets/";
+	return "./../res/";
 #endif
 }
 
@@ -34,7 +34,7 @@ if (vks::tools::resourcePath != "") {
 #elif defined(VK_EXAMPLE_SHADERS_DIR)
 	return VK_EXAMPLE_SHADERS_DIR;
 #else
-	return "./../shaders/";
+	return "./../res/shaders/";
 #endif
 }
 #endif

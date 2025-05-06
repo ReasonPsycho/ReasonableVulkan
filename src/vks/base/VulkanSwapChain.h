@@ -27,6 +27,9 @@
 #include <sys/utsname.h>
 #endif
 
+#include <vulkan/vulkan_win32.h>
+#define VK_USE_PLATFORM_WIN32_KHR
+
 class VulkanSwapChain
 {
 private: 

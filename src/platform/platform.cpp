@@ -59,6 +59,20 @@ namespace platform {
         return window;
     }
 
+    WindowInfo GetWindowInfo() {
+        SDL_SysWMinfo wmInfo;
+        SDL_VERSION(&wmInfo.version);
+        if (SDL_GetWindowWMInfo(window, &wmInfo) == SDL_FALSE) {
+            throw std::runtime_error("Failed to get native window info");
+        }
+
+        return {
+            GetModuleHandle(NULL),
+            (WNDPROC) GetWindowLongPtr(wmInfo.info.win.window, GWLP_WNDPROC),
+            wmInfo.info.win.window // This is the HWND
+        };
+    }
+
     float GetDeltaTime() {
         return deltaTime;
     }

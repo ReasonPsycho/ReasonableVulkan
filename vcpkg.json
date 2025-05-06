@@ -58,6 +58,10 @@
     {
       "name": "vulkan-memory-allocator",
       "$comment": "gameengine"
+    },
+    {
+      "name": "tinygltf",
+      "$comment": "vulkan-baseline"
     }
   ]
 }

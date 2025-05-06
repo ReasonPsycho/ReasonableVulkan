@@ -74,6 +74,7 @@
 #include "base/VulkanInitializers.hpp"
 #include "base/camera.hpp"
 #include "base/benchmark.hpp"
+#include "base/VulkanglTFModel.h"
 
 class VulkanExampleBase {
 private:
@@ -210,7 +211,6 @@ public:
 	// Prepare and initialize uniform buffer containing shader uniforms
 	void prepareUniformBuffers();
     void updateUniformBuffers();
-    void buildCommandBuffers();
     void draw();
 	// To here
 	
@@ -338,7 +338,7 @@ public:
 #if defined(_WIN32)
     void setupConsole(std::string title);
 
-    HWND setupWindow(HINSTANCE hinstance, WNDPROC wndproc);
+    HWND setupWindow(HINSTANCE hinstance, WNDPROC wndproc, HWND existingWindow);
 
     void handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
