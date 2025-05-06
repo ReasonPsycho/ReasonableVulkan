@@ -11,6 +11,12 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+
+    vulkanExample = new VulkanExample();															\
+    vulkanExample->initVulkan();																	\
+    vulkanExample->setupWindow(hInstance, WndProc);													\
+    vulkanExample->prepare();		
+    
     /*// 2. Initialize Vulkan or other graphics backend
     if (!vulkan::Init(platform::GetWindow())) {
         return EXIT_FAILURE;
