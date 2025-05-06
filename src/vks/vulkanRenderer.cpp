@@ -724,10 +724,12 @@ void VulkanExampleBase::updateOverlay()
 	io.DisplaySize = ImVec2((float)width, (float)height);
 	io.DeltaTime = frameTimer;
 
+	/*
 	io.MousePos = ImVec2(mouseState.position.x, mouseState.position.y);
 	io.MouseDown[0] = mouseState.buttons.left && ui.visible;
 	io.MouseDown[1] = mouseState.buttons.right && ui.visible;
 	io.MouseDown[2] = mouseState.buttons.middle && ui.visible;
+	*/
 
 	ImGui::NewFrame();
 
@@ -1359,118 +1361,36 @@ void VulkanExampleBase::setupConsole(std::string title)
 	SetConsoleTitle(TEXT(title.c_str()));
 }
 
-HWND VulkanExampleBase::setupWindow(HINSTANCE hinstance, WNDPROC wndproc)
+HWND VulkanExampleBase::setupWindow(HINSTANCE hinstance, WNDPROC wndproc, HWND existingWindow)
 {
 	this->windowInstance = hinstance;
 
-	WNDCLASSEX wndClass{};
-
-	wndClass.cbSize = sizeof(WNDCLASSEX);
-	wndClass.style = CS_HREDRAW | CS_VREDRAW;
-	wndClass.lpfnWndProc = wndproc;
-	wndClass.cbClsExtra = 0;
-	wndClass.cbWndExtra = 0;
-	wndClass.hInstance = hinstance;
-	wndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-	wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wndClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-	wndClass.lpszMenuName = NULL;
-	wndClass.lpszClassName = name.c_str();
-	wndClass.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
-
-	if (!RegisterClassEx(&wndClass))
-	{
-		std::cout << "Could not register window class!\n";
-		fflush(stdout);
-		exit(1);
-	}
-
-	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-	if (settings.fullscreen)
-	{
-		if ((width != (uint32_t)screenWidth) && (height != (uint32_t)screenHeight))
-		{
-			DEVMODE dmScreenSettings;
-			memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));
-			dmScreenSettings.dmSize       = sizeof(dmScreenSettings);
-			dmScreenSettings.dmPelsWidth  = width;
-			dmScreenSettings.dmPelsHeight = height;
-			dmScreenSettings.dmBitsPerPel = 32;
-			dmScreenSettings.dmFields     = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
-			if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL)
-			{
-				if (MessageBox(NULL, "Fullscreen Mode not supported!\n Switch to window mode?", "Error", MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
-				{
-					settings.fullscreen = false;
-				}
-				else
-				{
-					return nullptr;
-				}
-			}
-			screenWidth = width;
-			screenHeight = height;
-		}
-
-	}
-
-	DWORD dwExStyle;
-	DWORD dwStyle;
-
-	if (settings.fullscreen)
-	{
-		dwExStyle = WS_EX_APPWINDOW;
-		dwStyle = WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-	}
-	else
-	{
-		dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
-		dwStyle = WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-	}
-
-	RECT windowRect = {
-		0L,
-		0L,
-		settings.fullscreen ? (long)screenWidth : (long)width,
-		settings.fullscreen ? (long)screenHeight : (long)height
-	};
-
-	AdjustWindowRectEx(&windowRect, dwStyle, FALSE, dwExStyle);
-
-	std::string windowTitle = getWindowTitle();
-	window = CreateWindowEx(0,
-		name.c_str(),
-		windowTitle.c_str(),
-		dwStyle | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-		0,
-		0,
-		windowRect.right - windowRect.left,
-		windowRect.bottom - windowRect.top,
-		NULL,
-		NULL,
-		hinstance,
-		NULL);
-
+	// Store the existing window handle
+	window = existingWindow;
+    
 	if (!window)
 	{
-		std::cerr << "Could not create window!\n";
-		fflush(stdout);
+		std::cerr << "Invalid window handle provided!\n";
 		return nullptr;
 	}
 
-	if (!settings.fullscreen)
-	{
-		// Center on screen
-		uint32_t x = (GetSystemMetrics(SM_CXSCREEN) - windowRect.right) / 2;
-		uint32_t y = (GetSystemMetrics(SM_CYSCREEN) - windowRect.bottom) / 2;
-		SetWindowPos(window, 0, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
-	}
+	// Get actual window dimensions
+	RECT windowRect;
+	GetWindowRect(window, &windowRect);
+	width = windowRect.right - windowRect.left;
+	height = windowRect.bottom - windowRect.top;
 
-	ShowWindow(window, SW_SHOW);
-	SetForegroundWindow(window);
-	SetFocus(window);
+	// Set the window procedure
+	SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)wndproc);
+
+	// Still need to register the class for message handling
+	WNDCLASSEX wndClass{};
+	wndClass.cbSize = sizeof(WNDCLASSEX);
+	wndClass.style = CS_HREDRAW | CS_VREDRAW;
+	wndClass.lpfnWndProc = wndproc;
+	wndClass.hInstance = hinstance;
+	wndClass.lpszClassName = name.c_str();
+	RegisterClassEx(&wndClass);
 
 	return window;
 }
@@ -1548,27 +1468,6 @@ void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 				break;
 			}
 		}
-		break;
-	case WM_LBUTTONDOWN:
-		mouseState.position = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-		mouseState.buttons.left = true;
-		break;
-	case WM_RBUTTONDOWN:
-		mouseState.position = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-		mouseState.buttons.right = true;
-		break;
-	case WM_MBUTTONDOWN:
-		mouseState.position = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-		mouseState.buttons.middle = true;
-		break;
-	case WM_LBUTTONUP:
-		mouseState.buttons.left = false;
-		break;
-	case WM_RBUTTONUP:
-		mouseState.buttons.right = false;
-		break;
-	case WM_MBUTTONUP:
-		mouseState.buttons.middle = false;
 		break;
 	case WM_MOUSEWHEEL:
 	{
@@ -1853,7 +1752,7 @@ const std::string getAssetPath() {
 #if defined(VK_EXAMPLE_ASSETS_DIR)
 	return VK_EXAMPLE_ASSETS_DIR;
 #else
-    return [NSBundle.mainBundle.resourcePath stringByAppendingString: @"/../../assets/"].UTF8String;
+    return [NSBundle.mainBundle.resourcePath stringByAppendingString: @"/../../res/"].UTF8String;
 #endif
 }
 
@@ -1861,7 +1760,7 @@ const std::string getShaderBasePath() {
 #if defined(VK_EXAMPLE_SHADERS_DIR)
 	return VK_EXAMPLE_SHADERS_DIR;
 #else
-	return [NSBundle.mainBundle.resourcePath stringByAppendingString: @"/../../shaders/"].UTF8String;
+	return [NSBundle.mainBundle.resourcePath stringByAppendingString: @"/../../res/"].UTF8String;
 #endif
 }
 

@@ -10,6 +10,7 @@
 
 #include "VulkanSwapChain.h"
 
+
 /** @brief Creates the platform specific surface abstraction of the native platform window used for presentation */	
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 void VulkanSwapChain::initSurface(void* platformHandle, void* platformWindow)
@@ -30,7 +31,7 @@ void VulkanSwapChain::initSurface(uint32_t width, uint32_t height)
 #elif defined(VK_USE_PLATFORM_SCREEN_QNX)
 void VulkanSwapChain::initSurface(screen_context_t screen_context, screen_window_t screen_window)
 #endif
-{ //TODO this error here whyyy
+{
 	VkResult err = VK_SUCCESS;
 
 	// Create the os-specific surface

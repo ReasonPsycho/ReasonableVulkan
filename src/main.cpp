@@ -4,24 +4,26 @@
 #include <cstdlib>
 #include <SDL2/SDL.h>
 #include "platform.hpp"
+#include "vks/vulkanRenderer.h"
 
 int main(int argc, char *argv[]) {
+    VulkanExampleBase *vulkanExample = new VulkanExampleBase();
+
     // 1. Initialize platform (SDL window, input, etc.)
     if (!platform::Init("My Game Engine", 1280, 720)) {
         return EXIT_FAILURE;
     }
 
-
-    vulkanExample = new VulkanExample();															\
-    vulkanExample->initVulkan();																	\
-    vulkanExample->setupWindow(hInstance, WndProc);													\
-    vulkanExample->prepare();		
-    
-    /*// 2. Initialize Vulkan or other graphics backend
-    if (!vulkan::Init(platform::GetWindow())) {
+    if (!vulkanExample->initVulkan()) {
         return EXIT_FAILURE;
     }
 
+    platform::WindowInfo window_info = platform::GetWindowInfo();
+    vulkanExample->setupWindow(window_info.hInstance, window_info.wndProc, window_info.hwnd);
+    vulkanExample->prepare();
+
+
+    /*
     // 3. Initialize the graphics abstraction
     gfx::Init();
 
@@ -34,7 +36,7 @@ int main(int argc, char *argv[]) {
         platform::PollEvents(running); // sets `running` to false on quit
 
         float deltaTime = platform::GetDeltaTime();
-
+        vulkanExample->render();
         /*game::Update(deltaTime);     // game logic
         gfx::BeginFrame();           // prepare frame
         game::Render();              // game rendering logic (calls gfx underneath)
@@ -49,4 +51,3 @@ int main(int argc, char *argv[]) {
 
     return EXIT_SUCCESS;
 }
-
