@@ -29,7 +29,7 @@ namespace platform {
     SDL_Window* GetWindow();
 
     WindowInfo GetWindowInfo();
-    
+
     float GetDeltaTime();
 }
 
