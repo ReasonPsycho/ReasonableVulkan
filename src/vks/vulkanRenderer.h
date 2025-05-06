@@ -173,6 +173,47 @@ protected:
     bool requiresStencil{false};
 
 public:
+
+	// TODO replace with connection from game engine
+	struct DemoModel {
+		vkglTF::Model* glTF;
+		VkPipeline *pipeline;
+	};
+	std::vector<DemoModel> demoModels;
+	vks::TextureCubeMap skybox;
+
+	struct UniformData {
+		glm::mat4 projection;
+		glm::mat4 model;
+		glm::mat4 normal;
+		glm::mat4 view;
+		glm::vec4 lightPos;
+	} uniformData;
+	vks::Buffer uniformBuffer;
+
+	struct {
+		VkPipeline logos{ VK_NULL_HANDLE };
+		VkPipeline models{ VK_NULL_HANDLE };
+		VkPipeline skybox{ VK_NULL_HANDLE };
+	} pipelines;
+
+	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+	VkDescriptorSet descriptorSet{ VK_NULL_HANDLE };
+	VkDescriptorSetLayout descriptorSetLayout{ VK_NULL_HANDLE };
+
+	glm::vec4 lightPos = glm::vec4(1.0f, 4.0f, 0.0f, 0.0f);
+
+	void loadAssets();
+	void setupDescriptors();
+	void preparePipelines();
+
+	// Prepare and initialize uniform buffer containing shader uniforms
+	void prepareUniformBuffers();
+    void updateUniformBuffers();
+    void buildCommandBuffers();
+    void draw();
+	// To here
+	
     bool prepared = false;
     bool resized = false;
     bool viewUpdated = false;
@@ -201,23 +242,6 @@ public:
         /** @brief Enable UI overlay */
         bool overlay = true;
     } settings;
-
-    /** @brief State of gamepad input (only used on Android) */
-    struct {
-        glm::vec2 axisLeft = glm::vec2(0.0f);
-        glm::vec2 axisRight = glm::vec2(0.0f);
-    } gamePadState;
-
-    /** @brief State of mouse/touch input */
-    struct {
-        struct {
-            bool left = false;
-            bool right = false;
-            bool middle = false;
-        } buttons;
-
-        glm::vec2 position;
-    } mouseState;
 
     VkClearColorValue defaultClearColor = {{0.025f, 0.025f, 0.025f, 1.0f}};
 
@@ -306,15 +330,13 @@ public:
     /** @brief Default base class constructor */
     VulkanExampleBase();
 
-    virtual ~VulkanExampleBase();
+    ~VulkanExampleBase();
 
     /** @brief Setup the vulkan instance, enable required extensions and connect to the physical device (GPU) */
     bool initVulkan();
 
 #if defined(_WIN32)
     void setupConsole(std::string title);
-
-    void setupDPIAwareness();
 
     HWND setupWindow(HINSTANCE hinstance, WNDPROC wndproc);
 
