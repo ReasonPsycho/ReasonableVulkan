@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "configurePresets": [
+    {
+      "name": "gfx-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/module-${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "debug-with-tests",
+      "inherits": "gfx-base",
+      "displayName": "Debug with Tests",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-debug-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GFX_ENABLE_TESTS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "gfx-base",
+      "displayName": "Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-debug-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "gfx-base",
+      "displayName": "Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "GFX_ENABLE_TESTS": "OFF"
+      }
+    }
+  ]
+}
