@@ -10,12 +10,16 @@
     },
     {
       "name": "ktx",
-      "features": ["vulkan"],
+      "features": [
+        "vulkan"
+      ],
       "$comment": "vulkan-baseline"
     },
     {
       "name": "imgui",
-      "features": ["docking-experimental"],
+      "features": [
+        "docking-experimental"
+      ],
       "$comment": "vulkan-baseline, gameengine"
     },
     {
@@ -52,7 +56,9 @@
     },
     {
       "name": "sdl2",
-      "features": ["vulkan"],
+      "features": [
+        "vulkan"
+      ],
       "$comment": "gameengine"
     },
     {
@@ -62,6 +68,9 @@
     {
       "name": "tinygltf",
       "$comment": "vulkan-baseline"
+    },
+    {
+      "name": "boost-test"
     }
   ]
 }

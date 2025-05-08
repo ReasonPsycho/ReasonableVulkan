@@ -1,5 +1,5 @@
 # Specify the minimum CMake version required for this project
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 
 # Define the project name and create the project
 project(ReasonableVulkan)
@@ -28,6 +28,7 @@ find_package(SDL2 CONFIG REQUIRED)
 message(STATUS "Adding subdirectories")
 add_subdirectory(src/platform)
 add_subdirectory(src/vks)
+add_subdirectory(src/gfx)
 
 # Create the main executable target
 message(STATUS "Creating main executable target: ${PROJECT_NAME}")
