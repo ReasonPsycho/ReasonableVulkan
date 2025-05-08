@@ -19,6 +19,8 @@ elseif (CMAKE_BUILD_TYPE MATCHES Release)
     add_definitions(-DRELEASE_BUILD)
 endif ()
 
+# Add option for integration tests
+option(ENABLE_INTEGRATION_TESTS "Enable integration testing" OFF)
 
 # Find and load SDL2 package with its configurations
 message(STATUS "Searching for packages")
@@ -58,3 +60,38 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 #        COMMAND ${CMAKE_COMMAND} -E create_symlink
 #        ${CMAKE_SOURCE_DIR}/tracey
 #        ${CMAKE_CURRENT_BINARY_DIR}/tracey)
+
+if (ENABLE_INTEGRATION_TESTS)
+    message(STATUS "Configuring integration tests")
+
+    # Find Boost for testing
+    find_package(Boost REQUIRED COMPONENTS unit_test_framework)
+
+    # Create integration test executable
+    add_executable(integration_tests src/tests/integration/main_test.cpp)
+
+    target_link_libraries(integration_tests
+            PRIVATE
+            SDL2::SDL2
+            platform
+            vks
+            Boost::unit_test_framework
+    )
+
+    target_include_directories(integration_tests
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+    )
+
+
+    # Copy resources for integration tests
+    add_custom_command(TARGET integration_tests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E create_symlink
+            ${CMAKE_SOURCE_DIR}/res
+            ${CMAKE_CURRENT_BINARY_DIR}/res
+    )
+
+    # Enable CTest
+    enable_testing()
+    add_test(NAME integration_tests COMMAND integration_tests)
+endif ()
