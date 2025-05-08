@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_SUITE(GraphicsEngineTests)
 BOOST_AUTO_TEST_CASE(BasicFunctionality) {
     MockGraphicsEngine engine;
 
-        // Test initial state
+    // Test initial state
         BOOST_CHECK_EQUAL(engine.beginFrameCalled, false);
         BOOST_CHECK_EQUAL(engine.renderCalled, false);
         BOOST_CHECK_EQUAL(engine.endFrameCalled, false);
