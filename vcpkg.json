@@ -51,10 +51,6 @@
       "$comment": "gameengine"
     },
     {
-      "name": "gtest",
-      "$comment": "gameengine"
-    },
-    {
       "name": "sdl2",
       "features": [
         "vulkan"
@@ -71,6 +67,12 @@
     },
     {
       "name": "boost-test"
+    },
+    {
+      "name": "boost-hash2"
+    },
+    {
+      "name": "boost-uuid"
     }
   ]
 }

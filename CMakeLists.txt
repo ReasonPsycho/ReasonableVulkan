@@ -31,6 +31,7 @@ message(STATUS "Adding subdirectories")
 add_subdirectory(src/platform)
 add_subdirectory(src/vks)
 add_subdirectory(src/gfx)
+add_subdirectory(src/assetManager)
 
 # Create the main executable target
 message(STATUS "Creating main executable target: ${PROJECT_NAME}")
@@ -46,7 +47,7 @@ endif ()
 
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 platform vks)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 platform vks am)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder
@@ -75,6 +76,7 @@ if (ENABLE_INTEGRATION_TESTS)
             SDL2::SDL2
             platform
             vks
+            am
             Boost::unit_test_framework
     )
 
