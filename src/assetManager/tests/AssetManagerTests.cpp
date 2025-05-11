@@ -97,7 +97,7 @@ namespace ae {
         // Test getByUUID
         auto asset = manager.getByUUID<MockAsset>(id);
         BOOST_TEST((asset != nullptr));
-    BOOST_TEST(asset->getType() == AssetType::Model);
+        BOOST_TEST(asset->getType() == AssetType::Model);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

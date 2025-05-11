@@ -54,7 +54,6 @@ namespace ae {
 
         [[nodiscard]] AssetType getType() const override;
     };
-
 } // namespace ae
 
 #endif
