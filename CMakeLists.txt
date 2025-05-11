@@ -26,6 +26,11 @@ option(ENABLE_INTEGRATION_TESTS "Enable integration testing" OFF)
 message(STATUS "Searching for packages")
 find_package(SDL2 CONFIG REQUIRED)
 
+if (MSVC)
+    add_compile_options(/utf-8)
+endif ()
+
+
 # Add subdirectories containing other CMake projects
 message(STATUS "Adding subdirectories")
 add_subdirectory(src/platform)

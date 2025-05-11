@@ -4,8 +4,3 @@
 
 #include "Asset.hpp"
 
-
-ae::Asset::Asset() {
-    UUIDManager::generator.
-
-}

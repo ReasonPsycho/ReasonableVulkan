@@ -2,35 +2,49 @@
 // Created by redkc on 09.05.2025.
 //
 
+#include "Asset.hpp"
 #include "AssetManager.hpp"
 
 namespace ae {
-    boost::uuids::uuid AssetManager::registerAsset(const std::string &path, AssetType type) {
-        auto metaDataInfo = lookupAssetInfoByPath(path);
-        if (metaDataInfo) {
-            return metaDataInfo->id;
-        }
-
-        AssetInfo info;
-        info.id = boost::uuids::random_generator()(); // Generate new UUID
-        info.path = path;
-        info.type = type;
-
-
-        // Find factory for this asset type
-        auto factoryIt = factories.find(info.type);
-        if (factoryIt == factories.end()) {
-            throw std::runtime_error("No factory registered for asset type");
-        }
-
-        // Store metadata
-        metadata[info.id] = info;
-
-        // Create and load the asset
-        std::shared_ptr<Asset> asset = factoryIt->second();
-        asset->loadFromFile(info.path);
-        assets[info.id] = asset;
+boost::uuids::uuid AssetManager::registerAsset(BaseFactoryContext factoryContext) {
+    // First check if we already have this path
+    auto metaDataInfo = lookupAssetInfoByPath(factoryContext.path);
+    if (metaDataInfo) {
+        return metaDataInfo->id;
     }
+
+    // Create and load the asset to calculate its hash
+    auto factoryIt = factories.find(factoryContext.assetType);
+    if (factoryIt == factories.end()) {
+        throw std::runtime_error("No factory registered for asset type");
+    }
+
+    std::shared_ptr<Asset> newAsset = factoryIt->second(factoryContext);
+    size_t contentHash = newAsset->calculateContentHash();
+
+    // Check if we have an asset with the same content hash
+    auto existingAsset = std::find_if(metadata.begin(), metadata.end(),
+        [contentHash](const auto& pair) {
+            return pair.second.contentHash == contentHash;
+        });
+
+    if (existingAsset != metadata.end()) {
+        // We found an asset with the same content
+        return existingAsset->first;
+    }
+
+    // If we get here, this is a new unique asset
+    AssetInfo info;
+    info.id = boost::uuids::random_generator()();
+    info.path = factoryContext.path;
+    info.type = factoryContext.assetType;
+    info.contentHash = contentHash;
+
+    metadata[info.id] = info;
+    assets[info.id] = newAsset;
+
+    return info.id;
+}
 
 
     void AssetManager::registerFactory(AssetType type, AssetFactory factory) {
@@ -47,6 +61,10 @@ namespace ae {
         if (it != metadata.end()) return it->second;
         return std::nullopt;
     }
+
+    std::optional<std::shared_ptr<Asset>> AssetManager::lookupAsset(const boost::uuids::uuid &id) const {
+        auto it = assets.find(id);
+        if (it != assets.end()) return it->second;
+        return std::nullopt;
+    }
 }
-
-

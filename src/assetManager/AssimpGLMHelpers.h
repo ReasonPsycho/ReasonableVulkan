@@ -10,6 +10,8 @@
 #include "assimp/matrix4x4.h"
 #include "glm/ext/quaternion_float.hpp"
 #include "assimp/quaternion.h"
+namespace ae {
+    
 
 class AssimpGLMHelpers {
 public:
@@ -21,6 +23,7 @@ public:
     static glm::quat GetGLMQuat(const aiQuaternion& pOrientation);
 };
 
+}
 
 
 #endif //ZTGK_ASSIMPGLMHELPERS_H

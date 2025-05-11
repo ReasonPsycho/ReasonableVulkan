@@ -23,49 +23,50 @@ using namespace std;
 #include "AssimpGLMHelpers.h"
 #include "Texture.h"
 #include "Mesh.h"
+
 namespace ae {
-    
-    struct BoneInfo
-    {
+    struct BoneInfo {
         /*id is index in finalBoneMatrices*/
         int id;
         string parentNode;
         /*offset matrix transforms vertex from model space to bone space*/
         glm::mat4 offset;
-
     };
 
-    class Model :  public Asset {
-        static inline AssetFactoryRegistry::Registrar<Model> registrar{AssetType::Model};
-        public:
-        // model data 
-        vector<std::shared_ptr<Texture>> textureCatalogue;    // stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
-        vector<Mesh> meshes;
-        string directory;
 
-        std::map<string, BoneInfo> m_BoneInfoMap; //
+    
+    class Model : public Asset {
+        static inline AssetFactoryRegistry::Registrar<Model> registrar{AssetType::Model};
+    public:
+        // model data 
+        vector<std::shared_ptr<Texture> > textureCatalogue;
+        vector<std::shared_ptr<Mesh>> meshes;
+        std::map<string, BoneInfo> m_BoneInfoMap;
+        
         int m_BoneCounter = 0;
 
-        auto& GetBoneInfoMap() { return m_BoneInfoMap; }
-        int& GetBoneCount() { return m_BoneCounter; }
-        void ExtractBoneWeightForVertices(std::vector<Vertex>& vertices, aiMesh* mesh, const aiScene* scene);
-        void SetVertexBoneData(Vertex& vertex, int boneID, float weight);
-        void Normalize(Vertex& vertex);
+        auto &GetBoneInfoMap() { return m_BoneInfoMap; }
+        int &GetBoneCount() { return m_BoneCounter; }
+        void ExtractBoneWeightForVertices(std::vector<Vertex> &vertices, aiMesh *mesh, const aiScene *scene);
+        void SetVertexBoneData(Vertex &vertex, int boneID, float weight);
+        void Normalize(Vertex &vertex);
+        void SetVertexBoneDataToDefault(Vertex &vertex);
 
-        void SetVertexBoneDataToDefault(Vertex& vertex);
+        explicit Model(BaseFactoryContext base_factory_context): Asset(base_factory_context) {
+            loadFromFile(base_factory_context);
+        };
 
+        void loadFromFile(BaseFactoryContext base_factory_context);
 
-        Model(){};
-    
-        void loadFromFile(const std::string &path) override;
-    
-        string const *path;
-        private:
+    private:
 
-        void processNode(aiNode *node, const aiScene *scene);
-        Mesh processMesh(aiMesh *mesh, const aiScene *scene);
+        size_t calculateContentHash() const override;
+        [[nodiscard]] AssetType getType() const override;
+        
+        void processNode(BaseFactoryContext baseFactoryContext, aiNode *node, const aiScene *scene);
+
+        std::shared_ptr<Mesh> processMesh(BaseFactoryContext baseFactoryContext, aiMesh *mesh, const aiScene *scene);
     };
-
 }
 
 #endif //OPENGLGP_MODEL_H

@@ -7,10 +7,10 @@
 namespace ae {
     //private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
-    void Model::loadFromFile(const std::string &path) {
-        // read file via ASSIMP
+    void Model::loadFromFile(BaseFactoryContext base_factory_context) {
+
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile(*path,
+        const aiScene *scene = importer.ReadFile(base_factory_context.path,
                                                  aiProcess_Triangulate | aiProcess_GenSmoothNormals |
                                                  // aiProcess_FlipUVs | 
                                                  aiProcess_CalcTangentSpace);
@@ -20,30 +20,44 @@ namespace ae {
             spdlog::error("Assimp error: " + string(importer.GetErrorString()));
             return;
         }
-        // retrieve the directory editor_path of the filepath
-        directory = path->substr(0, path->find_last_of('/'));
 
         // process ASSIMP's root node recursively
-        processNode(scene->mRootNode, scene);
+        processNode(base_factory_context, scene->mRootNode, scene);
+    }
+
+    size_t Model::calculateContentHash() const {
+    size_t hash = 0;
+    
+    for (const auto& mesh : meshes) {
+        if (mesh) {
+            hash ^= mesh->calculateContentHash() + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+    }
+    
+    return hash;
+}
+
+    AssetType Model::getType() const {
+        return AssetType::Model;
     }
 
 
     // processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
-    void Model::processNode(aiNode *node, const aiScene *scene) {
+    void Model::processNode(BaseFactoryContext base_factory_context, aiNode *node, const aiScene *scene) {
         // process each mesh located at the current node
         for (unsigned int i = 0; i < node->mNumMeshes; i++) {
             // the node object only contains indices to index the actual objects in the scene. 
             // the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
             aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-            meshes.push_back(processMesh(mesh, scene));
+            meshes.push_back(processMesh(base_factory_context, mesh, scene));
         }
         // after we've processed all the meshes (if any) we then recursively process each of the children nodes
         for (unsigned int i = 0; i < node->mNumChildren; i++) {
-            processNode(node->mChildren[i], scene);
+            processNode(base_factory_context, node->mChildren[i], scene);
         }
     }
 
-    Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
+    std::shared_ptr<Mesh> Model::processMesh(BaseFactoryContext baseFactoryContext, aiMesh *mesh, const aiScene *scene) {
         // data to fill
         vector<Vertex> vertices;
         vector<unsigned int> indices;
@@ -52,7 +66,6 @@ namespace ae {
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
             SetVertexBoneDataToDefault(vertex);
-
             glm::vec3 vector;
             // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
             // positions
@@ -113,7 +126,13 @@ namespace ae {
         }
 
         // return a mesh object created from the extracted mesh data
-        return Mesh(vertices, indices);
+
+        
+        MeshFactoryContext meshFactoryContext = static_cast<MeshFactoryContext>(baseFactoryContext);
+        meshFactoryContext.vertices = vertices;
+        meshFactoryContext.indices = indices;
+       
+        return  baseFactoryContext.assetManager.getByUUID<Mesh>(baseFactoryContext.assetManager.registerAsset(meshFactoryContext));
     }
 
 
@@ -123,6 +142,7 @@ namespace ae {
             vertex.m_Weights[i] = 0.0f;
         }
     }
+    
 
     void Model::ExtractBoneWeightForVertices(vector<Vertex> &vertices, aiMesh *mesh, const aiScene *scene) {
         auto &boneInfoMap = m_BoneInfoMap;
@@ -191,9 +211,3 @@ namespace ae {
         }
     }
 }
-    
-
-
-
-
-

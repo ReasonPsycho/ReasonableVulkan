@@ -3,6 +3,8 @@
 //
 
 #include "AssimpGLMHelpers.h"
+namespace ae {
+    
 
 glm::mat4 AssimpGLMHelpers::ConvertMatrixToGLMFormat(const aiMatrix4x4 &from) {
     glm::mat4 to;
@@ -20,4 +22,5 @@ glm::quat AssimpGLMHelpers::GetGLMQuat(const aiQuaternion &pOrientation) {
 
 glm::vec3 AssimpGLMHelpers::GetGLMVec(const aiVector3D &vec) {
     return glm::vec3(vec.x, vec.y, vec.z);
+}
 }

@@ -4,15 +4,16 @@
 
 #include "Animation.h"
 
-Animation::Animation(const string &animationPath, Model *model) {
-    Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(animationPath, aiProcess_Triangulate);
+namespace ae {
+    Animation::Animation(AnimationFactoryContext animation_factory_context): Asset(animation_factory_context) {
+        Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(animation_factory_context.path, aiProcess_Triangulate);
     assert(scene && scene->mRootNode);
     auto animation = scene->mAnimations[0];
     m_Duration = animation->mDuration;
     m_TicksPerSecond = animation->mTicksPerSecond;
     ReadHeirarchyData(m_RootNode, scene->mRootNode);
-    ReadMissingBones(animation, *model);
+    ReadMissingBones(animation, *animation_factory_context.model);
 }
 
 Bone *Animation::FindBone(const string &name) {
@@ -75,6 +76,7 @@ void Animation::ReadHeirarchyData(AssimpNodeData &dest, const aiNode *src) {
     }
 }
 
+
 Animation::~Animation() {
 }
 
@@ -103,4 +105,5 @@ int Animation::GetBoneIdFromName(string name) {
     } else {
         return -1;
     }
+}
 }

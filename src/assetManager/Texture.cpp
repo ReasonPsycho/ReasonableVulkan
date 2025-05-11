@@ -1,56 +1,74 @@
 #include "Texture.h"
 
+namespace ae {
 
-void Texture::use(GLenum GL_TEXTUREX) {
-    glActiveTexture(GL_TEXTUREX);
-    glBindTexture(GL_TEXTURE_2D, ID);
+Texture::Texture(ae::BaseFactoryContext base_factory_context)
+    : Asset(base_factory_context) {
+    loadFromFile(base_factory_context.path);
 }
 
-Texture::~Texture() {
-    glDeleteTextures(1, &ID);
-}
+Texture::~Texture() = default;
 
-Texture::Texture(string path, string type) {
-    glGenTextures(1, &ID);
-    // set the texture wrapping/filtering options (on the currently bound texture object) //TODO this prob should be in class inputs
-    // load and generate the texture
-    unsigned char *data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
-    if (data) {
-        if (nrChannels == 1) //nifty 
-            format = GL_RED;
-        else if (nrChannels == 3)
-            format = GL_RGB;
-        else if (nrChannels == 4)
-            format = GL_RGBA;
-
-        glBindTexture(GL_TEXTURE_2D, ID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        stbi_image_free(data);
-        name = path.substr(path.find_last_of('/') + 1);
-        this->path = path;
-        this->type = type;
-    } else {
-        spdlog::error("Failed to load texture: " + path + ". Defaulting to black pixel.");
-        Texture();
+void Texture::loadFromFile(const std::string& path) {
+    // Force stb_image to return 4 channels for consistency
+    int width, height, channels;
+    stbi_set_flip_vertically_on_load(true);  // Flip images vertically
+    
+    uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    
+    if (!data) {
+        spdlog::error("Failed to load texture: {} - {}", path, stbi_failure_reason());
+        return;
     }
+
+    // Create new texture data
+    textureData = std::make_unique<TextureData>();
+    textureData->width = width;
+    textureData->height = height;
+    textureData->channels = 4; // We forced RGBA
+    textureData->hasAlpha = true;
+
+    // Calculate total size and copy data
+    size_t dataSize = width * height * 4; // 4 for RGBA
+    textureData->pixels.resize(dataSize);
+    std::memcpy(textureData->pixels.data(), data, dataSize);
+
+    // Free the stb_image data
+    stbi_image_free(data);
+
+    spdlog::info("Loaded texture: {} ({}x{}, {} channels)", 
+                 path, width, height, channels);
 }
 
-Texture::Texture(const Color& color) {
-    glGenTextures(1, &ID);
-    glBindTexture(GL_TEXTURE_2D, ID);
+size_t Texture::calculateContentHash() const {
+    if (!textureData) {
+        return 0;
+    }
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, color);
+    size_t hash = 0;
+    
+    // Hash basic properties
+    hash ^= std::hash<int>{}(textureData->width);
+    hash ^= std::hash<int>{}(textureData->height) << 1;
+    hash ^= std::hash<int>{}(textureData->channels) << 2;
+    
+    // Hash pixel data in chunks to improve performance
+    const size_t chunkSize = 1024; // Process 1KB at a time
+    const uint8_t* data = textureData->pixels.data();
+    const size_t totalSize = textureData->pixels.size();
+    
+    for (size_t i = 0; i < totalSize; i += chunkSize) {
+        size_t remaining = std::min(chunkSize, totalSize - i);
+        for (size_t j = 0; j < remaining; ++j) {
+            hash ^= std::hash<uint8_t>{}(data[i + j]) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+    }
+    
+    return hash;
+}
 
-    // Set the texture wrapping/filtering options (on the currently bound texture object)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+AssetType Texture::getType() const {
+    return AssetType::Texture;
+}
+
 }

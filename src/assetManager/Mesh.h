@@ -4,6 +4,11 @@
 
 #ifndef OPENGLGP_MESH_H
 #define OPENGLGP_MESH_H
+#include "Asset.hpp"
+
+namespace ae {
+    struct Vertex;
+}
 
 using namespace std;
 
@@ -15,8 +20,13 @@ using namespace std;
 
 #include "Shader.h"
 #include "Texture.h"
-#include "MaterialPhong.h"
 
+// Specialized context for textures
+
+
+
+namespace ae {
+    
 #define MAX_BONE_INFLUENCE 4
 
 struct Vertex {
@@ -36,27 +46,22 @@ struct Vertex {
     float m_Weights[MAX_BONE_INFLUENCE];
 };
 
-class Mesh {
+    struct MeshFactoryContext : ae::BaseFactoryContext {
+        vector<ae::Vertex> vertices;
+        vector<unsigned int> indices;
+    };
+    
+class Mesh: public Asset {
 public:
     // mesh Data
     vector<Vertex> vertices;
     vector<unsigned int> indices;
-    MaterialPhong material;
-    unsigned int VAO;
 
-    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, MaterialPhong material);         //This maby someday should intake a interface of materials
-    Mesh(unsigned int VAO, MaterialPhong material, vector<unsigned int> indices);
-
-    void setupMesh();
-
-    void Draw(Shader &shader);
-    void SimpleDraw(Shader &shader);
-
-private:
-    // render data 
-    unsigned int VBO, EBO;
-
+    explicit Mesh(MeshFactoryContext meshFactoryContext);         //This maby someday should intake a interface of materials
+    size_t calculateContentHash() const override;
+    [[nodiscard]] AssetType getType() const override;
 };
+}
 
 
 #endif //OPENGLGP_MESH_H

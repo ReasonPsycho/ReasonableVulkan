@@ -2,65 +2,57 @@
 #define SHADER_H
 
 #include <cstring>
-#include <fstream>
-#include <sstream>
-#include <iostream>
+#include <optional>
+#include <vector>
+#include <span>
+#include <cstdint>
+
+#include "Asset.hpp"
+#include "AssetManager.hpp"
 #include "spdlog/spdlog.h"
-#include "glm/detail/type_vec3.hpp"
-#include "glm/vec3.hpp"
-#include "glad/glad.h"
-#include "glm/vec4.hpp"
-#include "glm/vec2.hpp"
 
+#include <fstream>
+#include <filesystem>
+#include <functional>
 
-class Shader {
+namespace ae {
+
+enum class ShaderStage : uint32_t {
+    Vertex = 0,
+    Fragment = 1,
+    Compute = 2,
+    Geometry = 3,
+    TessellationControl = 4,
+    TessellationEvaluation = 5
+};
+
+struct ShaderData {
+    std::vector<std::uint32_t> bytecode;
+    ShaderStage stage;
+};
+
+struct ShaderFactoryContext : ae::BaseFactoryContext {
+    std::string shaderPath;
+};
+
+class Shader : public Asset {
 public:
-    // the program ID
-    GLuint ID;
+    explicit Shader(ae::ShaderFactoryContext shader_factory_context)
+        : Asset(shader_factory_context) {}
 
-    // constructor reads and builds the shader
-    Shader(const char *vertexPath, const char *fragmentPath)
-            : vertexPath(vertexPath), fragmentPath(fragmentPath) {}
-
-
-    Shader(const char *vertexPath, const char *fragmentPath, const char *geometryPath)
-            : vertexPath(vertexPath), fragmentPath(fragmentPath), geometryPath(geometryPath) {}
-
-    // use/activate the shader
-    void use() const;
-
-    void init();
-
-    void initWithGeometry();
-
-    // utility uniform functions
-    void setBool(const std::string &name, bool value) const;
-
-    void setInt(const std::string &name, int value) const;
-
-    void setFloat(const std::string &name, float value) const;
-
-    void setGLuint(const std::string &name, GLuint value) const;
-
-    void setMatrix4(const std::string &name, bool transpose, const GLfloat *value) const;
-
-    void setVec2(const std::string &name, glm::vec2 vec2);
-
-    void setVec3(const std::string &name, float d, float d1, float d2);
-
-    void setVec3(const std::string &name, glm::vec3 vec3);
-
-    void setVec4(const std::string &name, glm::vec4 vec4);
+    void loadFromFile(const std::string& path);
+    
+    // Returns a view into the shader bytecode
+    [[nodiscard]] std::span<const std::uint32_t> getBytecode() const;
+    [[nodiscard]] ShaderStage getStage() const;
 
 private:
-    const char *vertexPath{};
-    const char *fragmentPath{};
-    const char *geometryPath{};
+    std::optional<ShaderData> shaderData;
 
-    // utility function for checking shader compilation/linking errors.
-    // ------------------------------------------------------------------------
-    void checkCompileErrors(unsigned int shader, std::string type);
-
+    size_t calculateContentHash() const override;
+    [[nodiscard]] AssetType getType() const override;
 };
+
+} // namespace ae
 
 #endif

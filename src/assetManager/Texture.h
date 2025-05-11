@@ -1,37 +1,49 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-
 #include "stb_image.h"
 #include <string>
-#include <fstream>
-#include <sstream>
-#include <iostream>
+#include <vector>
+#include <cstdint>
+#include "Asset.hpp"
 #include "spdlog/spdlog.h"
-#include "glad/glad.h"
+#include <functional>
 
-using namespace std;
+namespace ae {
 
-using Color = GLubyte[4];
-
-
-class Texture {
-public:
-    Texture(string path, string type); //TODO change this to enum
-    Texture( const Color& color = {0, 0, 0, 0}); 
-
-    ~Texture();
-
-    // the texture ID
-    GLuint ID{};
-    string path;
-    string type; //TODO remove this shit
-    string name;
-    GLenum format;
-    int width, height, nrChannels;
-    // constructor reads and builds the texture
-    void use(GLenum GL_TEXTUREX);
+struct TextureData {
+    std::vector<std::uint8_t> pixels;
+    int width{0};
+    int height{0};
+    int channels{0};
+    bool hasAlpha{false};
 };
 
+class Texture : public Asset {
+public:
+    explicit Texture(ae::BaseFactoryContext base_factory_context);
+    ~Texture() override;
+    
+    void loadFromFile(const std::string& path);
+    
+    [[nodiscard]] size_t calculateContentHash() const override;
+    [[nodiscard]] AssetType getType() const override;
+    
+    [[nodiscard]] int getWidth() const { return textureData ? textureData->width : 0; }
+    [[nodiscard]] int getHeight() const { return textureData ? textureData->height : 0; }
+    [[nodiscard]] int getChannels() const { return textureData ? textureData->channels : 0; }
+    [[nodiscard]] bool hasAlpha() const { return textureData ? textureData->hasAlpha : false; }
+    [[nodiscard]] const uint8_t* getData() const { 
+        return textureData ? textureData->pixels.data() : nullptr; 
+    }
+    [[nodiscard]] size_t getDataSize() const {
+        return textureData ? textureData->pixels.size() : 0;
+    }
 
-#endif 
+private:
+    std::unique_ptr<TextureData> textureData;
+};
+
+}
+
+#endif

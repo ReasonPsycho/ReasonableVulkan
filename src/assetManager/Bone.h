@@ -12,6 +12,8 @@
 #include "glm/gtx/quaternion.hpp"
 #include "assimp/anim.h"
 
+namespace ae {
+    
 
 struct KeyPosition
 {
@@ -90,6 +92,7 @@ private:
     glm::mat4 InterpolateScaling(float animationTime);
 
 };
+}
 
 
 #endif //ZTGK_BONE_H
