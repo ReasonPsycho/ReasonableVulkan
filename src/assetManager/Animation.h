@@ -17,7 +17,7 @@
 namespace ae {
     struct AssimpNodeData {
         glm::mat4 transformation;
-    std::string name;
+        std::string name;
     int childrenCount;
     std::vector<AssimpNodeData> children;
 };
@@ -35,7 +35,7 @@ namespace ae {
         Animation &operator=(const Animation &source) {
             // Check for self-assignment
             if (this == &source) {
-            return *this;
+                return *this;
         }
         m_Duration = source.m_Duration;
         m_TicksPerSecond = source.m_TicksPerSecond;

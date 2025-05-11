@@ -53,7 +53,7 @@ struct Vertex {
     public:
         // mesh Data
         vector<Vertex> vertices;
-    vector<unsigned int> indices;
+        vector<unsigned int> indices;
 
         explicit Mesh(MeshFactoryContext meshFactoryContext); //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;

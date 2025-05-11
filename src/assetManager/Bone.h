@@ -15,7 +15,7 @@
 namespace ae {
     struct KeyPosition {
         glm::vec3 position;
-    float timeStamp;
+        float timeStamp;
 };
 
 struct KeyRotation
