@@ -13,7 +13,7 @@ namespace ae {
         Animator
     };
 
-    inline std::ostream& operator<<(std::ostream& os, const AssetType& type) {
+    inline std::ostream &operator<<(std::ostream &os, const AssetType &type) {
         switch (type) {
             case AssetType::Mesh:
                 return os << "Mesh";

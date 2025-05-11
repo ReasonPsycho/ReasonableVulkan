@@ -9,10 +9,15 @@
 namespace ae {
     class Asset {
     public:
-        explicit Asset(BaseFactoryContext baseFactoryContext) {}
+        explicit Asset(BaseFactoryContext baseFactoryContext) {
+        }
+
         virtual ~Asset() = default;
-        virtual size_t calculateContentHash() const = 0;  
+
+        virtual size_t calculateContentHash() const = 0;
+
         [[nodiscard]] virtual AssetType getType() const = 0;
+
     protected:
         std::string path;
         boost::uuids::uuid id;

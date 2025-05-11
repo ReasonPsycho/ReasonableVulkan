@@ -2,9 +2,9 @@
 
 
 namespace ae {
-    void Shader::loadFromFile(const std::string& path) {
+    void Shader::loadFromFile(const std::string &path) {
         std::ifstream file(path, std::ios::ate | std::ios::binary);
-        
+
         if (!file.is_open()) {
             spdlog::error("Failed to open shader file: {}", path);
             return;
@@ -24,7 +24,7 @@ namespace ae {
         std::vector<std::uint32_t> code(fileSize / sizeof(std::uint32_t));
 
         // Read the file
-        file.read(reinterpret_cast<char*>(code.data()), fileSize);
+        file.read(reinterpret_cast<char *>(code.data()), fileSize);
 
         if (!file) {
             spdlog::error("Failed to read shader file: {}", path);
@@ -34,7 +34,7 @@ namespace ae {
         // Determine shader stage from file extension
         ShaderStage stage = ShaderStage::Vertex; // Default to vertex
         std::string extension = std::filesystem::path(path).extension().string();
-        
+
         if (extension == ".vert" || extension == ".vsh") {
             stage = ShaderStage::Vertex;
         } else if (extension == ".frag" || extension == ".fsh") {
@@ -54,7 +54,7 @@ namespace ae {
             .bytecode = std::move(code),
             .stage = stage
         };
-        
+
         spdlog::info("Loaded shader: {} (size: {} bytes)", path, fileSize);
     }
 
@@ -64,15 +64,15 @@ namespace ae {
         }
 
         size_t hash = 0;
-        
+
         // Hash both the bytecode and the shader stage
-        for (const auto& word : shaderData->bytecode) {
+        for (const auto &word: shaderData->bytecode) {
             hash ^= std::hash<std::uint32_t>{}(word) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
         }
-        
+
         // Combine with shader stage
         hash ^= std::hash<std::uint32_t>{}(static_cast<std::uint32_t>(shaderData->stage));
-        
+
         return hash;
     }
 
