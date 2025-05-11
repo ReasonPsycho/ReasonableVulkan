@@ -13,9 +13,7 @@
 #include "assimp/anim.h"
 
 namespace ae {
-    
-
-struct KeyPosition
+    struct KeyPosition
 {
     glm::vec3 position;
     float timeStamp;

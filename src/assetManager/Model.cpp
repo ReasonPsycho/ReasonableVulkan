@@ -8,7 +8,6 @@ namespace ae {
     //private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
     void Model::loadFromFile(BaseFactoryContext base_factory_context) {
-
         Assimp::Importer importer;
         const aiScene *scene = importer.ReadFile(base_factory_context.path,
                                                  aiProcess_Triangulate | aiProcess_GenSmoothNormals |
@@ -26,16 +25,16 @@ namespace ae {
     }
 
     size_t Model::calculateContentHash() const {
-    size_t hash = 0;
-    
-    for (const auto& mesh : meshes) {
-        if (mesh) {
-            hash ^= mesh->calculateContentHash() + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        size_t hash = 0;
+
+        for (const auto &mesh: meshes) {
+            if (mesh) {
+                hash ^= mesh->calculateContentHash() + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+            }
         }
+
+        return hash;
     }
-    
-    return hash;
-}
 
     AssetType Model::getType() const {
         return AssetType::Model;
@@ -127,12 +126,13 @@ namespace ae {
 
         // return a mesh object created from the extracted mesh data
 
-        
+
         MeshFactoryContext meshFactoryContext = static_cast<MeshFactoryContext>(baseFactoryContext);
         meshFactoryContext.vertices = vertices;
         meshFactoryContext.indices = indices;
-       
-        return  baseFactoryContext.assetManager.getByUUID<Mesh>(baseFactoryContext.assetManager.registerAsset(meshFactoryContext));
+
+        return baseFactoryContext.assetManager.getByUUID<Mesh>(
+            baseFactoryContext.assetManager.registerAsset(meshFactoryContext));
     }
 
 

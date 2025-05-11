@@ -15,9 +15,7 @@
 #include <vector>
 
 namespace ae {
-    
-
-struct AssimpNodeData
+    struct AssimpNodeData
 {
     glm::mat4 transformation;
     std::string name;
@@ -26,16 +24,16 @@ struct AssimpNodeData
 };
 
     struct AnimationFactoryContext : ae::BaseFactoryContext {
-        Model* model;
+        Model *model;
     };
-    
-class Animation : public Asset
-{
-public:
-    Animation(AnimationFactoryContext animation_factory_context);
-    ~Animation();
-    
-    Animation& operator=(const Animation &source) {
+
+    class Animation : public Asset {
+    public:
+        Animation(AnimationFactoryContext animation_factory_context);
+
+        ~Animation();
+
+        Animation& operator=(const Animation &source) {
         // Check for self-assignment
         if (this == &source) {
             return *this;
@@ -48,7 +46,7 @@ public:
         // Possibly add guards to delete old data
 
         return *this;
-    }
+        }
 
 
 

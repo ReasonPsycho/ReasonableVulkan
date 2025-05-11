@@ -14,7 +14,7 @@
 #include <boost/test/tools/assertion.hpp>
 
 namespace ae {
-    class Asset;  // Forward declaration
+    class Asset; // Forward declaration
     class AssetManager;
 
     struct AssetInfo {
@@ -25,18 +25,21 @@ namespace ae {
     };
 
     struct BaseFactoryContext {
-        AssetManager& assetManager;
+        AssetManager &assetManager;
         std::string path;
         AssetType assetType;
     };
 
     class AssetManager {
         using AssetFactory = std::function<std::shared_ptr<Asset>(BaseFactoryContext factory_context)>;
+
     public:
         static AssetManager &getInstance();
+
         boost::uuids::uuid registerAsset(BaseFactoryContext factoryContext);
+
         void registerFactory(AssetType type, AssetFactory factory);
-        
+
         template<typename T>
         std::shared_ptr<T> getByUUID(const boost::uuids::uuid &id) {
             auto it = assets.find(id);
@@ -64,12 +67,13 @@ namespace ae {
 
     private:
         AssetManager() = default;
-        
-        [[nodiscard]] std::optional<AssetInfo> lookupAssetInfo(const boost::uuids::uuid &id) const;
-        [[nodiscard]] std::optional<std::shared_ptr<Asset>> lookupAsset(const boost::uuids::uuid &id) const;
 
-        std::unordered_map<boost::uuids::uuid, std::shared_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
-        std::unordered_map<boost::uuids::uuid, AssetInfo, boost::hash<boost::uuids::uuid>> metadata;
+        [[nodiscard]] std::optional<AssetInfo> lookupAssetInfo(const boost::uuids::uuid &id) const;
+
+        [[nodiscard]] std::optional<std::shared_ptr<Asset> > lookupAsset(const boost::uuids::uuid &id) const;
+
+        std::unordered_map<boost::uuids::uuid, std::shared_ptr<Asset>, boost::hash<boost::uuids::uuid> > assets;
+        std::unordered_map<boost::uuids::uuid, AssetInfo, boost::hash<boost::uuids::uuid> > metadata;
         std::unordered_map<AssetType, AssetFactory> factories;
     };
 } // ae

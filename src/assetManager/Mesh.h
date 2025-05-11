@@ -24,9 +24,7 @@ using namespace std;
 // Specialized context for textures
 
 
-
 namespace ae {
-    
 #define MAX_BONE_INFLUENCE 4
 
 struct Vertex {
@@ -50,17 +48,18 @@ struct Vertex {
         vector<ae::Vertex> vertices;
         vector<unsigned int> indices;
     };
-    
-class Mesh: public Asset {
-public:
+
+    class Mesh : public Asset {
+    public:
     // mesh Data
     vector<Vertex> vertices;
     vector<unsigned int> indices;
 
-    explicit Mesh(MeshFactoryContext meshFactoryContext);         //This maby someday should intake a interface of materials
+    explicit Mesh(MeshFactoryContext meshFactoryContext); //This maby someday should intake a interface of materials
     size_t calculateContentHash() const override;
+
     [[nodiscard]] AssetType getType() const override;
-};
+    };
 }
 
 

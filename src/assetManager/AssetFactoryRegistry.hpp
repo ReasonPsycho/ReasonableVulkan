@@ -6,16 +6,15 @@
 #define ASSETFACTORYREGISTRY_HPP
 
 
-
 class AssetFactoryRegistry {
 public:
     template<typename T>
     struct Registrar {
         explicit Registrar(ae::AssetType type) {
-            ae::AssetManager::getInstance().registerFactory(type, 
-                [](ae::BaseFactoryContext context) {
-                    return std::make_shared<T>(context);
-                }
+            ae::AssetManager::getInstance().registerFactory(type,
+                                                            [](ae::BaseFactoryContext context) {
+                                                                return std::make_shared<T>(context);
+                                                            }
             );
         }
     };

@@ -24,9 +24,9 @@ boost::uuids::uuid AssetManager::registerAsset(BaseFactoryContext factoryContext
 
     // Check if we have an asset with the same content hash
     auto existingAsset = std::find_if(metadata.begin(), metadata.end(),
-        [contentHash](const auto& pair) {
-            return pair.second.contentHash == contentHash;
-        });
+                                      [contentHash](const auto &pair) {
+                                          return pair.second.contentHash == contentHash;
+                                      });
 
     if (existingAsset != metadata.end()) {
         // We found an asset with the same content
@@ -62,7 +62,7 @@ boost::uuids::uuid AssetManager::registerAsset(BaseFactoryContext factoryContext
         return std::nullopt;
     }
 
-    std::optional<std::shared_ptr<Asset>> AssetManager::lookupAsset(const boost::uuids::uuid &id) const {
+    std::optional<std::shared_ptr<Asset> > AssetManager::lookupAsset(const boost::uuids::uuid &id) const {
         auto it = assets.find(id);
         if (it != assets.end()) return it->second;
         return std::nullopt;
