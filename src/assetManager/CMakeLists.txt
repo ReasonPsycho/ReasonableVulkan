@@ -24,6 +24,9 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 # Create platform static library
 add_library(am STATIC ${BASE_SRC})
 
+if (MSVC)
+    add_compile_options(/utf-8)
+endif ()
 
 # Configure include directories
 target_include_directories(am
@@ -38,6 +41,7 @@ target_link_libraries(am
         assimp::assimp
         Boost::uuid
 )
+
 
 
 # Enable tests in Debug mode by default or when explicitly enabled
