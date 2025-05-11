@@ -45,7 +45,7 @@ namespace ae {
 
     private:
         std::unique_ptr<TextureData> textureData;
-};
+    };
 
 }
 

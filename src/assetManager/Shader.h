@@ -51,7 +51,8 @@ namespace ae {
         std::optional<ShaderData> shaderData;
 
         size_t calculateContentHash() const override;
-    [[nodiscard]] AssetType getType() const override;
+
+        [[nodiscard]] AssetType getType() const override;
 };
 
 } // namespace ae

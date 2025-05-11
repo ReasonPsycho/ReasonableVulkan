@@ -12,7 +12,7 @@
 #include "assimp/quaternion.h"
 namespace ae {
     class AssimpGLMHelpers {
-public:
+    public:
 
     static  glm::mat4 ConvertMatrixToGLMFormat(const aiMatrix4x4& from);
 

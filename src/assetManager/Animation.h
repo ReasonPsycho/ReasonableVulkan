@@ -15,8 +15,7 @@
 #include <vector>
 
 namespace ae {
-    struct AssimpNodeData
-{
+    struct AssimpNodeData {
     glm::mat4 transformation;
     std::string name;
     int childrenCount;
@@ -33,8 +32,8 @@ namespace ae {
 
         ~Animation();
 
-        Animation& operator=(const Animation &source) {
-        // Check for self-assignment
+        Animation &operator=(const Animation &source) {
+            // Check for self-assignment
         if (this == &source) {
             return *this;
         }
@@ -49,8 +48,7 @@ namespace ae {
         }
 
 
-
-    Bone* FindBone(const std::string& name);
+        Bone* FindBone(const std::string& name);
 
 
     float GetTicksPerSecond();
