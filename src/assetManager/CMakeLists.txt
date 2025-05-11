@@ -8,7 +8,7 @@ find_package(assimp CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
 
 # Add option to enable/disable tests
-option(am_ENABLE_TESTS "Enable testing for asset manager module" OFF)
+option(AM_ENABLE_TESTS "Enable testing for asset manager module" OFF)
 
 # Define source files explicitly, excluding test directory
 file(GLOB_RECURSE BASE_SRC
@@ -24,18 +24,21 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 # Create platform static library
 add_library(am STATIC ${BASE_SRC})
 
+
 # Configure include directories
 target_include_directories(am
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 # Link Assimp and Boost UUID
 target_link_libraries(am
         PUBLIC
         assimp::assimp
         Boost::uuid
 )
+
 
 # Enable tests in Debug mode by default or when explicitly enabled
 if (AM_ENABLE_TESTS)
@@ -52,6 +55,8 @@ if (AM_ENABLE_TESTS)
 
     # Create test executable
     add_executable(am_test ${TEST_SRC})
+
+
     target_link_libraries(am_test
             PRIVATE
             am

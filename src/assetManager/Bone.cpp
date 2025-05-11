@@ -4,6 +4,9 @@
 
 #include "Bone.h"
 
+namespace ae {
+    
+
 Bone::Bone(const std::string &name, int ID, const aiNodeAnim *channel)
         :
         m_Name(name),
@@ -129,4 +132,5 @@ glm::mat4 Bone::InterpolateScaling(float animationTime) {
     glm::vec3 finalScale = glm::mix(m_Scales[p0Index].scale, m_Scales[p1Index].scale
             , scaleFactor);
     return glm::scale(glm::mat4(1.0f), finalScale);
+}
 }

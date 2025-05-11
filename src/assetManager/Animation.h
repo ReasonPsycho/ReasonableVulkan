@@ -14,6 +14,9 @@
 #include <string>
 #include <vector>
 
+namespace ae {
+    
+
 struct AssimpNodeData
 {
     glm::mat4 transformation;
@@ -22,10 +25,16 @@ struct AssimpNodeData
     std::vector<AssimpNodeData> children;
 };
 
-class Animation
+    struct AnimationFactoryContext : ae::BaseFactoryContext {
+        Model* model;
+    };
+    
+class Animation : public Asset
 {
 public:
-    Animation() = default;
+    Animation(AnimationFactoryContext animation_factory_context);
+    ~Animation();
+    
     Animation& operator=(const Animation &source) {
         // Check for self-assignment
         if (this == &source) {
@@ -40,9 +49,8 @@ public:
 
         return *this;
     }
-    Animation(const std::string& animationPath, Model* model);
 
-    ~Animation();
+
 
     Bone* FindBone(const std::string& name);
 
@@ -66,7 +74,9 @@ private:
     std::vector<Bone> m_Bones;
     AssimpNodeData m_RootNode;
     std::map<std::string, BoneInfo> m_BoneInfoMap;
+    
 };
+}
 
 
 #endif //ZTGK_ANIMATION_H

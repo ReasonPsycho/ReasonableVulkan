@@ -1,39 +1,22 @@
-//
-// Created by redkc on 09.05.2025.
-//
-
 #ifndef ASSET_HPP
 #define ASSET_HPP
 #include <string>
 #include <boost/uuid/uuid.hpp>
 #include <filesystem>
-
+#include "AssetTypes.hpp"
 #include "AssetManager.hpp"
-#include "UUIDManager.hpp"
-
 
 namespace ae {
-    enum class AssetType {
-        Mesh,
-        Model,
-        Texture,
-        Shader,
-        Animation,
-        Animator
-    };
-
     class Asset {
     public:
-        Asset(AssetManager) {
-        }
-
+        explicit Asset(BaseFactoryContext baseFactoryContext) {}
         virtual ~Asset() = default;
-
-        virtual void loadFromFile(const std::string &path) = 0;
-
-        virtual AssetType getType() const = 0;
+        virtual size_t calculateContentHash() const = 0;  
+        [[nodiscard]] virtual AssetType getType() const = 0;
+    protected:
+        std::string path;
+        boost::uuids::uuid id;
     };
 }
-
 
 #endif //ASSET_HPP
