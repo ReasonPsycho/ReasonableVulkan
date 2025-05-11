@@ -53,7 +53,7 @@ namespace ae {
         size_t calculateContentHash() const override;
 
         [[nodiscard]] AssetType getType() const override;
-};
+    };
 
 } // namespace ae
 
