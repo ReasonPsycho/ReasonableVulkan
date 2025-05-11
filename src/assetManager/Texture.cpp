@@ -61,7 +61,7 @@ namespace ae {
             for (size_t j = 0; j < remaining; ++j) {
                 hash ^= std::hash<uint8_t>{}(data[i + j]) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
             }
-    }
+        }
     
     return hash;
 }
