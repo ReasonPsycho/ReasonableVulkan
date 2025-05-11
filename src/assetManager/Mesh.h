@@ -52,13 +52,13 @@ struct Vertex {
     class Mesh : public Asset {
     public:
         // mesh Data
-    vector<Vertex> vertices;
+        vector<Vertex> vertices;
     vector<unsigned int> indices;
 
         explicit Mesh(MeshFactoryContext meshFactoryContext); //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;
 
-    [[nodiscard]] AssetType getType() const override;
+        [[nodiscard]] AssetType getType() const override;
     };
 }
 
