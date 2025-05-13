@@ -66,8 +66,8 @@ namespace test {
                                                                         BaseFactoryContext context{
                                                                             *assetManager,
                                                                             planePath,
-                AssetType::Model
-            };
+                                                                            AssetType::Model
+                                                                        };
 
             auto uuid = assetManager->registerAsset(context);
             auto model = assetManager->getByUUID<Model>(uuid);
