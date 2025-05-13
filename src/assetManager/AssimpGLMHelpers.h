@@ -19,7 +19,6 @@ namespace ae {
 
         static glm::quat GetGLMQuat(const aiQuaternion &pOrientation);
     };
-
 }
 
 

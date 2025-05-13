@@ -36,7 +36,7 @@ namespace ae {
 
     class Model : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<Model,BaseFactoryContext> registrar{AssetType::Model};
+        static inline AssetFactoryRegistry::Registrar<Model, BaseFactoryContext> registrar{AssetType::Model};
         // model data 
         vector<std::shared_ptr<Texture> > textureCatalogue;
         vector<std::shared_ptr<Mesh> > meshes;
