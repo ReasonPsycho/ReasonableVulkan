@@ -12,7 +12,7 @@ using namespace std;
 
 namespace ae {
     // constructor
-    Mesh::Mesh(MeshFactoryContext meshFactoryContext) : Asset(static_cast<BaseFactoryContext>(meshFactoryContext)),
+    Mesh::Mesh(MeshFactoryContext meshFactoryContext) : Asset(meshFactoryContext),
                                                         vertices(meshFactoryContext.vertices),
                                                         indices(meshFactoryContext.indices) {
         // now that we have all the required data, set the vertex buffers and its attribute pointers.

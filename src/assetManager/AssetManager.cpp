@@ -48,7 +48,7 @@ boost::uuids::uuid AssetManager::registerAsset(BaseFactoryContext factoryContext
 
 
     void AssetManager::registerFactory(AssetType type, AssetFactory factory) {
-        factories[type] = factory;
+        factories[type] = std::move(factory);
     }
 
     AssetManager &AssetManager::getInstance() {

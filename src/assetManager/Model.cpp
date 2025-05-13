@@ -126,10 +126,10 @@ namespace ae {
 
         // return a mesh object created from the extracted mesh data
 
-
-        MeshFactoryContext meshFactoryContext = static_cast<MeshFactoryContext>(baseFactoryContext);
-        meshFactoryContext.vertices = vertices;
-        meshFactoryContext.indices = indices;
+        MeshFactoryContext meshFactoryContext{baseFactoryContext}; // Construct new context from base
+        meshFactoryContext.assetType = AssetType::Mesh;
+        meshFactoryContext.vertices = std::move(vertices);
+        meshFactoryContext.indices = std::move(indices);
 
         return baseFactoryContext.assetManager.getByUUID<Mesh>(
             baseFactoryContext.assetManager.registerAsset(meshFactoryContext));

@@ -80,7 +80,33 @@ void Animation::ReadHeirarchyData(AssimpNodeData &dest, const aiNode *src) {
 Animation::~Animation() {
 }
 
- glm::mat4 Animation::GetBoneTranslationMatrix(string name) {
+size_t Animation::calculateContentHash() const {
+    size_t hash = 0;
+
+    // Hash duration and ticks per second
+    hash = std::hash<float>{}(m_Duration);
+    hash ^= std::hash<int>{}(m_TicksPerSecond) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+
+    // Hash bones
+    for (const auto &bone: m_Bones) {
+        const std::string &boneName = bone.GetBoneName();
+        hash ^= std::hash<std::string>{}(boneName) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+    }
+
+    // Hash bone info map
+    for (const auto &[boneName, boneInfo]: m_BoneInfoMap) {
+        hash ^= std::hash<std::string>{}(boneName) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        hash ^= std::hash<int>{}(boneInfo.id) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+    }
+
+    return hash;
+}
+
+AssetType Animation::getType() const {
+    return AssetType::Animation;
+}
+
+glm::mat4 Animation::GetBoneTranslationMatrix(string name) {
 
     auto it = m_BoneInfoMap.find(name);
     std::vector<glm::mat4> boneTranslationPath;

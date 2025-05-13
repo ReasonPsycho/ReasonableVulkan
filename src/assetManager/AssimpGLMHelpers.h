@@ -17,8 +17,8 @@ namespace ae {
 
         static glm::vec3 GetGLMVec(const aiVector3D &vec);
 
-        static glm::quat GetGLMQuat(const aiQuaternion& pOrientation);
-};
+        static glm::quat GetGLMQuat(const aiQuaternion &pOrientation);
+    };
 
 }
 

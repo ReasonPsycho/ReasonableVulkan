@@ -1,6 +1,8 @@
 #ifndef ASSETMANAGER_HPP
 #define ASSETMANAGER_HPP
 
+#include "stb_image.h"
+
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -31,9 +33,11 @@ namespace ae {
     };
 
     class AssetManager {
-        using AssetFactory = std::function<std::shared_ptr<Asset>(BaseFactoryContext factory_context)>;
+        using AssetFactory = std::function<std::shared_ptr<ae::Asset>(ae::BaseFactoryContext&)>;
 
     public:
+
+
         static AssetManager &getInstance();
 
         boost::uuids::uuid registerAsset(BaseFactoryContext factoryContext);
@@ -69,7 +73,6 @@ namespace ae {
         AssetManager() = default;
 
         [[nodiscard]] std::optional<AssetInfo> lookupAssetInfo(const boost::uuids::uuid &id) const;
-
         [[nodiscard]] std::optional<std::shared_ptr<Asset> > lookupAsset(const boost::uuids::uuid &id) const;
 
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<Asset>, boost::hash<boost::uuids::uuid> > assets;
