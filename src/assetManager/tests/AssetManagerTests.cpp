@@ -20,45 +20,52 @@ namespace test {
 
     BOOST_FIXTURE_TEST_SUITE(ModelAndAssetManagerTests, TestFixture)
 
-        BOOST_AUTO_TEST_CASE(AssetManager_RegisterAndRetrieveAsset) {
-            // Test registering a model asset
-            BaseFactoryContext context{
-                *assetManager,
-                boxPath,
-                AssetType::Model
-            };
+                                                                    BOOST_AUTO_TEST_CASE(
+                                                                        AssetManager_RegisterAndRetrieveAsset) {
+                                                                        // Test registering a model asset
+                                                                        BaseFactoryContext context{
+                                                                            *assetManager,
+                                                                            boxPath,
+                                                                            AssetType::Model
+                                                                        };
 
-            auto uuid = assetManager->registerAsset(context);
-            BOOST_CHECK(uuid != boost::uuids::nil_uuid());
+                                                                        auto uuid = assetManager->
+                                                                                registerAsset(context);
+                                                                        BOOST_CHECK(uuid != boost::uuids::nil_uuid());
 
-            // Test retrieving the asset
-            auto model = assetManager->getByUUID<Model>(uuid);
-            BOOST_CHECK(model != nullptr);
-            BOOST_CHECK(!model->meshes.empty());
-        }
+                                                                        // Test retrieving the asset
+                                                                        auto model = assetManager->getByUUID<Model>(
+                                                                            uuid);
+                                                                        BOOST_CHECK(model != nullptr);
+                                                                        BOOST_CHECK(!model->meshes.empty());
+                                                                    }
 
-        BOOST_AUTO_TEST_CASE(AssetManager_LookupAssetByPath) {
-            // Register an asset first
-            BaseFactoryContext context{
-                *assetManager,
-                spherePath,
-                AssetType::Model
-            };
+                                                                    BOOST_AUTO_TEST_CASE(
+                                                                        AssetManager_LookupAssetByPath) {
+                                                                        // Register an asset first
+                                                                        BaseFactoryContext context{
+                                                                            *assetManager,
+                                                                            spherePath,
+                                                                            AssetType::Model
+                                                                        };
 
-            auto uuid = assetManager->registerAsset(context);
+                                                                        auto uuid = assetManager->
+                                                                                registerAsset(context);
 
-            // Test looking up asset info by path
-            auto assetInfo = assetManager->lookupAssetInfoByPath(spherePath);
-            BOOST_CHECK(assetInfo.has_value());
-            BOOST_CHECK_EQUAL(assetInfo->path, spherePath);
-            BOOST_CHECK_EQUAL(assetInfo->type, AssetType::Model);
-            BOOST_CHECK_EQUAL(assetInfo->id, uuid);
-        }
+                                                                        // Test looking up asset info by path
+                                                                        auto assetInfo = assetManager->
+                                                                                lookupAssetInfoByPath(spherePath);
+                                                                        BOOST_CHECK(assetInfo.has_value());
+                                                                        BOOST_CHECK_EQUAL(assetInfo->path, spherePath);
+                                                                        BOOST_CHECK_EQUAL(
+                                                                            assetInfo->type, AssetType::Model);
+                                                                        BOOST_CHECK_EQUAL(assetInfo->id, uuid);
+                                                                    }
 
-        BOOST_AUTO_TEST_CASE(Model_LoadAndVerifyStructure) {
-            BaseFactoryContext context{
-                *assetManager,
-                planePath,
+                                                                    BOOST_AUTO_TEST_CASE(Model_LoadAndVerifyStructure) {
+                                                                        BaseFactoryContext context{
+                                                                            *assetManager,
+                                                                            planePath,
                 AssetType::Model
             };
 

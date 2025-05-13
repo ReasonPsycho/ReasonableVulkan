@@ -19,7 +19,7 @@ namespace ae {
     };
 
     struct KeyRotation {
-    glm::quat orientation;
+        glm::quat orientation;
     float timeStamp;
 };
 
