@@ -15,6 +15,8 @@
 #include <filesystem>
 #include <functional>
 
+#include "AssetFactoryRegistry.hpp"
+
 namespace ae {
     enum class ShaderStage : uint32_t {
         Vertex = 0,
@@ -30,14 +32,11 @@ namespace ae {
         ShaderStage stage;
     };
 
-    struct ShaderFactoryContext : ae::BaseFactoryContext {
-        std::string shaderPath;
-    };
-
     class Shader : public Asset {
     public:
-        explicit Shader(ae::ShaderFactoryContext shader_factory_context)
-            : Asset(shader_factory_context) {
+        static inline AssetFactoryRegistry::Registrar<Shader,BaseFactoryContext> registrar{AssetType::Shader};
+        explicit Shader(ae::BaseFactoryContext base_factory_context)
+            : Asset(base_factory_context) {
         }
 
         void loadFromFile(const std::string &path);

@@ -1,105 +1,140 @@
-// MockAssetTest.cpp
-#define BOOST_TEST_MODULE MockAssetTests
+// test_model_and_asset_manager.cpp
+#define BOOST_TEST_MODULE ModelAndAssetManagerTests
+#include <set>
 #include <boost/test/unit_test.hpp>
+#include "Model.h"
 #include "AssetManager.hpp"
-#include "MockAsset.hpp"
 
 namespace ae {
-    // Factory function for MockAsset
-    std::shared_ptr<Asset> createMockAsset(BaseFactoryContext context) {
-        return std::make_shared<MockAsset>(context);
+namespace test {
+
+struct TestFixture {
+    TestFixture() {
+        assetManager = &AssetManager::getInstance();
     }
+    
+    AssetManager* assetManager;
+    const std::string boxPath = "../../res/models/my/Box.fbx";
+    const std::string spherePath = "../../res/models/my/Sphere.fbx";
+    const std::string planePath = "../../res/models/my/Plane.fbx";
+};
 
-    BOOST_AUTO_TEST_SUITE(MockAssetTests)
+BOOST_FIXTURE_TEST_SUITE(ModelAndAssetManagerTests, TestFixture)
 
-    BOOST_AUTO_TEST_CASE(test_asset_registration) {
-        AssetManager &manager = AssetManager::getInstance();
-        manager.registerFactory(AssetType::Model, createMockAsset);
+BOOST_AUTO_TEST_CASE(AssetManager_RegisterAndRetrieveAsset) {
+    // Test registering a model asset
+    BaseFactoryContext context{
+        *assetManager,
+        boxPath,
+        AssetType::Model
+    };
+    
+    auto uuid = assetManager->registerAsset(context);
+    BOOST_CHECK(uuid != boost::uuids::nil_uuid());
+    
+    // Test retrieving the asset
+    auto model = assetManager->getByUUID<Model>(uuid);
+    BOOST_CHECK(model != nullptr);
+    BOOST_CHECK(!model->meshes.empty());
+}
 
+BOOST_AUTO_TEST_CASE(AssetManager_LookupAssetByPath) {
+    // Register an asset first
+    BaseFactoryContext context{
+        *assetManager,
+        spherePath,
+        AssetType::Model
+    };
+    
+    auto uuid = assetManager->registerAsset(context);
+    
+    // Test looking up asset info by path
+    auto assetInfo = assetManager->lookupAssetInfoByPath(spherePath);
+    BOOST_CHECK(assetInfo.has_value());
+    BOOST_CHECK_EQUAL(assetInfo->path, spherePath);
+    BOOST_CHECK_EQUAL(assetInfo->type, AssetType::Model);
+    BOOST_CHECK_EQUAL(assetInfo->id, uuid);
+}
+
+BOOST_AUTO_TEST_CASE(Model_LoadAndVerifyStructure) {
+    BaseFactoryContext context{
+        *assetManager,
+        planePath,
+        AssetType::Model
+    };
+    
+    auto uuid = assetManager->registerAsset(context);
+    auto model = assetManager->getByUUID<Model>(uuid);
+    
+    BOOST_CHECK(model != nullptr);
+    BOOST_CHECK(!model->meshes.empty());
+    
+    // Verify bone info map initialization
+    BOOST_CHECK_EQUAL(model->GetBoneCount(), 0);
+    BOOST_CHECK(model->GetBoneInfoMap().empty());
+}
+
+/*BOOST_AUTO_TEST_CASE(Model_BoneWeightOperations) {
+    BaseFactoryContext context{
+        *assetManager,
+        boxPath,
+        AssetType::Model
+    };
+    
+    auto uuid = assetManager->registerAsset(context);
+    auto model = assetManager->getByUUID<Model>(uuid);
+    
+    // Create a test vertex
+    Vertex vertex;
+    model->SetVertexBoneDataToDefault(vertex);
+    
+    // Test setting bone weights
+    model->SetVertexBoneData(vertex, 0, 0.5f);
+    model->SetVertexBoneData(vertex, 1, 0.5f);
+    
+    // Verify bone weights
+    BOOST_CHECK_EQUAL(vertex.weights[0], 0.5f);
+    BOOST_CHECK_EQUAL(vertex.weights[1], 0.5f);
+    BOOST_CHECK_EQUAL(vertex.weights[2], 0.0f);
+    BOOST_CHECK_EQUAL(vertex.weights[3], 0.0f);
+}*/
+
+BOOST_AUTO_TEST_CASE(AssetManager_MultipleAssetTypes) {
+    // Register multiple assets
+    std::vector<std::string> paths = {boxPath, spherePath, planePath};
+    std::vector<boost::uuids::uuid> uuids;
+    
+    for (const auto& path : paths) {
         BaseFactoryContext context{
-            manager,
-            "test/path/mock.asset",
+            *assetManager,
+            path,
             AssetType::Model
         };
-
-        // Register the asset
-        auto id = manager.registerAsset(context);
-        BOOST_TEST(id != boost::uuids::nil_uuid());
-
-        // Try to register the same path again - should return the same ID
-        auto id2 = manager.registerAsset(context);
-        BOOST_TEST(id == id2);
-
-        // Lookup the asset info
-        auto assetInfo = manager.lookupAssetInfoByPath("test/path/mock.asset");
-        BOOST_TEST(assetInfo.has_value());
-        BOOST_TEST(assetInfo->id == id);
-        BOOST_TEST(assetInfo->path == "test/path/mock.asset");
-        BOOST_TEST(assetInfo->type == AssetType::Model);
+        uuids.push_back(assetManager->registerAsset(context));
     }
-
-    BOOST_AUTO_TEST_CASE(test_content_hash_deduplication) {
-        AssetManager &manager = AssetManager::getInstance();
-        manager.registerFactory(AssetType::Model, createMockAsset);
-
-        BaseFactoryContext context1{
-            manager,
-            "test/path/mock1.asset",
-            AssetType::Model
-        };
-
-        BaseFactoryContext context2{
-            manager,
-            "test/path/mock2.asset",
-            AssetType::Model
-        };
-
-        // Register first asset
-        auto id1 = manager.registerAsset(context1);
-
-        // Register second asset with same content (should return same ID due to content hash)
-        auto id2 = manager.registerAsset(context2);
-        BOOST_TEST(id1 == id2);
-
-        // Verify that both paths point to the same asset
-        auto info1 = manager.lookupAssetInfoByPath("test/path/mock1.asset");
-        auto info2 = manager.lookupAssetInfoByPath("test/path/mock2.asset");
-        BOOST_TEST(info1.has_value());
-        BOOST_TEST(info2.has_value());
-        BOOST_TEST(info1->contentHash == info2->contentHash);
+    
+    // Verify all assets are loaded and unique
+    set<boost::uuids::uuid> uniqueIds(uuids.begin(), uuids.end());
+    BOOST_CHECK_EQUAL(uniqueIds.size(), paths.size());
+    
+    // Verify each asset can be retrieved
+    for (const auto& uuid : uuids) {
+        auto model = assetManager->getByUUID<Model>(uuid);
+        BOOST_CHECK(model != nullptr);
     }
+}
 
-    BOOST_AUTO_TEST_CASE(test_asset_type_validation) {
-        AssetManager &manager = AssetManager::getInstance();
-
-        BaseFactoryContext context{
-            manager,
-            "test/path/mock.asset",
-            AssetType::Texture // Wrong asset type
-        };
-
-        // Try to register asset with wrong type (no factory registered)
-        BOOST_CHECK_THROW(manager.registerAsset(context), std::runtime_error);
-    }
-
-    BOOST_AUTO_TEST_CASE(test_asset_retrieval) {
-        AssetManager &manager = AssetManager::getInstance();
-        manager.registerFactory(AssetType::Model, createMockAsset);
-
-        BaseFactoryContext context{
-            manager,
-            "test/path/mock.asset",
-            AssetType::Model
-        };
-
-        auto id = manager.registerAsset(context);
-
-        // Test getByUUID
-        auto asset = manager.getByUUID<MockAsset>(id);
-        BOOST_TEST((asset != nullptr));
-        BOOST_TEST(asset->getType() == AssetType::Model);
-    }
+BOOST_AUTO_TEST_CASE(AssetManager_NonexistentAsset) {
+    // Try to retrieve a non-existent asset
+    auto nullModel = assetManager->getByUUID<Model>(boost::uuids::nil_uuid());
+    BOOST_CHECK(nullModel == nullptr);
+    
+    // Try to look up non-existent asset info
+    auto nonexistentInfo = assetManager->lookupAssetInfoByPath("/nonexistent/path.fbx");
+    BOOST_CHECK(!nonexistentInfo.has_value());
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}  // namespace ae
+} // namespace test
+} // namespace ae

@@ -1,13 +1,14 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include "stb_image.h"
+#include "AssetFactoryRegistry.hpp"
 #include <string>
 #include <vector>
 #include <cstdint>
 #include "Asset.hpp"
 #include "spdlog/spdlog.h"
 #include <functional>
+
 
 namespace ae {
     struct TextureData {
@@ -19,7 +20,8 @@ namespace ae {
     };
 
     class Texture : public Asset {
-    public:
+        public:
+        static inline AssetFactoryRegistry::Registrar<Texture,BaseFactoryContext> registrar{AssetType::Texture};
         explicit Texture(ae::BaseFactoryContext base_factory_context);
 
         ~Texture() override;
@@ -27,7 +29,6 @@ namespace ae {
         void loadFromFile(const std::string &path);
 
         [[nodiscard]] size_t calculateContentHash() const override;
-
         [[nodiscard]] AssetType getType() const override;
 
         [[nodiscard]] int getWidth() const { return textureData ? textureData->width : 0; }

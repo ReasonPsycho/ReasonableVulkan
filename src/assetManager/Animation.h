@@ -19,7 +19,7 @@ namespace ae {
         glm::mat4 transformation;
         std::string name;
         int childrenCount;
-    std::vector<AssimpNodeData> children;
+        std::vector<AssimpNodeData> children;
 };
 
     struct AnimationFactoryContext : ae::BaseFactoryContext {
@@ -28,16 +28,20 @@ namespace ae {
 
     class Animation : public Asset {
     public:
+        static inline AssetFactoryRegistry::Registrar<Animation,AnimationFactoryContext> registrar{AssetType::Animation};
+        
         Animation(AnimationFactoryContext animation_factory_context);
-
         ~Animation();
 
+        [[nodiscard]] size_t calculateContentHash() const override;
+        [[nodiscard]] AssetType getType() const override;
+        
         Animation &operator=(const Animation &source) {
             // Check for self-assignment
             if (this == &source) {
                 return *this;
             }
-        m_Duration = source.m_Duration;
+            m_Duration = source.m_Duration;
         m_TicksPerSecond = source.m_TicksPerSecond;
         m_Bones = source.m_Bones;
         m_RootNode = source.m_RootNode;
@@ -61,7 +65,8 @@ namespace ae {
     glm::mat4 GetBoneTranslationMatrix(string name);
     int GetBoneIdFromName(string name);
 
-private:
+    private:
+        
     void ReadMissingBones(const aiAnimation* animation, Model& model);
 
     void ReadHeirarchyData(AssimpNodeData& dest, const aiNode* src);

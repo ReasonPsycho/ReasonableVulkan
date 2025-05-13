@@ -5,6 +5,7 @@
 #ifndef OPENGLGP_MESH_H
 #define OPENGLGP_MESH_H
 #include "Asset.hpp"
+#include "AssetFactoryRegistry.hpp"
 
 namespace ae {
     struct Vertex;
@@ -51,6 +52,9 @@ struct Vertex {
 
     class Mesh : public Asset {
     public:
+        using FactoryContext = MeshFactoryContext;
+        static inline AssetFactoryRegistry::Registrar<Mesh,MeshFactoryContext> registrar{AssetType::Mesh};
+
         // mesh Data
         vector<Vertex> vertices;
         vector<unsigned int> indices;
