@@ -69,5 +69,4 @@ namespace ae {
     AssetType Texture::getType() const {
         return AssetType::Texture;
     }
-
 }
