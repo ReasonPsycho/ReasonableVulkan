@@ -23,8 +23,7 @@ namespace ae {
         float timeStamp;
     };
 
-struct KeyScale
-{
+    struct KeyScale {
     glm::vec3 scale;
     float timeStamp;
 };
