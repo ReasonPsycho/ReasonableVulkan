@@ -107,7 +107,6 @@ AssetType Animation::getType() const {
 }
 
 glm::mat4 Animation::GetBoneTranslationMatrix(string name) {
-
     auto it = m_BoneInfoMap.find(name);
     std::vector<glm::mat4> boneTranslationPath;
     while(it != m_BoneInfoMap.end())

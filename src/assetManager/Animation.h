@@ -20,7 +20,7 @@ namespace ae {
         std::string name;
         int childrenCount;
         std::vector<AssimpNodeData> children;
-};
+    };
 
     struct AnimationFactoryContext : ae::BaseFactoryContext {
         Model *model;
@@ -28,12 +28,16 @@ namespace ae {
 
     class Animation : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<Animation,AnimationFactoryContext> registrar{AssetType::Animation};
-        
+        static inline AssetFactoryRegistry::Registrar<Animation, AnimationFactoryContext> registrar{
+            AssetType::Animation
+        };
+
         Animation(AnimationFactoryContext animation_factory_context);
+
         ~Animation();
 
         [[nodiscard]] size_t calculateContentHash() const override;
+
         [[nodiscard]] AssetType getType() const override;
         
         Animation &operator=(const Animation &source) {

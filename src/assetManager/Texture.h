@@ -20,8 +20,9 @@ namespace ae {
     };
 
     class Texture : public Asset {
-        public:
-        static inline AssetFactoryRegistry::Registrar<Texture,BaseFactoryContext> registrar{AssetType::Texture};
+    public:
+        static inline AssetFactoryRegistry::Registrar<Texture, BaseFactoryContext> registrar{AssetType::Texture};
+
         explicit Texture(ae::BaseFactoryContext base_factory_context);
 
         ~Texture() override;

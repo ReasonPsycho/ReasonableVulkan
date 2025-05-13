@@ -33,11 +33,9 @@ namespace ae {
     };
 
     class AssetManager {
-        using AssetFactory = std::function<std::shared_ptr<ae::Asset>(ae::BaseFactoryContext&)>;
+        using AssetFactory = std::function<std::shared_ptr<ae::Asset>(ae::BaseFactoryContext &)>;
 
     public:
-
-
         static AssetManager &getInstance();
 
         boost::uuids::uuid registerAsset(BaseFactoryContext factoryContext);

@@ -53,7 +53,7 @@ struct Vertex {
     class Mesh : public Asset {
     public:
         using FactoryContext = MeshFactoryContext;
-        static inline AssetFactoryRegistry::Registrar<Mesh,MeshFactoryContext> registrar{AssetType::Mesh};
+        static inline AssetFactoryRegistry::Registrar<Mesh, MeshFactoryContext> registrar{AssetType::Mesh};
 
         // mesh Data
         vector<Vertex> vertices;
