@@ -7,7 +7,7 @@
 namespace ae {
     //private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
-    void Model::loadFromFile(BaseFactoryContext base_factory_context) {
+    void Model::loadFromFile(AssetFactoryData base_factory_context) {
         Assimp::Importer importer;
         const aiScene *scene = importer.ReadFile(base_factory_context.path,
                                                  aiProcess_Triangulate | aiProcess_GenSmoothNormals |
@@ -22,6 +22,15 @@ namespace ae {
 
         // process ASSIMP's root node recursively
         processNode(base_factory_context, scene->mRootNode, scene);
+    }
+
+    int Model::getMeshIndexInScene(const aiScene *scene, const aiMesh *targetMesh) {
+        for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+            if (scene->mMeshes[i] == targetMesh) {
+                return i;
+            }
+        }
+        return -1; // Mesh not found in scene
     }
 
     size_t Model::calculateContentHash() const {
@@ -42,13 +51,16 @@ namespace ae {
 
 
     // processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
-    void Model::processNode(BaseFactoryContext base_factory_context, aiNode *node, const aiScene *scene) {
+    void Model::processNode(AssetFactoryData base_factory_context, aiNode *node, const aiScene *scene) {
         // process each mesh located at the current node
         for (unsigned int i = 0; i < node->mNumMeshes; i++) {
             // the node object only contains indices to index the actual objects in the scene. 
             // the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
             aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-            meshes.push_back(processMesh(base_factory_context, mesh, scene));
+            AssetFactoryData meshFactoryContext{base_factory_context};
+            meshFactoryContext.assetType = AssetType::Mesh;
+            meshFactoryContext.assimpIndex = getMeshIndexInScene(scene, mesh);
+            meshes.push_back(processMesh(base_factory_context, scene));
         }
         // after we've processed all the meshes (if any) we then recursively process each of the children nodes
         for (unsigned int i = 0; i < node->mNumChildren; i++) {
@@ -56,83 +68,11 @@ namespace ae {
         }
     }
 
-    std::shared_ptr<Mesh> Model::processMesh(BaseFactoryContext baseFactoryContext, aiMesh *mesh, const aiScene *scene) {
-        // data to fill
-        vector<Vertex> vertices;
-        vector<unsigned int> indices;
+    std::shared_ptr<Mesh> Model::processMesh(AssetFactoryData baseFactoryContext, const aiScene *scene) { //TODO move this to a mesh so it can deal with it on it;s own
         vector<shared_ptr<Texture> > textures;
-        // walk through each of the mesh's vertices
-        for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
-            Vertex vertex;
-            SetVertexBoneDataToDefault(vertex);
-            glm::vec3 vector;
-            // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
-            // positions
-            vector.x = mesh->mVertices[i].x;
-            vector.y = mesh->mVertices[i].y;
-            vector.z = mesh->mVertices[i].z;
-            vertex.Position = vector;
-
-            // normals
-            if (mesh->HasNormals()) {
-                vector.x = mesh->mNormals[i].x;
-                vector.y = mesh->mNormals[i].y;
-                vector.z = mesh->mNormals[i].z;
-                vertex.Normal = vector;
-            }
-            // texture coordinates
-            if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
-            {
-                glm::vec2 vec;
-                // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
-                // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
-                vec.x = mesh->mTextureCoords[0][i].x;
-                vec.y = mesh->mTextureCoords[0][i].y;
-                vertex.TexCoords = vec;
-                // tangent
-                vector.x = mesh->mTangents[i].x;
-                vector.y = mesh->mTangents[i].y;
-                vector.z = mesh->mTangents[i].z;
-                vertex.Tangent = vector;
-                // bitangent
-                vector.x = mesh->mBitangents[i].x;
-                vector.y = mesh->mBitangents[i].y;
-                vector.z = mesh->mBitangents[i].z;
-                vertex.Bitangent = vector;
-            } else
-                vertex.TexCoords = glm::vec2(0.0f, 0.0f);
-
-            vertices.push_back(vertex);
-        }
-        // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
-        for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
-            aiFace face = mesh->mFaces[i];
-            // retrieve all indices of the face and store them in the indices vector
-            for (unsigned int j = 0; j < face.mNumIndices; j++)
-                indices.push_back(face.mIndices[j]);
-        }
-        // process materials
-        aiMaterial *aiMaterial = scene->mMaterials[mesh->mMaterialIndex];
-        // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
-        // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
-        // Same applies to other texture as the following list summarizes:
-
-
-        ExtractBoneWeightForVertices(vertices, mesh, scene);
-
-        for (int i = 0; i < vertices.size(); ++i) {
-            Normalize(vertices[i]);
-        }
-
-        // return a mesh object created from the extracted mesh data
-
-        MeshFactoryContext meshFactoryContext{baseFactoryContext}; // Construct new context from base
-        meshFactoryContext.assetType = AssetType::Mesh;
-        meshFactoryContext.vertices = std::move(vertices);
-        meshFactoryContext.indices = std::move(indices);
-
+        
         return baseFactoryContext.assetManager.getByUUID<Mesh>(
-            baseFactoryContext.assetManager.registerAsset(meshFactoryContext));
+            baseFactoryContext.assetManager.registerAsset(baseFactoryContext));
     }
 
 

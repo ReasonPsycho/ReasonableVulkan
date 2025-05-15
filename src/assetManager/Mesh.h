@@ -5,6 +5,7 @@
 #ifndef OPENGLGP_MESH_H
 #define OPENGLGP_MESH_H
 #include "Asset.hpp"
+#include <assimp/scene.h>
 #include "AssetFactoryRegistry.hpp"
 
 namespace ae {
@@ -44,22 +45,19 @@ struct Vertex {
     //weights from each bone
     float m_Weights[MAX_BONE_INFLUENCE];
 };
-
-    struct MeshFactoryContext : ae::BaseFactoryContext {
-        vector<ae::Vertex> vertices;
-        vector<unsigned int> indices;
-    };
-
+    
     class Mesh : public Asset {
     public:
-        using FactoryContext = MeshFactoryContext;
-        static inline AssetFactoryRegistry::Registrar<Mesh, MeshFactoryContext> registrar{AssetType::Mesh};
+        static inline AssetFactoryRegistry::Registrar<Mesh> registrar{AssetType::Mesh};
 
         // mesh Data
         vector<Vertex> vertices;
         vector<unsigned int> indices;
 
-        explicit Mesh(MeshFactoryContext meshFactoryContext); //This maby someday should intake a interface of materials
+        explicit Mesh(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
+        void ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene);
+
+        explicit Mesh(AssetFactoryData meshFactoryContext, const aiScene *scene ); //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;
 
         [[nodiscard]] AssetType getType() const override;

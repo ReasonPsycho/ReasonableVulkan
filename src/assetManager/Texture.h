@@ -21,9 +21,9 @@ namespace ae {
 
     class Texture : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<Texture, BaseFactoryContext> registrar{AssetType::Texture};
+        static inline AssetFactoryRegistry::Registrar<Texture> registrar{AssetType::Texture};
 
-        explicit Texture(ae::BaseFactoryContext base_factory_context);
+        explicit Texture(ae::AssetFactoryData base_factory_context);
 
         ~Texture() override;
 

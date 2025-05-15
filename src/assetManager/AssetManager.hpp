@@ -18,27 +18,52 @@
 namespace ae {
     class Asset; // Forward declaration
     class AssetManager;
+    
+    struct AssetFactoryData {
+        AssetManager &assetManager;
+        std::string path;
+        AssetType assetType;
+        int assimpIndex;
+
+        // Constructor to initialize the reference and other members
+        AssetFactoryData(AssetManager& manager, std::string p, AssetType type,int assimpIndex = 0)
+            : assetManager(manager)
+            , path(std::move(p))
+            , assetType(type)
+            , assimpIndex(assimpIndex)
+        {}
+    };
 
     struct AssetInfo {
         boost::uuids::uuid id;
         std::string path;
         AssetType type;
         size_t contentHash;
+        AssetFactoryData assetFactoryData;
+
+        // Constructor
+        AssetInfo(boost::uuids::uuid uuid, 
+                  std::string p, 
+                  AssetType t, 
+                  size_t hash,
+                  AssetFactoryData factoryData)
+            : id(uuid)
+            , path(std::move(p))
+            , type(t)
+            , contentHash(hash)
+            , assetFactoryData(std::move(factoryData))
+        {}
     };
 
-    struct BaseFactoryContext {
-        AssetManager &assetManager;
-        std::string path;
-        AssetType assetType;
-    };
+
 
     class AssetManager {
-        using AssetFactory = std::function<std::shared_ptr<ae::Asset>(ae::BaseFactoryContext &)>;
+        using AssetFactory = std::function<std::shared_ptr<ae::Asset>(ae::AssetFactoryData &)>;
 
     public:
         static AssetManager &getInstance();
 
-        boost::uuids::uuid registerAsset(BaseFactoryContext factoryContext);
+        boost::uuids::uuid registerAsset(AssetFactoryData factoryContext);
 
         void registerFactory(AssetType type, AssetFactory factory);
 

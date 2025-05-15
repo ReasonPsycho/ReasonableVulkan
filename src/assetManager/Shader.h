@@ -34,9 +34,9 @@ namespace ae {
 
     class Shader : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<Shader, BaseFactoryContext> registrar{AssetType::Shader};
+        static inline AssetFactoryRegistry::Registrar<Shader> registrar{AssetType::Shader};
 
-        explicit Shader(ae::BaseFactoryContext base_factory_context)
+        explicit Shader(ae::AssetFactoryData base_factory_context)
             : Asset(base_factory_context) {
         }
 

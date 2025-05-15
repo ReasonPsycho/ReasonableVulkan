@@ -8,22 +8,20 @@
 #include "AssetManager.hpp"
 
 namespace ae {
-    class AssetFactoryRegistry {
-    public:
-        template<typename T, typename AssetFactoryType>
-struct Registrar {
-    explicit Registrar(ae::AssetType type) {
-        ae::AssetManager::getInstance().registerFactory(type,
-                                                        [](ae::BaseFactoryContext &context) {
-                                                            return std::make_shared<T>(
-                                                                static_cast<const AssetFactoryType &>(context));
-                                                        }
-
-
-        );
-    }
-};
+    
+class AssetFactoryRegistry {
+public:
+template<typename T>
+        struct Registrar {
+        explicit Registrar(ae::AssetType type) {
+            ae::AssetManager::getInstance().registerFactory(type,
+                [](ae::AssetFactoryData& factoryData) {
+                    return std::make_shared<T>(factoryData);
+                }
+            );
+        }
     };
+};
 }
 
 #endif //ASSETFACTORYREGISTRY_HPP
