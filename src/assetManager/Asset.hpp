@@ -9,7 +9,7 @@
 namespace ae {
     class Asset {
     public:
-        explicit Asset(BaseFactoryContext baseFactoryContext) {
+        explicit Asset(AssetFactoryData assetFactoryData) {
         }
 
         virtual ~Asset() = default;

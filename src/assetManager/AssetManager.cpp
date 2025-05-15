@@ -6,7 +6,7 @@
 #include "AssetManager.hpp"
 
 namespace ae {
-boost::uuids::uuid AssetManager::registerAsset(BaseFactoryContext factoryContext) {
+boost::uuids::uuid AssetManager::registerAsset(AssetFactoryData factoryContext) {
     // First check if we already have this path
     auto metaDataInfo = lookupAssetInfoByPath(factoryContext.path);
     if (metaDataInfo) {
@@ -34,13 +34,14 @@ boost::uuids::uuid AssetManager::registerAsset(BaseFactoryContext factoryContext
     }
 
     // If we get here, this is a new unique asset
-    AssetInfo info;
-    info.id = boost::uuids::random_generator()();
-    info.path = factoryContext.path;
-    info.type = factoryContext.assetType;
-    info.contentHash = contentHash;
+    AssetInfo info{
+        .id = boost::uuids::random_generator()(),
+        .path = factoryContext.path,
+        .type = factoryContext.assetType,
+        .contentHash = contentHash
+    };
 
-    metadata[info.id] = info;
+    metadata.insert({info.id, std::move(info)});
     assets[info.id] = newAsset;
 
     return info.id;

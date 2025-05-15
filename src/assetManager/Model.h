@@ -36,7 +36,7 @@ namespace ae {
 
     class Model : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<Model, BaseFactoryContext> registrar{AssetType::Model};
+        static inline AssetFactoryRegistry::Registrar<Model> registrar{AssetType::Model};
         // model data 
         vector<std::shared_ptr<Texture> > textureCatalogue;
         vector<std::shared_ptr<Mesh> > meshes;
@@ -55,20 +55,22 @@ namespace ae {
 
         void SetVertexBoneDataToDefault(Vertex &vertex);
 
-        explicit Model(BaseFactoryContext base_factory_context): Asset(base_factory_context) {
+        explicit Model(AssetFactoryData base_factory_context): Asset(base_factory_context) {
             loadFromFile(base_factory_context);
         };
 
-        void loadFromFile(BaseFactoryContext base_factory_context);
+        void loadFromFile(AssetFactoryData base_factory_context);
+
+        static int getMeshIndexInScene(const aiScene* scene, const aiMesh* targetMesh);
 
     private:
         size_t calculateContentHash() const override;
 
         [[nodiscard]] AssetType getType() const override;
 
-        void processNode(BaseFactoryContext baseFactoryContext, aiNode *node, const aiScene *scene);
+        void processNode(AssetFactoryData baseFactoryContext, aiNode *node, const aiScene *scene);
 
-        std::shared_ptr<Mesh> processMesh(BaseFactoryContext baseFactoryContext, aiMesh *mesh, const aiScene *scene);
+        std::shared_ptr<Mesh> processMesh(AssetFactoryData baseFactoryContext, const aiScene *scene);
     };
 }
 

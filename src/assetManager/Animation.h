@@ -21,18 +21,15 @@ namespace ae {
         int childrenCount;
         std::vector<AssimpNodeData> children;
     };
-
-    struct AnimationFactoryContext : ae::BaseFactoryContext {
-        Model *model;
-    };
+    
 
     class Animation : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<Animation, AnimationFactoryContext> registrar{
+        static inline AssetFactoryRegistry::Registrar<Animation> registrar{
             AssetType::Animation
         };
 
-        Animation(AnimationFactoryContext animation_factory_context);
+        Animation(AssetFactoryData animation_factory_context); //Gonna also pass model or a way to load it
 
         ~Animation();
 
