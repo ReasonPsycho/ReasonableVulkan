@@ -6,7 +6,7 @@
 #include "AssetManager.hpp"
 #include "Asset.hpp"
 
-ae::Asset * ae::AssetInfo::getAsset() {
+ae::Asset *ae::AssetInfo::getAsset() {
     if (!isLoaded && !loadedAsset) {
         // Use the asset manager to load the asset
         auto &assetManager = assetFactoryData.assetManager;
