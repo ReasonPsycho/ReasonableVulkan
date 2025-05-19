@@ -38,7 +38,7 @@ namespace ae {
 
         for (const auto &mesh: meshes) {
             if (mesh) {
-                hash ^= mesh->calculateContentHash() + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+                hash ^= mesh->contentHash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
             }
         }
 
@@ -57,10 +57,7 @@ namespace ae {
             // the node object only contains indices to index the actual objects in the scene. 
             // the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
             aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-            AssetFactoryData meshFactoryContext{base_factory_context};
-            meshFactoryContext.assetType = AssetType::Mesh;
-            meshFactoryContext.assimpIndex = getMeshIndexInScene(scene, mesh);
-            meshes.push_back(processMesh(base_factory_context, scene));
+            meshes.push_back(processMesh(base_factory_context, mesh, scene));
         }
         // after we've processed all the meshes (if any) we then recursively process each of the children nodes
         for (unsigned int i = 0; i < node->mNumChildren; i++) {
@@ -68,86 +65,12 @@ namespace ae {
         }
     }
 
-    std::shared_ptr<Mesh> Model::processMesh(AssetFactoryData baseFactoryContext, const aiScene *scene) { //TODO move this to a mesh so it can deal with it on it;s own
-        vector<shared_ptr<Texture> > textures;
-        
-        return baseFactoryContext.assetManager.getByUUID<Mesh>(
-            baseFactoryContext.assetManager.registerAsset(baseFactoryContext));
-    }
-
-
-    void Model::SetVertexBoneDataToDefault(Vertex &vertex) {
-        for (int i = 0; i < MAX_BONE_INFLUENCE; i++) {
-            vertex.m_BoneIDs[i] = -1;
-            vertex.m_Weights[i] = 0.0f;
-        }
-    }
-    
-
-    void Model::ExtractBoneWeightForVertices(vector<Vertex> &vertices, aiMesh *mesh, const aiScene *scene) {
-        auto &boneInfoMap = m_BoneInfoMap;
-        int &boneCount = m_BoneCounter;
-
-        for (int boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
-            int boneID = -1;
-            std::string boneName = mesh->mBones[boneIndex]->mName.C_Str();
-            if (boneInfoMap.find(boneName) == boneInfoMap.end()) {
-                BoneInfo newBoneInfo;
-                newBoneInfo.id = boneCount;
-                newBoneInfo.offset = AssimpGLMHelpers::ConvertMatrixToGLMFormat(mesh->mBones[boneIndex]->mOffsetMatrix);
-                if (mesh->mBones[boneIndex]->mNode != NULL && mesh->mBones[boneIndex]->mNode->mParent) {
-                    newBoneInfo.parentNode = mesh->mBones[boneIndex]->mNode->mParent->mName.C_Str();
-                } else {
-                    newBoneInfo.parentNode = "";
-                }
-                boneInfoMap[boneName] = newBoneInfo;
-                boneID = boneCount;
-                boneCount++;
-            } else {
-                boneID = boneInfoMap[boneName].id;
-            }
-            assert(boneID != -1);
-            auto weights = mesh->mBones[boneIndex]->mWeights;
-            int numWeights = mesh->mBones[boneIndex]->mNumWeights;
-
-            for (int weightIndex = 0; weightIndex < numWeights; ++weightIndex) {
-                int vertexId = weights[weightIndex].mVertexId;
-                float weight = weights[weightIndex].mWeight;
-                assert(vertexId <= vertices.size());
-                SetVertexBoneData(vertices[vertexId], boneID, weight);
-            }
-        }
-    }
-
-    void Model::SetVertexBoneData(Vertex &vertex, int boneID, float weight) {
-        for (int i = 0; i < MAX_BONE_INFLUENCE; ++i) {
-            if (vertex.m_BoneIDs[i] < 0) {
-                vertex.m_Weights[i] = weight;
-                vertex.m_BoneIDs[i] = boneID;
-                break;
-            }
-        }
-    }
-
-    void Model::Normalize(Vertex &vertex) {
-        float sumOfWeights = 0;
-        for (int i = 0; i < MAX_BONE_INFLUENCE; ++i) {
-            if (vertex.m_BoneIDs[i] != -1) {
-                sumOfWeights += vertex.m_Weights[i];
-            }
-        }
-
-        if (sumOfWeights == 0) {
-            vertex.m_Weights[0] = 1;
-        }
-
-        // Ensure sumOfWeights is not zero to avoid division by zero
-        if (sumOfWeights != 0) {
-            for (int i = 0; i < MAX_BONE_INFLUENCE; ++i) {
-                if (vertex.m_BoneIDs[i] != -1) {
-                    vertex.m_Weights[i] /= sumOfWeights;
-                }
-            }
-        }
+    std::shared_ptr<AssetInfo> Model::processMesh(AssetFactoryData baseFactoryContext, aiMesh *mesh,
+                                                  const aiScene *scene) {
+        AssetFactoryData meshFactoryContext{baseFactoryContext};
+        meshFactoryContext.assetType = AssetType::Mesh;
+        meshFactoryContext.scene = scene;
+        meshFactoryContext.assimpIndex = getMeshIndexInScene(scene, mesh);
+        return baseFactoryContext.assetManager.registerAsset(&meshFactoryContext);
     }
 }

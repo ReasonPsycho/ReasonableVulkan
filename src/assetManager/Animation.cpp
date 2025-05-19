@@ -13,12 +13,12 @@ namespace ae {
         m_Duration = animation->mDuration;
         m_TicksPerSecond = animation->mTicksPerSecond;
         ReadHeirarchyData(m_RootNode, scene->mRootNode);
-        AssetFactoryData asset_factory_data{animation_factory_context}; // Construct new context from base
-        asset_factory_data.assetType = AssetType::Animation;
+        AssetFactoryData modelFactoryData{animation_factory_context}; // Construct new context from base
+        modelFactoryData.assetType = AssetType::Model;
     std:
-        shared_ptr<Model> model = animation_factory_context.assetManager.getByUUID<Model>(
-            animation_factory_context.assetManager.registerAsset(asset_factory_data));
-        ReadMissingBones(animation, *model.get());
+        shared_ptr<AssetInfo> modelInfo = 
+            animation_factory_context.assetManager.registerAsset(&modelFactoryData);
+        ReadMissingBones(animation, dynamic_cast<Model &>(*modelInfo->getAsset()));
     }
 
     Bone *Animation::FindBone(const string &name) {

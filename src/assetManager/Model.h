@@ -38,8 +38,8 @@ namespace ae {
     public:
         static inline AssetFactoryRegistry::Registrar<Model> registrar{AssetType::Model};
         // model data 
-        vector<std::shared_ptr<Texture> > textureCatalogue;
-        vector<std::shared_ptr<Mesh> > meshes;
+        vector<std::shared_ptr<AssetInfo> > textureCatalogue;
+        vector<std::shared_ptr<AssetInfo> > meshes;
         std::map<string, BoneInfo> m_BoneInfoMap;
 
         int m_BoneCounter = 0;
@@ -51,7 +51,6 @@ namespace ae {
 
         void SetVertexBoneData(Vertex &vertex, int boneID, float weight);
 
-        void Normalize(Vertex &vertex);
 
         void SetVertexBoneDataToDefault(Vertex &vertex);
 
@@ -61,16 +60,17 @@ namespace ae {
 
         void loadFromFile(AssetFactoryData base_factory_context);
 
-        static int getMeshIndexInScene(const aiScene* scene, const aiMesh* targetMesh);
-
-    private:
-        size_t calculateContentHash() const override;
-
+        static int getMeshIndexInScene(const aiScene *scene, const aiMesh *targetMesh);
+        
         [[nodiscard]] AssetType getType() const override;
+        [[nodiscard]] size_t calculateContentHash() const override;
+        
+    private:
+
 
         void processNode(AssetFactoryData baseFactoryContext, aiNode *node, const aiScene *scene);
 
-        std::shared_ptr<Mesh> processMesh(AssetFactoryData baseFactoryContext, const aiScene *scene);
+        std::shared_ptr<AssetInfo> processMesh(AssetFactoryData baseFactoryContext, aiMesh *mesh, const aiScene *scene);
     };
 }
 
