@@ -8,9 +8,8 @@
 #include <boost/uuid/uuid.hpp>
 
 
-
 namespace ae {
-    class Asset;  // Forward declaration
+    class Asset; // Forward declaration
     class AssetManager;
     enum class AssetType;
 
@@ -38,7 +37,7 @@ namespace ae {
         AssetFactoryData assetFactoryData;
         bool isLoaded = false;
         Asset *loadedAsset = nullptr;
-    
+
         // Constructor
         AssetInfo(boost::uuids::uuid uuid,
                   std::string p,
