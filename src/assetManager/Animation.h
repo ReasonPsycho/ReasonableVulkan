@@ -21,7 +21,7 @@ namespace ae {
         int childrenCount;
         std::vector<AssimpNodeData> children;
     };
-    
+
 
     class Animation : public Asset {
     public:

@@ -4,6 +4,9 @@
 
 #include "Mesh.h"
 
+#include <assimp/Importer.hpp>
+
+
 
 #ifndef MESH_H
 #define MESH_H
@@ -12,12 +15,6 @@
 using namespace std;
 
 namespace ae {
-    // constructor
-    Mesh::Mesh(MeshFactoryContext meshFactoryContext) : Asset(meshFactoryContext),
-                                                        vertices(meshFactoryContext.vertices),
-                                                        indices(meshFactoryContext.indices) {
-        // now that we have all the required data, set the vertex buffers and its attribute pointers.
-    }
 
     size_t Mesh::calculateContentHash() const {
         size_t hash = 0;
@@ -49,14 +46,22 @@ namespace ae {
 
 
     Mesh::Mesh(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext) {
+        if (!meshFactoryContext.scene) {
+            Assimp::Importer importer;
+            const auto* scene = importer.ReadFile(meshFactoryContext.path,
+                                          aiProcess_Triangulate | aiProcess_GenSmoothNormals |
+                                          // aiProcess_FlipUVs | 
+                                          aiProcess_CalcTangentSpace);
+            meshFactoryContext.scene = std::make_optional(const_cast<aiScene*>(scene));
+        }
+
+        ExtractMeshData(meshFactoryContext, meshFactoryContext.scene.value());
     }
-    
-    Mesh::Mesh(AssetFactoryData meshFactoryContext, const aiScene *scene): Asset(meshFactoryContext) {
-        ExtractMeshData(meshFactoryContext, scene);
-    }
-    
+
+
     void Mesh::ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene) {
         // walk through each of the mesh's vertices
+        auto mesh = scene->mMeshes[meshFactoryContext.assimpIndex];
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
             glm::vec3 vector;
@@ -110,26 +115,11 @@ namespace ae {
         // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
         // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
         // Same applies to other texture as the following list summarizes:
-
-
-        ExtractBoneWeightForVertices(vertices, mesh, scene);
-
+        
         for (int i = 0; i < vertices.size(); ++i) {
             Normalize(vertices[i]);
         }
-
-        // return a mesh object created from the extracted mesh data
-
-        AssetFactoryData asset_factory_data{baseFactoryContext}; // Construct new context from base
-        asset_factory_data.assetType = AssetType::Mesh;
-
-        meshFactoryContext.vertices = std::move(vertices);
-        meshFactoryContext.indices = std::move(indices);
-
-        return baseFactoryContext.assetManager.getByUUID<Mesh>(
-            baseFactoryContext.assetManager.registerAsset(meshFactoryContext));
     }
-
 
 
     AssetType Mesh::getType() const {

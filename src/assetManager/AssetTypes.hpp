@@ -10,7 +10,8 @@ namespace ae {
         Texture,
         Shader,
         Animation,
-        Animator
+        Animator,
+        Other // Just for testing
     };
 
     inline std::ostream &operator<<(std::ostream &os, const AssetType &type) {
@@ -27,6 +28,8 @@ namespace ae {
                 return os << "Animation";
             case AssetType::Animator:
                 return os << "Animator";
+            case AssetType::Other:
+                return os << "Other";
             default:
                 return os << "Unknown";
         }
