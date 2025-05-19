@@ -29,10 +29,7 @@ namespace ae {
     };
 
     void Normalize(Vertex &vertex);
-
-
 }
-
 
 
 #endif //VERTEX_HPP

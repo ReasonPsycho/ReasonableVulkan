@@ -10,9 +10,9 @@ namespace ae {
         struct Registrar {
             explicit Registrar(ae::AssetType type) {
                 ae::AssetManager::getInstance().registerFactory(type,
-                    [](ae::AssetFactoryData& factoryData) {
-                        return std::unique_ptr<T>(new T(factoryData));
-                    }
+                                                                [](ae::AssetFactoryData &factoryData) {
+                                                                    return std::unique_ptr<T>(new T(factoryData));
+                                                                }
                 );
             }
         };

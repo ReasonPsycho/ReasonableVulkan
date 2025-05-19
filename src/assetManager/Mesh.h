@@ -29,22 +29,19 @@ using namespace std;
 
 
 namespace ae {
-
-
-
-class Mesh : public Asset {
+    class Mesh : public Asset {
     public:
-    static inline AssetFactoryRegistry::Registrar<Mesh> registrar{AssetType::Mesh};
+        static inline AssetFactoryRegistry::Registrar<Mesh> registrar{AssetType::Mesh};
 
-    // mesh Data
+        // mesh Data
         vector<Vertex> vertices;
         vector<unsigned int> indices;
         explicit Mesh(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
-    void ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene);
+        void ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene);
 
 
-    //This maby someday should intake a interface of materials
-    size_t calculateContentHash() const override;
+        //This maby someday should intake a interface of materials
+        size_t calculateContentHash() const override;
 
         [[nodiscard]] AssetType getType() const override;
     };

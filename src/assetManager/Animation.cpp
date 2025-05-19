@@ -16,8 +16,8 @@ namespace ae {
         AssetFactoryData modelFactoryData{animation_factory_context}; // Construct new context from base
         modelFactoryData.assetType = AssetType::Model;
     std:
-        shared_ptr<AssetInfo> modelInfo = 
-            animation_factory_context.assetManager.registerAsset(&modelFactoryData);
+        shared_ptr<AssetInfo> modelInfo =
+                animation_factory_context.assetManager.registerAsset(&modelFactoryData);
         ReadMissingBones(animation, dynamic_cast<Model &>(*modelInfo->getAsset()));
     }
 

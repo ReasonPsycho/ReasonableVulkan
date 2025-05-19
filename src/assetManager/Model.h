@@ -61,10 +61,11 @@ namespace ae {
         void loadFromFile(AssetFactoryData base_factory_context);
 
         static int getMeshIndexInScene(const aiScene *scene, const aiMesh *targetMesh);
-        
+
         [[nodiscard]] AssetType getType() const override;
+
         [[nodiscard]] size_t calculateContentHash() const override;
-        
+
     private:
 
 
