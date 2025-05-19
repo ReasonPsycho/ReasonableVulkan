@@ -7,7 +7,6 @@
 #include <assimp/Importer.hpp>
 
 
-
 #ifndef MESH_H
 #define MESH_H
 
@@ -48,11 +47,11 @@ namespace ae {
     Mesh::Mesh(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext) {
         if (!meshFactoryContext.scene) {
             Assimp::Importer importer;
-            const auto* scene = importer.ReadFile(meshFactoryContext.path,
-                                          aiProcess_Triangulate | aiProcess_GenSmoothNormals |
-                                          // aiProcess_FlipUVs | 
-                                          aiProcess_CalcTangentSpace);
-            meshFactoryContext.scene = std::make_optional(const_cast<aiScene*>(scene));
+            const auto *scene = importer.ReadFile(meshFactoryContext.path,
+                                                  aiProcess_Triangulate | aiProcess_GenSmoothNormals |
+                                                  // aiProcess_FlipUVs | 
+                                                  aiProcess_CalcTangentSpace);
+            meshFactoryContext.scene = std::make_optional(const_cast<aiScene *>(scene));
         }
 
         ExtractMeshData(meshFactoryContext, meshFactoryContext.scene.value());
