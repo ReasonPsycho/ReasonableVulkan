@@ -17,7 +17,7 @@
 
 #include "AssetFactoryRegistry.hpp"
 
-namespace ae {
+namespace am {
     enum class ShaderStage : uint32_t {
         Vertex = 0,
         Fragment = 1,
@@ -36,7 +36,7 @@ namespace ae {
     public:
         static inline AssetFactoryRegistry::Registrar<Shader> registrar{AssetType::Shader};
 
-        explicit Shader(ae::AssetFactoryData base_factory_context)
+        explicit Shader(am::AssetFactoryData base_factory_context)
             : Asset(base_factory_context) {
         }
 
@@ -54,6 +54,6 @@ namespace ae {
 
         [[nodiscard]] AssetType getType() const override;
     };
-} // namespace ae
+} // namespace am
 
 #endif

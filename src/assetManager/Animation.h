@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-namespace ae {
+namespace am {
     struct AssimpNodeData {
         glm::mat4 transformation;
         std::string name;

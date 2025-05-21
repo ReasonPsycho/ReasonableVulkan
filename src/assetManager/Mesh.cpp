@@ -4,7 +4,6 @@
 
 #include "Mesh.h"
 
-#include <assimp/Importer.hpp>
 
 
 #ifndef MESH_H
@@ -13,7 +12,7 @@
 
 using namespace std;
 
-namespace ae {
+namespace am {
 
     size_t Mesh::calculateContentHash() const {
         size_t hash = 0;
@@ -55,12 +54,19 @@ namespace ae {
         }
 
         ExtractMeshData(meshFactoryContext, meshFactoryContext.scene.value());
+
     }
 
 
     void Mesh::ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene) {
         // walk through each of the mesh's vertices
         auto mesh = scene->mMeshes[meshFactoryContext.assimpIndex];
+        
+        AssetFactoryData materialFactoryContext{meshFactoryContext};
+        materialFactoryContext.assimpIndex = mesh->mMaterialIndex;
+        materialFactoryContext.assetType = AssetType::Shader;
+        material = materialFactoryContext.assetManager.registerAsset(&materialFactoryContext);
+        
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
             glm::vec3 vector;

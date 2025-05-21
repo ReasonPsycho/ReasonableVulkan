@@ -4,7 +4,7 @@
 
 #include "AssimpGLMHelpers.h"
 
-namespace ae {
+namespace am {
     glm::mat4 AssimpGLMHelpers::ConvertMatrixToGLMFormat(const aiMatrix4x4 &from) {
         glm::mat4 to;
         //the a,b,c,d in assimp is the row ; the 1,2,3,4 is the column

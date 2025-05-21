@@ -4,7 +4,7 @@
 
 #include "Bone.h"
 
-namespace ae {
+namespace am {
     Bone::Bone(const std::string &name, int ID, const aiNodeAnim *channel)
         : m_Name(name),
           m_ID(ID),

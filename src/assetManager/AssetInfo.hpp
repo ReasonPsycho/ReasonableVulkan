@@ -8,7 +8,7 @@
 #include <boost/uuid/uuid.hpp>
 
 
-namespace ae {
+namespace am {
     class Asset; // Forward declaration
     class AssetManager;
     enum class AssetType;

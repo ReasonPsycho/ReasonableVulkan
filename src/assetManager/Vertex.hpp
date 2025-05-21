@@ -10,7 +10,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-namespace ae {
+namespace am {
     struct Vertex {
         // position
         glm::vec3 Position;

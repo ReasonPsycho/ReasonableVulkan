@@ -7,7 +7,7 @@
 #include "AssetManager.hpp"
 #include "AssetInfo.hpp"  // Add this include
 
-namespace ae {
+namespace am {
     class Asset {
     public:
         explicit Asset(AssetFactoryData assetFactoryData) {

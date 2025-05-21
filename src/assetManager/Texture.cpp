@@ -1,7 +1,7 @@
 #include "Texture.h"
 
-namespace ae {
-    Texture::Texture(ae::AssetFactoryData base_factory_context)
+namespace am {
+    Texture::Texture(am::AssetFactoryData base_factory_context)
         : Asset(base_factory_context) {
         loadFromFile(base_factory_context.path);
     }

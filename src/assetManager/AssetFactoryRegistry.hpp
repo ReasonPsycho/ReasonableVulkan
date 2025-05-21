@@ -3,14 +3,14 @@
 
 #include "AssetManager.hpp"
 
-namespace ae {
+namespace am {
     class AssetFactoryRegistry {
     public:
         template<typename T>
         struct Registrar {
-            explicit Registrar(ae::AssetType type) {
-                ae::AssetManager::getInstance().registerFactory(type,
-                                                                [](ae::AssetFactoryData &factoryData) {
+            explicit Registrar(am::AssetType type) {
+                am::AssetManager::getInstance().registerFactory(type,
+                                                                [](am::AssetFactoryData &factoryData) {
                                                                     return std::unique_ptr<T>(new T(factoryData));
                                                                 }
                 );
