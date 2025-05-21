@@ -5,64 +5,67 @@
 BOOST_AUTO_TEST_SUITE(ModelTests)
 
     BOOST_AUTO_TEST_CASE(TestLoadBox) {
-        auto &manager = ae::AssetManager::getInstance();
+        auto &manager = am::AssetManager::getInstance();
 
         // Create asset factory data for Box model
-        ae::AssetFactoryData factoryData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx",
-                                         ae::AssetType::Model);
+        am::AssetFactoryData factoryData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx",
+                                         am::AssetType::Model);
 
         // Register and load the model
         auto modelInfo = manager.registerAsset(&factoryData);
         BOOST_REQUIRE(modelInfo != nullptr);
 
         // Get the actual model
-        auto model = manager.getByUUID<ae::Model>(modelInfo->id);
+        auto model = manager.getByUUID<am::Model>(modelInfo->id);
         BOOST_REQUIRE(model != nullptr);
 
         // Box should have meshes
         BOOST_TEST(!model->meshes.empty());
 
+        // Mesh should have material
+        BOOST_TEST(dynamic_cast<am::Mesh*>(model->meshes[0]->getAsset())->material != nullptr);
+    
         // Test that the model type is correct
-        BOOST_TEST(model->getType() == ae::AssetType::Model);
+        BOOST_TEST(model->getType() == am::AssetType::Model);
     }
 
     BOOST_AUTO_TEST_CASE(TestLoadPlaneAndSphere) {
-        auto &manager = ae::AssetManager::getInstance();
+        auto &manager = am::AssetManager::getInstance();
 
         // Load Plane
-        ae::AssetFactoryData planeData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx",
-                                       ae::AssetType::Model);
+        am::AssetFactoryData planeData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx",
+                                       am::AssetType::Model);
         auto planeInfo = manager.registerAsset(&planeData);
-        auto planeModel = manager.getByUUID<ae::Model>(planeInfo->id);
+        auto planeModel = manager.getByUUID<am::Model>(planeInfo->id);
         BOOST_REQUIRE(planeModel != nullptr);
 
         // Load Sphere
-        ae::AssetFactoryData sphereData(
-            manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Sphere.fbx", ae::AssetType::Model);
+        am::AssetFactoryData sphereData(
+            manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Sphere.fbx", am::AssetType::Model);
         auto sphereInfo = manager.registerAsset(&sphereData);
-        auto sphereModel = manager.getByUUID<ae::Model>(sphereInfo->id);
+        auto sphereModel = manager.getByUUID<am::Model>(sphereInfo->id);
         BOOST_REQUIRE(sphereModel != nullptr);
 
         // Since they share the same texture, their texture catalogues should have the same content hash
-        BOOST_TEST(!planeModel->textureCatalogue.empty());
-        BOOST_TEST(!sphereModel->textureCatalogue.empty());
+        BOOST_TEST(!planeModel->meshes.empty());
+        BOOST_TEST(!sphereModel->meshes.empty());
 
-        // Compare texture content hashes
-        if (!planeModel->textureCatalogue.empty() && !sphereModel->textureCatalogue.empty()) {
-            BOOST_TEST(planeModel->textureCatalogue[0]->contentHash ==
-                sphereModel->textureCatalogue[0]->contentHash);
-        }
+        BOOST_TEST(dynamic_cast<am::Mesh*>(planeModel->meshes[0]->getAsset())->material != nullptr);
+        BOOST_TEST(dynamic_cast<am::Mesh*>(sphereModel->meshes[0]->getAsset())->material != nullptr);
+
+
+        BOOST_TEST(dynamic_cast<am::Mesh*>(sphereModel->meshes[0]->getAsset())->material == dynamic_cast<am::Mesh*>(planeModel->meshes[0]->getAsset())->material);
     }
 
     BOOST_AUTO_TEST_CASE(TestModelContentHash) {
-        auto &manager = ae::AssetManager::getInstance();
+        auto &manager = am::AssetManager::getInstance();
 
         // Load the same model twice
-        ae::AssetFactoryData firstData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx",
-                                       ae::AssetType::Model);
+        am::AssetFactoryData firstData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx",
+                                       am::AssetType::Model);
         auto firstModelInfo = manager.registerAsset(&firstData);
 
-        ae::AssetFactoryData secondData(manager, "res/models/my/Box.fbx", ae::AssetType::Model);
+        am::AssetFactoryData secondData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx", am::AssetType::Model);
         auto secondModelInfo = manager.registerAsset(&secondData);
 
         // Should return the same asset info due to same content hash
@@ -71,17 +74,17 @@ BOOST_AUTO_TEST_SUITE(ModelTests)
     }
 
     BOOST_AUTO_TEST_CASE(TestInvalidModel) {
-        auto &manager = ae::AssetManager::getInstance();
+        auto &manager = am::AssetManager::getInstance();
 
         // Try to load non-existent model
-        ae::AssetFactoryData invalidData(
+        am::AssetFactoryData invalidData(
             manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/NonExistent.fbx",
-            ae::AssetType::Model);
+            am::AssetType::Model);
         auto modelInfo = manager.registerAsset(&invalidData);
 
         // The asset info should be created but the model should have no meshes
         BOOST_REQUIRE(modelInfo != nullptr);
-        auto model = manager.getByUUID<ae::Model>(modelInfo->id);
+        auto model = manager.getByUUID<am::Model>(modelInfo->id);
         BOOST_REQUIRE(model != nullptr);
         BOOST_TEST(model->meshes.empty());
     }

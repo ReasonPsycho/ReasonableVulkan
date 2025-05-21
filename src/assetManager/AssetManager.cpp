@@ -5,7 +5,14 @@
 #include "Asset.hpp"
 #include "AssetManager.hpp"
 
-namespace ae {
+namespace am {
+    AssetManager::AssetManager() {
+    }
+
+    AssetManager::~AssetManager() {
+    }
+
+
     std::shared_ptr<AssetInfo> AssetManager::registerAsset(AssetFactoryData *factoryContext) {
         // First check if we already have this path
         auto metaDataInfo = lookupAssetInfoByPath(factoryContext->path);

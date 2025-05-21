@@ -15,15 +15,17 @@
 #include <optional>
 #include <assimp/scene.h>
 #include <boost/test/tools/assertion.hpp>
-
 #include "Asset.hpp"  // Add this include
 #include "AssetInfo.hpp"
 
-namespace ae {
+namespace am {
     class AssetManager {
-        using AssetFactory = std::function<std::unique_ptr<ae::Asset>(ae::AssetFactoryData &)>;
+        using AssetFactory = std::function<std::unique_ptr<am::Asset>(am::AssetFactoryData &)>;
 
     public:
+        AssetManager(const AssetManager&) = delete;
+        AssetManager& operator=(const AssetManager&) = delete;
+        
         static AssetManager &getInstance();
 
         std::shared_ptr<AssetInfo> registerAsset(AssetFactoryData *factoryContext);
@@ -65,8 +67,8 @@ namespace ae {
         }
 
     private:
-        AssetManager() = default;
-
+        AssetManager();
+        ~AssetManager();
         [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > lookupAssetInfo(const boost::uuids::uuid &id) const;
 
         [[nodiscard]] std::optional<Asset *> lookupAsset(const boost::uuids::uuid &id) const;
@@ -75,6 +77,6 @@ namespace ae {
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid> > metadata;
         std::unordered_map<AssetType, AssetFactory> factories;
     };
-} // ae
+} // am
 
 #endif //ASSETMANAGER_HPP

@@ -1,7 +1,7 @@
 #include "Shader.h"
 
 
-namespace ae {
+namespace am {
     void Shader::loadFromFile(const std::string &path) {
         std::ifstream file(path, std::ios::ate | std::ios::binary);
 

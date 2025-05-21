@@ -10,7 +10,7 @@
 #include <functional>
 
 
-namespace ae {
+namespace am {
     struct TextureData {
         std::vector<std::uint8_t> pixels;
         int width{0};
@@ -23,7 +23,7 @@ namespace ae {
     public:
         static inline AssetFactoryRegistry::Registrar<Texture> registrar{AssetType::Texture};
 
-        explicit Texture(ae::AssetFactoryData base_factory_context);
+        explicit Texture(am::AssetFactoryData base_factory_context);
 
         ~Texture() override;
 

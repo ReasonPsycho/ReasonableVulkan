@@ -24,7 +24,7 @@ using namespace std;
 #include "Texture.h"
 #include "Mesh.h"
 
-namespace ae {
+namespace am {
     struct BoneInfo {
         /*id is index in finalBoneMatrices*/
         int id;
@@ -38,7 +38,6 @@ namespace ae {
     public:
         static inline AssetFactoryRegistry::Registrar<Model> registrar{AssetType::Model};
         // model data 
-        vector<std::shared_ptr<AssetInfo> > textureCatalogue;
         vector<std::shared_ptr<AssetInfo> > meshes;
         std::map<string, BoneInfo> m_BoneInfoMap;
 

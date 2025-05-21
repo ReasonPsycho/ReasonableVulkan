@@ -1,10 +1,20 @@
 message(STATUS "Running asset manager cmake")
 cmake_policy(SET CMP0167 NEW)
 
+if(SPDLOG_DISABLE_LOGGING)
+    add_compile_definitions(SPDLOG_DISABLE_LOGGING)
+endif()
+
+if(DEFINED SPDLOG_ACTIVE_LEVEL)
+    add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
+endif()
+
+
 # Find Assimp package
 find_package(assimp CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Stb REQUIRED)  # Add STB
+find_package(spdlog CONFIG REQUIRED)
 
 # Find Boost with required components
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
@@ -45,6 +55,7 @@ target_link_libraries(am
         assimp::assimp
         Boost::uuid
         fmt::fmt
+        spdlog::spdlog
 )
 
 # Enable tests in Debug mode by default or when explicitly enabled

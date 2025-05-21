@@ -12,7 +12,7 @@
 #include "glm/gtx/quaternion.hpp"
 #include "assimp/anim.h"
 
-namespace ae {
+namespace am {
     struct KeyPosition {
         glm::vec3 position;
         float timeStamp;

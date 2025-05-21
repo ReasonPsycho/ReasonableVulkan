@@ -21,7 +21,8 @@
         "GFX_ENABLE_TESTS": "ON",
         "PLATFORM_ENABLE_TESTS": "ON",
         "ENABLE_INTEGRATION_TESTS": "ON",
-        "AM_ENABLE_TESTS": "ON"
+        "AM_ENABLE_TESTS": "ON",
+        "SPDLOG_ACTIVE_LEVEL": "SPDLOG_LEVEL_DEBUG"
       }
     },
     {
@@ -31,7 +32,8 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/cmake-build-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SPDLOG_ACTIVE_LEVEL": "SPDLOG_LEVEL_DEBUG"
       }
     },
     {
@@ -42,7 +44,8 @@
       "binaryDir": "${sourceDir}/cmake-build-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "GFX_ENABLE_TESTS": "OFF"
+        "GFX_ENABLE_TESTS": "OFF",
+        "SPDLOG_DISABLE_LOGGING": "ON"
       }
     }
   ]

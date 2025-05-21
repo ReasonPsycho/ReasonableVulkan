@@ -10,7 +10,7 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <string>
 
-namespace ae {
+namespace am {
     class UUIDManager {
     public:
         static boost::uuids::uuid generate() {

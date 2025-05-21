@@ -4,7 +4,7 @@
 
 #include "Animation.h"
 
-namespace ae {
+namespace am {
     Animation::Animation(AssetFactoryData animation_factory_context): Asset(animation_factory_context) {
         Assimp::Importer importer;
         const aiScene *scene = importer.ReadFile(animation_factory_context.path, aiProcess_Triangulate);

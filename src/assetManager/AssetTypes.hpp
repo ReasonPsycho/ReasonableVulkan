@@ -3,13 +3,14 @@
 
 #include <ostream>
 
-namespace ae {
+namespace am {
     enum class AssetType {
         Mesh,
         Model,
         Texture,
         Shader,
         Animation,
+        Material,
         Animator,
         Other // Just for testing
     };

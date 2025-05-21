@@ -1,7 +1,7 @@
 #include "Vertex.hpp"
 #include <glm/geometric.hpp>
 
-namespace ae {
+namespace am {
     void Normalize(Vertex &vertex) {
         // Normalize the normal vector
         vertex.Normal = glm::normalize(vertex.Normal);

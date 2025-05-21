@@ -10,7 +10,7 @@
 #include "assimp/matrix4x4.h"
 #include "glm/ext/quaternion_float.hpp"
 #include "assimp/quaternion.h"
-namespace ae {
+namespace am {
     class AssimpGLMHelpers {
     public:
         static glm::mat4 ConvertMatrixToGLMFormat(const aiMatrix4x4 &from);

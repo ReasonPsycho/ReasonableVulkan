@@ -4,4 +4,4 @@
 
 #include "UUIDManager.hpp"
 
-boost::uuids::random_generator ae::UUIDManager::generator;
+boost::uuids::random_generator am::UUIDManager::generator;

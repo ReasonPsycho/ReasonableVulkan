@@ -4,12 +4,17 @@
 
 #ifndef OPENGLGP_MESH_H
 #define OPENGLGP_MESH_H
+#include <tiny_gltf.h>
+
 #include "Asset.hpp"
 #include <assimp/scene.h>
 #include "AssetFactoryRegistry.hpp"
 #include <assimp/postprocess.h>
+#include <assimp/Importer.hpp>
 
-namespace ae {
+#include "Material.hpp"
+
+namespace am {
     struct Vertex;
 }
 
@@ -28,7 +33,7 @@ using namespace std;
 // Specialized context for textures
 
 
-namespace ae {
+namespace am {
     class Mesh : public Asset {
     public:
         static inline AssetFactoryRegistry::Registrar<Mesh> registrar{AssetType::Mesh};
@@ -36,6 +41,7 @@ namespace ae {
         // mesh Data
         vector<Vertex> vertices;
         vector<unsigned int> indices;
+        std::shared_ptr<AssetInfo> material;
         explicit Mesh(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
         void ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene);
 
