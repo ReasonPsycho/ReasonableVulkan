@@ -8,8 +8,8 @@ if (MSVC) # Caouse windows error
     add_compile_definitions(_AMD64_)
 endif ()
 
-# Set C++20 as the C++ standard for all targets
-set(CMAKE_CXX_STANDARD 20)
+# Set C++23 as the C++ standard for all targets
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Adding debug and build definitions 

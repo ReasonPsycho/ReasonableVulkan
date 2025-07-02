@@ -5,7 +5,12 @@
 #include "Material.hpp"
 
 size_t am::Material::calculateContentHash() const {
-    return 0;
+    size_t hash = 0;
+    
+    hash ^= diffuse->contentHash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+    hash ^= specular->contentHash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+   
+    return hash;
 }
 
 am::AssetType am::Material::getType() const {

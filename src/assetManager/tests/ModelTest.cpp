@@ -16,7 +16,7 @@ BOOST_AUTO_TEST_SUITE(ModelTests)
         BOOST_REQUIRE(modelInfo != nullptr);
 
         // Get the actual model
-        auto model = manager.getByUUID<am::Model>(modelInfo->id);
+        auto model = manager.getByUUID<am::Model>(modelInfo.value()->id);
         BOOST_REQUIRE(model != nullptr);
 
         // Box should have meshes
@@ -36,14 +36,14 @@ BOOST_AUTO_TEST_SUITE(ModelTests)
         am::AssetFactoryData planeData(manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx",
                                        am::AssetType::Model);
         auto planeInfo = manager.registerAsset(&planeData);
-        auto planeModel = manager.getByUUID<am::Model>(planeInfo->id);
+        auto planeModel = manager.getByUUID<am::Model>(planeInfo.value()->id);
         BOOST_REQUIRE(planeModel != nullptr);
 
         // Load Sphere
         am::AssetFactoryData sphereData(
             manager, "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Sphere.fbx", am::AssetType::Model);
         auto sphereInfo = manager.registerAsset(&sphereData);
-        auto sphereModel = manager.getByUUID<am::Model>(sphereInfo->id);
+        auto sphereModel = manager.getByUUID<am::Model>(sphereInfo.value()->id);
         BOOST_REQUIRE(sphereModel != nullptr);
 
         // Since they share the same texture, their texture catalogues should have the same content hash
@@ -69,8 +69,8 @@ BOOST_AUTO_TEST_SUITE(ModelTests)
         auto secondModelInfo = manager.registerAsset(&secondData);
 
         // Should return the same asset info due to same content hash
-        BOOST_TEST(firstModelInfo->id == secondModelInfo->id);
-        BOOST_TEST(firstModelInfo->contentHash == secondModelInfo->contentHash);
+        BOOST_TEST(firstModelInfo.value()->id == secondModelInfo.value()->id);
+        BOOST_TEST(firstModelInfo.value()->contentHash == secondModelInfo.value()->contentHash);
     }
 
     BOOST_AUTO_TEST_CASE(TestInvalidModel) {
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_SUITE(ModelTests)
 
         // The asset info should be created but the model should have no meshes
         BOOST_REQUIRE(modelInfo != nullptr);
-        auto model = manager.getByUUID<am::Model>(modelInfo->id);
+        auto model = manager.getByUUID<am::Model>(modelInfo.value()->id);
         BOOST_REQUIRE(model != nullptr);
         BOOST_TEST(model->meshes.empty());
     }

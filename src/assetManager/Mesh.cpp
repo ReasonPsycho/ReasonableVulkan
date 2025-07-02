@@ -64,8 +64,13 @@ namespace am {
         
         AssetFactoryData materialFactoryContext{meshFactoryContext};
         materialFactoryContext.assimpIndex = mesh->mMaterialIndex;
-        materialFactoryContext.assetType = AssetType::Shader;
-        material = materialFactoryContext.assetManager.registerAsset(&materialFactoryContext);
+        materialFactoryContext.assetType = AssetType::Material;
+        
+        auto rMaterial = materialFactoryContext.assetManager.registerAsset(&materialFactoryContext);
+        if (!rMaterial) {
+            spdlog::error("Failed to load material for mesh: " + meshFactoryContext.path);
+            throw std::runtime_error("Failed to load material for mesh: " + meshFactoryContext.path);
+        }
         
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
