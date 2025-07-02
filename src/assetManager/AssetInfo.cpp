@@ -12,7 +12,12 @@ am::Asset *am::AssetInfo::getAsset() {
         auto &assetManager = assetFactoryData.assetManager;
         auto factory = assetManager.getFactory(type);
         if (factory) {
-            loadedAsset = factory(assetFactoryData).release();
+            auto loadResult = factory(assetFactoryData);
+            if (!loadResult) {
+                spdlog::error("Failed to load asset: {}", path);
+                throw std::runtime_error("Failed to load asset: " + path);
+            }
+            loadedAsset = loadResult.value().get();
             isLoaded = true;
         }
     }

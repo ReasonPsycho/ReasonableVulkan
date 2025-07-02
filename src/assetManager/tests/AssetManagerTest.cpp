@@ -6,7 +6,7 @@
 class MockAsset : public am::Asset {
 public:
     explicit MockAsset(am::AssetFactoryData assetFactoryData)
-        : Asset(assetFactoryData), mockHash(0) {
+        : Asset(assetFactoryData), mockHash(1) {
     }
 
     void setMockHash(size_t hash) { mockHash = hash; }
@@ -37,23 +37,23 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
 
         // Register factory for mock asset
         manager.registerFactory(am::AssetType::Other,
-                                [](am::AssetFactoryData &data) -> std::unique_ptr<am::Asset> {
-                                    return std::make_unique<MockAsset>(data);
-                                });
+                              [](am::AssetFactoryData &data) -> std::expected<std::unique_ptr<am::Asset>, std::exception_ptr> {
+                                  return std::make_unique<MockAsset>(data);
+                              });
 
         // Create asset factory data
         am::AssetFactoryData factoryData(manager, "test_path.txt", am::AssetType::Other);
 
         // Register asset
         auto assetInfo = manager.registerAsset(&factoryData);
-        BOOST_REQUIRE(assetInfo != nullptr);
+        BOOST_REQUIRE(assetInfo.has_value());
 
         // Test lookupAssetInfoByPath
         auto lookedUpAsset = manager.lookupAssetInfoByPath("test_path.txt");
         BOOST_REQUIRE(lookedUpAsset.has_value());
         BOOST_TEST(lookedUpAsset.value()->path == "test_path.txt");
         BOOST_TEST(lookedUpAsset.value()->type == am::AssetType::Other);
-        BOOST_TEST(lookedUpAsset.value()->id == assetInfo->id);
+        BOOST_TEST(lookedUpAsset.value()->id == assetInfo.value()->id);
     }
 
     BOOST_AUTO_TEST_CASE(TestDuplicatePathRegistration) {
@@ -61,21 +61,23 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
 
         // Register factory if not already registered
         manager.registerFactory(am::AssetType::Other,
-                                [](am::AssetFactoryData &data) -> std::unique_ptr<am::Asset> {
-                                    return std::make_unique<MockAsset>(data);
-                                });
+                              [](am::AssetFactoryData &data) -> std::expected<std::unique_ptr<am::Asset>, std::exception_ptr> {
+                                  return std::make_unique<MockAsset>(data);
+                              });
 
         // Register first asset
         am::AssetFactoryData firstData(manager, "duplicate_path.txt", am::AssetType::Other);
         auto firstAsset = manager.registerAsset(&firstData);
+        BOOST_REQUIRE(firstAsset.has_value());
 
         // Try to register second asset with same path
         am::AssetFactoryData secondData(manager, "duplicate_path.txt", am::AssetType::Other);
         auto secondAsset = manager.registerAsset(&secondData);
+        BOOST_REQUIRE(secondAsset.has_value());
 
         // Should return the same asset info
-        BOOST_TEST(firstAsset->id == secondAsset->id);
-        BOOST_TEST(firstAsset->path == secondAsset->path);
+        BOOST_TEST(firstAsset.value()->id == secondAsset.value()->id);
+        BOOST_TEST(firstAsset.value()->path == secondAsset.value()->path);
     }
 
     BOOST_AUTO_TEST_CASE(TestGetByUUID) {
@@ -83,16 +85,17 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
 
         // Register factory if not already registered
         manager.registerFactory(am::AssetType::Other,
-                                [](am::AssetFactoryData &data) -> std::unique_ptr<am::Asset> {
-                                    return std::make_unique<MockAsset>(data);
-                                });
+                              [](am::AssetFactoryData &data) -> std::expected<std::unique_ptr<am::Asset>, std::exception_ptr> {
+                                  return std::make_unique<MockAsset>(data);
+                              });
 
         // Register an asset
         am::AssetFactoryData factoryData(manager, "test_uuid.txt", am::AssetType::Other);
         auto assetInfo = manager.registerAsset(&factoryData);
+        BOOST_REQUIRE(assetInfo.has_value());
 
         // Try to get asset by UUID
-        auto asset = manager.getByUUID<am::Asset>(assetInfo->id);
+        auto asset = manager.getByUUID<am::Asset>(assetInfo.value()->id);
         BOOST_REQUIRE(asset != nullptr);
     }
 
@@ -101,23 +104,25 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
 
         // Register factory that creates assets with specific hash
         manager.registerFactory(am::AssetType::Other,
-                                [](am::AssetFactoryData &data) -> std::unique_ptr<am::Asset> {
-                                    auto asset = std::make_unique<MockAsset>(data);
-                                    asset->setMockHash(12345); // Set same hash for all assets
-                                    return asset;
-                                });
+                              [](am::AssetFactoryData &data) -> std::expected<std::unique_ptr<am::Asset>, std::exception_ptr> {
+                                  auto asset = std::make_unique<MockAsset>(data);
+                                  asset->setMockHash(12345); // Set same hash for all assets
+                                  return asset;
+                              });
 
         // Register first asset
         am::AssetFactoryData firstData(manager, "path1.txt", am::AssetType::Other);
         auto firstAsset = manager.registerAsset(&firstData);
+        BOOST_REQUIRE(firstAsset.has_value());
 
         // Register second asset with different path but same content hash
         am::AssetFactoryData secondData(manager, "path2.txt", am::AssetType::Other);
         auto secondAsset = manager.registerAsset(&secondData);
+        BOOST_REQUIRE(secondAsset.has_value());
 
         // Should return the same asset info due to same content hash
-        BOOST_TEST(firstAsset->id == secondAsset->id);
-        BOOST_TEST(firstAsset->contentHash == secondAsset->contentHash);
+        BOOST_TEST(firstAsset.value()->id == secondAsset.value()->id);
+        BOOST_TEST(firstAsset.value()->contentHash == secondAsset.value()->contentHash);
     }
 
     BOOST_AUTO_TEST_CASE(TestNonExistentAsset) {
