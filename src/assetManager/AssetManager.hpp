@@ -23,9 +23,10 @@
 
 namespace am {
     class AssetManager {
-        using AssetFactory = std::function<std::expected<std::unique_ptr<am::Asset>, std::exception_ptr>(am::AssetFactoryData &)>;
-        using AssetResult = std::expected<std::shared_ptr<AssetInfo>, std::exception_ptr>;
+        using AssetFactoryResult = std::expected<std::unique_ptr<am::Asset>, std::exception_ptr>;
+        using AssetFactory = std::function<AssetFactoryResult(am::AssetFactoryData &)>;
 
+        using AssetResult = std::expected<std::shared_ptr<AssetInfo>, std::exception_ptr>;
     public:
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
@@ -66,7 +67,13 @@ namespace am {
 
         AssetFactory getFactory(AssetType type) const {
             auto it = factories.find(type);
-            BOOST_ASSERT(it != factories.end());
+            if (it == factories.end())
+            {
+                std::ostringstream oss;
+                oss << type;
+                spdlog::error("Failed to find factory for type: {}", type);
+                throw std::runtime_error("Failed to find factory for type:" + oss.str());
+            }
             return it->second;
         }
 
