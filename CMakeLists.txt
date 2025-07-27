@@ -1,5 +1,6 @@
 # Specify the minimum CMake version required for this project
 cmake_minimum_required(VERSION 3.24)
+cmake_policy(SET CMP0167 NEW)
 
 # Define the project name and create the project
 project(ReasonableVulkan)

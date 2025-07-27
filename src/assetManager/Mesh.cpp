@@ -71,7 +71,8 @@ namespace am {
             spdlog::error("Failed to load material for mesh: " + meshFactoryContext.path);
             throw std::runtime_error("Failed to load material for mesh: " + meshFactoryContext.path);
         }
-        
+        material = rMaterial;
+
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
             glm::vec3 vector;
@@ -120,12 +121,7 @@ namespace am {
             for (unsigned int j = 0; j < face.mNumIndices; j++)
                 indices.push_back(face.mIndices[j]);
         }
-        // process materials
-        aiMaterial *aiMaterial = scene->mMaterials[mesh->mMaterialIndex];
-        // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
-        // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
-        // Same applies to other texture as the following list summarizes:
-        
+
         for (int i = 0; i < vertices.size(); ++i) {
             Normalize(vertices[i]);
         }

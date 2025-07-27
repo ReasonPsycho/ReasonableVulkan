@@ -39,7 +39,7 @@ public:
         AssetFactoryData textureFactoryContext{assetFactoryContext};
         textureFactoryContext.assetType = AssetType::Texture;
         textureFactoryContext.assimpIndex = 0;
-            
+
        aiString path;  // Create an actual aiString object, not a pointer
         material->GetTexture(aiTextureType_DIFFUSE, 0, &path, nullptr, nullptr, nullptr);
         textureFactoryContext.path = path.C_Str();
@@ -48,8 +48,8 @@ public:
             spdlog::error("Failed to load texture: " + textureFactoryContext.path);
             throw std::runtime_error("Failed to load texture: " + textureFactoryContext.path);
         }
-        diffuse = diffuseResult.value();
-        
+        diffuse = diffuseResult;
+
         material->GetTexture(aiTextureType_SHININESS, 0,  &path, nullptr, nullptr, nullptr);
         textureFactoryContext.path = path.C_Str();
         auto specularResult = assetFactoryContext.assetManager.registerAsset(&textureFactoryContext);
@@ -57,7 +57,7 @@ public:
             spdlog::error("Failed to load texture: " + textureFactoryContext.path);
             throw std::runtime_error("Failed to load texture: " + textureFactoryContext.path);
         }
-        specular = specularResult.value();
+        specular = specularResult;
     }
 
     size_t calculateContentHash() const override;

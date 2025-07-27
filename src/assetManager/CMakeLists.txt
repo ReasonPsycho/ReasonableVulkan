@@ -91,5 +91,5 @@ if (AM_ENABLE_TESTS)
 
     # Enable CTest
     enable_testing()
-    add_test(NAME am_test COMMAND am_test)
+    add_test(NAME am_test COMMAND am_test WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif ()
