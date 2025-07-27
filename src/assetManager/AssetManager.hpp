@@ -47,34 +47,24 @@ namespace am {
             }));
         }
 
-
-        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > lookupAssetInfoByPath(const std::string &path) const {
-            auto it = std::find_if(metadata.begin(), metadata.end(),
-                                   [&path](const auto &pair) {
-                                       return pair.second->path == path;
-                                   });
-
-            if (it != metadata.end()) {
-                return it->second;
-            }
-            return std::nullopt;
-        }
-
         AssetFactory getFactory(AssetType type) const {
             auto it = factories.find(type);
             BOOST_ASSERT(it != factories.end());
             return it->second;
         }
 
+
+        [[nodiscard]] std::vector<boost::uuids::uuid> getUUIDsByPath(const std::string &path) const;
+        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > lookupAssetInfo(const boost::uuids::uuid &id) const;
+        [[nodiscard]] std::optional<Asset *> lookupAsset(const boost::uuids::uuid &id) const;
+
     private:
         AssetManager();
         ~AssetManager();
-        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > lookupAssetInfo(const boost::uuids::uuid &id) const;
-
-        [[nodiscard]] std::optional<Asset *> lookupAsset(const boost::uuids::uuid &id) const;
 
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid> > assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid> > metadata;
+        std::unordered_map<std::string, std::vector<boost::uuids::uuid>> pathToUUIDs;
         std::unordered_map<AssetType, AssetFactory> factories;
     };
 } // am

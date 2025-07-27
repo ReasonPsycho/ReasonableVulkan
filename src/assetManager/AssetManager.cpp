@@ -14,11 +14,14 @@ namespace am {
 
 
     std::shared_ptr<AssetInfo> AssetManager::registerAsset(AssetFactoryData *factoryContext) {
-        // First check if we already have this path
-        auto metaDataInfo = lookupAssetInfoByPath(factoryContext->path);
-        if (metaDataInfo) {
-            factoryContext->scene = nullptr;
-            return metaDataInfo.value();
+        // First check if we already have this factoryContext
+        auto uuids = getUUIDsByPath(factoryContext->path);
+        for (auto uuid : uuids)
+        {
+            auto info = lookupAssetInfo(uuid);
+            if (info.value()->assetFactoryData == *factoryContext ) {
+                return info.value();
+            }
         }
 
         // Create and load the asset to calculate its hash
@@ -41,6 +44,7 @@ namespace am {
             factoryContext->scene = nullptr;
             return existingAsset->second;
         }
+
         auto id = boost::uuids::random_generator()();
         // If we get here, this is a new unique asset
         auto info = std::make_shared<AssetInfo>(id, factoryContext->path, factoryContext->assetType, contentHash,
@@ -50,6 +54,7 @@ namespace am {
         metadata.insert(std::make_pair(id, info));
         assets[id] = std::move(newAsset);
         info->loadedAsset = assets[id].get();
+        pathToUUIDs[factoryContext->path].push_back(id);
         factoryContext->scene = nullptr;
 
         return info;
@@ -69,6 +74,14 @@ namespace am {
         auto it = metadata.find(id);
         if (it != metadata.end()) return it->second;
         return std::nullopt;
+    }
+
+    std::vector<boost::uuids::uuid> AssetManager::getUUIDsByPath(const std::string &path) const {
+        auto it = pathToUUIDs.find(path);
+        if (it != pathToUUIDs.end()) {
+            return it->second;
+        }
+        return {};
     }
 
     std::optional<Asset *> AssetManager::lookupAsset(const boost::uuids::uuid &id) const {

@@ -26,6 +26,8 @@ namespace am {
               , assetType(type)
               , assimpIndex(assimpIndex) {
         }
+
+        bool operator==(const AssetFactoryData& factory_context) const;
     };
 
     class AssetInfo {
