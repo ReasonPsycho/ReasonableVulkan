@@ -71,7 +71,7 @@ namespace am {
             spdlog::error("Failed to load material for mesh: " + meshFactoryContext.path);
             throw std::runtime_error("Failed to load material for mesh: " + meshFactoryContext.path);
         }
-        material = rMaterial;
+        material = rMaterial.value();
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;

@@ -15,8 +15,12 @@
 #include <optional>
 #include <assimp/scene.h>
 #include <boost/test/tools/assertion.hpp>
+#include <spdlog/spdlog.h>
+
 #include "Asset.hpp"  // Add this include
 #include "AssetInfo.hpp"
+
+
 
 namespace am {
     class AssetManager {
@@ -28,12 +32,25 @@ namespace am {
 
         static AssetManager &getInstance();
 
-        std::shared_ptr<AssetInfo> registerAsset(AssetFactoryData *factoryContext);
-
         void registerFactory(AssetType type, AssetFactory factory);
+        std::optional<std::shared_ptr<AssetInfo>> registerAsset(AssetFactoryData *factoryContext);
+        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > lookupAssetInfo(const boost::uuids::uuid &id) const;
+        [[nodiscard]] std::optional<Asset *> lookupAsset(const boost::uuids::uuid &id) const;
 
-        template<typename T>
-        std::shared_ptr<T> getByUUID(const boost::uuids::uuid &id) {
+        AssetFactory getFactory(AssetType type) const {
+            auto it = factories.find(type);
+            if(it != factories.end())
+            {
+                return it->second;
+            }
+            spdlog::error("Failed to get asset factory!");
+            throw std::runtime_error("Failed to get asset factory!");
+
+        }
+
+
+          template <typename T>
+             std::shared_ptr<T> getByUUID(const boost::uuids::uuid &id) {
             auto it = assets.find(id);
             if (it != assets.end()) {
                 return std::dynamic_pointer_cast<T>(std::shared_ptr<Asset>(it->second.get(), [](Asset *) {
@@ -47,26 +64,26 @@ namespace am {
             }));
         }
 
-        AssetFactory getFactory(AssetType type) const {
-            auto it = factories.find(type);
-            BOOST_ASSERT(it != factories.end());
-            return it->second;
-        }
 
 
         [[nodiscard]] std::vector<boost::uuids::uuid> getUUIDsByPath(const std::string &path) const;
-        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > lookupAssetInfo(const boost::uuids::uuid &id) const;
-        [[nodiscard]] std::optional<Asset *> lookupAsset(const boost::uuids::uuid &id) const;
 
     private:
         AssetManager();
         ~AssetManager();
 
+
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid> > assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid> > metadata;
         std::unordered_map<std::string, std::vector<boost::uuids::uuid>> pathToUUIDs;
         std::unordered_map<AssetType, AssetFactory> factories;
+
+
+    #ifdef AM_ENABLE_TESTS
+        friend struct AssetManagerTestFixture;
+    #endif
     };
+
 } // am
 
 #endif //ASSETMANAGER_HPP

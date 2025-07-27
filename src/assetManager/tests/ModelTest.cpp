@@ -4,90 +4,71 @@
 
 BOOST_AUTO_TEST_SUITE(ModelTests)
 
-    BOOST_AUTO_TEST_CASE(TestLoadBox) {
-        auto &manager = am::AssetManager::getInstance();
+    BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
+        auto& manager = am::AssetManager::getInstance();
 
-        // Create asset factory data for Box model
-        am::AssetFactoryData factoryData(manager, "res/models/my/Box.fbx",
-                                         am::AssetType::Model);
+        am::AssetFactoryData data(manager, "res/models/my/Box.fbx", am::AssetType::Model);
+        auto info = manager.registerAsset(&data);
+        BOOST_REQUIRE(info != nullptr);
 
-        // Register and load the model
-        auto modelInfo = manager.registerAsset(&factoryData);
-        BOOST_REQUIRE(modelInfo != nullptr);
-
-        // Get the actual model
-        auto model = manager.getByUUID<am::Model>(modelInfo.get()->id);
+        auto model = manager.getByUUID<am::Model>(info.value()->id);
         BOOST_REQUIRE(model != nullptr);
-
-        // Box should have meshes
         BOOST_TEST(!model->meshes.empty());
 
-        // Mesh should have material
-        BOOST_TEST(dynamic_cast<am::Mesh*>(model->meshes[0]->getAsset())->material != nullptr);
-    
-        // Test that the model type is correct
+        auto mesh = dynamic_cast<am::Mesh*>(model->meshes[0]->getAsset());
+        BOOST_REQUIRE(mesh != nullptr);
+        BOOST_TEST(mesh->material != nullptr);
+
         BOOST_TEST(model->getType() == am::AssetType::Model);
     }
 
-    BOOST_AUTO_TEST_CASE(TestLoadPlaneAndSphere) {
-        auto &manager = am::AssetManager::getInstance();
+    BOOST_AUTO_TEST_CASE(LoadPlaneAndSphereSharedMaterial) {
+        auto& manager = am::AssetManager::getInstance();
 
-        // Load Plane
-        am::AssetFactoryData planeData(manager, "res/models/my/Plane.fbx",
-                                       am::AssetType::Model);
+        am::AssetFactoryData planeData(manager, "res/models/my/Plane.fbx", am::AssetType::Model);
         auto planeInfo = manager.registerAsset(&planeData);
-        auto planeModel = manager.getByUUID<am::Model>(planeInfo->id);
-        BOOST_REQUIRE(planeModel != nullptr);
+        auto plane = manager.getByUUID<am::Model>(planeInfo.value()->id);
+        BOOST_REQUIRE(plane != nullptr);
+        BOOST_REQUIRE(!plane->meshes.empty());
 
-        // Load Sphere
-        am::AssetFactoryData sphereData(
-            manager, "res/models/my/Sphere.fbx", am::AssetType::Model);
+        am::AssetFactoryData sphereData(manager, "res/models/my/Sphere.fbx", am::AssetType::Model);
         auto sphereInfo = manager.registerAsset(&sphereData);
-        auto sphereModel = manager.getByUUID<am::Model>(sphereInfo->id);
-        BOOST_REQUIRE(sphereModel != nullptr);
+        auto sphere = manager.getByUUID<am::Model>(sphereInfo.value()->id);
+        BOOST_REQUIRE(sphere != nullptr);
+        BOOST_REQUIRE(!sphere->meshes.empty());
 
-        // Since they share the same texture, their texture catalogues should have the same content hash
-        BOOST_TEST(!planeModel->meshes.empty());
-        BOOST_TEST(!sphereModel->meshes.empty());
+        auto planeMesh = dynamic_cast<am::Mesh*>(plane->meshes[0]->getAsset());
+        auto sphereMesh = dynamic_cast<am::Mesh*>(sphere->meshes[0]->getAsset());
 
-        BOOST_TEST(dynamic_cast<am::Mesh*>(planeModel->meshes[0]->getAsset())->material != nullptr);
-        BOOST_TEST(dynamic_cast<am::Mesh*>(sphereModel->meshes[0]->getAsset())->material != nullptr);
-
-
-        BOOST_TEST(dynamic_cast<am::Mesh*>(sphereModel->meshes[0]->getAsset())->material == dynamic_cast<am::Mesh*>(planeModel->meshes[0]->getAsset())->material);
+        BOOST_REQUIRE(planeMesh && sphereMesh);
+        BOOST_REQUIRE(planeMesh->material && sphereMesh->material);
+        BOOST_TEST(planeMesh->material == sphereMesh->material, "Materials should be shared");
     }
 
-    BOOST_AUTO_TEST_CASE(TestModelContentHash) {
-        auto &manager = am::AssetManager::getInstance();
+    BOOST_AUTO_TEST_CASE(ModelSamePathSameHash) {
+        auto& manager = am::AssetManager::getInstance();
 
-        // Load the same model twice
-        am::AssetFactoryData firstData(manager, "res/models/my/Box.fbx",
-                                       am::AssetType::Model);
-        auto firstModelInfo = manager.registerAsset(&firstData);
+        am::AssetFactoryData data1(manager, "res/models/my/Box.fbx", am::AssetType::Model);
+        auto model1 = manager.registerAsset(&data1);
 
-        am::AssetFactoryData secondData(manager, "res/models/my/Box.fbx", am::AssetType::Model);
-        auto secondModelInfo = manager.registerAsset(&secondData);
+        am::AssetFactoryData data2(manager, "res/models/my/Box.fbx", am::AssetType::Model);
+        auto model2 = manager.registerAsset(&data2);
 
-        // Should return the same asset info due to same content hash
-        BOOST_TEST(firstModelInfo->id == secondModelInfo->id);
-        BOOST_TEST(firstModelInfo->contentHash == secondModelInfo->contentHash);
+        BOOST_TEST(model1.value()->id == model2.value()->id);
+        BOOST_TEST(model1.value()->contentHash == model2.value()->contentHash);
     }
 
-    BOOST_AUTO_TEST_CASE(TestInvalidModel) {
-        auto &manager = am::AssetManager::getInstance();
+    BOOST_AUTO_TEST_CASE(InvalidModelStillCreatesInfo) {
+        auto& manager = am::AssetManager::getInstance();
 
-        // Try to load non-existent model
-        am::AssetFactoryData invalidData(
-            manager, "res/models/my/NonExistent.fbx",
-            am::AssetType::Model);
-        auto modelInfo = manager.registerAsset(&invalidData);
+        am::AssetFactoryData data(manager, "res/models/my/NonExistent.fbx", am::AssetType::Model);
+        auto info = manager.registerAsset(&data);
+        BOOST_REQUIRE(info != nullptr);
 
-        // The asset info should be created but the model should have no meshes
-        BOOST_REQUIRE(modelInfo != nullptr);
-        auto model = manager.getByUUID<am::Model>(modelInfo->id);
+        auto model = manager.getByUUID<am::Model>(info.value()->id);
         BOOST_REQUIRE(model != nullptr);
-        BOOST_TEST(model->meshes.empty());
-    }
 
+        BOOST_TEST(model->meshes.empty(), "Non-existent model should result in empty mesh list");
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

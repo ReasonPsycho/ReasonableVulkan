@@ -64,6 +64,7 @@ target_link_libraries(am
 # Enable tests in Debug mode by default or when explicitly enabled
 if (AM_ENABLE_TESTS)
     message(STATUS "Configuring asset manager tests")
+    add_compile_definitions(AM_ENABLE_TESTS)
 
     # Find Boost with test components
     find_package(Boost REQUIRED COMPONENTS unit_test_framework)
