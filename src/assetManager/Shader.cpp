@@ -7,7 +7,7 @@ namespace am {
 
         if (!file.is_open()) {
             spdlog::error("Failed to open shader file: {}", path);
-            return;
+            throw std::runtime_error("Failed to open shader file: " + path);       
         }
 
         // Get file size and rewind
@@ -17,7 +17,7 @@ namespace am {
         // SPIR-V files must be a multiple of 4 bytes
         if (fileSize % 4 != 0) {
             spdlog::error("Shader file size is not a multiple of 4 bytes: {}", path);
-            return;
+            throw std::runtime_error("Shader file size is not a multiple of 4 bytes: " + path);
         }
 
         // Create temporary vector to read file
@@ -28,7 +28,7 @@ namespace am {
 
         if (!file) {
             spdlog::error("Failed to read shader file: {}", path);
-            return;
+            throw std::runtime_error("Failed to read shader file: " + path);
         }
 
         // Determine shader stage from file extension
@@ -60,7 +60,8 @@ namespace am {
 
     size_t Shader::calculateContentHash() const {
         if (!shaderData) {
-            return 0;
+            spdlog::error("Shader data is null");
+            throw std::runtime_error("Shader data is null");
         }
 
         size_t hash = 0;

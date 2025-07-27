@@ -1,5 +1,6 @@
 # Specify the minimum CMake version required for this project
 cmake_minimum_required(VERSION 3.24)
+cmake_policy(SET CMP0167 NEW)
 
 # Define the project name and create the project
 project(ReasonableVulkan)
@@ -8,8 +9,8 @@ if (MSVC) # Caouse windows error
     add_compile_definitions(_AMD64_)
 endif ()
 
-# Set C++20 as the C++ standard for all targets
-set(CMAKE_CXX_STANDARD 20)
+# Set C++23 as the C++ standard for all targets
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Adding debug and build definitions 

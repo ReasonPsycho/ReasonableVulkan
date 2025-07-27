@@ -31,6 +31,8 @@ namespace am {
                 return os << "Animator";
             case AssetType::Other:
                 return os << "Other";
+            case AssetType::Material:
+                return os << "Material";
             default:
                 return os << "Unknown";
         }

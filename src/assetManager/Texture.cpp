@@ -17,7 +17,7 @@ namespace am {
 
         if (!data) {
             spdlog::error("Failed to load texture: {} - {}", path, stbi_failure_reason());
-            return;
+            throw std::runtime_error("Failed to load texture: " + path);
         }
 
         // Create new texture data
@@ -41,7 +41,8 @@ namespace am {
 
     size_t Texture::calculateContentHash() const {
         if (!textureData) {
-            return 0;
+            spdlog::error("Texture data is null");
+            throw std::runtime_error("Texture data is null");
         }
 
         size_t hash = 0;

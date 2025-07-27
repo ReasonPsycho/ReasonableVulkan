@@ -34,12 +34,13 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
 
     BOOST_AUTO_TEST_CASE(TestRegisterAndLookupAsset) {
         auto &manager = am::AssetManager::getInstance();
-
-        // Register factory for mock asset
-        manager.registerFactory(am::AssetType::Other,
-                                [](am::AssetFactoryData &data) -> std::unique_ptr<am::Asset> {
-                                    return std::make_unique<MockAsset>(data);
-                                });
+    // Register factory that creates assets with specific hash
+    manager.registerFactory(am::AssetType::Other,
+                            [](am::AssetFactoryData &data) -> std::unique_ptr<am::Asset> {
+                                auto asset = std::make_unique<MockAsset>(data);
+                                asset->setMockHash(12345); // Set same hash for all assets
+                                return asset;
+                            });
 
         // Create asset factory data
         am::AssetFactoryData factoryData(manager, "test_path.txt", am::AssetType::Other);
