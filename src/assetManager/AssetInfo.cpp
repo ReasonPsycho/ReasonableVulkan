@@ -9,6 +9,18 @@
 #include "AssetManager.hpp"
 #include "Asset.hpp"
 
+bool am::AssetFactoryData::operator==(const AssetFactoryData& factory_context) const
+{
+    if (this->path != factory_context.path)
+        return false;
+    if (this->assetType != factory_context.assetType)
+        return false;
+    if (this->assimpIndex != factory_context.assimpIndex)
+        return false;
+
+    return true;
+}
+
 am::Asset *am::AssetInfo::getAsset() {
     if (!isLoaded && !loadedAsset) {
         // Use the asset manager to load the asset

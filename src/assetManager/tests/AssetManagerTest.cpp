@@ -50,8 +50,9 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         BOOST_REQUIRE(assetInfo != nullptr);
 
         // Test lookupAssetInfoByPath
-        auto lookedUpAsset = manager.lookupAssetInfoByPath("test_path.txt");
-        BOOST_REQUIRE(lookedUpAsset.has_value());
+        auto uids = manager.getUUIDsByPath("test_path.txt");
+        BOOST_REQUIRE(uids.size() == 1);
+        auto lookedUpAsset = manager.lookupAssetInfo(uids[0]);
         BOOST_TEST(lookedUpAsset.value()->path == "test_path.txt");
         BOOST_TEST(lookedUpAsset.value()->type == am::AssetType::Other);
         BOOST_TEST(lookedUpAsset.value()->id == assetInfo->id);
@@ -132,8 +133,8 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         BOOST_TEST(asset == nullptr);
 
         // Try to lookup non-existent path
-        auto lookedUpAsset = manager.lookupAssetInfoByPath("non_existent_path.txt");
-        BOOST_TEST(!lookedUpAsset.has_value());
+        auto uids = manager.getUUIDsByPath("test_path1.txt");
+        BOOST_TEST(uids.empty());
     }
 
 BOOST_AUTO_TEST_SUITE_END()
