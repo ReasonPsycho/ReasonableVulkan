@@ -25,7 +25,7 @@ namespace am {
     public:
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
-        
+
         static AssetManager &getInstance();
 
         std::shared_ptr<AssetInfo> registerAsset(AssetFactoryData *factoryContext);
