@@ -17,16 +17,16 @@
       }
     },
     {
-      "name": "debug-with-tests",
+      "name": "tests",
       "inherits": "gfx-base",
-      "displayName": "Debug with Tests",
-      "binaryDir": "${sourceDir}/cmake-build-debug-tests",
+      "displayName": "Tests",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "GFX_ENABLE_TESTS": "ON",
         "PLATFORM_ENABLE_TESTS": "ON",
         "ENABLE_INTEGRATION_TESTS": "ON",
         "AM_ENABLE_TESTS": "ON",
+        "ENGINE_ENABLE_TESTS": "ON",
         "SPDLOG_ACTIVE_LEVEL": "SPDLOG_LEVEL_DEBUG"
       }
     },
@@ -34,7 +34,6 @@
       "name": "debug",
       "inherits": "gfx-base",
       "displayName": "Debug",
-      "binaryDir": "${sourceDir}/cmake-build-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "SPDLOG_ACTIVE_LEVEL": "SPDLOG_LEVEL_DEBUG"
@@ -44,7 +43,6 @@
       "name": "release",
       "inherits": "gfx-base",
       "displayName": "Release",
-      "binaryDir": "${sourceDir}/cmake-build-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "GFX_ENABLE_TESTS": "OFF",
