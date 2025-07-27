@@ -5,8 +5,6 @@
 #include "Asset.hpp"
 #include "AssetManager.hpp"
 
-
-
 namespace am {
     AssetManager::AssetManager() {
     }
@@ -15,83 +13,47 @@ namespace am {
     }
 
 
-    AssetManager::AssetResult AssetManager::registerAsset(AssetFactoryData *factoryContext) {
-        try {
-            if (!factoryContext) {
-                spdlog::error("Attempted to register asset with null factory context");
-                return std::unexpected(std::make_exception_ptr(
-                    AssetException("Null factory context provided")));
-            }
-
-            // First check if we already have this path
-            auto metaDataInfo = lookupAssetInfoByPath(factoryContext->path);
-            if (metaDataInfo) {
-                spdlog::debug("Asset already registered for path: {}", factoryContext->path);
-                factoryContext->scene = nullptr;
-                return metaDataInfo.value();
-            }
-
-            // Get the factory for this asset type
-            auto factoryIt = factories.find(factoryContext->assetType);
-            if (factoryIt == factories.end()) {
-                spdlog::error("No factory found for asset type: {}", static_cast<int>(factoryContext->assetType));
-                return std::unexpected(std::make_exception_ptr(
-                    AssetFactoryNotFoundException(std::to_string(static_cast<int>(factoryContext->assetType)))));
-            }
-
-            spdlog::debug("Creating new asset for path: {}", factoryContext->path);
-            auto result = factoryIt->second(*factoryContext);
-            if (!result) {
-                spdlog::error("Factory failed to create asset for: {}", factoryContext->path);
-                return std::unexpected(std::current_exception());
-            }
-            std::unique_ptr<Asset> newAsset = std::move(result.value());
-
-            size_t contentHash = newAsset->calculateContentHash();
-            if (contentHash == 0) {
-                spdlog::error("Failed to calculate content hash for asset: {}", factoryContext->path);
-                return std::unexpected(std::make_exception_ptr(
-                    AssetException("Failed to calculate content hash for asset: " + factoryContext->path)));
-            }
-            
-            spdlog::debug("Calculated content hash: {} for asset: {}", contentHash, factoryContext->path);
-
-            // Check if we have an asset with the same content hash
-            auto existingAsset = std::find_if(metadata.begin(), metadata.end(),
-                                            [contentHash](const auto &pair) {
-                                                return pair.second->contentHash == contentHash;
-                                            });
-
-            if (existingAsset != metadata.end()) {
-                spdlog::debug("Found existing asset with same content hash: {}", factoryContext->path);
-                factoryContext->scene = nullptr;
-                return existingAsset->second;
-            }
-
-            auto id = boost::uuids::random_generator()();
-            spdlog::debug("Registering new asset. Path: {}, UUID: {}", 
-                         factoryContext->path, boost::uuids::to_string(id));
-
-            auto info = std::make_shared<AssetInfo>(id, factoryContext->path, 
-                                                  factoryContext->assetType, 
-                                                  contentHash, *factoryContext);
-            info->isLoaded = true;
-
-            metadata.insert(std::make_pair(id, info));
-            assets[id] = std::move(newAsset);
-            info->loadedAsset = assets[id].get();
+    std::shared_ptr<AssetInfo> AssetManager::registerAsset(AssetFactoryData *factoryContext) {
+        // First check if we already have this path
+        auto metaDataInfo = lookupAssetInfoByPath(factoryContext->path);
+        if (metaDataInfo) {
             factoryContext->scene = nullptr;
-
-            spdlog::info("Successfully registered new asset: {}", factoryContext->path);
-            return info;
-
-        } catch (const std::exception& e) {
-            spdlog::error("Failed to register asset: {} - Error: {}", 
-                         factoryContext ? factoryContext->path : "unknown", e.what());
-            return std::unexpected(std::current_exception());
+            return metaDataInfo.value();
         }
-    }
 
+        // Create and load the asset to calculate its hash
+        auto factoryIt = factories.find(factoryContext->assetType);
+        if (factoryIt == factories.end()) {
+            throw std::runtime_error("No factory registered for asset type");
+        }
+
+        std::unique_ptr<Asset> newAsset = factoryIt->second(*factoryContext);
+        size_t contentHash = newAsset->calculateContentHash();
+
+        // Check if we have an asset with the same content hash
+        auto existingAsset = std::find_if(metadata.begin(), metadata.end(),
+                                          [contentHash](const auto &pair) {
+                                              return pair.second->contentHash == contentHash;
+                                          });
+
+        if (existingAsset != metadata.end()) {
+            // We found an asset with the same content
+            factoryContext->scene = nullptr;
+            return existingAsset->second;
+        }
+        auto id = boost::uuids::random_generator()();
+        // If we get here, this is a new unique asset
+        auto info = std::make_shared<AssetInfo>(id, factoryContext->path, factoryContext->assetType, contentHash,
+                                                *factoryContext);
+        info->isLoaded = true;
+
+        metadata.insert(std::make_pair(id, info));
+        assets[id] = std::move(newAsset);
+        info->loadedAsset = assets[id].get();
+        factoryContext->scene = nullptr;
+
+        return info;
+    }
 
 
     void AssetManager::registerFactory(AssetType type, AssetFactory factory) {

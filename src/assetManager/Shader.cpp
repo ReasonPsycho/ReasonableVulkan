@@ -60,7 +60,8 @@ namespace am {
 
     size_t Shader::calculateContentHash() const {
         if (!shaderData) {
-            return 0;
+            spdlog::error("Shader data is null");
+            throw std::runtime_error("Shader data is null");
         }
 
         size_t hash = 0;

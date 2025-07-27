@@ -71,6 +71,6 @@ namespace am {
         meshFactoryContext.assetType = AssetType::Mesh;
         meshFactoryContext.scene = scene;
         meshFactoryContext.assimpIndex = getMeshIndexInScene(scene, mesh);
-        return baseFactoryContext.assetManager.registerAsset(&meshFactoryContext).value();
+        return baseFactoryContext.assetManager.registerAsset(&meshFactoryContext);
     }
 }

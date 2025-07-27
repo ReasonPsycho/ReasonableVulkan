@@ -1,20 +1,25 @@
+
 {
   "version": 1,
   "configurePresets": [
     {
       "name": "gfx-base",
       "hidden": true,
-      "generator": "Ninja",
+      "generator": "MinGW Makefiles",
       "binaryDir": "${sourceDir}/out/build/module-${presetName}",
       "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+        "VCPKG_HOST_TRIPLET": "x64-mingw-dynamic",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_MAKE_PROGRAM": "mingw32-make"
       }
     },
     {
       "name": "debug-with-tests",
       "inherits": "gfx-base",
       "displayName": "Debug with Tests",
-      "generator": "Ninja",
       "binaryDir": "${sourceDir}/cmake-build-debug-tests",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -29,7 +34,6 @@
       "name": "debug",
       "inherits": "gfx-base",
       "displayName": "Debug",
-      "generator": "Ninja",
       "binaryDir": "${sourceDir}/cmake-build-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -40,7 +44,6 @@
       "name": "release",
       "inherits": "gfx-base",
       "displayName": "Release",
-      "generator": "Ninja",
       "binaryDir": "${sourceDir}/cmake-build-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",

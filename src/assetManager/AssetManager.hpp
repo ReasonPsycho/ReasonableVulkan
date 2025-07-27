@@ -13,26 +13,22 @@
 #include <unordered_map>
 #include <functional>
 #include <optional>
-#include <expected>
 #include <assimp/scene.h>
 #include <boost/test/tools/assertion.hpp>
 #include "Asset.hpp"  // Add this include
 #include "AssetInfo.hpp"
-#include <spdlog/spdlog.h>
-#include "AssetException.hpp"
 
 namespace am {
     class AssetManager {
-        using AssetFactory = std::function<std::expected<std::unique_ptr<am::Asset>, std::exception_ptr>(am::AssetFactoryData &)>;
-        using AssetResult = std::expected<std::shared_ptr<AssetInfo>, std::exception_ptr>;
+        using AssetFactory = std::function<std::unique_ptr<am::Asset>(am::AssetFactoryData &)>;
 
     public:
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
-        
+
         static AssetManager &getInstance();
 
-        AssetResult registerAsset(AssetFactoryData *factoryContext);
+        std::shared_ptr<AssetInfo> registerAsset(AssetFactoryData *factoryContext);
 
         void registerFactory(AssetType type, AssetFactory factory);
 
