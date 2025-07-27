@@ -48,7 +48,7 @@ public:
             spdlog::error("Failed to load texture: " + textureFactoryContext.path);
             throw std::runtime_error("Failed to load texture: " + textureFactoryContext.path);
         }
-        diffuse = diffuseResult;
+        diffuse = diffuseResult.value();
 
         material->GetTexture(aiTextureType_SHININESS, 0,  &path, nullptr, nullptr, nullptr);
         textureFactoryContext.path = path.C_Str();
@@ -57,7 +57,7 @@ public:
             spdlog::error("Failed to load texture: " + textureFactoryContext.path);
             throw std::runtime_error("Failed to load texture: " + textureFactoryContext.path);
         }
-        specular = specularResult;
+        specular = specularResult.value();
     }
 
     size_t calculateContentHash() const override;
