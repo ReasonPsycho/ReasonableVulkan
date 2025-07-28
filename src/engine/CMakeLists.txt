@@ -6,15 +6,27 @@ file(GLOB_RECURSE BASE_HEADERS "*.hpp" "*.h")
 # Find required packages
 message(STATUS "Searching for required packages for platform library")
 
+find_package(Tracy  CONFIG REQUIRED)
+find_package(glm  CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+
+if(SPDLOG_DISABLE_LOGGING)
+    add_compile_definitions(SPDLOG_DISABLE_LOGGING)
+endif()
+
+if(DEFINED SPDLOG_ACTIVE_LEVEL)
+    add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
+endif()
 
 # Create static library
 add_library(engine STATIC ${BASE_SRC})
 
 # Platform specific linking
-target_link_libraries(engine
-        PRIVATE
+target_link_libraries(engine PRIVATE
+        Tracy::TracyClient
+        glm::glm
+        spdlog::spdlog
 )
-
 
 # Enable tests in Debug mode by default or when explicitly enabled
 if (ENGINE_ENABLE_TESTS)

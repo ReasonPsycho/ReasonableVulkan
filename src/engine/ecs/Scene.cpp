@@ -3,11 +3,8 @@
 //
 #include "Entity.h"
 #include "Scene.h"
-#include "../ECS/Raycasting/Collider.h"
-#include "ECS/Raycasting/Colliders/BoxCollider.h"
-#include "ECS/Raycasting/Colliders/SphereCollider.h"
-#include "ECS/SaveSystem/LevelSaving.h"
 #include "tracy/Tracy.hpp"
+using namespace engine::ecs;
 
 void Scene::updateScene() {
     ZoneScopedN("Update scene");
@@ -41,47 +38,6 @@ Entity *Scene::addEntity(Entity *parent, std::string name) {
     return parent->addChild(make_unique<Entity>(this, parent, name));
 }
 
-void Scene::showImGuiDetails(Camera *camera) {
-    ZoneScopedN("ShowImGuiDetails Scene");
-
-// Begin main window
-    ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking);
-    if (ImGui::BeginMenuBar()) {
-        if (ImGui::MenuItem("Add entity")) {
-            addEntity("New entity");
-        }
-        if (ImGui::MenuItem("Save")) {
-            LevelSaving::save();
-        }
-        if (ImGui::MenuItem("Load")) {
-            LevelSaving::load();
-        }
-        
-        ImGui::EndMenuBar();
-    }
-
-// Provide the 'dockspace' into which other ImGui windows can be docked
-    ImGuiID dockspace_id = ImGui::GetID("Scene");
-    ImGui::DockSpace(dockspace_id);
-
-    ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Scene graph");
-    for (auto &child: children) {
-        if (!stopRenderingImgui) {
-            child->showImGuiDetails(camera);
-        }
-    }
-    ImGui::End();
-    auto &systems = systemManager.systems;
-    for (const auto &system: systemManager.systems) {
-        ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_FirstUseEver);
-        ImGui::Begin(system.second->name.c_str());
-        system.second->showImGuiDetails(camera);
-        ImGui::End();
-    }
-    stopRenderingImgui = false;
-}
-
 std::vector<std::unique_ptr<Entity>> &Scene::getChildren() {
     return children;
 }
@@ -93,7 +49,7 @@ Entity *Scene::getChild(unsigned int id) const {
     return found == children.end() ? nullptr : found->get();
 }
 
-Entity *Scene::getChild(const string &name) const {
+Entity *Scene::getChild(const std::string &name) const {
     auto found = std::find_if(children.begin(), children.end(), [name](auto & child){
         return child->name == name;
     });
@@ -113,7 +69,7 @@ Entity *Scene::getChildR(unsigned int id) const {
     return nullptr;
 }
 
-Entity *Scene::getChildR(const string &name) const {
+Entity *Scene::getChildR(const std::string &name) const {
     Entity * found = getChild(name);
     if (found != nullptr)
         return found;

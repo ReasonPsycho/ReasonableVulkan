@@ -3,14 +3,13 @@
 //
 
 #include "Entity.h"
-#include "Utils/Util.h"
 #include "tracy/Tracy.hpp"
+using namespace engine::ecs;
 
-using namespace ztgk;
 
-Entity::Entity(Scene *scene, std::string name) : uniqueID(id<ID_POOL_ENTITY>()), scene(scene), name(name) {}
+Entity::Entity(Scene *scene, std::string name) : scene(scene), name(name) {}
 
-Entity::Entity(Scene *scene, Entity *parent, std::string name) : uniqueID(id<ID_POOL_ENTITY>()), scene(scene),
+Entity::Entity(Scene *scene, Entity *parent, std::string name) : scene(scene),
                                                                  parent(parent), name(name) {}
 
 
@@ -64,79 +63,6 @@ void Entity::removeChild(Entity *child) {
     removedChild = true;
 }
 
-void Entity::showImGuiDetails(Camera *camera) {
-    ZoneTransientN(zoneName, (name).c_str(), true);
-    Component *componentToDelete = nullptr;
-    ImGui::PushID(uniqueID);
-    ImGuiStorage *storage = ImGui::GetStateStorage();
-    removedChild = false;
-
-    if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-            if (uniqueID != scene->selectedEntityNumber) {
-                storage->SetBool(scene->selectedEntityNumber, false); // close the tree node
-                scene->selectedEntityNumber = uniqueID;
-                storage->SetBool(uniqueID, true); // close the tree node
-            } else {
-                storage->SetBool(scene->selectedEntityNumber, false); // close the tree node
-                scene->selectedEntityNumber = -1;
-            }
-
-        }
-
-        for (const auto &child: children) {
-            child->showImGuiDetails(camera);
-            if (removedChild) {
-                break;
-            }
-        }
-        if (scene->selectedEntityNumber == uniqueID) {
-            ImVec2 window_pos = ImVec2(ImGui::GetIO().DisplaySize.x - 300, 40); // Top-Right
-            ImGui::SetNextWindowPos(window_pos, ImGuiCond_FirstUseEver);
-            ImGui::Begin((name + ", Element id:" + std::to_string(uniqueID) + "###Inspector").c_str(), nullptr, ImGuiWindowFlags_MenuBar);
-            if (ImGui::BeginMenuBar()) {
-                scene->systemManager.showImGuiEnitityBar(this);
-
-                if (ImGui::MenuItem("Add child")) {
-                    scene->addEntity(this,name + "Child");
-                }
-                if (ImGui::MenuItem("Update")) {
-
-                    forceUpdateSelfAndChild();
-                }
-                
-                ImGui::EndMenuBar();
-            }
-
-            transform.ManipulateModelMatrix(camera);
-            if (!scene->stopRenderingImgui) {
-                
-                for (const auto &component: components) {
-                    if (ImGui::CollapsingHeader(component.second->name.c_str())) {
-                        ImGui::Indent();
-                        component.second->showImGuiDetails(camera);
-                        if (ImGui::Button("Delete component")) {
-                            scene->stopRenderingImgui = true; //Just in case I am not sure if needed here.
-                            removeComponentFromMap(component.second.get());
-                            break;
-                        }
-                        ImGui::Unindent();
-                    }
-                }
-
-                if (ImGui::Button("Delete entity")) {
-                    Destroy();
-                }
-                 
-            }
-            ImGui::End();
-        }
-        ImGui::TreePop();
-    }
-
-    ImGui::PopID();
-}
-
 Entity::~Entity() {
     while (!components.empty()) {
         removeComponentFromMap(components.begin()->second.get());
@@ -182,7 +108,7 @@ Entity *Entity::getChildR(unsigned int id) const {
     return nullptr;
 }
 
-Entity *Entity::getChildR(const string &name) const {
+Entity *Entity::getChildR(const std::string &name) const {
     Entity * found = getChild(name);
     if (found != nullptr)
         return found;

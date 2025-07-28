@@ -3,16 +3,14 @@
 //
 #include "Entity.h"
 #include "Component.h"
-#include "Utils/Util.h"
 
-using namespace ztgk;
-
+using namespace engine::ecs;
 
 Entity *Component::getEntity() {  // Function to set the parent entity
     return parentEntity;
 }
 
-Component::Component() : uniqueID(id<ID_POOL_COMPONENT>())  {}
+Component::Component() {}
 
 void Component::setIsDirty(bool dirtValue) {
     isDirty = dirtValue;
@@ -26,10 +24,6 @@ void Component::setEntity(Entity *newParentEntity) {
 parentEntity = newParentEntity;
 }
 
-void Component::showImGuiDetails(Camera *camera) {
-    ZoneTransientN(zoneName,(name).c_str(),true);
-    showImGuiDetailsImpl(camera);
-}
 
 void Component::Update() {
     ZoneTransientN(zoneName,(name).c_str(),true);
