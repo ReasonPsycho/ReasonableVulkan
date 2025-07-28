@@ -4,51 +4,38 @@
 
 #ifndef REASONABLEGL_SYSTEM_H
 #define REASONABLEGL_SYSTEM_H
-
-
-
-#include <glm/glm.hpp> //glm::mat4
 #include <iostream>
-#include <vector>
-#include <unordered_map>
 #include <typeindex>
-#include <list> //std::list
-#include <array> //std::array
-#include <memory> //std::unique_ptr
-#include "ECS/Render/Camera/Camera.h"
-class SystemManager;
 
-class System {
-public:
-    System();
-    std::string name;
-    
-    virtual ~System() = default;
+namespace engine::ecs
+{
 
-    //Component system
-    virtual void addComponent(void* component) = 0;
-    virtual void removeComponent(void* component) = 0;
-    virtual void registerComponents() = 0;
-    virtual const std::type_index* getComponentTypes() = 0;
-    virtual int getNumComponentTypes() = 0;
+    class SystemManager;
 
-    //Imgui
-    void showImGuiDetails(Camera *camera);
-    
-    //Logic
+    class System {
+    public:
+        System();
+        std::string name;
 
-    void Update();
+        virtual ~System() = default;
 
-    SystemManager *getSystemManager();
+        //Component system
+        virtual void addComponent(void* component) = 0;
+        virtual void removeComponent(void* component) = 0;
+        virtual void registerComponents() = 0;
+        virtual const std::type_index* getComponentTypes() = 0;
+        virtual int getNumComponentTypes() = 0;
 
-    unsigned uniqueID;     // Instance variable to store the unique ID for each object
-    SystemManager* systemManager;
-protected:
-    virtual void UpdateImpl(){};
+        //Logic
 
-    virtual void showImGuiDetailsImpl(Camera *camera) = 0;
-    
-};
+        void Update();
 
+        SystemManager *getSystemManager();
 
+        unsigned uniqueID;     // Instance variable to store the unique ID for each object
+        SystemManager* systemManager;
+    protected:
+        virtual void UpdateImpl(){};
+    };
+}
 #endif //REASONABLEGL_SYSTEM_H

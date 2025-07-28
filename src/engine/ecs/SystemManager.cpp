@@ -3,34 +3,9 @@
 //
 #include "Entity.h"
 #include "SystemManager.h"
-#include "ECS/SaveSystem/LevelSaving.h"
 
-void SystemManager::showImGuiDetails(Camera *camera) {
-    ImGuiID dockspace_id = ImGui::GetID("Scene");
+using namespace engine::ecs;
 
-    
-    
-}
-
-void SystemManager::showImGuiEnitityBar(Entity *entity) {
-    if (ImGui::MenuItem("Add component")) {
-        isAddComponentMenuOpen = true;
-    }
-    
-    if (isAddComponentMenuOpen) {
-        if (ImGui::Begin("Add component menu", &isAddComponentMenuOpen, ImGuiWindowFlags_AlwaysAutoResize)) {
-            selectedEntity = entity;
-            
-            ImGui::Combo("Components", &selectedItem, cStringList.data(), cStringList.size());
-            
-            if(ImGui::Button("Add")){
-         
-            }
-            ImGui::End();
-        }
-
-    }
-}
 
 void SystemManager::Update() {
     if(selectedItem != -1){

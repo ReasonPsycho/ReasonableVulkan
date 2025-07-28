@@ -6,46 +6,42 @@
 #ifndef REASONABLEGL_COMPONENT_H
 #define REASONABLEGL_COMPONENT_H
 
-#include <typeindex>
-#include "ECS/Render/Camera/Camera.h"
-
-class Entity;
-class Camera;
+#include "tracy/Tracy.hpp"
 
 
 
-/**
- * Abstract base class for a Component.
- * A Component can be attached to an Entity to give it specific properties.
- * 
- * Since we deal with circular declaration add only component include to subclass in .h class and then add include to entity in .cpp file. See Render class.
- */
-class Component {
-public:
-    Component();
-    virtual ~Component() = default;
+    namespace engine::ecs
+    {
+        class Entity;
 
-    std::string name;
-    void setEntity(Entity* newParentEntity);
-    Entity *getEntity();
+        /**
+         * Abstract base class for a Component.
+         * A Component can be attached to an Entity to give it specific properties.
+         *
+         * Since we deal with circular declaration add only component include to subclass in .h class and then add include to entity in .cpp file. See Render class.
+         */
+        class Component {
+        public:
+            Component();
+            virtual ~Component() = default;
 
-    void Update();
-    void setIsDirty(bool dirtValue);
-    bool getIsDirty();
-    void showImGuiDetails(Camera *camera);
-    void Remove();
+            std::string name;
+            void setEntity(Entity* newParentEntity);
+            Entity *getEntity();
 
-    unsigned uniqueID;     // Instance variable to store the unique ID for each object
-    Entity *parentEntity = nullptr;
-protected:
-    virtual void showImGuiDetailsImpl(Camera *camera) {};
-    virtual void UpdateImpl() {};
+            void Update();
+            void setIsDirty(bool dirtValue);
+            bool getIsDirty();
+            void Remove();
 
-
-private:
-    bool isDirty = true;
-};
+            Entity *parentEntity = nullptr;
+        protected:
+            virtual void UpdateImpl() {};
 
 
+        private:
+            bool isDirty = true;
+        };
+    }
 
 #endif //REASONABLEGL_COMPONENT_H

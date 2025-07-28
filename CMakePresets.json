@@ -6,7 +6,7 @@
       "name": "gfx-base",
       "hidden": true,
       "generator": "MinGW Makefiles",
-      "binaryDir": "${sourceDir}/out/build/module-${presetName}",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
