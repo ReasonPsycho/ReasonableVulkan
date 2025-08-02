@@ -1,7 +1,8 @@
 //
 // Created by redkc on 02/08/2025.
 //
-
+#pragma once
+#include "ecs/systems/Transform.h"
 #include "ComponentArray.h"
 
 using namespace engine::ecs;
@@ -39,7 +40,7 @@ T& ComponentArray<T>::GetComponent(std::uint32_t entity)
 }
 
 template <typename T>
-bool ComponentArray<T>::HasComponent(std::uint32_t entity)
+bool ComponentArray<T>::HasComponent(std::uint32_t entity) const
 {
     return entityToIndexMap.find(entity) != entityToIndexMap.end();
 }
@@ -51,7 +52,7 @@ void ComponentArray<T>::SetComponentActive(Entity entity, bool active)
 }
 
 template <typename T>
-bool ComponentArray<T>::IsComponentActive(Entity entity)
+bool ComponentArray<T>::IsComponentActive(Entity entity) const
 {
     return activeComponents[entity];
 }

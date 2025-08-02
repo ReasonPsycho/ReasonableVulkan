@@ -8,20 +8,21 @@
 #include <unordered_map>
 #include <memory>
 #include <cassert>
-
+#include "ecs/systems/Transform.h"
+#include "ComponentArrayBase.h"
 
 namespace engine::ecs{
 
 
     template<typename T>
-    class ComponentArray {
+    class ComponentArray : public ComponentArrayBase {
     public:
-        void AddComponentToEntity(std::uint32_t entity, T component);
-        void RemoveComponentFronEntity(std::uint32_t entity);
+        void AddComponentToEntity(std::uint32_t entity, T component) override;
+        void RemoveComponentFronEntity(std::uint32_t entity) override;
         T& GetComponent(std::uint32_t entity);
-        bool HasComponent(std::uint32_t entity);
-        void SetComponentActive<T>(Entity entity, bool active);
-        bool IsComponentActive<T>(Entity entity);
+        bool HasComponent(std::uint32_t entity) const override;
+        void SetComponentActive(Entity entity, bool active) override;
+        bool IsComponentActive(Entity entity) const override;
         const std::array<T, MAX_ENTITIES>& GetComponents() const;
     private:
         std::array<T, MAX_ENTITIES> componentArray;
@@ -34,6 +35,6 @@ namespace engine::ecs{
 
 };
 
-
+#include "ComponentArray.tpp"
 
 #endif //COMPONENTARRAY_H

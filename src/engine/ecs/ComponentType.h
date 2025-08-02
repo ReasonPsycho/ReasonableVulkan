@@ -5,19 +5,21 @@
 #ifndef COMPONENTTYPE_H
 #define COMPONENTTYPE_H
 
-using namespace engine::ecs;
-
-inline ComponentTypeID GetUniqueComponentTypeID()
+namespace engine::ecs
 {
-    static ComponentTypeID lastID = 0u;
-    return lastID++;
-}
+    using ComponentTypeID = std::size_t;
 
-template<typename T>
-ComponentTypeID GetComponentTypeID()
-{
-    static ComponentTypeID typeID = GetUniqueComponentTypeID();
-    return typeID;
-}
+    inline ComponentTypeID GetUniqueComponentTypeID()
+    {
+        static ComponentTypeID lastID = 0u;
+        return lastID++;
+    }
 
+    template<typename T>
+    ComponentTypeID GetComponentTypeID()
+    {
+        static ComponentTypeID typeID = GetUniqueComponentTypeID();
+        return typeID;
+    }
+}
 #endif //COMPONENTTYPE_H

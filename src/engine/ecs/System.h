@@ -15,13 +15,15 @@
 
 namespace engine::ecs
 {
+    class Scene;
+
     template <typename Derived, typename... Components>
     class System : public SystemBase
     {
     public:
         std::vector<Entity> entities;
 
-        System()
+        explicit System(Scene* scene) : scene(scene)
         {
             signature = GenerateSignature<Components...>();
             name = boost::core::demangle(typeid(Derived).name());
@@ -33,8 +35,9 @@ namespace engine::ecs
         void OnComponentRemoved(Entity entity)  override;
 
     protected:
-        virtual void AddEntity(Entity entity) = 0;
-        virtual void RemoveEntity(Entity entity) = 0;
+        Scene* scene;
+        virtual void OnAddEntity(Entity entity) = 0;
+        virtual void OnRemoveEntity(Entity entity) = 0;
 
     private:
         template <typename... Ts>
@@ -45,7 +48,8 @@ namespace engine::ecs
             return sig;
         }
     };
-
-
 }
+
+#include "System.tpp"
+
 #endif //REASONABLEGL_SYSTEM_H

@@ -22,9 +22,6 @@ find_package(spdlog CONFIG REQUIRED)
 # Find Boost with required components
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
 
-# Add option to enable/disable tests
-option(AM_ENABLE_TESTS "Enable testing for asset manager module" OFF)
-
 # Define source files explicitly, excluding test directory
 file(GLOB_RECURSE BASE_SRC
         "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
@@ -38,10 +35,6 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
 # Create platform static library
 add_library(am STATIC ${BASE_SRC})
-
-if (MSVC)
-    add_compile_options(/utf-8)
-endif ()
 
 # Configure include directories
 target_include_directories(am

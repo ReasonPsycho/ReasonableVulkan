@@ -6,17 +6,20 @@
 #define REASONABLEGL_SCENE_H
 
 #include <memory>
+#include <queue>
 #include <typeindex>
-
 #include "ComponentArray.h"
+#include "ComponentArrayBase.h"
 #include "Types.h"
 #include "System.h"
+#include "TransformNode.h"
 
 namespace engine::ecs
 {
 
     class Scene {
     public:
+
         //Entity
         Entity CreateEntity();
 
@@ -45,6 +48,8 @@ namespace engine::ecs
         template<typename T>
         bool HasComponent(Entity entity);
 
+        std::type_index GetComponentIndexById(ComponentTypeID componentTypeId) const;
+
         //Systems
         template<typename T, typename... Args>
         std::shared_ptr<T> RegisterSystem(Args&&... args);
@@ -62,16 +67,19 @@ namespace engine::ecs
         std::vector<Entity> rootEntities;
     private:
 
-        //Components
-        std::unordered_map<const char*, std::unique_ptr<void>> componentArrays;
-        uint32_t livingEntityCount = 0;
-
-        template<typename T>
-        std::unique_ptr<ComponentArray<T>> GetComponentArray();
-
         //Entities
+        uint32_t livingEntityCount = 0;
+        std::queue<Entity> freeEntities;  // recycled IDs
         std::unordered_map<Entity, Signature> entitySignatures;
         std::bitset<MAX_ENTITIES> activeEntities;
+
+        //Components
+        std::unordered_map<std::type_index, std::shared_ptr<ComponentArrayBase>> componentArrays;
+        std::unordered_map<ComponentTypeID, std::type_index> componentTypeByIndex;
+
+
+        template<typename T>
+        std::shared_ptr<ComponentArray<T>> GetComponentArray();
 
         //Systems
         std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;
@@ -82,5 +90,7 @@ namespace engine::ecs
 
 
 }
+
+#include "Scene.tpp"
 
 #endif //REASONABLEGL_SCENE_H
