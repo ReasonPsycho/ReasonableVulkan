@@ -5,23 +5,21 @@
 #ifndef REASONABLEGL_SYSTEM_H
 #define REASONABLEGL_SYSTEM_H
 
-#include <algorithm>
 #include <vector>
 #include <string>
 #include <boost/core/demangle.hpp>
 
 #include "ComponentType.h"
+#include "SystemBase.h"
 #include "Types.h"
 
 namespace engine::ecs
 {
     template <typename Derived, typename... Components>
-    class System
+    class System : public SystemBase
     {
     public:
-        std::string name;
         std::vector<Entity> entities;
-        Signature signature;
 
         System()
         {
@@ -31,10 +29,8 @@ namespace engine::ecs
 
         virtual ~System() = default;
 
-        virtual void Update(float deltaTime) = 0;
-
-        void OnComponentAdded(Entity entity, const Signature& entitySignature);
-        void OnComponentRemoved(Entity entity, const Signature& entitySignature);
+        void OnComponentAdded(Entity entity) override;
+        void OnComponentRemoved(Entity entity)  override;
 
     protected:
         virtual void AddEntity(Entity entity) = 0;

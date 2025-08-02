@@ -6,9 +6,7 @@
 #define COMPONENTARRAY_H
 #include "Types.h"
 #include <unordered_map>
-#include <typeindex>
 #include <memory>
-#include <vector>
 #include <cassert>
 
 

@@ -4,6 +4,7 @@
 
 #ifndef TRANSFORMNODE_H
 #define TRANSFORMNODE_H
+#include <vector>
 
 #endif //TRANSFORMNODE_H
 
