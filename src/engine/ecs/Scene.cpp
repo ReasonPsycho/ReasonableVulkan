@@ -13,7 +13,7 @@ using namespace engine::ecs;
 template <typename T>
 void Scene::AddComponent(Entity entity, T component)
 {
-    GetComponentArray<T>()->InsertData(entity, component);
+    GetComponentArray<T>()->AddComponentToEntity(entity, component);
 
     Signature& signature = entitySignatures[entity];
     signature.set(GetComponentTypeID<T>(), true);
