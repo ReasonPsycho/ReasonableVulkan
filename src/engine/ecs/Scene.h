@@ -5,41 +5,76 @@
 #ifndef REASONABLEGL_SCENE_H
 #define REASONABLEGL_SCENE_H
 
-#include "SystemManager.h"
+#include <cassert>
+#include <memory>
+
+#include "ComponentArray.h"
+#include "Types.h"
+#include "ComponentType.h"
 
 namespace engine::ecs
 {
+    struct TransformNode;
+    class System;
+
     class Scene {
     public:
-        Scene() = default;
+        //Entity
+        Entity CreateEntity();
 
-        Entity *addEntity(std::string name);
+        void DestroyEntity(Entity entity);
 
-        Entity *addEntity(Entity *parent, std::string name);
+        template<typename... Components>
+        std::vector<Entity> GetEntitiesWith();
 
-        void removeChild(Entity *child);
+        //Components
+        template<typename T>
+        void RegisterComponent();
 
-        void updateScene();
+        template<typename T>
+        void AddComponent(Entity entity, T component);
 
-        int selectedEntityNumber = -1;
+        template<typename T>
+        void RemoveComponent(Entity entity);
 
-        SystemManager systemManager;
+        template<typename T>
+        auto GetComponent(Entity entity) -> T&;
 
-        bool stopRenderingImgui = false;
+        template<typename T>
+        bool HasComponent(Entity entity);
 
-        std::vector<std::unique_ptr<Entity>>& getChildren();
-        [[nodiscard]] Entity * getChild(unsigned id) const;
-        [[nodiscard]] Entity * getChild(const std::string & name) const;
-        [[nodiscard]] Entity * getChildR(unsigned id) const;
-        [[nodiscard]] Entity * getChildR(const std::string & name) const;
+        //Systems
+        template<typename T, typename... Args>
+        std::shared_ptr<T> RegisterSystem(Args&&... args);
 
+        void Update(float deltaTime);
 
+        //Scene Graph
+        void SetParent(Entity child, Entity parent);
+        void RemoveParent(Entity child);
+        Entity GetParent(Entity entity) const;
+        const std::vector<Entity>& GetChildren(Entity entity) const;
+        bool HasParent(Entity entity) const;
+
+        std::unordered_map<Entity, TransformNode> sceneGraph;
+        std::vector<Entity> rootEntities;
     private:
-        std::vector<std::unique_ptr<Entity>> children;
 
+        std::unordered_map<const char*, std::unique_ptr<void>> componentArrays;
+        uint32_t livingEntityCount = 0;
 
+        template<typename T>
+        std::unique_ptr<ComponentArray<T>> GetComponentArray();
 
+        std::unordered_map<Entity, Signature> entitySignatures;
+
+        std::unordered_map<const char*, std::shared_ptr<System>> systems;
+
+        template<typename T>
+        std::shared_ptr<T> GetSystem();
     };
+
+
 }
 
 #endif //REASONABLEGL_SCENE_H

@@ -21,6 +21,11 @@ endif()
 # Create static library
 add_library(engine STATIC ${BASE_SRC})
 
+target_include_directories(engine
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 # Platform specific linking
 target_link_libraries(engine PRIVATE
         Tracy::TracyClient

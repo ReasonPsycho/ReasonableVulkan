@@ -4,38 +4,52 @@
 
 #ifndef REASONABLEGL_SYSTEM_H
 #define REASONABLEGL_SYSTEM_H
-#include <iostream>
-#include <typeindex>
+
+#include <algorithm>
+#include <vector>
+#include <string>
+#include <boost/core/demangle.hpp>
+
+#include "ComponentType.h"
+#include "Types.h"
 
 namespace engine::ecs
 {
-
-    class SystemManager;
-
-    class System {
+    template <typename Derived, typename... Components>
+    class System
+    {
     public:
-        System();
         std::string name;
+        std::vector<Entity> entities;
+        Signature signature;
+
+        System()
+        {
+            signature = GenerateSignature<Components...>();
+            name = boost::core::demangle(typeid(Derived).name());
+        }
 
         virtual ~System() = default;
 
-        //Component system
-        virtual void addComponent(void* component) = 0;
-        virtual void removeComponent(void* component) = 0;
-        virtual void registerComponents() = 0;
-        virtual const std::type_index* getComponentTypes() = 0;
-        virtual int getNumComponentTypes() = 0;
+        virtual void Update(float deltaTime) = 0;
 
-        //Logic
+        void OnComponentAdded(Entity entity, const Signature& entitySignature);
+        void OnComponentRemoved(Entity entity, const Signature& entitySignature);
 
-        void Update();
-
-        SystemManager *getSystemManager();
-
-        unsigned uniqueID;     // Instance variable to store the unique ID for each object
-        SystemManager* systemManager;
     protected:
-        virtual void UpdateImpl(){};
+        virtual void AddEntity(Entity entity) = 0;
+        virtual void RemoveEntity(Entity entity) = 0;
+
+    private:
+        template <typename... Ts>
+        static Signature GenerateSignature()
+        {
+            Signature sig;
+            (sig.set(GetComponentTypeID<Ts>()), ...); // Fold expression
+            return sig;
+        }
     };
+
+
 }
 #endif //REASONABLEGL_SYSTEM_H
