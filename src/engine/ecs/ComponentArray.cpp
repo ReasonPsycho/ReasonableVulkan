@@ -6,7 +6,7 @@
 
 using namespace engine::ecs;
 template <typename T>
-  void ComponentArray<T>::InsertData(std::uint32_t entity, T component)
+  void ComponentArray<T>::AddComponentToEntity(std::uint32_t entity, T component)
 {
     assert(entityToIndexMap.find(entity) == entityToIndexMap.end());
     std::size_t newIndex = size;
@@ -17,7 +17,7 @@ template <typename T>
 }
 
 template <typename T>
-void ComponentArray<T>::RemoveData(std::uint32_t entity)
+void ComponentArray<T>::RemoveComponentFronEntity(std::uint32_t entity)
 {
     assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
     std::size_t indexOfRemoved = entityToIndexMap[entity];
@@ -32,14 +32,14 @@ void ComponentArray<T>::RemoveData(std::uint32_t entity)
 }
 
 template <typename T>
-T& ComponentArray<T>::GetData(std::uint32_t entity)
+T& ComponentArray<T>::GetComponent(std::uint32_t entity)
 {
     assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
     return componentArray[entityToIndexMap[entity]];
 }
 
 template <typename T>
-bool ComponentArray<T>::HasData(std::uint32_t entity)
+bool ComponentArray<T>::HasComponent(std::uint32_t entity)
 {
     return entityToIndexMap.find(entity) != entityToIndexMap.end();
 }
@@ -54,4 +54,10 @@ template <typename T>
 bool ComponentArray<T>::IsComponentActive(Entity entity)
 {
     return activeComponents[entity];
+}
+
+template <typename T>
+const std::array<T, MAX_ENTITIES>& ComponentArray<T>::GetComponents() const
+{
+    return componentArray;
 }

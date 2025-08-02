@@ -16,13 +16,13 @@ namespace engine::ecs{
     template<typename T>
     class ComponentArray {
     public:
-        void InsertData(std::uint32_t entity, T component);
-        void RemoveData(std::uint32_t entity);
-        T& GetData(std::uint32_t entity);
-        bool HasData(std::uint32_t entity);
+        void AddComponentToEntity(std::uint32_t entity, T component);
+        void RemoveComponentFronEntity(std::uint32_t entity);
+        T& GetComponent(std::uint32_t entity);
+        bool HasComponent(std::uint32_t entity);
         void SetComponentActive<T>(Entity entity, bool active);
         bool IsComponentActive<T>(Entity entity);
-
+        const std::array<T, MAX_ENTITIES>& GetComponents() const;
     private:
         std::array<T, MAX_ENTITIES> componentArray;
         std::bitset<MAX_ENTITIES> activeComponents;
