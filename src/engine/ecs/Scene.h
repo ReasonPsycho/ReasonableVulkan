@@ -5,17 +5,15 @@
 #ifndef REASONABLEGL_SCENE_H
 #define REASONABLEGL_SCENE_H
 
-#include <cassert>
 #include <memory>
+#include <typeindex>
 
 #include "ComponentArray.h"
 #include "Types.h"
-#include "ComponentType.h"
+#include "System.h"
 
 namespace engine::ecs
 {
-    struct TransformNode;
-    class System;
 
     class Scene {
     public:
@@ -68,7 +66,7 @@ namespace engine::ecs
 
         std::unordered_map<Entity, Signature> entitySignatures;
 
-        std::unordered_map<const char*, std::shared_ptr<System>> systems;
+        std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;
 
         template<typename T>
         std::shared_ptr<T> GetSystem();

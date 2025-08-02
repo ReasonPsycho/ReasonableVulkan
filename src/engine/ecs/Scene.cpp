@@ -2,12 +2,12 @@
 // Created by redkc on 18/02/2024.
 //
 #include "Types.h"
-#include "Scene.h"
 
-#include "System.h"
 #include "TransformNode.h"
 #include "systems/Transform.h"
 #include "tracy/Tracy.hpp"
+#include "Scene.h"
+
 using namespace engine::ecs;
 
 template <typename T>
@@ -59,22 +59,21 @@ std::unique_ptr<ComponentArray<T>> Scene::GetComponentArray()
 }
 
 template<typename T, typename... Args>
-std::shared_ptr<T> Scene::RegisterSystem(Args&&... args) {
-    const char* typeName = typeid(T).name();
-    assert(systems.find(typeName) == systems.end() && "System already registered.");
+std::shared_ptr<T> Scene::RegisterSystem(Args&&... args)
+{
+    static_assert(std::is_base_of<SystemBase, T>::value, "T must inherit from SystemBase");
 
+    auto typeIndex = std::type_index(typeid(T));
     auto system = std::make_shared<T>(std::forward<Args>(args)...);
-    systems.insert({typeName, system});
-
+    systems[typeIndex] = system;
     return system;
 }
 
 template<typename T>
-std::shared_ptr<T> Scene::GetSystem() {
-    const char* typeName = typeid(T).name();
-    auto it = systems.find(typeName);
-    assert(it != systems.end() && "System not registered.");
-    return std::static_pointer_cast<T>(it->second);
+std::shared_ptr<T> Scene::GetSystem()
+{
+    auto typeIndex = std::type_index(typeid(T));
+    return std::static_pointer_cast<T>(systems.at(typeIndex));
 }
 
 void Scene::Update(float deltaTime) {

@@ -3,7 +3,6 @@
 #include <bitset>
 #include <cstdint>
 
-
 namespace engine::ecs
 {
     using ComponentTypeID = std::size_t;
