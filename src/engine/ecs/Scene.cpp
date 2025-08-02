@@ -1,84 +1,176 @@
 //
 // Created by redkc on 18/02/2024.
 //
-#include "Entity.h"
+#include "Types.h"
 #include "Scene.h"
+
+#include "System.h"
+#include "TransformNode.h"
+#include "systems/Transform.h"
 #include "tracy/Tracy.hpp"
 using namespace engine::ecs;
 
-void Scene::updateScene() {
-    ZoneScopedN("Update scene");
+template <typename T>
+void Scene::AddComponent(Entity entity, T component)
+{
+    GetComponentArray<T>()->InsertData(entity, component);
 
+    Signature& signature = entitySignatures[entity];
+    signature.set(GetComponentTypeID<T>(), true);
 
-    for (auto &&child: children) {
-        child->updateSelfAndChild();
+    // 🔍 Check each system
+    for (auto& [_, system] : systems) {
+        if ((signature & system->signature) == system->signature) {
+            system->OnComponentAdded(entity);
+        }
     }
 }
 
-Entity *Scene::addEntity(std::string name) {
-    children.push_back(make_unique<Entity>(this, name));
-    return children.back().get();
+template <typename T>
+  void Scene::RegisterComponent()
+{
+    const char* typeName = typeid(T).name();
+    assert(componentArrays.find(typeName) == componentArrays.end() && "Component already registered.");
+
+    componentArrays[typeName] = std::make_unique<ComponentArray<T>>();
+
+    // Ensure the type gets a ComponentTypeID
+    GetComponentTypeID<T>(); // Logs/initializes the ID
 }
 
-void Scene::removeChild(Entity *child) {
-    auto iter = std::find_if(children.begin(), children.end(),
-                             [&](const std::unique_ptr<Entity> &e) { return e.get() == child; });
- 
 
-    if (iter != children.end()) {
-        // Entity was found. Now remove it.
-        // unique_ptr will automatically delete the Entity when erased.
-        children.erase(iter);
+template <typename T>
+auto Scene::GetComponent(Entity entity) -> T&
+{
+    return GetComponentArray<T>()->GetData(entity);
+}
+
+template <typename T>
+bool Scene::HasComponent(Entity entity)
+{
+    return GetComponentArray<T>()->HasData(entity);
+}
+
+template <typename T>
+std::unique_ptr<ComponentArray<T>> Scene::GetComponentArray()
+{
+    const char* typeName = typeid(T).name();
+    return std::static_pointer_cast<ComponentArray<T>>(componentArrays[typeName]);
+}
+
+template<typename T, typename... Args>
+std::shared_ptr<T> Scene::RegisterSystem(Args&&... args) {
+    const char* typeName = typeid(T).name();
+    assert(systems.find(typeName) == systems.end() && "System already registered.");
+
+    auto system = std::make_shared<T>(std::forward<Args>(args)...);
+    systems.insert({typeName, system});
+
+    return system;
+}
+
+template<typename T>
+std::shared_ptr<T> Scene::GetSystem() {
+    const char* typeName = typeid(T).name();
+    auto it = systems.find(typeName);
+    assert(it != systems.end() && "System not registered.");
+    return std::static_pointer_cast<T>(it->second);
+}
+
+void Scene::Update(float deltaTime) {
+    for (auto& [_, system] : systems) {
+    ZoneTransientN(zoneName,(system->name).c_str(),true);
+        system->Update(deltaTime);
     }
-    stopRenderingImgui = true;
+}
+
+void Scene::SetParent(Entity child, Entity parent) {
+    assert(child < livingEntityCount && parent < livingEntityCount);
+
+    // Remove child from previous parent and from rootEntities if needed
+    RemoveParent(child);
+
+    // Set new parent
+    sceneGraph[child].parent = parent;
+    sceneGraph[parent].children.push_back(child);
+
+    // Remove child from rootEntities because it now has a parent
+    rootEntities.erase(std::remove(rootEntities.begin(), rootEntities.end(), child), rootEntities.end());
 }
 
 
-Entity *Scene::addEntity(Entity *parent, std::string name) {
-    return parent->addChild(make_unique<Entity>(this, parent, name));
-}
+void Scene::RemoveParent(Entity child) {
+    assert(child < livingEntityCount);
 
-std::vector<std::unique_ptr<Entity>> &Scene::getChildren() {
-    return children;
-}
+    auto& node = sceneGraph[child];
+    if (node.parent != MAX_ENTITIES) {
+        auto& siblings = sceneGraph[node.parent].children;
+        siblings.erase(std::remove(siblings.begin(), siblings.end(), child), siblings.end());
+        node.parent = MAX_ENTITIES;
 
-Entity *Scene::getChild(unsigned int id) const {
-    auto found = std::find_if(children.begin(), children.end(), [id](auto & child){
-        return child->uniqueID == id;
-    });
-    return found == children.end() ? nullptr : found->get();
-}
-
-Entity *Scene::getChild(const std::string &name) const {
-    auto found = std::find_if(children.begin(), children.end(), [name](auto & child){
-        return child->name == name;
-    });
-    return found == children.end() ? nullptr : found->get();
-}
-
-Entity *Scene::getChildR(unsigned int id) const {
-    Entity * found = getChild(id);
-    if (found != nullptr)
-        return found;
-
-    for (auto & child : children) {
-        found = child->getChildR(id);
-        if (found != nullptr)
-            return found;
+        // Add child to rootEntities since it lost its parent
+        rootEntities.push_back(child);
     }
-    return nullptr;
 }
 
-Entity *Scene::getChildR(const std::string &name) const {
-    Entity * found = getChild(name);
-    if (found != nullptr)
-        return found;
-
-    for (auto & child : children) {
-        found = child->getChildR(name);
-        if (found != nullptr)
-            return found;
+Entity Scene::GetParent(Entity entity) const {
+    auto it = sceneGraph.find(entity);
+    if (it != sceneGraph.end()) {
+        return it->second.parent;
     }
-    return nullptr;
+    return MAX_ENTITIES;
 }
 
+const std::vector<Entity>& Scene::GetChildren(Entity entity) const {
+    static const std::vector<Entity> empty{};
+    auto it = sceneGraph.find(entity);
+    return it != sceneGraph.end() ? it->second.children : empty;
+}
+
+bool Scene::HasParent(Entity entity) const {
+    auto it = sceneGraph.find(entity);
+    return it != sceneGraph.end() && it->second.parent != MAX_ENTITIES;
+}
+
+void Scene::DestroyEntity(Entity entity) {
+    assert(entity < livingEntityCount);
+
+    RemoveParent(entity);
+    rootEntities.erase(std::remove(rootEntities.begin(), rootEntities.end(), entity), rootEntities.end());
+
+    for (auto& [_, system] : systems) {
+        system->OnComponentRemoved(entity);
+    }
+
+    entitySignatures.erase(entity);
+}
+
+template<typename T>
+void Scene::RemoveComponent(Entity entity)
+{
+    GetComponentArray<T>()->RemoveData(entity);
+
+    Signature& signature = entitySignatures[entity];
+    signature.set(GetComponentTypeID<T>(), false);
+
+    for (auto& [_, system] : systems) {
+        if ((signature & system->signature) != system->signature) {
+            system->OnComponentRemoved(entity);
+        }
+    }
+}
+
+template<typename... Components>
+std::vector<Entity> Scene::GetEntitiesWith()
+{
+    Signature requiredSignature;
+    (requiredSignature.set(GetComponentTypeID<Components>()), ...); // Fold expression
+
+    std::vector<Entity> matching;
+    for (auto& [entity, signature] : entitySignatures) {
+        if ((signature & requiredSignature) == requiredSignature) {
+            matching.push_back(entity);
+        }
+    }
+    return matching;
+}
