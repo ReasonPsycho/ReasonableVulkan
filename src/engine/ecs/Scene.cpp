@@ -144,6 +144,16 @@ void Scene::DestroyEntity(Entity entity) {
     entitySignatures.erase(entity);
 }
 
+void Scene::SetEntityActive(Entity entity, bool active)
+{
+    activeEntities[entity] = active;
+}
+
+bool Scene::IsEntityActive(Entity entity) const
+{
+    return activeEntities[entity];
+}
+
 template<typename T>
 void Scene::RemoveComponent(Entity entity)
 {

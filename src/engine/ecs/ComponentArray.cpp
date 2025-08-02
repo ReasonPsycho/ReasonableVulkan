@@ -43,3 +43,15 @@ bool ComponentArray<T>::HasData(std::uint32_t entity)
 {
     return entityToIndexMap.find(entity) != entityToIndexMap.end();
 }
+
+template <typename T>
+void ComponentArray<T>::SetComponentActive(Entity entity, bool active)
+{
+    activeComponents[entity] = active;
+}
+
+template <typename T>
+bool ComponentArray<T>::IsComponentActive(Entity entity)
+{
+    return activeComponents[entity];
+}

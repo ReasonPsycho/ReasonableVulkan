@@ -22,6 +22,10 @@ namespace engine::ecs
 
         void DestroyEntity(Entity entity);
 
+        void SetEntityActive(Entity entity, bool active);
+
+        bool IsEntityActive(Entity entity) const;
+
         template<typename... Components>
         std::vector<Entity> GetEntitiesWith();
 
@@ -58,14 +62,18 @@ namespace engine::ecs
         std::vector<Entity> rootEntities;
     private:
 
+        //Components
         std::unordered_map<const char*, std::unique_ptr<void>> componentArrays;
         uint32_t livingEntityCount = 0;
 
         template<typename T>
         std::unique_ptr<ComponentArray<T>> GetComponentArray();
 
+        //Entities
         std::unordered_map<Entity, Signature> entitySignatures;
+        std::bitset<MAX_ENTITIES> activeEntities;
 
+        //Systems
         std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;
 
         template<typename T>

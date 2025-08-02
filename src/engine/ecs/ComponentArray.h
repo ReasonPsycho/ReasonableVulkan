@@ -20,9 +20,12 @@ namespace engine::ecs{
         void RemoveData(std::uint32_t entity);
         T& GetData(std::uint32_t entity);
         bool HasData(std::uint32_t entity);
+        void SetComponentActive<T>(Entity entity, bool active);
+        bool IsComponentActive<T>(Entity entity);
 
     private:
         std::array<T, MAX_ENTITIES> componentArray;
+        std::bitset<MAX_ENTITIES> activeComponents;
         std::unordered_map<Entity, std::size_t> entityToIndexMap;
         std::unordered_map<std::size_t, Entity> indexToEntityMap;
         std::size_t size = 0;
