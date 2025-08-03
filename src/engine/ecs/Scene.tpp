@@ -61,13 +61,28 @@ void Scene::RemoveComponent(Entity entity)
     }
 }
 
-
-
-
 template <typename T>
 bool Scene::HasComponent(Entity entity)
 {
     return GetComponentArray<T>()->HasComponent(entity);
+}
+
+template <typename T>
+void Scene::SetComponentActive(Entity entity,bool active )
+{
+    GetComponentArray<T>()->SetComponentActive(entity,active);
+}
+
+template <typename T>
+bool Scene::IsComponentActive(Entity entity)
+{
+    return GetComponentArray<T>()->IsComponentActive(entity);
+}
+
+template <typename T>
+auto Scene::GetComponent(Entity entity) -> T&
+{
+    return GetComponentArray<T>()->GetComponent(entity);
 }
 
 template <typename T, typename ... Args>
