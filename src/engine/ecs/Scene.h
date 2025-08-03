@@ -48,8 +48,7 @@ namespace engine::ecs
         template<typename T>
         bool HasComponent(Entity entity);
 
-        std::type_index GetComponentIndexById(ComponentTypeID componentTypeId) const;
-
+        std::type_index GetTypeFromIndex(std::size_t index) const;
         //Systems
         template<typename T, typename... Args>
         std::shared_ptr<T> RegisterSystem(Args&&... args);
@@ -75,7 +74,9 @@ namespace engine::ecs
 
         //Components
         std::unordered_map<std::type_index, std::shared_ptr<ComponentArrayBase>> componentArrays;
-        std::unordered_map<ComponentTypeID, std::type_index> componentTypeByIndex;
+        std::unordered_map<ComponentTypeID, std::type_index> indexToType;
+
+
 
 
         template<typename T>

@@ -11,6 +11,13 @@
 using namespace engine::ecs;
 
 
+std::type_index Scene::GetTypeFromIndex(std::size_t index) const
+{
+    auto it = indexToType.find(index);
+    assert(it != indexToType.end() && "Index not registered.");
+    return it->second;
+}
+
 void Scene::Update(float deltaTime) {
     for (auto& [_, system] : systems) {
 
@@ -73,10 +80,6 @@ bool Scene::HasParent(Entity entity) const {
     return it != sceneGraph.end() && it->second.parent != MAX_ENTITIES;
 }
 
-std::type_index Scene::GetComponentIndexById(ComponentTypeID componentTypeId) const
-{
-    return componentTypeByIndex.at(componentTypeId);
-}
 
 Entity Scene::CreateEntity() {
     Entity entity;
@@ -95,16 +98,16 @@ void Scene::DestroyEntity(Entity entity) {
     Signature signature = entitySignatures[entity]; // Get entity signature
     for (size_t i = 0; i < signature.size(); ++i) {
         if (signature.test(i)) {
-            auto componentIndex = GetComponentIndexById(i);
+            auto componentIndex = GetTypeFromIndex(i);
             auto& array = componentArrays[componentIndex];
-            array->RemoveComponentFronEntity(entity);
+            array->RemoveComponentUntyped(entity);
         }
     }
     entitySignatures.erase(entity);
     activeEntities.reset(entity);
 
     for (auto& [_, system] : systems) {
-        system->OnComponentRemoved(entity);
+        system->RemoveEntity(entity);
     }
 
     freeEntities.push(entity);  // add ID back for reuse

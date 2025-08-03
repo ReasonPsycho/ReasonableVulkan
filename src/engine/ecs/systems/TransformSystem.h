@@ -14,8 +14,8 @@ namespace engine::ecs
 
 
         void Update(float deltaTime) override;
-        void OnAddEntity(Entity entity) override {}
-        void OnRemoveEntity(Entity entity) override {}
+        void OnEntityAdded(Entity entity) override {}
+        void OnEntityRemoved(Entity entity) override {}
 
     private:
 

@@ -23,11 +23,11 @@ void Scene::RegisterComponent()
 {
     assert(componentArrays.find( typeid(T)) == componentArrays.end() && "Component already registered.");
 
-    componentArrays[typeid(T)] = std::make_unique<ComponentArray<T>>();
+    std::type_index typeIdx = typeid(T);
+    componentArrays[typeIdx] = std::make_unique<ComponentArray<T>>();
 
-    // Ensure the type gets a ComponentTypeID
-    GetComponentTypeID<T>(); // Logs/initializes the ID
-    componentTypeByIndex[GetComponentTypeID<T>()] = typeid(T);
+    ComponentTypeID componentTypeId = GetComponentTypeID<T>();
+    indexToType.insert_or_assign(componentTypeId, typeIdx);
 }
 
 template <typename T>
@@ -41,7 +41,7 @@ void Scene::AddComponent(Entity entity, T component)
     // 🔍 Check each system
     for (auto& [_, system] : systems) {
         if ((signature & system->signature) == system->signature) {
-            system->OnComponentAdded(entity);
+            system->AddEntity(entity);
         }
     }
 }
@@ -56,7 +56,7 @@ void Scene::RemoveComponent(Entity entity)
 
     for (auto& [_, system] : systems) {
         if ((signature & system->signature) != system->signature) {
-            system->OnComponentRemoved(entity);
+            system->RemoveEntity(entity);
         }
     }
 }
