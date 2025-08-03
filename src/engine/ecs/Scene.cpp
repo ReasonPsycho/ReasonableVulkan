@@ -26,11 +26,7 @@ void Scene::Update(float deltaTime) {
     }
 }
 
-template <typename T>
-auto Scene::GetComponent(Entity entity) -> T&
-{
-    return GetComponentArray<T>()->GetComponent(entity);
-}
+
 
 void Scene::SetParent(Entity child, Entity parent) {
     assert(child < livingEntityCount && parent < livingEntityCount);

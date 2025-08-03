@@ -8,6 +8,8 @@
 #include <memory>
 #include <queue>
 #include <typeindex>
+#include <unordered_map>
+
 #include "ComponentArray.h"
 #include "ComponentArrayBase.h"
 #include "Types.h"
@@ -47,6 +49,12 @@ namespace engine::ecs
 
         template<typename T>
         bool HasComponent(Entity entity);
+
+        template<typename T>
+        void SetComponentActive(Entity entity,bool active);
+
+        template<typename T>
+        bool IsComponentActive(Entity entity);
 
         std::type_index GetTypeFromIndex(std::size_t index) const;
         //Systems
