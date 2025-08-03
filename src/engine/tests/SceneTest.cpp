@@ -13,12 +13,6 @@ class MovementSystem : public System<MovementSystem, Position> {
 public:
     explicit MovementSystem(Scene* scene) : System(scene) {}
 
-    void OnEntityAdded(Entity entity) override {
-    }
-
-    void OnEntityRemoved(Entity entity) override {
-    }
-
     void Update(float deltaTime) override
     {
 
@@ -27,6 +21,14 @@ public:
     {
 
     };
+
+protected:
+    void OnEntityAdded(Entity entity) override {
+    }
+
+    void OnEntityRemoved(Entity entity) override {
+    }
+
 };
 
 BOOST_AUTO_TEST_CASE(CreateEntityTest) {

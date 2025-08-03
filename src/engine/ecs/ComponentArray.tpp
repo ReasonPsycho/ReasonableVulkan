@@ -2,7 +2,6 @@
 // Created by redkc on 02/08/2025.
 //
 #pragma once
-#include "ecs/systems/Transform.h"
 #include "ComponentArray.h"
 
 using namespace engine::ecs;
