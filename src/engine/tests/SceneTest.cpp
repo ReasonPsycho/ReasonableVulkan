@@ -11,23 +11,33 @@ struct Position {
 // Example system
 class MovementSystem : public System<MovementSystem, Position> {
 public:
-    explicit MovementSystem(Scene* scene)
-        : System<MovementSystem, Position>(scene)
+    explicit MovementSystem(Scene* scene) : System(scene) {}
+
+    void OnEntityAdded(Entity entity) override {
+    }
+
+    void OnEntityRemoved(Entity entity) override {
+    }
+
+    void Update(float deltaTime) override
     {
-    }
 
-    void OnAddEntity(Entity entity) override {
-    }
+    };
+    ~MovementSystem() override
+    {
 
-    void OnRemoveEntity(Entity entity) override {
-    }
-
-public:
-    void Update(float deltaTime) override;
+    };
 };
 
 BOOST_AUTO_TEST_CASE(CreateEntityTest) {
     engine::Engine& engine = engine::Engine::GetInstance();
-    engine.CreateScene("TestScene");
-    BOOST_CHECK(engine.GetScene("TestScene"));
+    std::shared_ptr<Scene> scene = engine.CreateScene("TestScene");
+    BOOST_REQUIRE(engine.GetScene("TestScene"));
+    BOOST_REQUIRE(scene);
+    Entity testEntity = scene->CreateEntity();
+    BOOST_REQUIRE(testEntity == 0);
+    scene->RegisterComponent<Position>();
+    scene->RegisterSystem<MovementSystem>(scene.get());
+    scene->AddComponent<Position>(testEntity, {1.0f, 2.0f});
+    BOOST_REQUIRE(scene->HasComponent<Position>(testEntity));
 }

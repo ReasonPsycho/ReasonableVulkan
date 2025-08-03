@@ -62,3 +62,27 @@ const std::array<T, MAX_ENTITIES>& ComponentArray<T>::GetComponents() const
 {
     return componentArray;
 }
+
+template <typename T>
+void ComponentArray<T>::RemoveComponentUntyped(std::uint32_t entity)
+{
+    RemoveComponentFronEntity(entity);
+}
+
+template <typename T>
+bool ComponentArray<T>::HasComponentUntyped(std::uint32_t entity) const
+{
+    return HasComponent(entity);
+}
+
+template <typename T>
+void ComponentArray<T>::SetComponentActiveUntyped(std::uint32_t entity, bool active)
+{
+    SetComponentActive(entity, active);
+}
+
+template <typename T>
+bool ComponentArray<T>::IsComponentActiveUntyped(std::uint32_t entity) const
+{
+    return IsComponentActive(entity);
+}

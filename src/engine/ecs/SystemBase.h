@@ -13,8 +13,8 @@ namespace engine::ecs
         virtual ~SystemBase() = default;
         virtual void Update(float deltaTime) = 0;
 
-        virtual void OnComponentAdded(Entity entity);
-        virtual void OnComponentRemoved(Entity entit);
+        virtual void AddEntity(Entity entity) = 0;
+        virtual void RemoveEntity(Entity entity) = 0;
 
         std::string name;
         Signature signature;

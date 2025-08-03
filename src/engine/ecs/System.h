@@ -5,6 +5,7 @@
 #ifndef REASONABLEGL_SYSTEM_H
 #define REASONABLEGL_SYSTEM_H
 
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <boost/core/demangle.hpp>
@@ -31,13 +32,25 @@ namespace engine::ecs
 
         virtual ~System() = default;
 
-        void OnComponentAdded(Entity entity) override;
-        void OnComponentRemoved(Entity entity)  override;
+        void AddEntity(Entity entity) override
+        {
+            entities.push_back(entity);
+            OnEntityAdded(entity);
+        }
+
+        void RemoveEntity(Entity entity) override
+        {
+            auto it = std::find(entities.begin(), entities.end(), entity);
+            if (it != entities.end()) {
+                entities.erase(it);
+                OnEntityRemoved(entity);
+            }
+        }
 
     protected:
         Scene* scene;
-        virtual void OnAddEntity(Entity entity) = 0;
-        virtual void OnRemoveEntity(Entity entity) = 0;
+        virtual void OnEntityAdded(Entity entity) = 0;
+        virtual void OnEntityRemoved(Entity entity)  = 0;
 
     private:
         template <typename... Ts>
@@ -50,6 +63,5 @@ namespace engine::ecs
     };
 }
 
-#include "System.tpp"
 
 #endif //REASONABLEGL_SYSTEM_H
