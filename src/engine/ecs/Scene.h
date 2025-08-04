@@ -10,14 +10,14 @@
 #include <typeindex>
 #include <unordered_map>
 
-#include "IComponentArray.h"
-#include "ComponentArray.h"
-#include "IntegralComponentArray.h"
+#include "componentArrays/IComponentArray.h"
+#include "componentArrays/ComponentArray.h"
 
 #include "Types.h"
 #include "System.h"
 #include "TransformNode.h"
-#include "systems/TransformSystem.h"
+#include "componentArrays/IntegralComponentArray.h"
+#include "systems/transformSystem/TransformSystem.h"
 
 namespace engine::ecs
 {

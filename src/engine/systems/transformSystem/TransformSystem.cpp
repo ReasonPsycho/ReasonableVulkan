@@ -1,8 +1,8 @@
 #include "TransformSystem.h"
 #include "Transform.h"
-#include "ecs/Types.h"
 #include "ecs/Scene.h"
 
+using namespace engine::ecs;
 
 void TransformSystem::Update(float /*deltaTime*/)
 {
