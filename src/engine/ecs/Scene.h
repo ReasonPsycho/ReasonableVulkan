@@ -34,7 +34,7 @@ namespace engine::ecs
         void Update(float deltaTime);
 
         //Entity
-        Entity CreateEntity();
+        Entity CreateEntity(Transform transform = {},Entity parentEntity = -1);
 
         void DestroyEntity(Entity entity);
 

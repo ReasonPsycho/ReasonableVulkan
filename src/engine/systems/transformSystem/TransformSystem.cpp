@@ -6,36 +6,30 @@ using namespace engine::ecs;
 
 void TransformSystem::Update(float /*deltaTime*/)
 {
-    for (const auto& entity : scene->rootEntities)
+    auto& transforms = scene->GetIntegralComponentArray<Transform>()->GetComponents();
+
+    for (Entity root : scene->rootEntities)
     {
-        auto transformNode = scene->sceneGraph[entity];
-        for (Entity child : transformNode.children)
-        {
-            UpdateTransformRecursive(child,scene->GetIntegralComponentArray<Transform>()->GetComponents());
-        }
+        UpdateTransformRecursive(root, nullptr, transforms);
     }
 }
 
-void TransformSystem::UpdateTransformRecursive(Entity entity, std::array<Transform, MAX_ENTITIES>& transforms)
+void TransformSystem::UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<Transform, MAX_ENTITIES>& transforms)
 {
-    auto& t = transforms[entity];
+    Transform& current = transforms[entity];
+    bool isDirty = current.isDirty || (parentMatrix != nullptr);
+
+    if (isDirty)
+    {
+        computeGlobalMatrix(current, parentMatrix ? *parentMatrix : glm::mat4(1.0f));
+    }
+
     auto it = scene->sceneGraph.find(entity);
-
-    const auto& parentTransform = transforms[it->second.parent];
-    computeGlobalMatrix(t, parentTransform.globalMatrix);
-
-    // If this entity was not dirty, skip children
-    if (!t.isDirty)
-        return;
-
-    // Recurse into dirty children only
     if (it != scene->sceneGraph.end())
     {
         for (Entity child : it->second.children)
         {
-            auto& childTransform = transforms[entity];
-            if (childTransform.isDirty)
-                UpdateTransformRecursive(child, transforms);
+            UpdateTransformRecursive(child, &current.globalMatrix, transforms);
         }
     }
 }

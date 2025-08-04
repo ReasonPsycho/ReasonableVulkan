@@ -77,7 +77,7 @@ bool Scene::HasParent(Entity entity) const {
 }
 
 
-Entity Scene::CreateEntity() {
+Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
     Entity entity;
     if (!freeEntities.empty()) {
         entity = freeEntities.front();
@@ -85,8 +85,23 @@ Entity Scene::CreateEntity() {
     } else {
         entity = maxEntityIndex++;
     }
-    rootEntities.push_back(entity);
-    entitySignatures[entity] = Signature{};
+
+    AddComponent<Transform>(entity,transform);
+
+
+    if (parentEntity == -1)
+    {
+        rootEntities.push_back(entity);
+    }else
+    {
+        auto parentNode = sceneGraph.find(parentEntity);
+        parentNode->second.children.push_back(entity);
+    }
+
+    auto signature = Signature{};
+    signature.set(GetComponentTypeID<Transform>());
+    entitySignatures[entity] = signature;
+
     activeEntities.set(entity, true);
     return entity;
 }
