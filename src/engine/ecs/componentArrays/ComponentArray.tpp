@@ -4,11 +4,11 @@
 using namespace engine::ecs;
 
 template <typename T>
-void ComponentArray<T>::AddComponentToEntity(std::uint32_t entity, T component) {
+void ComponentArray<T>::AddComponentToEntity(Entity entity, T component) {
     assert(entity < MAX_ENTITIES);
     assert(!entityToIndex[entity]);
 
-    std::uint32_t componentId;
+    Entity componentId;
     if (!freeComponents.empty()) {
         entity = freeComponents.front();
         freeComponents.pop();
@@ -22,7 +22,7 @@ void ComponentArray<T>::AddComponentToEntity(std::uint32_t entity, T component) 
 }
 
 template <typename T>
-void ComponentArray<T>::RemoveComponentFronEntity(std::uint32_t entity) {
+void ComponentArray<T>::RemoveComponentFronEntity(Entity entity) {
     assert(entity < MAX_ENTITIES);
     assert(entityToIndex[entity]);
     auto componentId = entityToIndex[entity];
@@ -32,14 +32,14 @@ void ComponentArray<T>::RemoveComponentFronEntity(std::uint32_t entity) {
 }
 
 template <typename T>
-T& ComponentArray<T>::GetComponent(std::uint32_t entity) {
+T& ComponentArray<T>::GetComponent(Entity entity) {
     assert(entity < MAX_ENTITIES);
     assert(entityToIndex[entity]);
     return componentArray[entityToIndex[entity]];
 }
 
 template <typename T>
-bool ComponentArray<T>::HasComponent(std::uint32_t entity) const {
+bool ComponentArray<T>::HasComponent(Entity entity) const {
     assert(entity < MAX_ENTITIES);
     return entityToIndex.contains(entity);
 }
@@ -67,21 +67,21 @@ template <typename T>
 
 // Untyped overrides
 template <typename T>
-void ComponentArray<T>::RemoveComponentUntyped(std::uint32_t entity) {
+void ComponentArray<T>::RemoveComponentUntyped(Entity entity) {
     RemoveComponentFronEntity(entity);
 }
 
 template <typename T>
-bool ComponentArray<T>::HasComponentUntyped(std::uint32_t entity) const {
+bool ComponentArray<T>::HasComponentUntyped(Entity entity) const {
     return HasComponent(entity);
 }
 
 template <typename T>
-void ComponentArray<T>::SetComponentActiveUntyped(std::uint32_t entity, bool active) {
+void ComponentArray<T>::SetComponentActiveUntyped(Entity entity, bool active) {
     SetComponentActive(entity, active);
 }
 
 template <typename T>
-bool ComponentArray<T>::IsComponentActiveUntyped(std::uint32_t entity) const {
+bool ComponentArray<T>::IsComponentActiveUntyped(Entity entity) const {
     return IsComponentActive(entity);
 }

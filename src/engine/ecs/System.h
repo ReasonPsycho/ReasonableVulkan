@@ -10,7 +10,7 @@
 #include <string>
 #include <boost/core/demangle.hpp>
 
-#include "ComponentType.h"
+#include "componentArrays/ComponentType.h"
 #include "SystemBase.h"
 #include "Types.h"
 

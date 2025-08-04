@@ -1,8 +1,6 @@
 #ifndef TRANSFORMSYSTEM_H
 #define TRANSFORMSYSTEM_H
 
-#include <unordered_map>
-
 #include "Transform.h"
 #include "ecs/System.h"
 
