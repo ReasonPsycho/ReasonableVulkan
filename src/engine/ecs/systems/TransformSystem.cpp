@@ -1,7 +1,6 @@
 #include "TransformSystem.h"
 #include "Transform.h"
 #include "ecs/Types.h"
-#include "ecs/systems/Transform.h"
 #include "ecs/Scene.h"
 
 
@@ -9,25 +8,34 @@ void TransformSystem::Update(float /*deltaTime*/)
 {
     for (const auto& entity : scene->rootEntities)
     {
-        UpdateTransformRecursive(entity, false);
+        auto transformNode = scene->sceneGraph[entity];
+        for (Entity child : transformNode.children)
+        {
+            UpdateTransformRecursive(child,scene->GetIntegralComponentArray<Transform>()->GetComponents());
+        }
     }
 }
 
-void TransformSystem::UpdateTransformRecursive(Entity entity, bool parentDirty)
+void TransformSystem::UpdateTransformRecursive(Entity entity, std::array<Transform, MAX_ENTITIES>& transforms)
 {
-    auto& transform = scene->GetComponent<Transform>(entity);
+    auto& t = transforms[entity];
+    auto it = scene->sceneGraph.find(entity);
 
-    // If parent is dirty or this transform is dirty, update
-    bool isThisDirty = transform.isDirty || parentDirty;
+    const auto& parentTransform = transforms[it->second.parent];
+    computeGlobalMatrix(t, parentTransform.globalMatrix);
 
-    if (isThisDirty)
+    // If this entity was not dirty, skip children
+    if (!t.isDirty)
+        return;
+
+    // Recurse into dirty children only
+    if (it != scene->sceneGraph.end())
     {
-        transform.matrix = getLocalModelMatrix(transform);
-        transform.isDirty = false;
-    }
-
-    for (Entity child : scene->GetChildren(entity))
-    {
-        UpdateTransformRecursive(child, isThisDirty);
+        for (Entity child : it->second.children)
+        {
+            auto& childTransform = transforms[entity];
+            if (childTransform.isDirty)
+                UpdateTransformRecursive(child, transforms);
+        }
     }
 }

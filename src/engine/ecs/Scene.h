@@ -10,17 +10,28 @@
 #include <typeindex>
 #include <unordered_map>
 
+#include "IComponentArray.h"
 #include "ComponentArray.h"
-#include "ComponentArrayBase.h"
+#include "IntegralComponentArray.h"
+
 #include "Types.h"
 #include "System.h"
 #include "TransformNode.h"
+#include "systems/TransformSystem.h"
 
 namespace engine::ecs
 {
 
     class Scene {
     public:
+
+        Scene()
+        {
+            RegisterIntegralComponent<Transform>();
+            RegisterSystem<TransformSystem>();
+        }
+
+        void Update(float deltaTime);
 
         //Entity
         Entity CreateEntity();
@@ -37,6 +48,12 @@ namespace engine::ecs
         //Components
         template<typename T>
         void RegisterComponent();
+
+        template<typename T>
+        std::shared_ptr<ComponentArray<T>> GetComponentArray();
+
+        template <class T>
+        std::shared_ptr<IntegralComponentArray<T>> GetIntegralComponentArray();
 
         template<typename T>
         void AddComponent(Entity entity, T component);
@@ -61,7 +78,9 @@ namespace engine::ecs
         template<typename T, typename... Args>
         std::shared_ptr<T> RegisterSystem(Args&&... args);
 
-        void Update(float deltaTime);
+        template<typename T>
+        std::shared_ptr<T> GetSystem();
+
 
         //Scene Graph
         void SetParent(Entity child, Entity parent);
@@ -75,26 +94,20 @@ namespace engine::ecs
     private:
 
         //Entities
-        uint32_t livingEntityCount = 0;
+        uint32_t maxEntityIndex = 0;
         std::queue<Entity> freeEntities;  // recycled IDs
         std::unordered_map<Entity, Signature> entitySignatures;
         std::bitset<MAX_ENTITIES> activeEntities;
 
         //Components
-        std::unordered_map<std::type_index, std::shared_ptr<ComponentArrayBase>> componentArrays;
-        std::unordered_map<ComponentTypeID, std::type_index> indexToType;
-
-
-
-
         template<typename T>
-        std::shared_ptr<ComponentArray<T>> GetComponentArray();
+        void RegisterIntegralComponent();
+
+        std::unordered_map<std::type_index, std::shared_ptr<IComponentArray>> componentArrays;
+        std::unordered_map<ComponentTypeID, std::type_index> indexToType;
 
         //Systems
         std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;
-
-        template<typename T>
-        std::shared_ptr<T> GetSystem();
     };
 
 

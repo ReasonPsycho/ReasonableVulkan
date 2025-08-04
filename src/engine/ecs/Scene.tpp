@@ -91,9 +91,21 @@ std::shared_ptr<T> Scene::RegisterSystem(Args&&... args)
     static_assert(std::is_base_of<SystemBase, T>::value, "T must inherit from SystemBase");
 
     auto typeIndex = std::type_index(typeid(T));
-    auto system = std::make_shared<T>(std::forward<Args>(args)...);
+    auto system = std::make_shared<T>(this,std::forward<Args>(args)...);
     systems[typeIndex] = system;
     return system;
+}
+
+template <typename T>
+void Scene::RegisterIntegralComponent()
+{
+    assert(componentArrays.find( typeid(T)) == componentArrays.end() && "Component already registered.");
+
+    std::type_index typeIdx = typeid(T);
+    componentArrays[typeIdx] = std::make_unique<IntegralComponentArray<T>>();
+
+    ComponentTypeID componentTypeId = GetComponentTypeID<T>();
+    indexToType.insert_or_assign(componentTypeId, typeIdx);
 }
 
 template <typename T>
@@ -103,6 +115,15 @@ std::shared_ptr<ComponentArray<T>> Scene::GetComponentArray()
     auto basePtr = componentArrays[ typeid(T)].get();
     return std::shared_ptr<ComponentArray<T>>(static_cast<ComponentArray<T>*>(basePtr),
                                               [](ComponentArray<T>*){}); // do-nothing deleter
+}
+
+template <typename T>
+std::shared_ptr<IntegralComponentArray<T>> Scene::GetIntegralComponentArray()
+{
+    // Cast from IComponentArray to ComponentArray<T>
+    auto basePtr = componentArrays[ typeid(T)].get();
+    return std::shared_ptr<IntegralComponentArray<T>>(static_cast<IntegralComponentArray<T>*>(basePtr),
+                                              [](IntegralComponentArray<T>*){}); // do-nothing deleter
 }
 
 template<typename T>
