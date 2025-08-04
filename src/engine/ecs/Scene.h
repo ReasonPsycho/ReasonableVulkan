@@ -17,7 +17,7 @@
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
-#include "systems/transformSystem/TransformSystem.h"
+#include "../systems/transformSystem/TransformSystem.h"
 
 namespace engine::ecs
 {

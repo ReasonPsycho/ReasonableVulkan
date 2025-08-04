@@ -51,10 +51,11 @@ else ()
     add_executable(${PROJECT_NAME} src/main.cpp)
 endif ()
 
+add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 platform vks am)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 platform vks am engine)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder

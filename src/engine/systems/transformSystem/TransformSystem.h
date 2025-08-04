@@ -2,7 +2,7 @@
 #define TRANSFORMSYSTEM_H
 
 #include "Transform.h"
-#include "ecs/System.h"
+#include "../../ecs/System.h"
 
 namespace engine::ecs
 {
