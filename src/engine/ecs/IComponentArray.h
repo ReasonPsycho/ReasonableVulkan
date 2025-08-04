@@ -5,9 +5,9 @@
 
 namespace engine::ecs
 {
-    class ComponentArrayBase {
+    class IComponentArray {
     public:
-        virtual ~ComponentArrayBase() = default;
+        virtual ~IComponentArray() = default;
 
         // Untyped interface
         virtual void RemoveComponentUntyped(std::uint32_t entity) = 0;

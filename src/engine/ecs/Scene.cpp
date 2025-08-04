@@ -29,7 +29,7 @@ void Scene::Update(float deltaTime) {
 
 
 void Scene::SetParent(Entity child, Entity parent) {
-    assert(child < livingEntityCount && parent < livingEntityCount);
+    assert(child < maxEntityIndex && parent < maxEntityIndex);
 
     // Remove child from previous parent and from rootEntities if needed
     RemoveParent(child);
@@ -44,7 +44,7 @@ void Scene::SetParent(Entity child, Entity parent) {
 
 
 void Scene::RemoveParent(Entity child) {
-    assert(child < livingEntityCount);
+    assert(child < maxEntityIndex);
 
     auto& node = sceneGraph[child];
     if (node.parent != MAX_ENTITIES) {
@@ -83,8 +83,9 @@ Entity Scene::CreateEntity() {
         entity = freeEntities.front();
         freeEntities.pop();
     } else {
-        entity = livingEntityCount++;
+        entity = maxEntityIndex++;
     }
+    rootEntities.push_back(entity);
     entitySignatures[entity] = Signature{};
     activeEntities.set(entity, true);
     return entity;

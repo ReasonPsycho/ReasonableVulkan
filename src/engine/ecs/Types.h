@@ -9,6 +9,7 @@ namespace engine::ecs
     constexpr std::size_t MAX_COMPONENTS = 64; // Or more if needed
     using Signature = std::bitset<MAX_COMPONENTS>;
     const Entity MAX_ENTITIES = 1000;
+    const Entity MAX_COMPONENTS_ARRAY = 1000;
 }
 
 #endif

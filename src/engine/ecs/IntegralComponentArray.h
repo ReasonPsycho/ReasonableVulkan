@@ -1,5 +1,5 @@
-#ifndef COMPONENTARRAY_H
-#define COMPONENTARRAY_H
+#ifndef COMPONENTINTEGRALARRAY_H
+#define COMPONENTINTEGRALARRAY_H
 
 #include "Types.h"
 #include <array>
@@ -9,7 +9,7 @@
 
 namespace engine::ecs {
     template<typename T>
-    class ComponentArray : public IComponentArray {
+    class IntegralComponentArray : public IComponentArray {
     public:
         void AddComponentToEntity(std::uint32_t entity, T component);
         void RemoveComponentFronEntity(std::uint32_t entity);
@@ -25,16 +25,12 @@ namespace engine::ecs {
         void SetComponentActiveUntyped(std::uint32_t entity, bool active) override;
         bool IsComponentActiveUntyped(std::uint32_t entity) const override;
 
+        std::array<T, MAX_ENTITIES> componentArray{};
     private:
-        std::array<T, MAX_COMPONENTS_ARRAY> componentArray{};
-        std::bitset<MAX_COMPONENTS_ARRAY> activeComponents{};
-        std::unordered_map<Entity, std::uint32_t> entityToIndex{};
-        std::queue<std::uint32_t> freeComponents;
-        uint32_t maxComponentIndex = 0;
-
+        std::bitset<MAX_ENTITIES> activeComponents{};
     };
 }
 
-#include "ComponentArray.tpp"
+#include "IntegralComponentArray.tpp"
 
 #endif // COMPONENTARRAY_H

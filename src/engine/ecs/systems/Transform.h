@@ -1,5 +1,6 @@
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -11,7 +12,10 @@ namespace engine::ecs
         glm::vec3 position;
         glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
         glm::vec3 scale{1.0f, 1.0f, 1.0f};
-        glm::mat4 matrix = glm::mat4(1.0f);
+
+        glm::mat4 localMatrix = glm::mat4(1.0f);   // local to parent
+        glm::mat4 globalMatrix = glm::mat4(1.0f);  // local to world
+
         bool isDirty = true;
     };
 
@@ -29,7 +33,7 @@ namespace engine::ecs
         rot = glm::quat_cast(rotMat);
     }
 
-    // Core functions
+    // Local matrix construction
     inline glm::mat4 getLocalModelMatrix(const Transform& t)
     {
         return glm::translate(glm::mat4(1.0f), t.position) *
@@ -37,17 +41,32 @@ namespace engine::ecs
                glm::scale(glm::mat4(1.0f), t.scale);
     }
 
+    // Local matrix without scale (for direction vectors)
     inline glm::mat4 getLocalTranslationMatrix(const Transform& t)
     {
         return glm::translate(glm::mat4(1.0f), t.position) *
-               glm::toMat4(t.rotation) *
-               glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
+               glm::toMat4(t.rotation);
     }
 
-    inline void computeModelMatrix(Transform& t)
+    // Matrix computations
+    inline void computeLocalMatrix(Transform& t)
     {
-        t.matrix = getLocalModelMatrix(t);
+        t.localMatrix = getLocalModelMatrix(t);
         t.isDirty = false;
+    }
+
+    inline void computeGlobalMatrix(Transform& t, const glm::mat4& parentGlobal)
+    {
+        if (t.isDirty)
+            computeLocalMatrix(t);
+        t.globalMatrix = parentGlobal * t.localMatrix;
+    }
+
+    inline void computeGlobalMatrixRoot(Transform& t)
+    {
+        if (t.isDirty)
+            computeLocalMatrix(t);
+        t.globalMatrix = t.localMatrix;
     }
 
     // Setters
@@ -86,44 +105,50 @@ namespace engine::ecs
         t.isDirty = true;
     }
 
-    // Getters
+    // Set local transform from global one using parent global
+    inline void setLocalMatrixFromGlobal(Transform& t, const glm::mat4& global, const glm::mat4& parentGlobal)
+    {
+        setLocalMatrix(t, glm::inverse(parentGlobal) * global);
+    }
+
+    // Getters (global)
     inline glm::vec3 getGlobalPosition(const Transform& t)
     {
-        return glm::vec3(t.matrix[3]);
+        return glm::vec3(t.globalMatrix[3]);
     }
 
     inline glm::quat getGlobalRotation(const Transform& t)
     {
-        return glm::quat_cast(t.matrix);
+        return glm::quat_cast(t.globalMatrix);
     }
 
     inline glm::vec3 getGlobalScale(const Transform& t)
     {
         return {
-            glm::length(glm::vec3(t.matrix[0])),
-            glm::length(glm::vec3(t.matrix[1])),
-            glm::length(glm::vec3(t.matrix[2]))
+            glm::length(glm::vec3(t.globalMatrix[0])),
+            glm::length(glm::vec3(t.globalMatrix[1])),
+            glm::length(glm::vec3(t.globalMatrix[2]))
         };
     }
 
     inline glm::vec3 getRight(const Transform& t)
     {
-        return glm::vec3(t.matrix[0]);
+        return glm::vec3(t.globalMatrix[0]);
     }
 
     inline glm::vec3 getUp(const Transform& t)
     {
-        return glm::vec3(t.matrix[1]);
+        return glm::vec3(t.globalMatrix[1]);
     }
 
     inline glm::vec3 getBackward(const Transform& t)
     {
-        return glm::vec3(t.matrix[2]);
+        return glm::vec3(t.globalMatrix[2]);
     }
 
     inline glm::vec3 getForward(const Transform& t)
     {
-        return -glm::vec3(t.matrix[2]);
+        return -glm::vec3(t.globalMatrix[2]);
     }
 
     inline bool isDirty(const Transform& t)
@@ -131,10 +156,11 @@ namespace engine::ecs
         return t.isDirty;
     }
 
+    // Useful for relative transformations (e.g., from parent to child)
     inline glm::mat4 getLocalToChildMatrix(const Transform& parent, const Transform& child)
     {
-        return glm::inverse(getLocalModelMatrix(parent)) * getLocalModelMatrix(child);
+        return glm::inverse(parent.localMatrix) * child.localMatrix;
     }
 }
 
-#endif // TRANSFORH
+#endif // TRANSFORM_H
