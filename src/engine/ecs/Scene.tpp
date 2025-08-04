@@ -33,7 +33,14 @@ void Scene::RegisterComponent()
 template <typename T>
 void Scene::AddComponent(Entity entity, T component)
 {
-    GetComponentArray<T>()->AddComponentToEntity(entity, component);
+    if constexpr (std::is_same<T, Transform>::value)
+    {
+        GetIntegralComponentArray<T>()->AddComponentToEntity(entity, component);
+    }
+    else
+    {
+        GetComponentArray<T>()->AddComponentToEntity(entity, component);
+    }
 
     Signature& signature = entitySignatures[entity];
     signature.set(GetComponentTypeID<T>(), true);
@@ -49,8 +56,15 @@ void Scene::AddComponent(Entity entity, T component)
 template <typename T>
 void Scene::RemoveComponent(Entity entity)
 {
-    GetComponentArray<T>()->RemoveComponentFronEntity(entity);
-
+    if constexpr (std::is_same<T, Transform>::value)
+    {
+        GetIntegralComponentArray<T>()->RemoveComponentFronEntity(entity);
+    }
+    else
+    {
+        GetComponentArray<T>()->RemoveComponentFronEntity(entity);
+    }
+    
     Signature& signature = entitySignatures[entity];
     signature.set(GetComponentTypeID<T>(), false);
 
@@ -64,25 +78,53 @@ void Scene::RemoveComponent(Entity entity)
 template <typename T>
 bool Scene::HasComponent(Entity entity)
 {
-    return GetComponentArray<T>()->HasComponent(entity);
+    if constexpr (std::is_same<T, Transform>::value)
+    {
+    return GetIntegralComponentArray<T>()->HasComponent(entity);
+    }
+    else
+    {
+     return GetComponentArray<T>()->HasComponent(entity);
+    }
 }
 
 template <typename T>
 void Scene::SetComponentActive(Entity entity,bool active )
 {
-    GetComponentArray<T>()->SetComponentActive(entity,active);
+    if constexpr (std::is_same<T, Transform>::value)
+    {
+        GetIntegralComponentArray<T>()->SetComponentActive(entity,active);
+    }
+    else
+    {
+        GetComponentArray<T>()->SetComponentActive(entity,active);
+    }
 }
 
 template <typename T>
 bool Scene::IsComponentActive(Entity entity)
 {
-    return GetComponentArray<T>()->IsComponentActive(entity);
+    if constexpr (std::is_same<T, Transform>::value)
+    {
+        return GetIntegralComponentArray<T>()->IsComponentActive(entity);
+    }
+    else
+    {
+        return GetComponentArray<T>()->IsComponentActive(entity);
+    }
 }
 
 template <typename T>
 auto Scene::GetComponent(Entity entity) -> T&
 {
-    return GetComponentArray<T>()->GetComponent(entity);
+    if constexpr (std::is_same<T, Transform>::value)
+    {
+        return GetIntegralComponentArray<T>()->GetComponent(entity);
+    }
+    else
+    {
+        return GetComponentArray<T>()->GetComponent(entity);
+    }
 }
 
 template <typename T, typename ... Args>
@@ -97,7 +139,7 @@ std::shared_ptr<T> Scene::RegisterSystem(Args&&... args)
 }
 
 template <typename T>
-void Scene::RegisterIntegralComponent()
+void  Scene::RegisterIntegralComponent()
 {
     assert(componentArrays.find( typeid(T)) == componentArrays.end() && "Component already registered.");
 

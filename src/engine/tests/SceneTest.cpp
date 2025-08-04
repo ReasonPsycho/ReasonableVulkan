@@ -118,11 +118,6 @@ BOOST_AUTO_TEST_CASE(TransformSystemMatrixAndDirtyPropagationTest) {
     Entity child1 = scene->CreateEntity();
     Entity child2 = scene->CreateEntity();
 
-    // Add Transforms
-    scene->AddComponent<Transform>(parent, {});
-    scene->AddComponent<Transform>(child1, {});
-    scene->AddComponent<Transform>(child2, {});
-
     // Parent-child relationships
     scene->SetParent(child1, parent);
     scene->SetParent(child2, parent);

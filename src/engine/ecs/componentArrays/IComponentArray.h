@@ -5,6 +5,8 @@
 
 namespace engine::ecs
 {
+    using ComponentIndex = std::uint32_t;
+
     class IComponentArray {
     public:
         virtual ~IComponentArray() = default;

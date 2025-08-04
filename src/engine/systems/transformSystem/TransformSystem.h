@@ -20,7 +20,7 @@ namespace engine::ecs
         void OnEntityRemoved(Entity entity) override {}
 
     private:
-        void UpdateTransformRecursive(Entity entity, std::array<Transform,MAX_ENTITIES>& transforms);
+        void UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<Transform, MAX_ENTITIES>& transforms);
     };
 }
 

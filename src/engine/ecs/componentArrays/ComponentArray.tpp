@@ -1,87 +1,89 @@
+//
+// Created by redkc on 02/08/2025.
+//
 #pragma once
 #include "ComponentArray.h"
 
 using namespace engine::ecs;
-
 template <typename T>
-void ComponentArray<T>::AddComponentToEntity(Entity entity, T component) {
-    assert(entity < MAX_ENTITIES);
-    assert(!entityToIndex[entity]);
-
-    Entity componentId;
-    if (!freeComponents.empty()) {
-        entity = freeComponents.front();
-        freeComponents.pop();
-    } else {
-        entity = maxComponentIndex++;
-    }
-
-    componentArray[componentId] = component;
-    entityToIndex[entity] = componentId;
-    activeComponents[componentId] = true;
+  void ComponentArray<T>::AddComponentToEntity(Entity entity, T component)
+{
+    assert(entityToIndexMap.find(entity) == entityToIndexMap.end());
+    std::size_t newIndex = size;
+    entityToIndexMap[entity] = newIndex;
+    indexToEntityMap[newIndex] = entity;
+    componentArray[newIndex] = component;
+    activeComponents[newIndex] = true;
+    ++size;
 }
 
 template <typename T>
-void ComponentArray<T>::RemoveComponentFronEntity(Entity entity) {
-    assert(entity < MAX_ENTITIES);
-    assert(entityToIndex[entity]);
-    auto componentId = entityToIndex[entity];
-    entityToIndex.erase(entity);
-    //componentArray.erase(componentId);;
-    freeComponents.push(componentId);
+void ComponentArray<T>::RemoveComponentFronEntity(Entity entity)
+{
+    assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
+    std::size_t indexOfRemoved = entityToIndexMap[entity];
+    std::size_t indexOfLast = size - 1;
+    componentArray[indexOfRemoved] = componentArray[indexOfLast];
+    Entity lastEntity = indexToEntityMap[indexOfLast];
+    entityToIndexMap[lastEntity] = indexOfRemoved;
+    activeComponents[indexOfRemoved] = activeComponents[lastEntity];
+    indexToEntityMap[indexOfRemoved] = lastEntity;
+    entityToIndexMap.erase(entity);
+    indexToEntityMap.erase(indexOfLast);
+    --size;
 }
 
 template <typename T>
-T& ComponentArray<T>::GetComponent(Entity entity) {
-    assert(entity < MAX_ENTITIES);
-    assert(entityToIndex[entity]);
-    return componentArray[entityToIndex[entity]];
+T& ComponentArray<T>::GetComponent(Entity entity)
+{
+    assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
+    return componentArray[entityToIndexMap[entity]];
 }
 
 template <typename T>
-bool ComponentArray<T>::HasComponent(Entity entity) const {
-    assert(entity < MAX_ENTITIES);
-    return entityToIndex.contains(entity);
+bool ComponentArray<T>::HasComponent(Entity entity) const
+{
+    return entityToIndexMap.find(entity) != entityToIndexMap.end();
 }
 
 template <typename T>
-void ComponentArray<T>::SetComponentActive(Entity entity, bool active) {
-    assert(entity < MAX_ENTITIES);
-    assert(entityToIndex[entity]);
-    auto componentId = entityToIndex[entity];
-    activeComponents[componentId] = active;
+void ComponentArray<T>::SetComponentActive(Entity entity, bool active)
+{
+    activeComponents[entity] = active;
 }
 
 template <typename T>
-bool ComponentArray<T>::IsComponentActive(Entity entity) const {
-    assert(entity < MAX_ENTITIES);
-    assert(entityToIndex.at(entity));
-    auto componentId = entityToIndex.at(entity);
-    return activeComponents[componentId];
+bool ComponentArray<T>::IsComponentActive(Entity entity) const
+{
+    return activeComponents[entity];
 }
 
 template <typename T>
- std::array<T, MAX_ENTITIES>& ComponentArray<T>::GetComponents()  {
+const std::array<T, MAX_ENTITIES>& ComponentArray<T>::GetComponents() const
+{
     return componentArray;
 }
 
-// Untyped overrides
 template <typename T>
-void ComponentArray<T>::RemoveComponentUntyped(Entity entity) {
+void ComponentArray<T>::RemoveComponentUntyped(Entity entity)
+{
     RemoveComponentFronEntity(entity);
 }
 
 template <typename T>
-bool ComponentArray<T>::HasComponentUntyped(Entity entity) const {
+bool ComponentArray<T>::HasComponentUntyped(Entity entity) const
+{
     return HasComponent(entity);
 }
 
 template <typename T>
-void ComponentArray<T>::SetComponentActiveUntyped(Entity entity, bool active) {
+void ComponentArray<T>::SetComponentActiveUntyped(Entity entity, bool active)
+{
     SetComponentActive(entity, active);
 }
 
 template <typename T>
-bool ComponentArray<T>::IsComponentActiveUntyped(Entity entity) const {
+bool ComponentArray<T>::IsComponentActiveUntyped(Entity entity) const
+{
     return IsComponentActive(entity);
 }

@@ -4,10 +4,14 @@
 #include <cstdlib>
 #include <SDL2/SDL.h>
 #include "platform.hpp"
+#include "engine/Engine.h"
 #include "vks/vulkanRenderer.h"
+
+
 
 int main(int argc, char *argv[]) {
     VulkanExampleBase *vulkanExample = new VulkanExampleBase();
+    engine::Engine& engine = engine::Engine::GetInstance();
 
     // 1. Initialize platform (SDL window, input, etc.)
     if (!platform::Init("My Game Engine", 1280, 720)) {
@@ -26,9 +30,9 @@ int main(int argc, char *argv[]) {
     /*
     // 3. Initialize the graphics abstraction
     gfx::Init();
-
+    */
     // 4. Initialize game systems (ECS, scenes, etc.)
-    game::Init();*/
+    auto scene = engine.CreateScene("Main scene");
 
     // 5. Main loop
     bool running = true;
@@ -37,8 +41,8 @@ int main(int argc, char *argv[]) {
 
         float deltaTime = platform::GetDeltaTime();
         vulkanExample->render();
-        /*game::Update(deltaTime);     // game logic
-        gfx::BeginFrame();           // prepare frame
+        engine.Update(deltaTime);     // game logic
+        /*gfx::BeginFrame();           // prepare frame
         game::Render();              // game rendering logic (calls gfx underneath)
         gfx::EndFrame();             // submit frame*/
     }
