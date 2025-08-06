@@ -18,7 +18,7 @@ namespace am {
         std::string path;
         AssetType assetType;
         int assimpIndex;
-        std::optional<const aiScene *> scene;
+
         // Constructor to initialize the reference and other members
         AssetFactoryData(AssetManager &manager, std::string p, AssetType type, int assimpIndex = 0)
             : assetManager(manager)

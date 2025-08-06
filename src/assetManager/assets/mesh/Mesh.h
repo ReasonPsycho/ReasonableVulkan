@@ -6,13 +6,13 @@
 #define OPENGLGP_MESH_H
 #include <tiny_gltf.h>
 
-#include "Asset.hpp"
+#include "../../Asset.hpp"
 #include <assimp/scene.h>
-#include "AssetFactoryRegistry.hpp"
+#include "../../AssetFactoryRegistry.hpp"
 #include <assimp/postprocess.h>
 #include <assimp/Importer.hpp>
 
-#include "Material.hpp"
+#include "../material/Material.hpp"
 
 namespace am {
     struct Vertex;
@@ -26,8 +26,8 @@ using namespace std;
 #include <string>
 #include <vector>
 
-#include "Shader.h"
-#include "Texture.h"
+#include "../shader/Shader.h"
+#include "../texture/Texture.h"
 #include "Vertex.hpp"
 
 // Specialized context for textures
@@ -42,9 +42,8 @@ namespace am {
         vector<Vertex> vertices;
         vector<unsigned int> indices;
         std::shared_ptr<AssetInfo> material;
-        explicit Mesh(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
-        void ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene);
 
+        explicit Mesh(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
 
         //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;

@@ -45,7 +45,6 @@ namespace am {
 
             if (existingAsset != metadata.end()) {
                 // We found an asset with the same content
-                factoryContext->scene = nullptr;
                 return existingAsset->second;
             }
 
@@ -59,7 +58,6 @@ namespace am {
             assets[id] = std::move(newAsset);
             info->loadedAsset = assets[id].get();
             pathToUUIDs[factoryContext->path].push_back(id);
-            factoryContext->scene = nullptr;
 
             return info;
         }

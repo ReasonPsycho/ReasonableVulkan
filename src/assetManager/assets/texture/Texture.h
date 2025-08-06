@@ -1,11 +1,11 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include "AssetFactoryRegistry.hpp"
+#include "../../AssetFactoryRegistry.hpp"
 #include <string>
 #include <vector>
 #include <cstdint>
-#include "Asset.hpp"
+#include "../../Asset.hpp"
 #include "spdlog/spdlog.h"
 #include <functional>
 

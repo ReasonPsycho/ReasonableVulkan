@@ -10,8 +10,7 @@
 namespace am {
     class Asset {
     public:
-        explicit Asset(AssetFactoryData assetFactoryData) {
-        }
+        explicit Asset(AssetFactoryData assetFactoryData) {}
 
         virtual ~Asset() = default;
 
