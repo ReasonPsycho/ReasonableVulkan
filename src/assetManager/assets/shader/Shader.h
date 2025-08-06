@@ -7,15 +7,15 @@
 #include <span>
 #include <cstdint>
 
-#include "Asset.hpp"
-#include "AssetManager.hpp"
+#include "../../Asset.hpp"
+#include "../../AssetManager.hpp"
 #include "spdlog/spdlog.h"
 
 #include <fstream>
 #include <filesystem>
 #include <functional>
 
-#include "AssetFactoryRegistry.hpp"
+#include "../../AssetFactoryRegistry.hpp"
 
 namespace am {
     enum class ShaderStage : uint32_t {

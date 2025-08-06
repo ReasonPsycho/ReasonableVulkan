@@ -10,8 +10,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "Asset.hpp"
-#include "AssetFactoryRegistry.hpp"
+#include "Node.h"
+#include "../Asset.hpp"
+#include "../AssetFactoryRegistry.hpp"
 
 using namespace std;
 
@@ -20,38 +21,17 @@ using namespace std;
 #include "map"
 #include <string>
 #include <vector>
-#include "AssimpGLMHelpers.h"
-#include "Texture.h"
-#include "Mesh.h"
+#include "../AssimpGLMHelpers.h"
+#include "texture/Texture.h"
+#include "mesh/Mesh.h"
 
 namespace am {
-    struct BoneInfo {
-        /*id is index in finalBoneMatrices*/
-        int id;
-        string parentNode;
-        /*offset matrix transforms vertex from model space to bone space*/
-        glm::mat4 offset;
-    };
-
 
     class Model : public Asset {
     public:
         static inline AssetFactoryRegistry::Registrar<Model> registrar{AssetType::Model};
         // model data 
-        vector<std::shared_ptr<AssetInfo> > meshes;
-        std::map<string, BoneInfo> m_BoneInfoMap;
-
-        int m_BoneCounter = 0;
-
-        auto &GetBoneInfoMap() { return m_BoneInfoMap; }
-        int &GetBoneCount() { return m_BoneCounter; }
-
-        void ExtractBoneWeightForVertices(std::vector<Vertex> &vertices, aiMesh *mesh, const aiScene *scene);
-
-        void SetVertexBoneData(Vertex &vertex, int boneID, float weight);
-
-
-        void SetVertexBoneDataToDefault(Vertex &vertex);
+        Node rootNode;
 
         explicit Model(AssetFactoryData base_factory_context): Asset(base_factory_context) {
             loadFromFile(base_factory_context);
@@ -67,8 +47,7 @@ namespace am {
 
     private:
 
-
-        void processNode(AssetFactoryData baseFactoryContext, aiNode *node, const aiScene *scene);
+        Node processNode(AssetFactoryData baseFactoryContext, aiNode *aiNode, const aiScene *scene);
 
         std::shared_ptr<AssetInfo> processMesh(AssetFactoryData baseFactoryContext, aiMesh *mesh, const aiScene *scene);
     };

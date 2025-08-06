@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <functional>
 #include <optional>
+#include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <boost/test/tools/assertion.hpp>
 #include <spdlog/spdlog.h>
@@ -29,7 +30,6 @@ namespace am {
     public:
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
-
         static AssetManager &getInstance();
 
         void registerFactory(AssetType type, AssetFactory factory);
@@ -68,6 +68,7 @@ namespace am {
 
         [[nodiscard]] std::vector<boost::uuids::uuid> getUUIDsByPath(const std::string &path) const;
 
+        Assimp::Importer importer;
     private:
         AssetManager();
         ~AssetManager();

@@ -2,7 +2,7 @@
 // Created by redkc on 18/02/2024.
 //
 #include "Types.h"
-#include "systems/transformSystem/Transform.h"
+#include "../systems/transformSystem/componets/Transform.h"
 #include "Scene.h"
 
 #include "tracy/Tracy.hpp"

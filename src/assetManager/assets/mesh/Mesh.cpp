@@ -43,29 +43,26 @@ namespace am {
     }
 
 
-    Mesh::Mesh(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext) {
-        if (!meshFactoryContext.scene) {
-            Assimp::Importer importer;
-            const auto *scene = importer.ReadFile(meshFactoryContext.path,
-                                                  aiProcess_Triangulate | aiProcess_GenSmoothNormals |
-                                                  // aiProcess_FlipUVs | 
-                                                  aiProcess_CalcTangentSpace);
-            meshFactoryContext.scene = std::make_optional(const_cast<aiScene *>(scene));
+    Mesh::Mesh(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext)
+    {
+        auto scene = meshFactoryContext.assetManager.importer.GetScene();
+
+        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+        {
+            scene = meshFactoryContext.assetManager.importer.ReadFile(meshFactoryContext.path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+            if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+            {
+                spdlog::error("Assimp error: " + string(meshFactoryContext.assetManager.importer.GetErrorString()));
+                throw std::runtime_error("Assimp error: " + string(meshFactoryContext.assetManager.importer.GetErrorString()));
+            }
         }
-
-        ExtractMeshData(meshFactoryContext, meshFactoryContext.scene.value());
-
-    }
-
-
-    void Mesh::ExtractMeshData(AssetFactoryData meshFactoryContext, const aiScene *scene) {
-        // walk through each of the mesh's vertices
+             // walk through each of the mesh's vertices
         auto mesh = scene->mMeshes[meshFactoryContext.assimpIndex];
-        
+
         AssetFactoryData materialFactoryContext{meshFactoryContext};
         materialFactoryContext.assimpIndex = mesh->mMaterialIndex;
         materialFactoryContext.assetType = AssetType::Material;
-        
+
         auto rMaterial = materialFactoryContext.assetManager.registerAsset(&materialFactoryContext);
         if (!rMaterial) {
             spdlog::error("Failed to load material for mesh: " + meshFactoryContext.path);
@@ -94,7 +91,7 @@ namespace am {
             if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
             {
                 glm::vec2 vec;
-                // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
+                // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't
                 // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
                 vec.x = mesh->mTextureCoords[0][i].x;
                 vec.y = mesh->mTextureCoords[0][i].y;
@@ -126,7 +123,6 @@ namespace am {
             Normalize(vertices[i]);
         }
     }
-
 
     AssetType Mesh::getType() const {
         return AssetType::Mesh;

@@ -204,7 +204,6 @@ public:
 
 	glm::vec4 lightPos = glm::vec4(1.0f, 4.0f, 0.0f, 0.0f);
 
-	void loadAssets();
 	void setupDescriptors();
 	void preparePipelines();
 

@@ -213,11 +213,6 @@ void VulkanExampleBase::destroyCommandBuffers()
 	vkFreeCommandBuffers(device, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
 }
 
-std::string VulkanExampleBase::getShadersPath() const
-{
-	return getShaderBasePath() + shaderDir + "/";
-}
-
 void VulkanExampleBase::createPipelineCache()
 {
 	VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
@@ -236,7 +231,7 @@ void VulkanExampleBase::prepare()
 	setupRenderPass();
 	createPipelineCache();
 	setupFrameBuffer();
-	settings.overlay = settings.overlay && (!benchmark.active);
+	/*settings.overlay = settings.overlay && (!benchmark.active);
 	if (settings.overlay) {
 		ui.device = vulkanDevice;
 		ui.queue = queue;
@@ -246,10 +241,10 @@ void VulkanExampleBase::prepare()
 		};
 		ui.prepareResources();
 		ui.preparePipeline(pipelineCache, renderPass, swapChain.colorFormat, depthFormat);
-	}
+	}*/
 
 	//TODO replace this with integration with game
-	loadAssets();
+
 	prepareUniformBuffers();
 	setupDescriptors();
 	preparePipelines();
@@ -812,23 +807,6 @@ void VulkanExampleBase::submitFrame()
 	VK_CHECK_RESULT(vkQueueWaitIdle(queue));
 }
 
-void VulkanExampleBase::loadAssets() {
-	// Models
-	std::vector<std::string> modelFiles = { "cube.gltf", "vulkanscenelogos.gltf", "vulkanscenebackground.gltf", "vulkanscenemodels.gltf" };
-	std::vector<VkPipeline*> modelPipelines = { &pipelines.skybox, &pipelines.logos, &pipelines.models, &pipelines.models };
-	for (auto i = 0; i < modelFiles.size(); i++) {
-		DemoModel model;
-		const uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::PreMultiplyVertexColors | vkglTF::FileLoadingFlags::FlipY;
-		model.pipeline = modelPipelines[i];
-		model.glTF = new vkglTF::Model();
-		model.glTF->loadFromFile(getAssetPath() + "models/" + modelFiles[i], vulkanDevice, queue, glTFLoadingFlags);
-		demoModels.push_back(model);
-	}
-	// Textures
-	skybox.loadFromFile(getAssetPath() + "textures/cubemap_vulkan.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
-	
-}
-
 void VulkanExampleBase::setupDescriptors() {
 	// Pool
 	std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -890,24 +868,43 @@ void VulkanExampleBase::preparePipelines() {
 		pipelineCI.pStages = shaderStages.data();
 		pipelineCI.pVertexInputState = vkglTF::Vertex::getPipelineVertexInputState({ vkglTF::VertexComponent::Position, vkglTF::VertexComponent::Normal, vkglTF::VertexComponent::UV, vkglTF::VertexComponent::Color });;
 
-		// Default mesh rendering pipeline
-		shaderStages[0] = loadShader(getShadersPath() + "vulkanscene/mesh.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		shaderStages[1] = loadShader(getShadersPath() + "vulkanscene/mesh.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.models));
+		/* TODO figure out how to do it with own piplines
+	 // Default mesh rendering pipeline
+	shaderStages[0] = loadShader(getShadersPath() + "vulkanscene/mesh.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = loadShader(getShadersPath() + "vulkanscene/mesh.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.models));
 
-		// Pipeline for the logos
-		shaderStages[0] = loadShader(getShadersPath() + "vulkanscene/logo.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		shaderStages[1] = loadShader(getShadersPath() + "vulkanscene/logo.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.logos));
+	// Pipeline for the skybox
+	rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
+	depthStencilState.depthWriteEnable = VK_FALSE;
+	shaderStages[0] = loadShader(getShadersPath() + "vulkanscene/skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	shaderStages[1] = loadShader(getShadersPath() + "vulkanscene/skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.skybox));
 
-		// Pipeline for the skybox
-		rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
-		depthStencilState.depthWriteEnable = VK_FALSE;
-		shaderStages[0] = loadShader(getShadersPath() + "vulkanscene/skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		shaderStages[1] = loadShader(getShadersPath() + "vulkanscene/skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.skybox));
+		 */
+
+		}
+
+
+
+/*
+*void VulkanExampleBase::loadAssets() {
+	// Models
+	std::vector<std::string> modelFiles = { "cube.gltf", "vulkanscenelogos.gltf", "vulkanscenebackground.gltf", "vulkanscenemodels.gltf" };
+	std::vector<VkPipeline*> modelPipelines = { &pipelines.skybox, &pipelines.logos, &pipelines.models, &pipelines.models };
+	for (auto i = 0; i < modelFiles.size(); i++) {
+		DemoModel model;
+		const uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::PreMultiplyVertexColors | vkglTF::FileLoadingFlags::FlipY;
+		model.pipeline = modelPipelines[i];
+		model.glTF = new vkglTF::Model();
+		model.glTF->loadFromFile(getAssetPath() + "models/" + modelFiles[i], vulkanDevice, queue, glTFLoadingFlags);
+		demoModels.push_back(model);
+	}
+	// Textures
+	skybox.loadFromFile(getAssetPath() + "textures/cubemap_vulkan.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
+
 }
-
+ */
 void VulkanExampleBase::prepareUniformBuffers() {
 	vulkanDevice->createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,&uniformBuffer, sizeof(uniformData));
 	VK_CHECK_RESULT(uniformBuffer.map());
@@ -1204,9 +1201,6 @@ VulkanExampleBase::~VulkanExampleBase()
 		vkDestroyPipeline(device, pipelines.skybox, nullptr);
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		for (auto demoModel : demoModels) {
-			delete demoModel.glTF;
-		}
 		uniformBuffer.destroy();
 		skybox.destroy();
 	}

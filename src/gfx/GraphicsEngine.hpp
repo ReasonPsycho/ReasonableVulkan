@@ -13,7 +13,11 @@ namespace gfx {
     public:
         virtual ~GraphicsEngine() = default;
 
-        virtual void beginFrame() = 0;
+        virtual void Init();
+
+        virtual void submitMesh(MeshHandle mesh, const glm::mat4& transform) = 0;
+
+        virtual void renderFrame() = 0;
 
         virtual void render() = 0;
 
