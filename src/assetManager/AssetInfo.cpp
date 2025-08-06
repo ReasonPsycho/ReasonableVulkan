@@ -35,6 +35,7 @@ am::Asset *am::AssetInfo::getAsset() {
             loadedAsset = loadResult.get();
             isLoaded = true;
         }
+        assetManager.importer.FreeScene(); // This runs just in case assimp was used
     }
     return loadedAsset;
 }
