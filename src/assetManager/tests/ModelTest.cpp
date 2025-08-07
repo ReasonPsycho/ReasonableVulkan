@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
-#include "../assets/Model.h"
-#include "AssetManager.hpp"
+#include "../src/assets/Model.h"
+#include "../src/AssetManager.hpp"
 
 BOOST_AUTO_TEST_SUITE(ModelTests)
 

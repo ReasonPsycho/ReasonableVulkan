@@ -21,7 +21,6 @@ class Material : public am::Asset {
 public:
     explicit Material(AssetFactoryData &assetFactoryData);
 
-
     size_t calculateContentHash() const override;
 
     [[nodiscard]] AssetType getType() const override;

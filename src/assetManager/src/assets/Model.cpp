@@ -4,6 +4,8 @@
 
 #include "Model.h"
 
+#include "src/AssimpGLMHelpers.h"
+
 namespace am
 {
     //private:
