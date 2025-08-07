@@ -37,7 +37,7 @@ namespace am {
         std::string extension = std::filesystem::path(path).extension().string();
 
         // Create and store the shader data
-        shaderData = ShaderData{
+        data = ShaderData{
             .bytecode = std::move(code),
             .stage = stage
         };
@@ -46,20 +46,15 @@ namespace am {
     }
 
     size_t Shader::calculateContentHash() const {
-        if (!shaderData) {
-            spdlog::error("Shader data is null");
-            throw std::runtime_error("Shader data is null");
-        }
-
         size_t hash = 0;
 
         // Hash both the bytecode and the shader stage
-        for (const auto &word: shaderData->bytecode) {
+        for (const auto &word: data.bytecode) {
             hash ^= std::hash<std::uint32_t>{}(word) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
         }
 
         // Combine with shader stage
-        hash ^= std::hash<std::uint32_t>{}(static_cast<std::uint32_t>(shaderData->stage));
+        hash ^= std::hash<std::uint32_t>{}(static_cast<std::uint32_t>(data.stage));
 
         return hash;
     }

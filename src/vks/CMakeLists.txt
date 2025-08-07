@@ -22,6 +22,7 @@ target_link_libraries(vks
         SDL2::SDL2
         imgui::imgui
         glm::glm
+        am
 )
 
 # tinygltf is header-only, so we just need to include its directory

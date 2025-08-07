@@ -1,4 +1,4 @@
-#include "Vertex.hpp"
+#include "../../../include/Vertex.hpp"
 #include <glm/geometric.hpp>
 
 namespace am {

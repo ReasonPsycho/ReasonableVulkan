@@ -26,6 +26,7 @@ find_package(Boost REQUIRED COMPONENTS uuid hash2)
 file(GLOB_RECURSE BASE_SRC
         "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.tpp"
 )
 # Remove test files from BASE_SRC
 file(GLOB_RECURSE TEST_FILES
@@ -39,7 +40,7 @@ add_library(am STATIC ${BASE_SRC})
 # Configure include directories
 target_include_directories(am
         PUBLIC
-        .
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
         PRIVATE
         ${Stb_INCLUDE_DIR}  # Add STB include directory
 )
@@ -75,6 +76,7 @@ if (AM_ENABLE_TESTS)
             PRIVATE
             am
             Boost::unit_test_framework
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
 
     # Add test directory to include paths for test executable

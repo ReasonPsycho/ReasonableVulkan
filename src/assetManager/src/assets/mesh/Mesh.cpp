@@ -18,7 +18,7 @@ namespace am {
         size_t hash = 0;
 
         // Hash vertices
-        for (const auto &vertex: vertices) {
+        for (const auto &vertex: data.vertices) {
             // Combine hash with vertex data
             hash ^= std::hash<float>{}(vertex.Position.x) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
             hash ^= std::hash<float>{}(vertex.Position.y) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
@@ -35,7 +35,7 @@ namespace am {
         }
 
         // Hash indices
-        for (const auto &index: indices) {
+        for (const auto &index: data.indices) {
             hash ^= std::hash<unsigned int>{}(index) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
         }
 
@@ -45,15 +45,16 @@ namespace am {
 
     Mesh::Mesh(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext)
     {
-        auto scene = meshFactoryContext.assetManager.importer.GetScene();
+        AssetManager &assetManager = AssetManager::getInstance();
+        auto scene = assetManager.importer.GetScene();
 
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
-            scene = meshFactoryContext.assetManager.importer.ReadFile(meshFactoryContext.path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+            scene = assetManager.importer.ReadFile(meshFactoryContext.path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
             if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
             {
-                spdlog::error("Assimp error: " + string(meshFactoryContext.assetManager.importer.GetErrorString()));
-                throw std::runtime_error("Assimp error: " + string(meshFactoryContext.assetManager.importer.GetErrorString()));
+                spdlog::error("Assimp error: " + string(assetManager.importer.GetErrorString()));
+                throw std::runtime_error("Assimp error: " + string(assetManager.importer.GetErrorString()));
             }
         }
              // walk through each of the mesh's vertices
@@ -63,12 +64,12 @@ namespace am {
         materialFactoryContext.assimpIndex = mesh->mMaterialIndex;
         materialFactoryContext.assetType = AssetType::Material;
 
-        auto rMaterial = materialFactoryContext.assetManager.registerAsset(&materialFactoryContext);
+        auto rMaterial = assetManager.registerAsset(&materialFactoryContext);
         if (!rMaterial) {
             spdlog::error("Failed to load material for mesh: " + meshFactoryContext.path);
             throw std::runtime_error("Failed to load material for mesh: " + meshFactoryContext.path);
         }
-        material = rMaterial.value();
+        data.material = rMaterial.value();
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
@@ -109,18 +110,18 @@ namespace am {
             } else
                 vertex.TexCoords = glm::vec2(0.0f, 0.0f);
 
-            vertices.push_back(vertex);
+            data.vertices.push_back(vertex);
         }
         // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
         for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
             aiFace face = mesh->mFaces[i];
             // retrieve all indices of the face and store them in the indices vector
             for (unsigned int j = 0; j < face.mNumIndices; j++)
-                indices.push_back(face.mIndices[j]);
+                data.indices.push_back(face.mIndices[j]);
         }
 
-        for (int i = 0; i < vertices.size(); ++i) {
-            Normalize(vertices[i]);
+        for (int i = 0; i < data.vertices.size(); ++i) {
+            Normalize(data.vertices[i]);
         }
     }
 

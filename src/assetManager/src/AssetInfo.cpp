@@ -2,12 +2,10 @@
 // Created by redkc on 17.05.2025.
 //
 
-#include "AssetInfo.hpp"
-
+#include "../include/AssetInfo.hpp"
 #include <spdlog/spdlog.h>
-
 #include "AssetManager.hpp"
-#include "Asset.hpp"
+#include "../include/Asset.hpp"
 
 bool am::AssetFactoryData::operator==(const AssetFactoryData& factory_context) const
 {
@@ -24,7 +22,7 @@ bool am::AssetFactoryData::operator==(const AssetFactoryData& factory_context) c
 am::Asset *am::AssetInfo::getAsset() {
     if (!isLoaded && !loadedAsset) {
         // Use the asset manager to load the asset
-        auto &assetManager = assetFactoryData.assetManager;
+        AssetManager &assetManager = AssetManager::getInstance();
         auto factory = assetManager.getFactory(type);
         if (factory) {
             auto loadResult = factory(assetFactoryData);

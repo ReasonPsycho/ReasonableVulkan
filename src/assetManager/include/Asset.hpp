@@ -4,7 +4,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <filesystem>
 #include "AssetTypes.hpp"
-#include "AssetManager.hpp"
+#include "../src/AssetManager.hpp"
 #include "AssetInfo.hpp"
 
 namespace am {
@@ -18,9 +18,16 @@ namespace am {
 
         [[nodiscard]] virtual AssetType getType() const = 0;
 
+        template<typename T>
+          T* getAssetDataAs() {
+            return static_cast<T*>(getAssetData());
+        }
+
     protected:
         std::string path;
         boost::uuids::uuid id;
+
+        virtual void* getAssetData() = 0;
     };
 }
 

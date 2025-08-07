@@ -4,7 +4,6 @@
 
 #ifndef ASSETINFO_HPP
 #define ASSETINFO_HPP
-#include <assimp/scene.h>
 #include <boost/uuid/uuid.hpp>
 
 
@@ -14,15 +13,14 @@ namespace am {
     enum class AssetType;
 
     struct AssetFactoryData {
-        AssetManager &assetManager;
         std::string path;
         AssetType assetType;
         int assimpIndex;
 
         // Constructor to initialize the reference and other members
-        AssetFactoryData(AssetManager &manager, std::string p, AssetType type, int assimpIndex = 0)
-            : assetManager(manager)
-              , path(std::move(p))
+        AssetFactoryData(std::string p, AssetType type, int assimpIndex = 0)
+            :
+               path(std::move(p))
               , assetType(type)
               , assimpIndex(assimpIndex) {
         }

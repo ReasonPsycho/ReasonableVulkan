@@ -1,6 +1,11 @@
 #include <boost/test/unit_test.hpp>
 #include "../src/AssetManager.hpp"
-#include "../src/Asset.hpp"
+#include "../include/Asset.hpp"
+
+struct MockData
+{
+
+};
 
 // Mock Asset class for testing
 class MockAsset : public am::Asset {
@@ -16,6 +21,9 @@ public:
         return am::AssetType::Other;
     }
 
+    void* getAssetData() override { return &data; }
+
+    MockData data;
 private:
     size_t mockHash;
 };
@@ -42,7 +50,7 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         auto& manager = am::AssetManager::getInstance();
         registerMockFactory(manager);
 
-        am::AssetFactoryData data(manager, "test_path.txt", am::AssetType::Other);
+        am::AssetFactoryData data( "test_path.txt", am::AssetType::Other);
         auto assetInfo = manager.registerAsset(&data);
         BOOST_REQUIRE(assetInfo != nullptr);
 
@@ -61,10 +69,10 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         auto& manager = am::AssetManager::getInstance();
         registerMockFactory(manager);
 
-        am::AssetFactoryData data1(manager, "duplicate.txt", am::AssetType::Other);
+        am::AssetFactoryData data1( "duplicate.txt", am::AssetType::Other);
         auto asset1 = manager.registerAsset(&data1);
 
-        am::AssetFactoryData data2(manager, "duplicate.txt", am::AssetType::Other);
+        am::AssetFactoryData data2( "duplicate.txt", am::AssetType::Other);
         auto asset2 = manager.registerAsset(&data2);
 
         BOOST_TEST(asset1.value()->id == asset2.value()->id);
@@ -75,7 +83,7 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         auto& manager = am::AssetManager::getInstance();
         registerMockFactory(manager);
 
-        am::AssetFactoryData data(manager, "uuid_test.txt", am::AssetType::Other);
+        am::AssetFactoryData data("uuid_test.txt", am::AssetType::Other);
         auto assetInfo = manager.registerAsset(&data);
 
         auto asset = manager.getByUUID<am::Asset>(assetInfo.value()->id);
@@ -87,10 +95,10 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         auto& manager = am::AssetManager::getInstance();
         registerMockFactory(manager, 98765);  // all assets get the same hash
 
-        am::AssetFactoryData data1(manager, "a.txt", am::AssetType::Other);
+        am::AssetFactoryData data1( "a.txt", am::AssetType::Other);
         auto asset1 = manager.registerAsset(&data1);
 
-        am::AssetFactoryData data2(manager, "b.txt", am::AssetType::Other);
+        am::AssetFactoryData data2( "b.txt", am::AssetType::Other);
         auto asset2 = manager.registerAsset(&data2);
 
         BOOST_TEST(asset1.value()->id == asset2.value()->id);
