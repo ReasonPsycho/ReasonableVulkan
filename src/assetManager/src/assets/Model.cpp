@@ -3,8 +3,7 @@
 //
 
 #include "Model.h"
-
-#include "src/AssimpGLMHelpers.h"
+#include "../src/AssimpGLMHelpers.h"
 
 namespace am
 {
@@ -12,7 +11,8 @@ namespace am
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
     void Model::loadFromFile(AssetFactoryData base_factory_context)
     {
-        Assimp::Importer& importer = base_factory_context.assetManager.importer;
+        AssetManager& assetManager = AssetManager::getInstance();
+        Assimp::Importer& importer = assetManager.importer;
         const aiScene* scene = importer.ReadFile(base_factory_context.path,
                                                  aiProcess_Triangulate | aiProcess_GenSmoothNormals |
                                                  // aiProcess_FlipUVs |
@@ -25,7 +25,7 @@ namespace am
         }
 
         // process ASSIMP's root node recursively
-       rootNode = processNode(base_factory_context, scene->mRootNode, scene);
+       data.rootNode = processNode(base_factory_context, scene->mRootNode, scene);
        importer.FreeScene();
     }
 
@@ -45,7 +45,7 @@ namespace am
     {
         size_t hash = 0;
 
-        hash = CalculateContentHash(rootNode);
+        hash = CalculateContentHash(data.rootNode);
 
         return hash;
     }
@@ -84,9 +84,10 @@ namespace am
     std::shared_ptr<AssetInfo> Model::processMesh(AssetFactoryData baseFactoryContext, aiMesh* mesh,
                                                   const aiScene* scene)
     {
+        AssetManager& assetManager = AssetManager::getInstance();
         AssetFactoryData meshFactoryContext{baseFactoryContext};
         meshFactoryContext.assetType = AssetType::Mesh;
         meshFactoryContext.assimpIndex = getMeshIndexInScene(scene, mesh);
-        return baseFactoryContext.assetManager.registerAsset(&meshFactoryContext).value();
+        return assetManager.registerAsset(&meshFactoryContext).value();
     }
 }

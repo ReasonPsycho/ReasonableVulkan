@@ -5,20 +5,15 @@
 #include <string>
 #include <vector>
 #include <cstdint>
-#include "../../Asset.hpp"
+#include "../../../include/Asset.hpp"
 #include "spdlog/spdlog.h"
 #include <functional>
 
+#include "assetDatas/TextureData.h"
+
 
 namespace am {
-    struct TextureData {
-        std::vector<std::uint8_t> pixels;
-        int width{0};
-        int height{0};
-        int channels{0};
-        bool hasAlpha{false};
-    };
-
+    
     class Texture : public Asset {
     public:
         static inline AssetFactoryRegistry::Registrar<Texture> registrar{AssetType::Texture};
@@ -32,21 +27,22 @@ namespace am {
         [[nodiscard]] size_t calculateContentHash() const override;
         [[nodiscard]] AssetType getType() const override;
 
-        [[nodiscard]] int getWidth() const { return textureData ? textureData->width : 0; }
-        [[nodiscard]] int getHeight() const { return textureData ? textureData->height : 0; }
-        [[nodiscard]] int getChannels() const { return textureData ? textureData->channels : 0; }
-        [[nodiscard]] bool hasAlpha() const { return textureData ? textureData->hasAlpha : false; }
+        [[nodiscard]] int getWidth() const { return data.width ; }
+        [[nodiscard]] int getHeight() const { return data.height ; }
+        [[nodiscard]] int getChannels() const { return data.channels ; }
+        [[nodiscard]] bool hasAlpha() const { return data.hasAlpha; }
 
         [[nodiscard]] const uint8_t *getData() const {
-            return textureData ? textureData->pixels.data() : nullptr;
+            return data.pixels.data();
         }
 
         [[nodiscard]] size_t getDataSize() const {
-            return textureData ? textureData->pixels.size() : 0;
+            return data.pixels.size() ;
         }
 
+        void* getAssetData() override { return &data; }
     private:
-        std::unique_ptr<TextureData> textureData;
+        TextureData data;
     };
 }
 

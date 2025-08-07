@@ -7,7 +7,7 @@
 #include <span>
 #include <cstdint>
 
-#include "../../Asset.hpp"
+#include "../../../include/Asset.hpp"
 #include "../../AssetManager.hpp"
 #include "spdlog/spdlog.h"
 
@@ -16,21 +16,10 @@
 #include <functional>
 
 #include "../../AssetFactoryRegistry.hpp"
+#include "assetDatas/ShaderData.h"
 
 namespace am {
-    enum class ShaderStage : uint32_t {
-        Vertex = 0,
-        Fragment = 1,
-        Compute = 2,
-        Geometry = 3,
-        TessellationControl = 4,
-        TessellationEvaluation = 5
-    };
 
-    struct ShaderData {
-        std::vector<std::uint32_t> bytecode;
-        ShaderStage stage;
-    };
 
     class Shader : public Asset {
     public:
@@ -47,11 +36,11 @@ namespace am {
 
         [[nodiscard]] ShaderStage getStage() const;
 
+        void* getAssetData() override { return &data; }
     private:
-        std::optional<ShaderData> shaderData;
+        ShaderData data;
 
         size_t calculateContentHash() const override;
-
         [[nodiscard]] AssetType getType() const override;
     };
 } // namespace am

@@ -17,19 +17,19 @@ std::vector<std::shared_ptr<am::AssetInfo>> collectAllMeshes(const am::Node& nod
 BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData data(manager, "res/models/my/Box.fbx", am::AssetType::Model);
+    am::AssetFactoryData data( "res/models/my/Box.fbx", am::AssetType::Model);
     auto info = manager.registerAsset(&data);
     BOOST_REQUIRE(info != nullptr);
 
     auto model = manager.getByUUID<am::Model>(info.value()->id);
     BOOST_REQUIRE(model != nullptr);
 
-    auto allMeshes = collectAllMeshes(model->rootNode);
+    auto allMeshes = collectAllMeshes(model->getAssetDataAs<am::ModelData>()->rootNode);
     BOOST_REQUIRE(!allMeshes.empty());
 
     auto mesh = dynamic_cast<am::Mesh*>(allMeshes[0]->getAsset());
     BOOST_REQUIRE(mesh != nullptr);
-    BOOST_TEST(mesh->material != nullptr);
+    BOOST_TEST(mesh->getAssetDataAs<am::MeshData>()->material != nullptr);
 
     BOOST_TEST(model->getType() == am::AssetType::Model);
 }
@@ -37,24 +37,24 @@ BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
 BOOST_AUTO_TEST_CASE(LoadPlaneAndSphereSharedMaterial) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData planeData(manager, "res/models/my/Plane.fbx", am::AssetType::Model);
+    am::AssetFactoryData planeData( "res/models/my/Plane.fbx", am::AssetType::Model);
     auto planeInfo = manager.registerAsset(&planeData);
     auto plane = manager.getByUUID<am::Model>(planeInfo.value()->id);
     BOOST_REQUIRE(plane != nullptr);
 
-    am::AssetFactoryData sphereData(manager, "res/models/my/Sphere.fbx", am::AssetType::Model);
+    am::AssetFactoryData sphereData( "res/models/my/Sphere.fbx", am::AssetType::Model);
     auto sphereInfo = manager.registerAsset(&sphereData);
     auto sphere = manager.getByUUID<am::Model>(sphereInfo.value()->id);
     BOOST_REQUIRE(sphere != nullptr);
 
-    auto planeMeshes = collectAllMeshes(plane->rootNode);
-    auto sphereMeshes = collectAllMeshes(sphere->rootNode);
+    auto planeMeshes = collectAllMeshes(plane->getAssetDataAs<am::ModelData>()->rootNode);
+    auto sphereMeshes = collectAllMeshes(sphere->getAssetDataAs<am::ModelData>()->rootNode);
 
     BOOST_REQUIRE(!planeMeshes.empty());
     BOOST_REQUIRE(!sphereMeshes.empty());
 
-    auto planeMesh = dynamic_cast<am::Mesh*>(planeMeshes[0]->getAsset());
-    auto sphereMesh = dynamic_cast<am::Mesh*>(sphereMeshes[0]->getAsset());
+    auto planeMesh = planeMeshes[0]->getAsset()->getAssetDataAs<am::MeshData>();
+    auto sphereMesh =  planeMeshes[0]->getAsset()->getAssetDataAs<am::MeshData>();
 
     BOOST_REQUIRE(planeMesh && sphereMesh);
     BOOST_REQUIRE(planeMesh->material && sphereMesh->material);
@@ -64,10 +64,10 @@ BOOST_AUTO_TEST_CASE(LoadPlaneAndSphereSharedMaterial) {
 BOOST_AUTO_TEST_CASE(ModelSamePathSameHash) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData data1(manager, "res/models/my/Box.fbx", am::AssetType::Model);
+    am::AssetFactoryData data1( "res/models/my/Box.fbx", am::AssetType::Model);
     auto model1 = manager.registerAsset(&data1);
 
-    am::AssetFactoryData data2(manager, "res/models/my/Box.fbx", am::AssetType::Model);
+    am::AssetFactoryData data2( "res/models/my/Box.fbx", am::AssetType::Model);
     auto model2 = manager.registerAsset(&data2);
 
     BOOST_TEST(model1.value()->id == model2.value()->id);
@@ -77,14 +77,14 @@ BOOST_AUTO_TEST_CASE(ModelSamePathSameHash) {
 BOOST_AUTO_TEST_CASE(InvalidModelStillCreatesInfo) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData data(manager, "res/models/my/NonExistent.fbx", am::AssetType::Model);
+    am::AssetFactoryData data( "res/models/my/NonExistent.fbx", am::AssetType::Model);
     auto info = manager.registerAsset(&data);
     BOOST_REQUIRE(info != nullptr);
 
     auto model = manager.getByUUID<am::Model>(info.value()->id);
     BOOST_REQUIRE(model != nullptr);
 
-    auto allMeshes = collectAllMeshes(model->rootNode);
+    auto allMeshes = collectAllMeshes(model->getAssetDataAs<am::ModelData>()->rootNode);
     BOOST_TEST(allMeshes.empty(), "Non-existent model should result in empty mesh list");
 }
 

@@ -37,6 +37,13 @@ namespace am {
                 return os << "Unknown";
         }
     }
+
+    inline AssetType GetAssetTypeFromExtension(const std::string& extension) {
+        if (extension == ".fbx")       return AssetType::Model;
+        if (extension == ".png")       return AssetType::Texture;
+        if (extension == ".spdv")      return AssetType::Shader;
+        return AssetType::Other;
+    }
 }
 
 #endif //ASSETTYPES_HPP

@@ -22,6 +22,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "assetDatas/MaterialData.h"
+
+namespace am
+{
+	class Texture;
+}
+
 namespace vkAm
 {
 	enum DescriptorBindingFlags {
@@ -45,17 +52,16 @@ namespace vkAm
 		uint32_t width, height;
 		uint32_t mipLevels;
 		uint32_t layerCount;
-		VkDescriptorImageInfo descriptor;
+    	uint32_t index;
+    	VkDescriptorImageInfo descriptor;
 		VkSampler sampler;
-		uint32_t index;
 
 		void updateDescriptor();
 
 		void destroy();
-
-		void fromglTfImage(tinygltf::Image &gltfimage, std::string path, vks::VulkanDevice *device, VkQueue copyQueue);
 	};
 
+	am::MaterialData materalData;
 	struct Material {
 		vks::VulkanDevice *device = nullptr;
 
@@ -66,14 +72,14 @@ namespace vkAm
 		float metallicFactor = 1.0f;
 		float roughnessFactor = 1.0f;
 		glm::vec4 baseColorFactor = glm::vec4(1.0f);
-		vkglTF::Texture *baseColorTexture = nullptr;
-		vkglTF::Texture *metallicRoughnessTexture = nullptr;
-		vkglTF::Texture *normalTexture = nullptr;
-		vkglTF::Texture *occlusionTexture = nullptr;
-		vkglTF::Texture *emissiveTexture = nullptr;
+		am::Texture *baseColorTexture = nullptr;
+		am::Texture *metallicRoughnessTexture = nullptr;
+		am::Texture *normalTexture = nullptr;
+		am::Texture *occlusionTexture = nullptr;
+		am::Texture *emissiveTexture = nullptr;
 
-		vkglTF::Texture *specularGlossinessTexture;
-		vkglTF::Texture *diffuseTexture;
+		am::Texture *specularGlossinessTexture;
+		am::Texture *diffuseTexture;
 
 		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 
@@ -88,19 +94,7 @@ namespace vkAm
 		vks::VulkanDevice *device;
 		std::string name;
 
-		uint32_t firstIndex;
-		uint32_t indexCount;
-		uint32_t firstVertex;
-		uint32_t vertexCount;
 		Material &material;
-
-		struct Dimensions {
-			glm::vec3 min = glm::vec3(FLT_MAX);
-			glm::vec3 max = glm::vec3(-FLT_MAX);
-			glm::vec3 size;
-			glm::vec3 center;
-			float radius;
-		} dimensions;
 
 		struct UniformBuffer {
 			VkBuffer buffer;
@@ -149,9 +143,6 @@ namespace vkAm
 		glm::vec3 normal;
 		glm::vec2 uv;
 		glm::vec4 color;
-		glm::vec4 joint0;
-		glm::vec4 weight0;
-		glm::vec4 tangent;
 		static VkVertexInputBindingDescription vertexInputBindingDescription;
 		static std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions;
 		static VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo;
@@ -186,9 +177,9 @@ namespace vkAm
 
 		class Model {
 	private:
-		vkglTF::Texture *getTexture(uint32_t index);
+		am::Texture *getTexture(uint32_t index);
 
-		vkglTF::Texture emptyTexture;
+		am::Texture emptyTexture;
 
 		void createEmptyTexture(VkQueue transferQueue);
 
@@ -249,10 +240,6 @@ namespace vkAm
 
 		void draw(VkCommandBuffer commandBuffer, uint32_t renderFlags = 0,
 		          VkPipelineLayout pipelineLayout = VK_NULL_HANDLE, uint32_t bindImageSet = 1);
-
-		void getNodeDimensions(Node *node, glm::vec3 &min, glm::vec3 &max);
-
-		void getSceneDimensions();
 
 		Node *findNode(Node *parent, uint32_t index);
 

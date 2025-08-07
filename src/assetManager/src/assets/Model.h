@@ -10,9 +10,10 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "Node.h"
-#include "../Asset.hpp"
+#include "../../include/assetDatas/Node.h"
+#include "../../include/Asset.hpp"
 #include "../AssetFactoryRegistry.hpp"
+#include "assetDatas/ModelData.h"
 
 using namespace std;
 
@@ -29,7 +30,7 @@ namespace am {
     public:
         static inline AssetFactoryRegistry::Registrar<Model> registrar{AssetType::Model};
         // model data 
-        Node rootNode;
+        ModelData data;
 
         explicit Model(AssetFactoryData base_factory_context): Asset(base_factory_context) {
             loadFromFile(base_factory_context);
@@ -43,6 +44,7 @@ namespace am {
 
         [[nodiscard]] size_t calculateContentHash() const override;
 
+        void* getAssetData() override { return &data; }
     private:
 
         Node processNode(AssetFactoryData baseFactoryContext, aiNode *aiNode, const aiScene *scene);

@@ -2,8 +2,10 @@
 // Created by redkc on 09.05.2025.
 //
 
-#include "Asset.hpp"
+#include "../include/Asset.hpp"
 #include "AssetManager.hpp"
+
+#include <spdlog/spdlog.h>
 
 namespace am {
 
@@ -66,6 +68,18 @@ namespace am {
             }
         }
 
+    std::optional<std::shared_ptr<AssetInfo>> AssetManager::registerAsset(std::string path)
+    {
+        std::filesystem::path fsPath(path);
+        std::string extension = fsPath.extension().string(); // Includes the dot, e.g. ".fbx"
+
+        // Example usage
+        am::AssetType type = am::GetAssetTypeFromExtension(extension);
+
+        AssetFactoryData* assetFactoryData = new AssetFactoryData(path, type, 0);
+        return registerAsset(assetFactoryData);
+    }
+
 
     void AssetManager::registerFactory(AssetType type, AssetFactory factory) {
         factories[type] = std::move(factory);
@@ -96,5 +110,17 @@ namespace am {
         if (it != assets.end()) return it->second.get();
         spdlog::error("No asset found !");
         return std::nullopt;
+    }
+
+    AssetManager::AssetFactory AssetManager::getFactory(AssetType type) const
+    {
+        auto it = factories.find(type);
+        if(it != factories.end())
+        {
+            return it->second;
+        }
+        spdlog::error("Failed to get asset factory!");
+        throw std::runtime_error("Failed to get asset factory!");
+
     }
 }
