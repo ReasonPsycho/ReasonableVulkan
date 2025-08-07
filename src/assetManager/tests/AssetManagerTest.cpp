@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
-#include "AssetManager.hpp"
-#include "Asset.hpp"
+#include "../src/AssetManager.hpp"
+#include "../src/Asset.hpp"
 
 // Mock Asset class for testing
 class MockAsset : public am::Asset {

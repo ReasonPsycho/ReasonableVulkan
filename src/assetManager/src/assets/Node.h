@@ -7,7 +7,7 @@
 #include <string>
 #include <glm/mat4x4.hpp>
 
-#include "AssetInfo.hpp"
+#include "../AssetInfo.hpp"
 
 namespace am
 {

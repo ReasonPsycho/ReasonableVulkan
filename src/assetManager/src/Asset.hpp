@@ -5,7 +5,7 @@
 #include <filesystem>
 #include "AssetTypes.hpp"
 #include "AssetManager.hpp"
-#include "AssetInfo.hpp"  // Add this include
+#include "AssetInfo.hpp"
 
 namespace am {
     class Asset {

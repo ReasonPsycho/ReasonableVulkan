@@ -21,8 +21,6 @@ using namespace std;
 #include "map"
 #include <string>
 #include <vector>
-#include "../AssimpGLMHelpers.h"
-#include "texture/Texture.h"
 #include "mesh/Mesh.h"
 
 namespace am {

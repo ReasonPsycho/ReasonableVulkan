@@ -39,7 +39,7 @@ add_library(am STATIC ${BASE_SRC})
 # Configure include directories
 target_include_directories(am
         PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        .
         PRIVATE
         ${Stb_INCLUDE_DIR}  # Add STB include directory
 )
@@ -80,7 +80,7 @@ if (AM_ENABLE_TESTS)
     # Add test directory to include paths for test executable
     target_include_directories(am_test
             PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests
+            tests
     )
 
     # Enable CTest
