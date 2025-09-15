@@ -1,5 +1,5 @@
 #include <boost/test/unit_test.hpp>
-#include "../src/assets/Model.h"
+#include "../src/assets/ModelAsset.h"
 #include "../src/AssetManager.hpp"
 
 BOOST_AUTO_TEST_SUITE(ModelTests)
@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
     auto info = manager.registerAsset(&data);
     BOOST_REQUIRE(info != nullptr);
 
-    auto model = manager.getByUUID<am::Model>(info.value()->id);
+    auto model = manager.getByUUID<am::ModelAsset>(info.value()->id);
     BOOST_REQUIRE(model != nullptr);
 
     auto allMeshes = collectAllMeshes(model->getAssetDataAs<am::ModelData>()->rootNode);
@@ -39,12 +39,12 @@ BOOST_AUTO_TEST_CASE(LoadPlaneAndSphereSharedMaterial) {
 
     am::AssetFactoryData planeData( "res/models/my/Plane.fbx", am::AssetType::Model);
     auto planeInfo = manager.registerAsset(&planeData);
-    auto plane = manager.getByUUID<am::Model>(planeInfo.value()->id);
+    auto plane = manager.getByUUID<am::ModelAsset>(planeInfo.value()->id);
     BOOST_REQUIRE(plane != nullptr);
 
     am::AssetFactoryData sphereData( "res/models/my/Sphere.fbx", am::AssetType::Model);
     auto sphereInfo = manager.registerAsset(&sphereData);
-    auto sphere = manager.getByUUID<am::Model>(sphereInfo.value()->id);
+    auto sphere = manager.getByUUID<am::ModelAsset>(sphereInfo.value()->id);
     BOOST_REQUIRE(sphere != nullptr);
 
     auto planeMeshes = collectAllMeshes(plane->getAssetDataAs<am::ModelData>()->rootNode);
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(InvalidModelStillCreatesInfo) {
     auto info = manager.registerAsset(&data);
     BOOST_REQUIRE(info != nullptr);
 
-    auto model = manager.getByUUID<am::Model>(info.value()->id);
+    auto model = manager.getByUUID<am::ModelAsset>(info.value()->id);
     BOOST_REQUIRE(model != nullptr);
 
     auto allMeshes = collectAllMeshes(model->getAssetDataAs<am::ModelData>()->rootNode);

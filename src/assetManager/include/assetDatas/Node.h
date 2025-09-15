@@ -16,8 +16,8 @@ namespace am
         std::string mName;
         glm::mat4x4 mTransformation;
         Node* mParent;
-        std::vector<std::shared_ptr<AssetInfo>> meshes;
         std::vector<Node> mChildren;
+        std::vector<std::shared_ptr<AssetInfo>> meshes;
     };
 
     [[nodiscard]] inline size_t CalculateContentHash(Node node)

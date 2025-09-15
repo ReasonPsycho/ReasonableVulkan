@@ -11,10 +11,10 @@
 namespace am
 {
     struct TextureData {
-        std::vector<std::uint8_t> pixels;
-        int width{0};
-        int height{0};
-        int channels{0};
+        std::vector<std::uint32_t> pixels;
+        uint32_t width{0};
+        uint32_t height{0};
+        uint32_t channels{0};
         bool hasAlpha{false};
     };
 }

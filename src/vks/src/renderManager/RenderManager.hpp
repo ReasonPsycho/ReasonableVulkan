@@ -1,0 +1,14 @@
+//
+// Created by redkc on 15/09/2025.
+//
+
+#ifndef REASONABLEVULKAN_RENDERMANAGER_HPP
+#define REASONABLEVULKAN_RENDERMANAGER_HPP
+
+
+class RenderManager
+{
+};
+
+
+#endif //REASONABLEVULKAN_RENDERMANAGER_HPP
