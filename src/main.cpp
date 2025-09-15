@@ -5,12 +5,12 @@
 #include <SDL2/SDL.h>
 #include "platform.hpp"
 #include "engine/Engine.h"
-#include "vks/vulkanRenderer.h"
+#include "vks/VulkanRenderer.h"
 
 
 
 int main(int argc, char *argv[]) {
-    VulkanExampleBase *vulkanExample = new VulkanExampleBase();
+    VulkanRenderer *vulkanExample = new VulkanRenderer();
     engine::Engine& engine = engine::Engine::GetInstance();
 
     // 1. Initialize platform (SDL window, input, etc.)

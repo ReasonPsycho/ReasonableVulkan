@@ -4,14 +4,14 @@
 
 #ifndef MESHDATA_H
 #define MESHDATA_H
-#include "Vertex.hpp"
+#include "VertexHandle.hpp"
 
 
 namespace am
 {
     struct MeshData
     {
-        std::vector<am::Vertex> vertices;
+        std::vector<am::VertexHandle> vertices;
         std::vector<unsigned int> indices;
         std::shared_ptr<am::AssetInfo> material;
     };

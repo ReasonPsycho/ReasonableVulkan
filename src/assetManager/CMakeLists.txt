@@ -76,7 +76,7 @@ if (AM_ENABLE_TESTS)
             PRIVATE
             am
             Boost::unit_test_framework
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/
     )
 
     # Add test directory to include paths for test executable

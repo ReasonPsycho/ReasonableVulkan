@@ -36,7 +36,6 @@ endif ()
 message(STATUS "Adding subdirectories")
 add_subdirectory(src/platform)
 add_subdirectory(src/vks)
-add_subdirectory(src/gfx)
 add_subdirectory(src/engine)
 add_subdirectory(src/assetManager)
 

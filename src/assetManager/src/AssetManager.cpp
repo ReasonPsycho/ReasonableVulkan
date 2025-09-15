@@ -23,7 +23,7 @@ namespace am {
             auto uuids = getUUIDsByPath(factoryContext->path);
             for (auto uuid : uuids)
             {
-                auto info = lookupAssetInfo(uuid);
+                auto info = getAssetInfo(uuid);
                 if (info.value()->assetFactoryData == *factoryContext ) {
                     return info.value();
                 }
@@ -90,7 +90,7 @@ namespace am {
         return instance;
     }
 
-    std::optional<std::shared_ptr<AssetInfo> > AssetManager::lookupAssetInfo(const boost::uuids::uuid &id) const {
+    std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boost::uuids::uuid &id) const {
         auto it = metadata.find(id);
         if (it != metadata.end()) return it->second;
         spdlog::error("No asset found!");
@@ -105,7 +105,7 @@ namespace am {
         return {};
     }
 
-    std::optional<Asset *> AssetManager::lookupAsset(const boost::uuids::uuid &id) const {
+    std::optional<Asset *> AssetManager::getAsset(const boost::uuids::uuid &id) const {
         auto it = assets.find(id);
         if (it != assets.end()) return it->second.get();
         spdlog::error("No asset found !");

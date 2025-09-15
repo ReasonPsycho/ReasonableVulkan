@@ -37,8 +37,8 @@ namespace am {
         std::optional<std::shared_ptr<AssetInfo>> registerAsset(std::string path) override;
         std::optional<std::shared_ptr<AssetInfo>> registerAsset(AssetFactoryData *factoryContext);
 
-        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > lookupAssetInfo(const boost::uuids::uuid &id) const override;
-        [[nodiscard]] std::optional<Asset *> lookupAsset(const boost::uuids::uuid &id) const override;
+        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > getAssetInfo(const boost::uuids::uuid &id) const override;
+        [[nodiscard]] std::optional<Asset *> getAsset(const boost::uuids::uuid &id) const override;
 
         //UUIDS
         template <typename T>

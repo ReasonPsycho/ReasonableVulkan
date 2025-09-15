@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         auto uids = manager.getUUIDsByPath("test_path.txt");
         BOOST_REQUIRE_EQUAL(uids.size(), 1);
 
-        auto result = manager.lookupAssetInfo(uids[0]);
+        auto result = manager.getAssetInfo(uids[0]);
         BOOST_REQUIRE(result.has_value());
 
         BOOST_TEST(result.value()->path == "test_path.txt");
