@@ -1,7 +1,7 @@
 message(STATUS "Running vks cmake")
 # Collect all source and header files in current directory recursively
-file(GLOB_RECURSE BASE_SRC "*.cpp" "*.hpp" "*.h")
-file(GLOB_RECURSE BASE_HEADERS "*.hpp" "*.h")
+file(GLOB_RECURSE BASE_SRC "*.cpp" "*.hpp" "*.h" "*.tpp")
+file(GLOB_RECURSE BASE_HEADERS "*.hpp" "*.h" "*.tpp")
 
 # Find required packages
 message(STATUS "Searching for required packages for platform library")

@@ -63,7 +63,7 @@ namespace vks
         std::vector<MaterialHandle*> materials;
         bool metallicRoughnessWorkflow = true;
 
-        ModelHandle(am::ModelData modelData,vks::base::VulkanDevice* device, VkQueue transferQueue);
+        ModelHandle(AssetHandleManager assetHandleManager,am::ModelData modelData,vks::base::VulkanDevice* device, VkQueue transferQueue);
 
         ~ModelHandle();
 
