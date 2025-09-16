@@ -1524,7 +1524,7 @@ void VulkanExampleBase::handleAppCommand(android_app * app, int32_t cmd)
 }
 #elif (defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK) || defined(VK_USE_PLATFORM_METAL_EXT))
 #if defined(VK_EXAMPLE_XCODE_GENERATED)
-@interface AppDelegate : NSObject<NSApplicationDelegate>
+interface AppDelegate : NSObject<NSApplicationDelegate>
 {
 @public
 	VulkanExampleBase *vulkanExample;

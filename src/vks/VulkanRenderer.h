@@ -175,7 +175,6 @@ protected:
 public:
 
 	vks::AssetHandleManager assetHandleManger;
-	VkQueue copyQueue{VK_NULL_HANDLE};
 
 	// TODO replace with connection from game engine
 	struct DemoModel {

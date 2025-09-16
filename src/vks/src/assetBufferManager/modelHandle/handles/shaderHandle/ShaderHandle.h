@@ -8,10 +8,11 @@
 #include "assetDatas/ShaderData.h"
 
 
-class ShaderHandle : vks::IVulkanHandle{
+class ShaderHandle : public vks::IVulkanHandle{
 
-
-    ShaderHandle(am::ShaderData& textureData, vks::base::VulkanDevice* device, VkQueue copyQueue);
+public:
+    ShaderHandle(am::ShaderData& textureData, vks::base::VulkanDevice* device, VkQueue copyQueue) : IVulkanHandle(device,copyQueue)
+    {};
 
     void cleanup() override {};
 

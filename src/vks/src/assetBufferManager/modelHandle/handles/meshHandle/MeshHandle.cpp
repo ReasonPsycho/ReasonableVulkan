@@ -5,7 +5,6 @@
 #include "MeshHandle.h"
 
 #include "Asset.hpp"
-#include "../../../base/VulkanDevice.hpp"
 #include "../../../../base/VulkanInitializers.hpp"
 
 // Static member definition
