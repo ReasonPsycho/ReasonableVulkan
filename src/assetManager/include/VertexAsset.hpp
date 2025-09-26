@@ -12,7 +12,7 @@
 #include <glm/vec4.hpp>
 
 namespace am {
-    struct VertexHandle {
+    struct VertexAsset {
         // position
         glm::vec3 Position;
         // normal
@@ -28,7 +28,7 @@ namespace am {
     };
 
 
-    void Normalize(VertexHandle &vertex);
+    void Normalize(VertexAsset &vertex);
 }
 
 

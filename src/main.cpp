@@ -4,13 +4,15 @@
 #include <cstdlib>
 #include <SDL2/SDL.h>
 #include "platform.hpp"
+#include "assetManager/src/AssetManager.hpp"
 #include "engine/Engine.h"
 #include "vks/VulkanRenderer.h"
 
 
 
 int main(int argc, char *argv[]) {
-    VulkanRenderer *vulkanExample = new VulkanRenderer();
+    am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
+    vks::VulkanRenderer *vulkanExample = new vks::VulkanRenderer(&assetManager);
     engine::Engine& engine = engine::Engine::GetInstance();
 
     // 1. Initialize platform (SDL window, input, etc.)
@@ -18,14 +20,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    if (!vulkanExample->initVulkan()) {
-        return EXIT_FAILURE;
-    }
-
     platform::WindowInfo window_info = platform::GetWindowInfo();
-    vulkanExample->setupWindow(window_info.hInstance, window_info.wndProc, window_info.hwnd);
-    vulkanExample->prepare();
-
+    vulkanExample->initialize(window_info.hwnd,1280, 720);
 
     /*
     // 3. Initialize the graphics abstraction

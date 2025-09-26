@@ -2,15 +2,15 @@
 // Created by redkc on 10/08/2025.
 //
 
-#include "MaterialHandle.h"
+#include "MaterialDescriptor.h"
 
 #include "Asset.hpp"
 #include "../../../../base/VulkanInitializers.hpp"
 
 // Static member definition
-VkDescriptorSetLayout vks::MaterialHandle::descriptorSetLayoutImage = VK_NULL_HANDLE;
 
-vks::MaterialHandle::MaterialHandle(base::VulkanDevice* device, am::MaterialData& materialData, VkQueue copyQueue) : IVulkanHandle(device,copyQueue)
+
+vks::MaterialDescriptor::MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice* device, VkQueue* copyQueue) : IVulkanDescriptor(device,copyQueue)
 {
     // Initialize numeric fields
     alphaCutoff = materialData.alphaCutoff;
@@ -20,33 +20,33 @@ vks::MaterialHandle::MaterialHandle(base::VulkanDevice* device, am::MaterialData
 
     // Initialize textures (if valid AssetInfo is provided)
     if (materialData.baseColorTexture) {
-        baseColorTexture = new TextureHandle(*materialData.baseColorTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
-        descriptorBindingFlags |= DescriptorBindingFlags::ImageBaseColor;
+        baseColorTexture = new TextureDescriptor(*materialData.baseColorTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        descriptorBindingFlags |= vks::DescriptorBindingFlags::ImageBaseColor;
     }
     if (materialData.metallicRoughnessTexture) {
-        metallicRoughnessTexture = new TextureHandle(*materialData.metallicRoughnessTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        metallicRoughnessTexture = new TextureDescriptor(*materialData.metallicRoughnessTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
     }
     if (materialData.normalTexture) {
-        normalTexture = new TextureHandle(*materialData.normalTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
-        descriptorBindingFlags |= DescriptorBindingFlags::ImageNormalMap;
+        normalTexture = new TextureDescriptor(*materialData.normalTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        descriptorBindingFlags |= vks::DescriptorBindingFlags::ImageNormalMap;
     }
     if (materialData.occlusionTexture) {
-        occlusionTexture = new TextureHandle(*materialData.occlusionTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        occlusionTexture = new TextureDescriptor(*materialData.occlusionTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
     }
     if (materialData.emissiveTexture) {
-        emissiveTexture = new TextureHandle(*materialData.emissiveTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        emissiveTexture = new TextureDescriptor(*materialData.emissiveTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
     }
     if (materialData.specularGlossinessTexture) {
-        metallicRoughnessTexture = new TextureHandle(*materialData.specularGlossinessTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        metallicRoughnessTexture = new TextureDescriptor(*materialData.specularGlossinessTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
     }
     
     // Setup descriptors if we have textures
     if (baseColorTexture || normalTexture) {
-        setupDescriptors();
+        setupDescriptors(materialLayout);
     }
 }
 
-vks::MaterialHandle::~MaterialHandle() {
+vks::MaterialDescriptor::~MaterialDescriptor() {
     if (descriptorPool != VK_NULL_HANDLE) {
         vkDestroyDescriptorPool(device->logicalDevice, descriptorPool, nullptr);
     }
@@ -58,7 +58,7 @@ vks::MaterialHandle::~MaterialHandle() {
     delete emissiveTexture;
 }
 
-void vks::MaterialHandle::createDescriptorPool() {
+void vks::MaterialDescriptor::createDescriptorPool() {
     std::vector<VkDescriptorPoolSize> poolSizes;
     uint32_t imageCount = 0;
     
@@ -85,32 +85,8 @@ void vks::MaterialHandle::createDescriptorPool() {
     VK_CHECK_RESULT(vkCreateDescriptorPool(device->logicalDevice, &descriptorPoolCI, nullptr, &descriptorPool));
 }
 
-void vks::MaterialHandle::createDescriptorSetLayout() {
-    if (descriptorSetLayoutImage == VK_NULL_HANDLE) {
-        std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{};
-        if (descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
-            setLayoutBindings.push_back(vks::base::initializers::descriptorSetLayoutBinding(
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT,
-                static_cast<uint32_t>(setLayoutBindings.size())));
-        }
-        if (descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
-            setLayoutBindings.push_back(vks::base::initializers::descriptorSetLayoutBinding(
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT,
-                static_cast<uint32_t>(setLayoutBindings.size())));
-        }
-        
-        if (!setLayoutBindings.empty()) {
-            VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{};
-            descriptorLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
-            descriptorLayoutCI.pBindings = setLayoutBindings.data();
-            VK_CHECK_RESULT(
-                vkCreateDescriptorSetLayout(device->logicalDevice, &descriptorLayoutCI, nullptr, &descriptorSetLayoutImage));
-        }
-    }
-}
 
-void vks::MaterialHandle::createDescriptorSet() {
+void vks::MaterialDescriptor::createDescriptorSet(VkDescriptorSetLayout materialLayout) {
     if (descriptorPool == VK_NULL_HANDLE) {
         return; // No pool means no descriptors needed
     }
@@ -118,7 +94,7 @@ void vks::MaterialHandle::createDescriptorSet() {
     VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
     descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     descriptorSetAllocInfo.descriptorPool = descriptorPool;
-    descriptorSetAllocInfo.pSetLayouts = &descriptorSetLayoutImage;
+    descriptorSetAllocInfo.pSetLayouts = &materialLayout;
     descriptorSetAllocInfo.descriptorSetCount = 1;
     VK_CHECK_RESULT(vkAllocateDescriptorSets(device->logicalDevice, &descriptorSetAllocInfo, &descriptorSet));
     
@@ -150,8 +126,7 @@ void vks::MaterialHandle::createDescriptorSet() {
     }
 }
 
-void vks::MaterialHandle::setupDescriptors() {
-    createDescriptorSetLayout();
+void vks::MaterialDescriptor::setupDescriptors(VkDescriptorSetLayout materialLayout) {
     createDescriptorPool();
-    createDescriptorSet();
+    createDescriptorSet(materialLayout);
 }

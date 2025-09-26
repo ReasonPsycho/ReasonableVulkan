@@ -32,7 +32,7 @@ namespace am {
         [[nodiscard]] int getChannels() const { return data.channels ; }
         [[nodiscard]] bool hasAlpha() const { return data.hasAlpha; }
 
-        [[nodiscard]] const uint8_t *getData() const {
+        [[nodiscard]] const unsigned* getData() const {
             return data.pixels.data();
         }
 

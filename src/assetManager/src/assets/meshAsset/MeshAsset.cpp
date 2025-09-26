@@ -72,7 +72,7 @@ namespace am {
         data.material = rMaterial.value();
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
-            VertexHandle vertex;
+            VertexAsset vertex;
             glm::vec3 vector;
 
             // positions

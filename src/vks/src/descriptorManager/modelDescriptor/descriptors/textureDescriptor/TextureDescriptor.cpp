@@ -2,17 +2,17 @@
 // Created by redkc on 10/08/2025.
 //
 
-#include "TextureHandle.h"
+#include "TextureDescriptor.h"
 
 
 
-void vks::TextureHandle::updateDescriptor() {
+void vks::TextureDescriptor::updateDescriptor() {
 	descriptor.sampler = sampler;
 	descriptor.imageView = view;
 	descriptor.imageLayout = imageLayout;
 }
 
-void vks::TextureHandle::destroy() {
+void vks::TextureDescriptor::destroy() {
 	if (device) {
 		vkDestroyImageView(device->logicalDevice, view, nullptr);
 		vkDestroyImage(device->logicalDevice, image, nullptr);
@@ -21,7 +21,7 @@ void vks::TextureHandle::destroy() {
 	}
 }
 // Modified `fromglTfImage` function
-vks::TextureHandle::TextureHandle(am::TextureData &textureData, vks::base::VulkanDevice *device, VkQueue copyQueue) : IVulkanHandle(device,copyQueue) {
+vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::base::VulkanDevice* device, VkQueue* copyQueue) : IVulkanDescriptor(device,copyQueue) {
     this->device = device;
 
 	this->width = textureData.width;
@@ -124,7 +124,7 @@ vks::TextureHandle::TextureHandle(am::TextureData &textureData, vks::base::Vulka
     imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     vkCmdPipelineBarrier(copyCmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
-    device->flushCommandBuffer(copyCmd, copyQueue);
+    device->flushCommandBuffer(copyCmd, *copyQueue);
 
     // Clean up staging resources
     vkDestroyBuffer(device->logicalDevice, stagingBuffer, nullptr);

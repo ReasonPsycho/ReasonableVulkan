@@ -1,8 +1,8 @@
-#include "../../../include/VertexHandle.hpp"
+#include "../../../include/VertexAsset.hpp"
 #include <glm/geometric.hpp>
 
 namespace am {
-    void Normalize(VertexHandle &vertex) {
+    void Normalize(VertexAsset &vertex) {
         // Normalize the normal vector
         vertex.Normal = glm::normalize(vertex.Normal);
 
