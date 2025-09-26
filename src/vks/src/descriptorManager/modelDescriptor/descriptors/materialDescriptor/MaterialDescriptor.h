@@ -6,8 +6,8 @@
 #define MATERIAL_H
 #include <vulkan/vulkan_core.h>
 
-#include "../IVulkanHandle.h"
-#include "../textureHandle/TextureHandle.h"
+#include "../IVulkanDescriptor.h"
+#include "../textureDescriptor/TextureDescriptor.h"
 #include "assetDatas/MaterialData.h"
 
 
@@ -23,33 +23,31 @@ namespace vks
         ImageNormalMap = 0x00000002
     };
 
-    struct MaterialHandle : IVulkanHandle {
+    struct MaterialDescriptor : IVulkanDescriptor {
         float alphaCutoff = 1.0f;
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         glm::vec4 baseColorFactor = glm::vec4(1.0f);
-        TextureHandle *baseColorTexture = nullptr;
-        TextureHandle *metallicRoughnessTexture = nullptr;
-        TextureHandle *normalTexture = nullptr;
-        TextureHandle *occlusionTexture = nullptr;
-        TextureHandle *emissiveTexture = nullptr;
+        TextureDescriptor *baseColorTexture = nullptr;
+        TextureDescriptor *metallicRoughnessTexture = nullptr;
+        TextureDescriptor *normalTexture = nullptr;
+        TextureDescriptor *occlusionTexture = nullptr;
+        TextureDescriptor *emissiveTexture = nullptr;
 
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
         VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-        static VkDescriptorSetLayout descriptorSetLayoutImage;
         uint32_t descriptorBindingFlags;
 
-        MaterialHandle(base::VulkanDevice *device, am::MaterialData& materialData, VkQueue copyQueue);
+        MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice* device, VkQueue* copyQueue);
 
-        ~MaterialHandle();
+        ~MaterialDescriptor();
 
         void createDescriptorPool();
-        void createDescriptorSetLayout();
-        void createDescriptorSet();
+        void createDescriptorSet(VkDescriptorSetLayout materialLayout);
         void cleanup() override {};
 
     private:
-        void setupDescriptors();
+        void setupDescriptors(VkDescriptorSetLayout materialLayout);
     };
 }
 

@@ -9,8 +9,8 @@
 #include <vector>
 #include <glm/fwd.hpp>
 
-#include "../../../AssetHandleManager.h"
-#include "../meshHandle/MeshHandle.h"
+#include "../DescriptorManager.h"
+#include "descriptors/meshDescriptor/MeshDescriptor.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/quaternion.hpp"
 namespace am
@@ -25,7 +25,7 @@ namespace vks
         glm::mat4 matrix;
         NodeHandle *parent;
         std::vector<NodeHandle *> children;
-        std::vector<MeshHandle *> meshes;
+        std::vector<MeshDescriptor *> meshes;
 
         NodeHandle();
         ~NodeHandle();

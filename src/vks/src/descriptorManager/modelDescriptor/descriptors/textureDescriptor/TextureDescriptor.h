@@ -4,7 +4,7 @@
 
 #ifndef TEXTURE_H
 #define TEXTURE_H
-#include "../IVulkanHandle.h"
+#include "../IVulkanDescriptor.h"
 #include <vulkan/vulkan_core.h>
 
 #include "../../../../base/VulkanDevice.h"
@@ -13,7 +13,7 @@
 
 namespace vks
 {
-    struct TextureHandle : IVulkanHandle {
+    struct TextureDescriptor : IVulkanDescriptor {
 
         uint32_t width{0};
         uint32_t height{0};
@@ -34,7 +34,7 @@ namespace vks
         void destroy();
         void cleanup() override {};
         
-        TextureHandle(am::TextureData& textureData, vks::base::VulkanDevice* device, VkQueue copyQueue);
+        TextureDescriptor(am::TextureData& textureData, vks::base::VulkanDevice* device, VkQueue* copyQueue);
     };
 }
 

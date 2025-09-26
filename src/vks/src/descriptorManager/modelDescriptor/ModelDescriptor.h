@@ -16,8 +16,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "assetDatas/MaterialData.h"
 #include "assetDatas/ModelData.h"
-#include "handles/materialHandle/MaterialHandle.h"
-#include "handles/nodeHandle/NodeHandle.h"
+#include "descriptors/materialDescriptor/MaterialDescriptor.h"
+#include "ModelHandleNode.h"
 namespace am
 {
     class TextureAsset;
@@ -25,13 +25,7 @@ namespace am
 
 namespace vks
 {
-    class AssetHandleManager;
-
-    extern VkDescriptorSetLayout descriptorSetLayoutImage;
-    extern VkDescriptorSetLayout descriptorSetLayoutUbo;
-    extern VkMemoryPropertyFlags memoryPropertyFlags;
-    extern uint32_t descriptorBindingFlags;
-
+    class DescriptorManager;
 
     enum FileLoadingFlags
     {
@@ -50,27 +44,25 @@ namespace vks
         RenderAlphaBlendedNodes = 0x00000008
     };
 
-    class ModelHandle : public IVulkanHandle
+    class ModelDescriptor : public IVulkanDescriptor
     {
 
     public:
-        vks::base::VulkanDevice* device;
-        VkDescriptorPool descriptorPool;
+        VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
-        std::vector<MeshHandle*> meshes;
+        std::vector<MeshDescriptor*> meshes;
         std::vector<NodeHandle*> nodes;
-        std::vector<TextureHandle*> textures;
-        std::vector<MaterialHandle*> materials;
+        std::vector<TextureDescriptor*> textures;
+        std::vector<MaterialDescriptor*> materials;
         bool metallicRoughnessWorkflow = true;
 
-        ModelHandle(AssetHandleManager assetHandleManager,am::ModelData modelData,vks::base::VulkanDevice* device, VkQueue transferQueue);
+        ModelDescriptor(DescriptorManager* assetHandleManager,am::ModelData modelData,vks::base::VulkanDevice* device, VkQueue* transferQueue);
 
-        ~ModelHandle();
+        ~ModelDescriptor();
 
         //TODO those two function should just rebind my am model
-        void loadNode(AssetHandleManager assetHandleManager,NodeHandle* parent, const am::Node& node,
-                      const vks::ModelHandle& model, std::vector<uint32_t>& indexBuffer,
-                      std::vector<am::VertexHandle>& vertexBuffer);
+        void loadNode(DescriptorManager* assetHandleManager,NodeHandle* parent, const am::Node& node,
+                      vks::ModelDescriptor& model);
 
         void cleanup() override{};
     };
