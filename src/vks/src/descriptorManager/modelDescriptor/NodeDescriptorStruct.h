@@ -10,7 +10,7 @@
 #include "glm/gtc/quaternion.hpp"
 namespace am
 {
-    class Mesh;
+    class MeshAsset;
 }
 
 namespace vks

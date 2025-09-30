@@ -6,6 +6,8 @@ struct VSInput
 [[vk::location(1)]] float3 Normal : NORMAL0;
 [[vk::location(2)]] float2 TexCoord : TEXCOORD0;
 [[vk::location(3)]] float3 Color : COLOR0;
+[[vk::location(4)]] float3 Tangent : COLOR1;
+[[vk::location(5)]] float3 Bitangent : COLOR2;
 };
 
 struct UBO
@@ -28,6 +30,8 @@ struct VSOutput
 [[vk::location(3)]] float3 EyePos : POSITION0;
 [[vk::location(4)]] float3 LightVec : TEXCOORD2;
 };
+
+
 
 VSOutput main(VSInput input)
 {

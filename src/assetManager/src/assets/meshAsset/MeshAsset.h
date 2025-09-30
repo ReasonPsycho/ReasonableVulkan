@@ -8,7 +8,6 @@
 
 #include "../../../include/Asset.hpp"
 #include <assimp/scene.h>
-#include "../../AssetFactoryRegistry.hpp"
 #include <assimp/postprocess.h>
 #include <assimp/Importer.hpp>
 
@@ -30,11 +29,10 @@ using namespace std;
 
 
 namespace am {
-    class Mesh : public Asset {
+    class MeshAsset : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<Mesh> registrar{AssetType::Mesh};
 
-        explicit Mesh(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
+        explicit MeshAsset(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
 
         //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;

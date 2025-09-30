@@ -126,58 +126,78 @@ namespace vks
         }
     }
 
-    void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts) {
-        createPipelineCache();
+void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts) {
+    createPipelineCache();
 
-        // Pipeline layout
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
-        pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+    // Pipeline layout
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+    pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
 
-        if (vkCreatePipelineLayout(context->getDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create pipeline layout!");
-        }
+    // Add push constant range if needed
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-        VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = vks::base::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
-        VkPipelineRasterizationStateCreateInfo rasterizationState = vks::base::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE,0);
-        VkPipelineColorBlendAttachmentState blendAttachmentState = vks::base::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
-        VkPipelineColorBlendStateCreateInfo colorBlendState = vks::base::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
-        VkPipelineDepthStencilStateCreateInfo depthStencilState = vks::base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
-        VkPipelineViewportStateCreateInfo viewportState = vks::base::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
-        VkPipelineMultisampleStateCreateInfo multisampleState = vks::base::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
-        std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-        VkPipelineDynamicStateCreateInfo dynamicState = vks::base::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
-        std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
-        VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(pipelineLayout, renderPass, 0);
-        pipelineCI.pInputAssemblyState = &inputAssemblyState;
-        pipelineCI.pRasterizationState = &rasterizationState;
-        pipelineCI.pColorBlendState = &colorBlendState;
-        pipelineCI.pMultisampleState = &multisampleState;
-        pipelineCI.pViewportState = &viewportState;
-        pipelineCI.pDepthStencilState = &depthStencilState;
-        pipelineCI.pDynamicState = &dynamicState;
-        pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
-        pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = vks::MeshDescriptor::getPipelineVertexInputState({VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV, VertexComponent::Color, VertexComponent::Tangent, VertexComponent::Bitangent});;
-
-        // Default mesh rendering pipeline
-        shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.vert.spv")->getShaderStage();
-        shaderStages[1] =  descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.frag.spv")->getShaderStage();
-        if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelines.models)!= VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics pipeline!");
-        }
-
-        // Pipeline for the skybox
-        rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
-        depthStencilState.depthWriteEnable = VK_FALSE;
-
-        shaderStages[0] =  descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.vert.spv")->getShaderStage();
-        shaderStages[1] =         descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.frag.spv")->getShaderStage();
-        if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelines.skybox) != VK_SUCCESS){
-        throw std::runtime_error("failed to create graphics pipeline!");
-        }
+    if (vkCreatePipelineLayout(context->getDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline layout!");
     }
+
+    // Rest of the pipeline state creation remains the same
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = vks::base::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+    VkPipelineRasterizationStateCreateInfo rasterizationState = vks::base::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE,0);
+    VkPipelineColorBlendAttachmentState blendAttachmentState = vks::base::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
+    VkPipelineColorBlendStateCreateInfo colorBlendState = vks::base::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
+    VkPipelineDepthStencilStateCreateInfo depthStencilState = vks::base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+    VkPipelineViewportStateCreateInfo viewportState = vks::base::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
+    VkPipelineMultisampleStateCreateInfo multisampleState = vks::base::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
+    std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo dynamicState = vks::base::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
+    std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
+    VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(pipelineLayout, renderPass, 0);
+    pipelineCI.pInputAssemblyState = &inputAssemblyState;
+    pipelineCI.pRasterizationState = &rasterizationState;
+    pipelineCI.pColorBlendState = &colorBlendState;
+    pipelineCI.pMultisampleState = &multisampleState;
+    pipelineCI.pViewportState = &viewportState;
+    pipelineCI.pDepthStencilState = &depthStencilState;
+    pipelineCI.pDynamicState = &dynamicState;
+    pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
+    pipelineCI.pStages = shaderStages.data();
+
+    // Set vertex input state for mesh pipeline
+    pipelineCI.pVertexInputState = vks::MeshDescriptor::getPipelineVertexInputState({
+        VertexComponent::Position,
+        VertexComponent::Normal,
+        VertexComponent::UV,
+        VertexComponent::Color,
+        VertexComponent::Tangent,
+        VertexComponent::Bitangent
+    });
+
+    // Create mesh pipeline
+    shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.vert.spv")->getShaderStage();
+    shaderStages[1] = descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.frag.spv")->getShaderStage();
+
+    if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelines.models) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
+    // Set simplified vertex input state for skybox (only position)
+    pipelineCI.pVertexInputState = vks::MeshDescriptor::getPipelineVertexInputState({VertexComponent::Position});
+
+    // Modify pipeline state for skybox
+    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
+    depthStencilState.depthWriteEnable = VK_FALSE;
+
+    // Create skybox pipeline
+    shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.vert.spv")->getShaderStage();
+    shaderStages[1] = descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.frag.spv")->getShaderStage();
+
+    if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelines.skybox) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+}
 
 void RenderPipelineManager::createPipelineCache() {
     VkPipelineCacheCreateInfo pipelineCacheCreateInfo{};

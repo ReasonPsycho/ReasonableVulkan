@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
     auto allMeshes = collectAllMeshes(model->getAssetDataAs<am::ModelData>()->rootNode);
     BOOST_REQUIRE(!allMeshes.empty());
 
-    auto mesh = dynamic_cast<am::Mesh*>(allMeshes[0]->getAsset());
+    auto mesh = dynamic_cast<am::MeshAsset*>(allMeshes[0]->getAsset());
     BOOST_REQUIRE(mesh != nullptr);
     BOOST_TEST(mesh->getAssetDataAs<am::MeshData>()->material != nullptr);
 

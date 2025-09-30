@@ -14,7 +14,7 @@ using namespace std;
 
 namespace am {
 
-    size_t Mesh::calculateContentHash() const {
+    size_t MeshAsset::calculateContentHash() const {
         size_t hash = 0;
 
         // Hash vertices
@@ -43,7 +43,7 @@ namespace am {
     }
 
 
-    Mesh::Mesh(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext)
+    MeshAsset::MeshAsset(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext)
     {
         AssetManager &assetManager = AssetManager::getInstance();
         auto scene = assetManager.importer.GetScene();
@@ -136,7 +136,7 @@ namespace am {
         }
     }
 
-    AssetType Mesh::getType() const {
+    AssetType MeshAsset::getType() const {
         return AssetType::Mesh;
     }
 }

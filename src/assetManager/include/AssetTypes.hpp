@@ -41,6 +41,7 @@ namespace am {
     inline AssetType GetAssetTypeFromExtension(const std::string& extension) {
         if (extension == ".fbx")       return AssetType::Model;
         if (extension == ".png")       return AssetType::Texture;
+        if (extension == ".spv")       return AssetType::Shader;
         if (extension == ".spdv")      return AssetType::Shader;
         return AssetType::Other;
     }

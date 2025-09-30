@@ -48,40 +48,38 @@ void DescriptorManager::cleanup() {
 }
 
 void DescriptorManager::createDescriptorPools() {
-    auto device = context->getDevice();
-
-    // Material pool
+    // Material pool (no changes needed)
     std::vector<VkDescriptorPoolSize> materialPoolSizes = {
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},  // For textures
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000}           // For material parameters
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000}
     };
-    
+
     VkDescriptorPoolCreateInfo materialPoolInfo{};
     materialPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     materialPoolInfo.poolSizeCount = static_cast<uint32_t>(materialPoolSizes.size());
     materialPoolInfo.pPoolSizes = materialPoolSizes.data();
     materialPoolInfo.maxSets = 1000;
-    
-    if (vkCreateDescriptorPool(device, &materialPoolInfo, nullptr, &materialPool) != VK_SUCCESS) {
+
+    if (vkCreateDescriptorPool(context->getDevice(), &materialPoolInfo, nullptr, &materialPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create material descriptor pool!");
     }
 
-    // Mesh pool
+    // Mesh pool (no changes needed)
     VkDescriptorPoolSize meshPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000};
     VkDescriptorPoolCreateInfo meshPoolInfo{};
     meshPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     meshPoolInfo.poolSizeCount = 1;
     meshPoolInfo.pPoolSizes = &meshPoolSize;
     meshPoolInfo.maxSets = 1000;
-    
-    if (vkCreateDescriptorPool(device, &meshPoolInfo, nullptr, &meshPool) != VK_SUCCESS) {
+
+    if (vkCreateDescriptorPool(context->getDevice(), &meshPoolInfo, nullptr, &meshPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create mesh descriptor pool!");
     }
 
-    // Scene pool
+    // Scene pool (updated to include skybox resources)
     std::vector<VkDescriptorPoolSize> scenePoolSizes = {
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100},           // For camera and lighting
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100}    // For environment maps
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100},           // For camera, lighting, and skybox uniforms
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100}    // For environment maps and skybox cubemap
     };
     
     VkDescriptorPoolCreateInfo scenePoolInfo{};
@@ -90,13 +88,12 @@ void DescriptorManager::createDescriptorPools() {
     scenePoolInfo.pPoolSizes = scenePoolSizes.data();
     scenePoolInfo.maxSets = 100;
     
-    if (vkCreateDescriptorPool(device, &scenePoolInfo, nullptr, &scenePool) != VK_SUCCESS) {
+    if (vkCreateDescriptorPool(context->getDevice(), &scenePoolInfo, nullptr, &scenePool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create scene descriptor pool!");
     }
 }
 
 void DescriptorManager::createDescriptorSetLayouts() {
-    auto device = context->getDevice();
 
     // Material layout
     std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
@@ -109,7 +106,7 @@ void DescriptorManager::createDescriptorSetLayouts() {
     materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
     materialLayoutInfo.pBindings = materialBindings.data();
     
-    if (vkCreateDescriptorSetLayout(device, &materialLayoutInfo, nullptr, &materialLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &materialLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create material descriptor set layout!");
     }
 
@@ -125,13 +122,15 @@ void DescriptorManager::createDescriptorSetLayouts() {
     meshLayoutInfo.bindingCount = 1;
     meshLayoutInfo.pBindings = &meshBinding;
     
-    if (vkCreateDescriptorSetLayout(device, &meshLayoutInfo, nullptr, &meshUniformLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(context->getDevice(), &meshLayoutInfo, nullptr, &meshUniformLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create mesh descriptor set layout!");
     }
 
-    // Scene layout
+    // Scene layout (updated to match skybox shader requirements)
     std::vector<VkDescriptorSetLayoutBinding> sceneBindings = {
-        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        // UBO used by both vertex shaders (matrices)
+        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+        // Cubemap sampler used by skybox fragment shader
         {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
     };
     
@@ -140,7 +139,7 @@ void DescriptorManager::createDescriptorSetLayouts() {
     sceneLayoutInfo.bindingCount = static_cast<uint32_t>(sceneBindings.size());
     sceneLayoutInfo.pBindings = sceneBindings.data();
     
-    if (vkCreateDescriptorSetLayout(device, &sceneLayoutInfo, nullptr, &sceneLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(context->getDevice(), &sceneLayoutInfo, nullptr, &sceneLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create scene descriptor set layout!");
     }
 }
