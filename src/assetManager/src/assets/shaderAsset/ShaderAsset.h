@@ -15,7 +15,6 @@
 #include <filesystem>
 #include <functional>
 
-#include "../../AssetFactoryRegistry.hpp"
 #include "assetDatas/ShaderData.h"
 
 namespace am {
@@ -23,10 +22,10 @@ namespace am {
 
     class ShaderAsset : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<ShaderAsset> registrar{AssetType::Shader};
 
         explicit ShaderAsset(am::AssetFactoryData base_factory_context)
             : Asset(base_factory_context) {
+            loadFromFile(base_factory_context.path);
         }
 
         void loadFromFile(const std::string &path);

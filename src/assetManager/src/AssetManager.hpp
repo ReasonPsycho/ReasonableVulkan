@@ -19,7 +19,7 @@
 #include "../include/AssetInfo.hpp"
 
 namespace am {
-    class AssetManager : public AssetManagerInterface{
+    class AssetManager : public AssetManagerInterface {
         using AssetFactory = std::function<std::unique_ptr<am::Asset>(am::AssetFactoryData &)>;
 
     public:
@@ -31,35 +31,33 @@ namespace am {
 
         //Factories
         AssetFactory getFactory(AssetType type) const;
-        void registerFactory(AssetType type, AssetFactory factory) ;
+        void registerFactory(AssetType type, AssetFactory factory);
 
         //Assets
         std::optional<std::shared_ptr<AssetInfo>> registerAsset(std::string path) override;
         std::optional<std::shared_ptr<AssetInfo>> registerAsset(AssetFactoryData *factoryContext);
 
-        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo> > getAssetInfo(const boost::uuids::uuid &id) const override;
+        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
         [[nodiscard]] std::optional<Asset *> getAsset(const boost::uuids::uuid &id) const override;
 
         //UUIDS
         template <typename T>
-             std::shared_ptr<T> getByUUID(const boost::uuids::uuid &id);
+        std::shared_ptr<T> getByUUID(const boost::uuids::uuid &id);
         [[nodiscard]] std::vector<boost::uuids::uuid> getUUIDsByPath(const std::string &path) const;
 
     private:
         AssetManager();
         ~AssetManager();
 
-        std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid> > assets;
-        std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid> > metadata;
+        std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
+        std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, std::vector<boost::uuids::uuid>> pathToUUIDs;
         std::unordered_map<AssetType, AssetFactory> factories;
-
 
     #ifdef AM_ENABLE_TESTS
         friend struct AssetManagerTestFixture;
     #endif
     };
-
 
 #include "AssetManager.tpp"
 } // am

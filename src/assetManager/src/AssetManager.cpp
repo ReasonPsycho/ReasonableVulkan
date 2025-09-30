@@ -7,9 +7,45 @@
 
 #include <spdlog/spdlog.h>
 
+#include "assets/ModelAsset.h"
+#include "assets/materialAsset/MaterialAsset.hpp"
+#include "assets/shaderAsset/ShaderAsset.h"
+#include "assets/textureAsset/TextureAsset.h"
+
 namespace am {
 
-    AssetManager::AssetManager() {
+    AssetManager::AssetManager()
+    {
+        // Register all known asset types
+        registerFactory(AssetType::Material,
+            [](am::AssetFactoryData &factoryData) {
+                return std::unique_ptr<MaterialAsset>(new MaterialAsset(factoryData));
+            }
+        );
+
+        registerFactory(AssetType::Texture,
+          [](am::AssetFactoryData &factoryData) {
+              return std::unique_ptr<TextureAsset>(new TextureAsset(factoryData));
+          }
+      );
+
+        registerFactory(AssetType::Shader,
+        [](am::AssetFactoryData &factoryData) {
+            return std::unique_ptr<ShaderAsset>(new ShaderAsset(factoryData));
+        }
+    );
+
+        registerFactory(AssetType::Model,
+          [](am::AssetFactoryData &factoryData) {
+              return std::unique_ptr<ModelAsset>(new ModelAsset(factoryData));
+          }
+      );
+        registerFactory(AssetType::Mesh,
+          [](am::AssetFactoryData &factoryData) {
+              return std::unique_ptr<MeshAsset>(new MeshAsset(factoryData));
+          }
+      );
+        // Add other asset type registrations here
     }
 
     AssetManager::~AssetManager() {

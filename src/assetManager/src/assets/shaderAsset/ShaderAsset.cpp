@@ -1,5 +1,7 @@
 #include "ShaderAsset.h"
 
+#include <spdlog/spdlog.h>
+
 
 namespace am {
     void ShaderAsset::loadFromFile(const std::string &path) {
@@ -15,7 +17,7 @@ namespace am {
         file.seekg(0);
 
         // SPIR-V files must be a multiple of 4 bytes
-        if (fileSize > 0) {
+        if (fileSize <= 0) {
             spdlog::error("Shader file is empty: {}", path);
             throw std::runtime_error("Shader file is empty: " + path);
         }
@@ -34,7 +36,19 @@ namespace am {
 
         // Determine shader stage from file extension
         ShaderStage stage = ShaderStage::Vertex; // Default to vertex
-        std::string extension = std::filesystem::path(path).extension().string();
+        std::string filepath = std::filesystem::path(path).string();
+
+        // Remove .spv extension first if present
+        if (filepath.ends_with(".spv")) {
+            filepath = filepath.substr(0, filepath.length() - 4);
+        }
+
+        // Now check for .vert or .frag
+        if (filepath.ends_with(".vert")) {
+            stage = ShaderStage::Vertex;
+        } else if (filepath.ends_with(".frag")) {
+            stage = ShaderStage::Fragment;
+        }
 
         // Create and store the shader data
         data = ShaderData{

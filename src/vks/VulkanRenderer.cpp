@@ -109,6 +109,11 @@ void VulkanRenderer::endFrame()
 }
 
 void VulkanRenderer::initialize(void* windowHandle, uint32_t width, uint32_t height) {
+
+        if (windowHandle == nullptr)
+        {
+            throw std::runtime_error("Window handle cannot be null");
+        }
     // Initialize swap chain
     swapChain->createSurface(windowHandle);
     swapChain->createSwapChain(width, height);
@@ -116,9 +121,10 @@ void VulkanRenderer::initialize(void* windowHandle, uint32_t width, uint32_t hei
     // Create render pass and pipeline
     pipelineManager->createRenderPass();
 
+    descriptorManager->initialize();
+
     // Get descriptor set layouts from descriptor manager
-    std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-    // TODO: Get required descriptor set layouts from descriptorManager
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
     pipelineManager->createGraphicsPipeline(descriptorSetLayouts);
 

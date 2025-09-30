@@ -1,7 +1,6 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include "../../AssetFactoryRegistry.hpp"
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -16,7 +15,6 @@ namespace am {
     
     class TextureAsset : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<TextureAsset> registrar{AssetType::Texture};
 
         explicit TextureAsset(am::AssetFactoryData base_factory_context);
 

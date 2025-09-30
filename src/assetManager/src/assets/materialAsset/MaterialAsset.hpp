@@ -8,7 +8,6 @@
 
 #include "../../../include/Asset.hpp"
 #include <assimp/scene.h>
-#include "../../AssetFactoryRegistry.hpp"
 #include <assimp/postprocess.h>
 #include <assimp/Importer.hpp>
 
@@ -18,7 +17,6 @@
 namespace am {
 
 class MaterialAsset : public am::Asset {
-    static inline AssetFactoryRegistry::Registrar<MaterialAsset> registrar{AssetType::Material};
 public:
     explicit MaterialAsset(AssetFactoryData &assetFactoryData);
 

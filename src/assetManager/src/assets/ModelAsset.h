@@ -12,7 +12,6 @@
 
 #include "../../include/assetDatas/Node.h"
 #include "../../include/Asset.hpp"
-#include "../AssetFactoryRegistry.hpp"
 #include "assetDatas/ModelData.h"
 
 using namespace std;
@@ -28,8 +27,7 @@ namespace am {
 
     class ModelAsset : public Asset {
     public:
-        static inline AssetFactoryRegistry::Registrar<ModelAsset> registrar{AssetType::Model};
-        // model data 
+        // model data
         ModelData data;
 
         explicit ModelAsset(AssetFactoryData base_factory_context): Asset(base_factory_context) {
