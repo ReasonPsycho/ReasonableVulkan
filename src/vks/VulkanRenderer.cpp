@@ -127,6 +127,7 @@ void VulkanRenderer::initialize(void* windowHandle, uint32_t width, uint32_t hei
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
     pipelineManager->createGraphicsPipeline(descriptorSetLayouts);
+    pipelineManager->createFramebuffers(swapChain->getImageViews(),swapChain->getSwapChainExtent());
 
     // Create command pool and buffers
     createCommandPool();
@@ -134,6 +135,7 @@ void VulkanRenderer::initialize(void* windowHandle, uint32_t width, uint32_t hei
 
     // Create synchronization objects
     createSyncObjects();
+
 }
 
 void VulkanRenderer::cleanup() {

@@ -15,6 +15,9 @@ namespace vks {
         void createFramebuffers(const std::vector<VkImageView>& swapChainImageViews,
                                VkExtent2D swapChainExtent);
 
+        void createDepthResources(VkExtent2D swapChainExtent);
+        void cleanupDepthResources();
+
         void cleanup();
 
         // Getters
@@ -24,6 +27,10 @@ namespace vks {
         VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
         VkFramebuffer getFramebuffer(uint32_t index) const { return framebuffers[index]; }
 
+        // Add these new members for depth resources
+        VkImage depthImage = VK_NULL_HANDLE;
+        VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+        VkImageView depthImageView = VK_NULL_HANDLE;
 
         struct Pipelines {
             VkPipeline models{VK_NULL_HANDLE};
@@ -38,9 +45,6 @@ namespace vks {
         VkPipelineLayout pipelineLayout{VK_NULL_HANDLE};
         VkPipelineCache pipelineCache{VK_NULL_HANDLE};
         std::vector<VkFramebuffer> framebuffers;
-        VkImageView depthImageView{VK_NULL_HANDLE};
-
         void createPipelineCache();
-        VkShaderModule createShaderModule(const std::vector<char>& code);
     };
 }
