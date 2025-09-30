@@ -162,8 +162,8 @@ namespace vks
         pipelineCI.pVertexInputState = vks::MeshDescriptor::getPipelineVertexInputState({VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV, VertexComponent::Color, VertexComponent::Tangent, VertexComponent::Bitangent});;
 
         // Default mesh rendering pipeline
-        shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>("vulkanscene/mesh.vert.spv")->getShaderStage();
-        shaderStages[1] =  descriptorManager->getOrLoadResource<ShaderDescriptor>("vulkanscene/mesh.frag.spv")->getShaderStage();
+        shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.vert.spv")->getShaderStage();
+        shaderStages[1] =  descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.frag.spv")->getShaderStage();
         if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelines.models)!= VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
@@ -172,8 +172,8 @@ namespace vks
         rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
         depthStencilState.depthWriteEnable = VK_FALSE;
 
-        shaderStages[0] =  descriptorManager->getOrLoadResource<ShaderDescriptor>("vulkanscene/skybox.vert.spv")->getShaderStage();
-        shaderStages[1] =         descriptorManager->getOrLoadResource<ShaderDescriptor>("vulkanscene/skybox.frag.spv")->getShaderStage();
+        shaderStages[0] =  descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.vert.spv")->getShaderStage();
+        shaderStages[1] =         descriptorManager->getOrLoadResource<ShaderDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.frag.spv")->getShaderStage();
         if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelines.skybox) != VK_SUCCESS){
         throw std::runtime_error("failed to create graphics pipeline!");
         }

@@ -12,7 +12,7 @@ namespace vks {
     VkPipelineVertexInputStateCreateInfo MeshDescriptor::pipelineVertexInputStateCreateInfo{};
 }
 
-vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix, vks::base::VulkanDevice* device, VkQueue* copyQueue) : IVulkanDescriptor(device,copyQueue),
+vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix, vks::base::VulkanDevice& device, VkQueue copyQueue) : IVulkanDescriptor(device,copyQueue),
     firstIndex(0), indexCount(0), firstVertex(0), vertexCount(0)
 {
     this->device = device;
@@ -23,7 +23,7 @@ vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::Me
     VkDeviceSize vertexBufferSize = sizeof(am::VertexAsset) * meshData.vertices.size();
     vks::base::Buffer stagingBuffer;
 
-    device->createBuffer(
+    device.createBuffer(
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         vertexBufferSize,
@@ -31,7 +31,7 @@ vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::Me
         &stagingBuffer.memory,
         meshData.vertices.data());
 
-    device->createBuffer(
+    device.createBuffer(
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         vertexBufferSize,
@@ -39,16 +39,16 @@ vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::Me
         &vertices.buffer.memory,
         nullptr);
 
-    device->copyBuffer(&stagingBuffer, &vertices.buffer, *copyQueue);
+    device.copyBuffer(&stagingBuffer, &vertices.buffer, copyQueue);
     vertices.count = meshData.vertices.size();
 
-    vkDestroyBuffer(device->logicalDevice, stagingBuffer.buffer, nullptr);
-    vkFreeMemory(device->logicalDevice, stagingBuffer.memory, nullptr);
+    vkDestroyBuffer(device.logicalDevice, stagingBuffer.buffer, nullptr);
+    vkFreeMemory(device.logicalDevice, stagingBuffer.memory, nullptr);
 
     // Create index buffer
     VkDeviceSize indexBufferSize = sizeof(uint32_t) * meshData.indices.size();
 
-    device->createBuffer(
+    device.createBuffer(
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         indexBufferSize,
@@ -56,7 +56,7 @@ vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::Me
         &stagingBuffer.memory,
         meshData.indices.data());
 
-    device->createBuffer(
+    device.createBuffer(
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         indexBufferSize,
@@ -64,14 +64,14 @@ vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::Me
         &indices.buffer.memory,
         nullptr);
 
-    device->copyBuffer(&stagingBuffer, &indices.buffer, *copyQueue);
+    device.copyBuffer(&stagingBuffer, &indices.buffer, copyQueue);
     indices.count = meshData.indices.size();
 
-    vkDestroyBuffer(device->logicalDevice, stagingBuffer.buffer, nullptr);
-    vkFreeMemory(device->logicalDevice, stagingBuffer.memory, nullptr);
+    vkDestroyBuffer(device.logicalDevice, stagingBuffer.buffer, nullptr);
+    vkFreeMemory(device.logicalDevice, stagingBuffer.memory, nullptr);
 
     // Setup uniform buffer
-    VK_CHECK_RESULT(device->createBuffer(
+    VK_CHECK_RESULT(device.createBuffer(
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         sizeof(uniformBlock),
@@ -81,18 +81,18 @@ vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager,am::Me
 }
 
 vks::MeshDescriptor::~MeshDescriptor() {
-    vkDestroyBuffer(device->logicalDevice, uniformBuffer.buffer.buffer, nullptr);
-    vkFreeMemory(device->logicalDevice, uniformBuffer.buffer.memory, nullptr);
+    vkDestroyBuffer(device.logicalDevice, uniformBuffer.buffer.buffer, nullptr);
+    vkFreeMemory(device.logicalDevice, uniformBuffer.buffer.memory, nullptr);
 
-    vkDestroyBuffer(device->logicalDevice, vertices.buffer.buffer, nullptr);
-    vkFreeMemory(device->logicalDevice, vertices.buffer.memory, nullptr);
+    vkDestroyBuffer(device.logicalDevice, vertices.buffer.buffer, nullptr);
+    vkFreeMemory(device.logicalDevice, vertices.buffer.memory, nullptr);
 
-    vkDestroyBuffer(device->logicalDevice, uniformBuffer.buffer.buffer, nullptr);
-    vkFreeMemory(device->logicalDevice, uniformBuffer.buffer.memory, nullptr);
+    vkDestroyBuffer(device.logicalDevice, uniformBuffer.buffer.buffer, nullptr);
+    vkFreeMemory(device.logicalDevice, uniformBuffer.buffer.memory, nullptr);
 
 
     if (descriptorPool != VK_NULL_HANDLE) {
-        vkDestroyDescriptorPool(device->logicalDevice, descriptorPool, nullptr);
+        vkDestroyDescriptorPool(device.logicalDevice, descriptorPool, nullptr);
     }
 }
 
@@ -166,7 +166,7 @@ void vks::MeshDescriptor::createDescriptorPool() {
     descriptorPoolCI.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     descriptorPoolCI.pPoolSizes = poolSizes.data();
     descriptorPoolCI.maxSets = 1;
-    VK_CHECK_RESULT(vkCreateDescriptorPool(device->logicalDevice, &descriptorPoolCI, nullptr, &descriptorPool));
+    VK_CHECK_RESULT(vkCreateDescriptorPool(device.logicalDevice, &descriptorPoolCI, nullptr, &descriptorPool));
 }
 
 
@@ -176,7 +176,7 @@ void vks::MeshDescriptor::createDescriptorSet(VkDescriptorSetLayout meshUniformL
     descriptorSetAllocInfo.descriptorPool = descriptorPool;
     descriptorSetAllocInfo.pSetLayouts = &meshUniformLayout;
     descriptorSetAllocInfo.descriptorSetCount = 1;
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(device->logicalDevice, &descriptorSetAllocInfo, &uniformBuffer.descriptorSet));
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(device.logicalDevice, &descriptorSetAllocInfo, &uniformBuffer.descriptorSet));
 
     VkWriteDescriptorSet writeDescriptorSet{};
     writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -186,7 +186,7 @@ void vks::MeshDescriptor::createDescriptorSet(VkDescriptorSetLayout meshUniformL
     writeDescriptorSet.dstBinding = 0;
     writeDescriptorSet.pBufferInfo = &uniformBuffer.descriptor;
 
-    vkUpdateDescriptorSets(device->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+    vkUpdateDescriptorSets(device.logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
 }
 
 void vks::MeshDescriptor::setupDescriptors(VkDescriptorSetLayout meshUniformLayout) {

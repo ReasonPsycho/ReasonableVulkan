@@ -34,7 +34,7 @@ namespace vks
         void destroy();
         void cleanup() override {};
         
-        TextureDescriptor(am::TextureData& textureData, vks::base::VulkanDevice* device, VkQueue* copyQueue);
+        TextureDescriptor(am::TextureData& textureData, vks::base::VulkanDevice& device, VkQueue copyQueue);
     };
 }
 

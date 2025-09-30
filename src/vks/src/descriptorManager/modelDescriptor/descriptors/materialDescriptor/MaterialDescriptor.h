@@ -38,7 +38,7 @@ namespace vks
         VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
         uint32_t descriptorBindingFlags;
 
-        MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice* device, VkQueue* copyQueue);
+        MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice& device, VkQueue copyQueue);
 
         ~MaterialDescriptor();
 

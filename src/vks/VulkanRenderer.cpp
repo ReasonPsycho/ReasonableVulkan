@@ -12,7 +12,12 @@ namespace vks {
     class ModelDescriptor;
 
 
-    VulkanRenderer::VulkanRenderer(am::AssetManagerInterface* assetManagerInterface) {
+    VulkanRenderer::VulkanRenderer(am::AssetManagerInterface* assetManagerInterface) : GraphicsEngine() {
+        if (assetManagerInterface == nullptr)
+        {
+            throw std::invalid_argument("Asset manager interface cannot be null");
+        }
+        currentFrame = 0;
         // Create Vulkan context first as other managers depend on it
         context = std::make_unique<VulkanContext>();
 
@@ -56,7 +61,11 @@ void VulkanRenderer::renderFrame()
 }
 
 void VulkanRenderer::render() {
-    vkWaitForFences(context->getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        if (currentFrame >= MAX_FRAMES_IN_FLIGHT) {
+            throw std::runtime_error("currentFrame index out of bounds");
+        }
+
+        vkWaitForFences(context->getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
 
@@ -122,32 +131,47 @@ void VulkanRenderer::initialize(void* windowHandle, uint32_t width, uint32_t hei
 }
 
 void VulkanRenderer::cleanup() {
-    // Wait for all operations to complete
-    waitIdle();
+        // Wait for all operations to complete
+        waitIdle();
 
-    // Cleanup synchronization objects
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(context->getDevice(), renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(context->getDevice(), imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(context->getDevice(), inFlightFences[i], nullptr);
+        // Only cleanup sync objects if they were initialized
+        if (!imageAvailableSemaphores.empty()) {
+            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+                vkDestroySemaphore(context->getDevice(), renderFinishedSemaphores[i], nullptr);
+                vkDestroySemaphore(context->getDevice(), imageAvailableSemaphores[i], nullptr);
+                vkDestroyFence(context->getDevice(), inFlightFences[i], nullptr);
+            }
+        }
+
+        // Only cleanup command buffers if they were initialized
+        if (!commandBuffers.empty()) {
+            vkFreeCommandBuffers(context->getDevice(), commandPool,
+                             static_cast<uint32_t>(commandBuffers.size()),
+                             commandBuffers.data());
+        }
+
+        if (commandPool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(context->getDevice(), commandPool, nullptr);
+        }
+
+        renderManager.release();
+        pipelineManager.release();
+        descriptorManager.release();
+        swapChain.release();
+        context.release();
     }
-
-    // Cleanup command buffers and pool
-    vkFreeCommandBuffers(context->getDevice(), commandPool,
-                         static_cast<uint32_t>(commandBuffers.size()),
-                         commandBuffers.data());
-    vkDestroyCommandPool(context->getDevice(), commandPool, nullptr);
-
-    // Managers will be cleaned up in reverse order of creation
-    // through smart pointer destruction
-}
 
 void VulkanRenderer::waitIdle() {
     vkDeviceWaitIdle(context->getDevice());
 }
 
 void VulkanRenderer::handleWindowResize(uint32_t width, uint32_t height) {
-    waitIdle();
+    if (width == 0 || height == 0)
+    {
+        throw std::invalid_argument("Window dimensions cannot be zero");
+    }
+
+        waitIdle();
 
     // Recreate swap chain
     swapChain->createSwapChain(width, height);

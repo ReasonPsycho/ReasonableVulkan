@@ -16,7 +16,7 @@ namespace gfx {
     public:
         virtual ~GraphicsEngine() = default;
 
-        virtual void Init();
+        virtual void initialize(void* windowHandle, uint32_t width, uint32_t height) = 0;
 
         virtual void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) = 0;
         virtual void loadModel(boost::uuids::uuid uuid) = 0;

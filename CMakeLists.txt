@@ -35,9 +35,9 @@ endif ()
 # Add subdirectories containing other CMake projects
 message(STATUS "Adding subdirectories")
 add_subdirectory(src/platform)
+add_subdirectory(src/assetManager)
 add_subdirectory(src/vks)
 add_subdirectory(src/engine)
-add_subdirectory(src/assetManager)
 
 # Create the main executable target
 message(STATUS "Creating main executable target: ${PROJECT_NAME}")

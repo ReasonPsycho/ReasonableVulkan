@@ -12,14 +12,14 @@ namespace vks
 
     class IVulkanDescriptor {
     public:
-        IVulkanDescriptor(vks::base::VulkanDevice* device, VkQueue* copyQueue)
+        IVulkanDescriptor(vks::base::VulkanDevice& device, VkQueue copyQueue)
             : device(device), copyQueue(copyQueue) {}
         virtual ~IVulkanDescriptor() = default;
 
         virtual void cleanup(){};
     protected:
-        vks::base::VulkanDevice* device;
-        VkQueue* copyQueue;
+        vks::base::VulkanDevice device;
+        VkQueue copyQueue;
     };
 
 

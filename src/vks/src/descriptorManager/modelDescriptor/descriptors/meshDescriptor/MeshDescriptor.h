@@ -49,7 +49,7 @@ namespace vks
         void createDescriptorSet(VkDescriptorSetLayout meshUniformLayout);
 
     public:
-        MeshDescriptor(DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix, vks::base::VulkanDevice* device, VkQueue* copyQueue);
+        MeshDescriptor(DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix, vks::base::VulkanDevice& device, VkQueue copyQueue);
         ~MeshDescriptor();
         void cleanup() override {};
 

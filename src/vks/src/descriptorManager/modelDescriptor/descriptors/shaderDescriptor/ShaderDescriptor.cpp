@@ -2,7 +2,7 @@
 #include "ShaderDescriptor.h"
 #include <cassert>
 #include "../../../../base/VulkanDevice.h"
-ShaderDescriptor::ShaderDescriptor(am::ShaderData& shaderData, vks::base::VulkanDevice* device, VkQueue* copyQueue) 
+ShaderDescriptor::ShaderDescriptor(am::ShaderData& shaderData, vks::base::VulkanDevice& device, VkQueue copyQueue)
     : IVulkanDescriptor(device, copyQueue) {
     
     // Create shader module from bytecode
@@ -23,7 +23,7 @@ ShaderDescriptor::~ShaderDescriptor() {
 
 void ShaderDescriptor::cleanup() {
     if (shaderModule != VK_NULL_HANDLE) {
-        vkDestroyShaderModule(device->logicalDevice, shaderModule, nullptr);
+        vkDestroyShaderModule(device, shaderModule, nullptr);
         shaderModule = VK_NULL_HANDLE;
     }
 }
@@ -31,11 +31,12 @@ void ShaderDescriptor::cleanup() {
 VkShaderModule ShaderDescriptor::createShaderModule(const std::vector<uint32_t>& code) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
     createInfo.codeSize = code.size() * sizeof(uint32_t);
     createInfo.pCode = code.data();
 
-    VkShaderModule shaderModule;
-    if (vkCreateShaderModule(device->logicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create shader module!");
     }
 
