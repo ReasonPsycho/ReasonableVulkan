@@ -7,7 +7,7 @@
 
 class ShaderDescriptor : public vks::IVulkanDescriptor {
 public:
-    ShaderDescriptor(am::ShaderData& shaderData, vks::base::VulkanDevice* device, VkQueue* copyQueue);
+    ShaderDescriptor(am::ShaderData& shaderData, vks::base::VulkanDevice& device, VkQueue copyQueue);
     ~ShaderDescriptor();
 
     VkPipelineShaderStageCreateInfo getShaderStage() const { return shaderStage; }

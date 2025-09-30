@@ -11,13 +11,13 @@ namespace vks {
         VulkanContext();
         ~VulkanContext();
 
-
-        bool initialize();
         void cleanup();
 
         // Getters
         VkInstance getInstance() const { return instance; }
-        base::VulkanDevice getDevice() const { return device; }
+        VkPhysicalDevice getPhysicalDevice() const { return physicalDevice; }
+        base::VulkanDevice& getDevice() const { return *device; }
+
         VkQueue getGraphicsQueue() const { return graphicsQueue; }
         VkQueue getTransferQueue() const { return transferQueue; }
 
@@ -33,7 +33,8 @@ namespace vks {
         std::vector<const char*> enabledExtensions;
 
         // Device related
-        base::VulkanDevice device{VK_NULL_HANDLE};
+        VkPhysicalDevice physicalDevice{VK_NULL_HANDLE};
+        base::VulkanDevice *device{};
         VkQueue graphicsQueue{VK_NULL_HANDLE};
         VkQueue transferQueue{VK_NULL_HANDLE};
 
@@ -47,10 +48,16 @@ namespace vks {
         void setupDebugMessenger();
         void pickPhysicalDevice();
         void createLogicalDevice();
+        void createQueues();
+
+        bool isDeviceSuitable(VkPhysicalDevice device);
+        int rateDeviceSuitability(VkPhysicalDevice device);
 
         // Debugging
 
         bool enableValidation = true;
+
+       static const char* vkResultToString(VkResult result);
 
         static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
             VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

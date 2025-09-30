@@ -14,16 +14,14 @@ void vks::TextureDescriptor::updateDescriptor() {
 
 void vks::TextureDescriptor::destroy() {
 	if (device) {
-		vkDestroyImageView(device->logicalDevice, view, nullptr);
-		vkDestroyImage(device->logicalDevice, image, nullptr);
-		vkFreeMemory(device->logicalDevice, deviceMemory, nullptr);
-		vkDestroySampler(device->logicalDevice, sampler, nullptr);
+		vkDestroyImageView(device.logicalDevice, view, nullptr);
+		vkDestroyImage(device.logicalDevice, image, nullptr);
+		vkFreeMemory(device.logicalDevice, deviceMemory, nullptr);
+		vkDestroySampler(device.logicalDevice, sampler, nullptr);
 	}
 }
 // Modified `fromglTfImage` function
-vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::base::VulkanDevice* device, VkQueue* copyQueue) : IVulkanDescriptor(device,copyQueue) {
-    this->device = device;
-
+vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData,vks::base::VulkanDevice& device, VkQueue copyQueue) : IVulkanDescriptor(device,copyQueue) {
 	this->width = textureData.width;
 	this->height = textureData.height;
 	this->channels = textureData.channels;
@@ -35,7 +33,7 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::bas
     mipLevels = static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1.0);
 
     VkFormatProperties formatProperties;
-    vkGetPhysicalDeviceFormatProperties(device->physicalDevice, format, &formatProperties);
+    vkGetPhysicalDeviceFormatProperties(device.physicalDevice, format, &formatProperties);
     assert(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT);
     assert(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT);
 
@@ -48,23 +46,23 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::bas
     bufferCreateInfo.size = textureData.pixels.size();
     bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    VK_CHECK_RESULT(vkCreateBuffer(device->logicalDevice, &bufferCreateInfo, nullptr, &stagingBuffer));
+    VK_CHECK_RESULT(vkCreateBuffer(device.logicalDevice, &bufferCreateInfo, nullptr, &stagingBuffer));
 
     VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(device->logicalDevice, stagingBuffer, &memReqs);
+    vkGetBufferMemoryRequirements(device.logicalDevice, stagingBuffer, &memReqs);
 
     VkMemoryAllocateInfo memAllocInfo{};
     memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     memAllocInfo.allocationSize = memReqs.size;
-    memAllocInfo.memoryTypeIndex = device->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    VK_CHECK_RESULT(vkAllocateMemory(device->logicalDevice, &memAllocInfo, nullptr, &stagingMemory));
-    VK_CHECK_RESULT(vkBindBufferMemory(device->logicalDevice, stagingBuffer, stagingMemory, 0));
+    memAllocInfo.memoryTypeIndex = device.getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    VK_CHECK_RESULT(vkAllocateMemory(device.logicalDevice, &memAllocInfo, nullptr, &stagingMemory));
+    VK_CHECK_RESULT(vkBindBufferMemory(device.logicalDevice, stagingBuffer, stagingMemory, 0));
 
     // Copy data to staging buffer
     uint8_t *data;
-    VK_CHECK_RESULT(vkMapMemory(device->logicalDevice, stagingMemory, 0, memReqs.size, 0, (void **)&data));
+    VK_CHECK_RESULT(vkMapMemory(device.logicalDevice, stagingMemory, 0, memReqs.size, 0, (void **)&data));
     memcpy(data, textureData.pixels.data(), textureData.pixels.size());
-    vkUnmapMemory(device->logicalDevice, stagingMemory);
+    vkUnmapMemory(device.logicalDevice, stagingMemory);
 
     // Create the Vulkan image
     VkImageCreateInfo imageCreateInfo{};
@@ -80,17 +78,17 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::bas
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VK_CHECK_RESULT(vkCreateImage(device->logicalDevice, &imageCreateInfo, nullptr, &image));
+    VK_CHECK_RESULT(vkCreateImage(device.logicalDevice, &imageCreateInfo, nullptr, &image));
 
-    vkGetImageMemoryRequirements(device->logicalDevice, image, &memReqs);
+    vkGetImageMemoryRequirements(device.logicalDevice, image, &memReqs);
 
     memAllocInfo.allocationSize = memReqs.size;
-    memAllocInfo.memoryTypeIndex = device->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    VK_CHECK_RESULT(vkAllocateMemory(device->logicalDevice, &memAllocInfo, nullptr, &deviceMemory));
-    VK_CHECK_RESULT(vkBindImageMemory(device->logicalDevice, image, deviceMemory, 0));
+    memAllocInfo.memoryTypeIndex = device.getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    VK_CHECK_RESULT(vkAllocateMemory(device.logicalDevice, &memAllocInfo, nullptr, &deviceMemory));
+    VK_CHECK_RESULT(vkBindImageMemory(device.logicalDevice, image, deviceMemory, 0));
 
     // Transition image layouts and copy buffer data to the image
-    VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    VkCommandBuffer copyCmd = device.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -124,11 +122,11 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::bas
     imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     vkCmdPipelineBarrier(copyCmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
-    device->flushCommandBuffer(copyCmd, *copyQueue);
+    device.flushCommandBuffer(copyCmd, copyQueue);
 
     // Clean up staging resources
-    vkDestroyBuffer(device->logicalDevice, stagingBuffer, nullptr);
-    vkFreeMemory(device->logicalDevice, stagingMemory, nullptr);
+    vkDestroyBuffer(device.logicalDevice, stagingBuffer, nullptr);
+    vkFreeMemory(device.logicalDevice, stagingMemory, nullptr);
 
     // Create the sampler
     VkSamplerCreateInfo samplerInfo{};
@@ -143,7 +141,7 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::bas
     samplerInfo.maxAnisotropy = 8.0f;
     samplerInfo.anisotropyEnable = VK_TRUE;
 
-    VK_CHECK_RESULT(vkCreateSampler(device->logicalDevice, &samplerInfo, nullptr, &sampler));
+    VK_CHECK_RESULT(vkCreateSampler(device.logicalDevice, &samplerInfo, nullptr, &sampler));
 
     // Create the image view
     VkImageViewCreateInfo viewInfo{};
@@ -156,7 +154,7 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData &textureData, vks::bas
     viewInfo.subresourceRange.levelCount = mipLevels;
     viewInfo.subresourceRange.layerCount = 1;
 
-    VK_CHECK_RESULT(vkCreateImageView(device->logicalDevice, &viewInfo, nullptr, &view));
+    VK_CHECK_RESULT(vkCreateImageView(device.logicalDevice, &viewInfo, nullptr, &view));
 
     // Update descriptor info
     descriptor.sampler = sampler;

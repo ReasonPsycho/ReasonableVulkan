@@ -3,9 +3,12 @@
 #include <unordered_map>
 #include "Asset.hpp"
 #include "AssetManagerInterface.h"
+#include "assetDatas/ShaderData.h"
 #include "../vulkanContext/VulkanContext.hpp"
 #include "modelDescriptor/descriptors/IVulkanDescriptor.h"
+#include "modelDescriptor/ModelDescriptor.h"
 #include "modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
+#include "modelDescriptor/descriptors/ShaderDescriptor/ShaderDescriptor.h"
 #include "../../vks/src/base/VulkanDevice.h"
 #include <glm/glm.hpp>
 

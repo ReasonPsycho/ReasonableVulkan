@@ -10,7 +10,7 @@
 // Static member definition
 
 
-vks::MaterialDescriptor::MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice* device, VkQueue* copyQueue) : IVulkanDescriptor(device,copyQueue)
+vks::MaterialDescriptor::MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice& device, VkQueue copyQueue) : IVulkanDescriptor(device,copyQueue)
 {
     // Initialize numeric fields
     alphaCutoff = materialData.alphaCutoff;
@@ -48,7 +48,7 @@ vks::MaterialDescriptor::MaterialDescriptor( am::MaterialData& materialData,VkDe
 
 vks::MaterialDescriptor::~MaterialDescriptor() {
     if (descriptorPool != VK_NULL_HANDLE) {
-        vkDestroyDescriptorPool(device->logicalDevice, descriptorPool, nullptr);
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     }
     
     delete baseColorTexture;
@@ -82,7 +82,7 @@ void vks::MaterialDescriptor::createDescriptorPool() {
     descriptorPoolCI.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     descriptorPoolCI.pPoolSizes = poolSizes.data();
     descriptorPoolCI.maxSets = 1;
-    VK_CHECK_RESULT(vkCreateDescriptorPool(device->logicalDevice, &descriptorPoolCI, nullptr, &descriptorPool));
+    VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolCI, nullptr, &descriptorPool));
 }
 
 
@@ -96,7 +96,7 @@ void vks::MaterialDescriptor::createDescriptorSet(VkDescriptorSetLayout material
     descriptorSetAllocInfo.descriptorPool = descriptorPool;
     descriptorSetAllocInfo.pSetLayouts = &materialLayout;
     descriptorSetAllocInfo.descriptorSetCount = 1;
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(device->logicalDevice, &descriptorSetAllocInfo, &descriptorSet));
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descriptorSetAllocInfo, &descriptorSet));
     
     std::vector<VkWriteDescriptorSet> writeDescriptorSets{};
     if (baseColorTexture && descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
@@ -121,7 +121,7 @@ void vks::MaterialDescriptor::createDescriptorSet(VkDescriptorSetLayout material
     }
     
     if (!writeDescriptorSets.empty()) {
-        vkUpdateDescriptorSets(device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()),
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()),
                                writeDescriptorSets.data(), 0, nullptr);
     }
 }

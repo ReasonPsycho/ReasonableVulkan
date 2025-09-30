@@ -20,7 +20,7 @@ namespace vks {
 	class VulkanRenderer : public gfx::GraphicsEngine {
 	public:
 		explicit VulkanRenderer(am::AssetManagerInterface* assetManagerInterface);
-		~VulkanRenderer();
+		~VulkanRenderer() override;
 
 		void loadModel(boost::uuids::uuid uuid) override;
 		void loadShader(boost::uuids::uuid uuid) override;
@@ -29,7 +29,7 @@ namespace vks {
 		void render() override;
 		void endFrame() override;
 
-		void initialize(void* windowHandle, uint32_t width, uint32_t height);
+		void initialize(void* windowHandle, uint32_t width, uint32_t height) override;
 		void cleanup();
 		void waitIdle();
 		void handleWindowResize(uint32_t width, uint32_t height);

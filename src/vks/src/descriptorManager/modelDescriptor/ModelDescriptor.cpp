@@ -2,9 +2,9 @@
 #include "../DescriptorManager.h"
 
 
-void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeHandle* parent, const am::Node& node,
+void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeDescriptorStruct* parent, const am::Node& node,
                                 vks::ModelDescriptor& model) {
-	vks::NodeHandle *newNode = new vks::NodeHandle();
+	vks::NodeDescriptorStruct *newNode = new vks::NodeDescriptorStruct();
 	newNode->parent = parent;
 	newNode->name = node.mName;
 	newNode->matrix = node.mTransformation;
@@ -25,7 +25,7 @@ void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeHa
         	descriptorSetAllocInfo.pSetLayouts = &assetHandleManager->meshUniformLayout;
         	descriptorSetAllocInfo.descriptorSetCount = 1;
         	VK_CHECK_RESULT(
-				vkAllocateDescriptorSets(device->logicalDevice, &descriptorSetAllocInfo, &meshHandle->uniformBuffer.descriptorSet));
+				vkAllocateDescriptorSets(device.logicalDevice, &descriptorSetAllocInfo, &meshHandle->uniformBuffer.descriptorSet));
 
         	VkWriteDescriptorSet writeDescriptorSet{};
         	writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -35,7 +35,7 @@ void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeHa
         	writeDescriptorSet.dstBinding = 0;
         	writeDescriptorSet.pBufferInfo = &meshHandle->uniformBuffer.descriptor;
 
-        	vkUpdateDescriptorSets(device->logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+        	vkUpdateDescriptorSets(device.logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
 
         }
 
@@ -46,7 +46,12 @@ void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeHa
 	}
 }
 
-vks::ModelDescriptor::ModelDescriptor(DescriptorManager* assetHandleManager,am::ModelData modelData,vks::base::VulkanDevice* device, VkQueue* transferQueue) : IVulkanDescriptor(device,copyQueue)
+vks::ModelDescriptor::ModelDescriptor(DescriptorManager* assetHandleManager,am::ModelData modelData,vks::base::VulkanDevice device, VkQueue transferQueue) : IVulkanDescriptor(device,transferQueue)
 {
     loadNode(assetHandleManager,nullptr, modelData.rootNode, *this);
+}
+
+vks::ModelDescriptor::~ModelDescriptor()
+{
+
 }

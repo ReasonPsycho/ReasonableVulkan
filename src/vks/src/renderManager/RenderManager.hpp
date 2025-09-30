@@ -10,7 +10,7 @@
 
 namespace vks {
     class MeshDescriptor;
-    struct NodeHandle;
+    struct NodeDescriptorStruct;
 
 
     struct RenderCommand

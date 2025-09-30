@@ -126,12 +126,12 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
     }
 }
 
-void SwapChainManager::createSwapChain(uint32_t width, uint32_t height) {
+    void SwapChainManager::createSwapChain(uint32_t width, uint32_t height) {
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->getPhysicalDevice(), surface, &capabilities);
 
     // Get supported surface formats
-    uint32_t formatCount;
+    uint32_t formatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(context->getPhysicalDevice(), surface, &formatCount, nullptr);
     std::vector<VkSurfaceFormatKHR> availableFormats(formatCount);
     vkGetPhysicalDeviceSurfaceFormatsKHR(context->getPhysicalDevice(), surface, &formatCount, availableFormats.data());

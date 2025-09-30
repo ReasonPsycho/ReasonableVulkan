@@ -14,8 +14,7 @@ template <typename T>
 T* vks::DescriptorManager::getOrLoadResource(std::string path)
 {
     auto assetInfo = assetManager->registerAsset(path);
-
-    loadResource(assetInfo->get()->id);
+    return dynamic_cast<T*>(loadResource(assetInfo->get()->id));
 }
 
 inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost::uuids::uuid& assetId)
@@ -35,17 +34,16 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
             {
                 auto mesh = std::make_unique<MeshDescriptor>(this,
                                                          *assetPtr->getAssetDataAs<am::MeshData>(), glm::mat4(1),
-                                                         context->getDevice(), context->getDevice().);
+                                                         context->getDevice(), context->getTransferQueue());
                 loadedResources[assetId] = std::move(mesh);
                 return loadedResources[assetId].get();
                 break;
             }
 
         case am::AssetType::Model:
-            //TODO fix those meses of a calls since now vulkan device and copy queue ptr is in a asset manager
             {
-                auto model = std::make_unique<ModelHandle>(this, *assetPtr->getAssetDataAs<am::ModelData>(),
-                                                           vulkanDevice, copyQueue);
+                auto model = std::make_unique<vks::ModelDescriptor>(this, *assetPtr->getAssetDataAs<am::ModelData>(),
+                                                           context->getDevice(), context->getTransferQueue());
                 loadedResources[assetId] = std::move(model);
                 return loadedResources[assetId].get();
                 break;
@@ -54,8 +52,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
         case am::AssetType::Texture:
             {
                 auto texture = std::make_unique<TextureDescriptor>(
-                    *assetPtr->getAssetDataAs<am::TextureData>(), vulkanDevice,
-                    copyQueue);
+                    *assetPtr->getAssetDataAs<am::TextureData>(), context->getDevice(), context->getTransferQueue());
                 loadedResources[assetId] = std::move(texture);
                 return loadedResources[assetId].get();
                 break;
@@ -65,7 +62,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
             {
                 auto material = std::make_unique<MaterialDescriptor>(
                     *assetPtr->getAssetDataAs<am::MaterialData>(),materialLayout,
-                    vulkanDevice,copyQueue);
+                    context->getDevice(), context->getTransferQueue());
                 loadedResources[assetId] = std::move(material);
                 return loadedResources[assetId].get();
                 break;
@@ -74,8 +71,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
         case am::AssetType::Shader:
             {
                 auto shader = std::make_unique<ShaderDescriptor>(
-                    *assetPtr->getAssetDataAs<am::ShaderData>(), vulkanDevice,
-                    copyQueue);
+                    *assetPtr->getAssetDataAs<am::ShaderData>(),context->getDevice(), context->getTransferQueue());
                 loadedResources[assetId] = std::move(shader);
                 return loadedResources[assetId].get();
                 break;

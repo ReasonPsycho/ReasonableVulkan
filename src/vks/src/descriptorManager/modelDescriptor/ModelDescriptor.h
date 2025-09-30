@@ -14,10 +14,10 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "assetDatas/MaterialData.h"
 #include "assetDatas/ModelData.h"
 #include "descriptors/materialDescriptor/MaterialDescriptor.h"
-#include "ModelHandleNode.h"
+#include "NodeDescriptorStruct.h"
+
 namespace am
 {
     class TextureAsset;
@@ -46,22 +46,21 @@ namespace vks
 
     class ModelDescriptor : public IVulkanDescriptor
     {
-
     public:
         VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
         std::vector<MeshDescriptor*> meshes;
-        std::vector<NodeHandle*> nodes;
+        std::vector<NodeDescriptorStruct*> nodes;
         std::vector<TextureDescriptor*> textures;
         std::vector<MaterialDescriptor*> materials;
         bool metallicRoughnessWorkflow = true;
 
-        ModelDescriptor(DescriptorManager* assetHandleManager,am::ModelData modelData,vks::base::VulkanDevice* device, VkQueue* transferQueue);
+        ModelDescriptor(DescriptorManager* assetHandleManager,am::ModelData modelData,vks::base::VulkanDevice device, VkQueue transferQueue);
 
         ~ModelDescriptor();
 
         //TODO those two function should just rebind my am model
-        void loadNode(DescriptorManager* assetHandleManager,NodeHandle* parent, const am::Node& node,
+        void loadNode(DescriptorManager* assetHandleManager,NodeDescriptorStruct* parent, const am::Node& node,
                       vks::ModelDescriptor& model);
 
         void cleanup() override{};
