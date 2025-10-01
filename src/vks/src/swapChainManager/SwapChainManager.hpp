@@ -19,14 +19,17 @@ namespace vks {
         const std::vector<VkImageView>& getImageViews() const { return swapChainImageViews; }
         VkSwapchainKHR getSwapChain() const { return swapChain; }
 
-        uint32_t acquireNextImage(VkSemaphore presentCompleteSemaphore);
+        VkResult acquireNextImage(VkSemaphore imageAvailableSemaphore);
         VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore);
+
+        uint32_t getCurrentImageIndex() const { return currentImageIndex; }
 
     private:
         VulkanContext* context;
         VkSurfaceKHR surface{VK_NULL_HANDLE};
         VkSwapchainKHR swapChain{VK_NULL_HANDLE};
 
+        uint32_t currentImageIndex{UINT32_MAX};  // Initialize to invalid value
         std::vector<VkImage> swapChainImages;
         std::vector<VkImageView> swapChainImageViews;
         VkFormat swapChainImageFormat;

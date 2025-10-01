@@ -36,11 +36,10 @@ int main(int argc, char *argv[]) {
         platform::PollEvents(running); // sets `running` to false on quit
 
         float deltaTime = platform::GetDeltaTime();
-        vulkanExample->render();
+        vulkanExample->beginFrame();
+        vulkanExample->renderFrame();
+        vulkanExample->endFrame();
         engine.Update(deltaTime);     // game logic
-        /*gfx::BeginFrame();           // prepare frame
-        game::Render();              // game rendering logic (calls gfx underneath)
-        gfx::EndFrame();             // submit frame*/
     }
 
     // 6. Shutdown
