@@ -2,11 +2,6 @@
 
 namespace engine {
 
-    Engine& Engine::GetInstance() {
-        static Engine instance;
-        return instance;
-    }
-
     std::shared_ptr<Scene> Engine::CreateScene(const std::string& name) {
         if (scenes.find(name) != scenes.end()) {
             return scenes[name]; // Scene already exists, return it

@@ -5,8 +5,11 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
+namespace engine::ecs
+{
+    struct Camera
+    {
+
+    };
+}
 #endif //CAMERA_H
-
-
-//Prob a skybox
-//Prob a standard camera stuff
