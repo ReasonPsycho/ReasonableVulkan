@@ -99,11 +99,10 @@ void RenderManager::createCommandBuffers() {
     }
 }
 
-void RenderManager::beginFrame() {
-    // Reset the fence for the current image before acquiring new image
+    void RenderManager::beginFrame() {
+    // First wait for the previous frame to complete
     if (currentImageIndex != UINT32_MAX) {
         vkWaitForFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence);
     }
 
     VkResult result = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
@@ -115,7 +114,10 @@ void RenderManager::beginFrame() {
 
     // Get the newly acquired image index from the swap chain manager
     currentImageIndex = swapChain->getCurrentImageIndex();
-    
+
+    // Reset fence only after we've acquired a new image and know which fence we'll use
+    vkResetFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence);
+
     // Mark the image as acquired and update its last used frame
     imageSync[currentImageIndex].imageAcquired = true;
     imageSync[currentImageIndex].frameLastUsed = currentFrame;
