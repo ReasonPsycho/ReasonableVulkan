@@ -22,8 +22,8 @@ namespace gfx {
         virtual void loadModel(boost::uuids::uuid uuid) = 0;
         virtual void loadShader(boost::uuids::uuid uuid) = 0;
 
+        virtual void beginFrame() = 0;
         virtual void renderFrame() = 0;
-        virtual void render() = 0;
         virtual void endFrame() = 0;
     };
 } // namespace gfx

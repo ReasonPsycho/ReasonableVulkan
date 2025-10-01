@@ -248,28 +248,38 @@ void SwapChainManager::createImageViews() {
     }
 }
 
-uint32_t SwapChainManager::acquireNextImage(VkSemaphore presentCompleteSemaphore) {
-    uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(context->getDevice(), swapChain, UINT64_MAX,
-                                           presentCompleteSemaphore, VK_NULL_HANDLE, &imageIndex);
+    VkResult SwapChainManager::acquireNextImage(VkSemaphore imageAvailableSemaphore) {
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        // Handle resize
-        return UINT32_MAX;
+    uint32_t tmpImageIndex;
+    VkResult result = vkAcquireNextImageKHR(context->getDevice(), swapChain, UINT64_MAX,
+                                           imageAvailableSemaphore, VK_NULL_HANDLE, &tmpImageIndex);
+    if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) {
+        currentImageIndex = tmpImageIndex;
+    } else {
+        // If acquire failed, mark no image as current
+        currentImageIndex = UINT32_MAX;
     }
-    return imageIndex;
+
+    return result;
 }
 
-VkResult SwapChainManager::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore) {
+    VkResult SwapChainManager::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore) {
+    // Validate that the image was actually acquired
+    if (imageIndex != currentImageIndex || currentImageIndex == UINT32_MAX) {
+        return VK_ERROR_OUT_OF_DATE_KHR;
+    }
+
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &waitSemaphore;
+    presentInfo.waitSemaphoreCount = waitSemaphore ? 1 : 0;  // Only wait if semaphore provided
+    presentInfo.pWaitSemaphores = waitSemaphore ? &waitSemaphore : nullptr;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &swapChain;
     presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr;
 
-    return vkQueuePresentKHR(queue, &presentInfo);
+    VkResult result = vkQueuePresentKHR(queue, &presentInfo);
+
+    return result;
 }
-
 } // namespace vks

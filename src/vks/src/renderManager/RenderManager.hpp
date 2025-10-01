@@ -20,6 +20,25 @@ namespace vks {
     };
 
     class RenderManager {
+private:
+    static constexpr int MAX_FRAMES_IN_FLIGHT = 2;  // Double buffering
+    struct FrameResource {
+        VkCommandBuffer commandBuffer;
+        VkSemaphore imageAvailableSemaphore;
+        VkSemaphore renderFinishedSemaphore;
+        VkFence inFlightFence;
+        bool commandBufferRecorded = false;
+    };
+
+
+        // Track the image index from acquireNextImage
+        uint32_t currentAcquiredImageIndex = UINT32_MAX;
+
+        // Track which semaphores are currently in use for each swapchain image
+        std::vector<VkSemaphore> currentImageSemaphores;
+    std::vector<FrameResource> frameResources;
+    std::vector<VkFence> imagesInFlight;
+
     public:
         RenderManager(VulkanContext* context,
                      SwapChainManager* swapChain,
@@ -33,8 +52,8 @@ namespace vks {
         // Core rendering functions
         void submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 transform);
         void beginFrame();
+        void renderFrame();
         void endFrame();
-        void drawFrame();
         void waitIdle();
 
 
@@ -51,10 +70,6 @@ namespace vks {
 
 
     private:
-        static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-        uint32_t currentFrame = 0;
-        uint32_t currentImageIndex= 0;
-
         std::vector<RenderCommand> renderQueue;
 
         // Core Vulkan components
@@ -67,20 +82,23 @@ namespace vks {
         VkCommandPool commandPool{VK_NULL_HANDLE};
         std::vector<VkCommandBuffer> commandBuffers;
 
-        // Synchronization objects
+
+        struct ImageSyncData {
+            VkSemaphore renderFinishedSemaphore;
+            VkFence inFlightFence;
+            bool imageAcquired = false;
+            uint32_t frameLastUsed = UINT32_MAX;  // Track which frame last used this image
+        };
+
+        std::vector<ImageSyncData> imageSync;  // Per-swapchain image synchronization
         std::vector<VkSemaphore> imageAvailableSemaphores;
-        std::vector<VkSemaphore> renderFinishedSemaphores;
-        std::vector<VkFence> inFlightFences;
-        std::vector<VkFence> imagesInFlight;
+        size_t currentFrame = 0;
+        uint32_t currentImageIndex = 0;
 
         // Command buffer management
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
-
-        // Helper functions
-        void prepareFrame();
-        void submitFrame();
     };
 
 } // namespace vks

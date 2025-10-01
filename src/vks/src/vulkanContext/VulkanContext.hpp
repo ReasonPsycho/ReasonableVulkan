@@ -25,6 +25,8 @@ namespace vks {
         const VkPhysicalDeviceFeatures& getDeviceFeatures() const { return deviceFeatures; }
         const VkPhysicalDeviceMemoryProperties& getMemoryProperties() const { return memoryProperties; }
 
+        uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+
     private:
         // Instance related
         VkInstance instance{VK_NULL_HANDLE};

@@ -25,14 +25,45 @@ void RenderManager::initialize() {
     createSyncObjects();
 }
 
+void RenderManager::createSyncObjects() {
+    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    
+    // Create sync objects for each swapchain image
+    imageSync.resize(swapChain->getImageViews().size());
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    // Create image available semaphores
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create image available semaphore!");
+        }
+    }
+
+    // Create per-image synchronization objects
+    for (auto& sync : imageSync) {
+        if (vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &sync.renderFinishedSemaphore) != VK_SUCCESS ||
+            vkCreateFence(context->getDevice(), &fenceInfo, nullptr, &sync.inFlightFence) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create image sync objects!");
+        }
+    }
+}
+
 void RenderManager::cleanup() {
     vkDeviceWaitIdle(context->getDevice());
 
-    // Cleanup synchronization objects
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(context->getDevice(), renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(context->getDevice(), imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(context->getDevice(), inFlightFences[i], nullptr);
+    for (auto& semaphore : imageAvailableSemaphores) {
+        vkDestroySemaphore(context->getDevice(), semaphore, nullptr);
+    }
+
+    for (auto& sync : imageSync) {
+        vkDestroySemaphore(context->getDevice(), sync.renderFinishedSemaphore, nullptr);
+        vkDestroyFence(context->getDevice(), sync.inFlightFence, nullptr);
     }
 
     vkDestroyCommandPool(context->getDevice(), commandPool, nullptr);
@@ -68,59 +99,34 @@ void RenderManager::createCommandBuffers() {
     }
 }
 
-void RenderManager::createSyncObjects() {
-    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-    imagesInFlight.resize(swapChain->getImageViews().size(), VK_NULL_HANDLE);
-
-    VkSemaphoreCreateInfo semaphoreInfo{};
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    VkFenceCreateInfo fenceInfo{};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(context->getDevice(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create synchronization objects!");
-        }
+void RenderManager::beginFrame() {
+    // Reset the fence for the current image before acquiring new image
+    if (currentImageIndex != UINT32_MAX) {
+        vkWaitForFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence);
     }
+
+    VkResult result = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        throw std::runtime_error("Swap chain out of date!");
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("Failed to acquire swap chain image!");
+    }
+
+    // Get the newly acquired image index from the swap chain manager
+    currentImageIndex = swapChain->getCurrentImageIndex();
+    
+    // Mark the image as acquired and update its last used frame
+    imageSync[currentImageIndex].imageAcquired = true;
+    imageSync[currentImageIndex].frameLastUsed = currentFrame;
 }
 
-void RenderManager::drawFrame() {
-    prepareFrame();
-
-    // Here you would update any dynamic resources
+void RenderManager::renderFrame() {
+    // Update uniform buffers and record command buffer
     updateUniformBuffers(currentFrame);
-
-    // Any additional frame-specific updates would go here
-
-    submitFrame();
-}
-
-
-// Add these function implementations:
-
-    void RenderManager::beginFrame() {    vkWaitForFences(context->getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-
-    // Try to acquire the next image
-    currentImageIndex = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
-
-    // Check if a previous frame is using this image
-    if (imagesInFlight[currentImageIndex] != VK_NULL_HANDLE) {
-        vkWaitForFences(context->getDevice(), 1, &imagesInFlight[currentImageIndex], VK_TRUE, UINT64_MAX);
-    }
-    imagesInFlight[currentImageIndex] = inFlightFences[currentFrame];
-
-    // Reset and record command buffer
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
     recordCommandBuffer(commandBuffers[currentFrame], currentImageIndex);
-}
 
-void RenderManager::endFrame() {
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -133,31 +139,32 @@ void RenderManager::endFrame() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
 
-    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+    VkSemaphore signalSemaphores[] = {imageSync[currentImageIndex].renderFinishedSemaphore};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    vkResetFences(context->getDevice(), 1, &inFlightFences[currentFrame]);
-
-    if (vkQueueSubmit(context->getGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to submit draw command buffer!");
+    if (vkQueueSubmit(context->getGraphicsQueue(), 1, &submitInfo,
+                      imageSync[currentImageIndex].inFlightFence) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit draw command buffer!");
     }
 
-    // Present the image
-    swapChain->queuePresent(context->getGraphicsQueue(), currentImageIndex, renderFinishedSemaphores[currentFrame]);
+    VkResult result = swapChain->queuePresent(context->getGraphicsQueue(),
+                                           currentImageIndex,
+                                           imageSync[currentImageIndex].renderFinishedSemaphore);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        // Handle swapchain recreation
+    } else if (result != VK_SUCCESS) {
+        throw std::runtime_error("Failed to present swap chain image!");
+    }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void RenderManager::prepareFrame() {
-    // Called at the start of each frame
-    beginFrame();
+void RenderManager::endFrame() {
+    // No longer need to do anything here as synchronization is handled in beginFrame
 }
 
-void RenderManager::submitFrame() {
-    // Called at the end of each frame
-    endFrame();
-}
 
 void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
@@ -174,10 +181,14 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = swapChain->getSwapChainExtent();
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // Color clear value
+    clearValues[1].depthStencil = {1.0f, 0}; // Depth clear value
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
 
+    // Begin the render pass
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Bind the model pipeline for model rendering
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getModelPipeline());
@@ -200,18 +211,18 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
                 vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
                 vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-                    // Bind material descriptor set
-                    auto materialDescriptorSet = mesh->material->descriptorSet;
-                    if (materialDescriptorSet != VK_NULL_HANDLE) {
-                        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipelineManager->getPipelineLayout(), 0, 1, &materialDescriptorSet, 0, nullptr);
-                    }
+                // Bind material descriptor set
+                auto materialDescriptorSet = mesh->material->descriptorSet;
+                if (materialDescriptorSet != VK_NULL_HANDLE) {
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        pipelineManager->getPipelineLayout(), 0, 1, &materialDescriptorSet, 0, nullptr);
+                }
 
-                    // Push the world transform as a push constant
-                    vkCmdPushConstants(commandBuffer, pipelineManager->getPipelineLayout(),
-                        VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeWorldTransform);
+                // Push the world transform as a push constant
+                vkCmdPushConstants(commandBuffer, pipelineManager->getPipelineLayout(),
+                    VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeWorldTransform);
 
-                    vkCmdDraw(commandBuffer,mesh->vertices.count,mesh->indices.count,0,0);
+                vkCmdDraw(commandBuffer, mesh->vertices.count, mesh->indices.count, 0, 0);
             }
         }
     }
