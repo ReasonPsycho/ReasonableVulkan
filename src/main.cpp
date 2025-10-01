@@ -13,7 +13,7 @@
 int main(int argc, char *argv[]) {
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
     vks::VulkanRenderer *vulkanExample = new vks::VulkanRenderer(&assetManager);
-    engine::Engine& engine = engine::Engine::GetInstance();
+    engine::Engine engine = engine::Engine(vulkanExample,&assetManager);
 
     // 1. Initialize platform (SDL window, input, etc.)
     if (!platform::Init("My Game Engine", 1280, 720)) {

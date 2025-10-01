@@ -44,6 +44,8 @@ add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 
 # Platform specific linking
 target_link_libraries(engine PUBLIC
+        am
+        vks
         Tracy::TracyClient
         glm::glm
         spdlog::spdlog

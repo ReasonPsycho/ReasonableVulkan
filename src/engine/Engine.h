@@ -5,6 +5,9 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 #include <memory>
+
+#include "AssetManagerInterface.h"
+#include "GraphicsEngine.hpp"
 #include "ecs/Scene.h"
 
 namespace engine {
@@ -13,7 +16,8 @@ namespace engine {
 
     class Engine {
     public:
-        static Engine& GetInstance();
+        Engine(gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface) : graphicsEngine(graphicsEngine), assetManagerInterface(assetManagerInterface){};
+        ~Engine() = default;
 
         // Scene management
         std::shared_ptr<Scene> CreateScene(const std::string& name);
@@ -26,14 +30,13 @@ namespace engine {
         void Update(float deltaTime);
 
     private:
-        Engine() = default;
-        ~Engine() = default;
 
-        Engine(const Engine&) = delete;
-        Engine& operator=(const Engine&) = delete;
 
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
         std::shared_ptr<Scene> activeScene = nullptr;
+
+        gfx::GraphicsEngine* graphicsEngine;
+        am::AssetManagerInterface* assetManagerInterface;
     };
 
 } // namespace engine
