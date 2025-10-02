@@ -5,12 +5,12 @@
 #include "MaterialDescriptor.h"
 
 #include "Asset.hpp"
-#include "../../../../base/VulkanInitializers.hpp"
-
+#include "../../../DescriptorManager.h"
+#
 // Static member definition
 
 
-vks::MaterialDescriptor::MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice& device, VkQueue copyQueue) : IVulkanDescriptor(device,copyQueue)
+vks::MaterialDescriptor::MaterialDescriptor(DescriptorManager* assetHandleManager, am::MaterialData& materialData,VulkanContext& vulkanContext) : IVulkanDescriptor(vulkanContext)
 {
     // Initialize numeric fields
     alphaCutoff = materialData.alphaCutoff;
@@ -20,37 +20,34 @@ vks::MaterialDescriptor::MaterialDescriptor( am::MaterialData& materialData,VkDe
 
     // Initialize textures (if valid AssetInfo is provided)
     if (materialData.baseColorTexture) {
-        baseColorTexture = new TextureDescriptor(*materialData.baseColorTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        baseColorTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.baseColorTexture->id);
         descriptorBindingFlags |= vks::DescriptorBindingFlags::ImageBaseColor;
     }
     if (materialData.metallicRoughnessTexture) {
-        metallicRoughnessTexture = new TextureDescriptor(*materialData.metallicRoughnessTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        metallicRoughnessTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.metallicRoughnessTexture->id);
+
     }
     if (materialData.normalTexture) {
-        normalTexture = new TextureDescriptor(*materialData.normalTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        normalTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.normalTexture->id);
         descriptorBindingFlags |= vks::DescriptorBindingFlags::ImageNormalMap;
     }
     if (materialData.occlusionTexture) {
-        occlusionTexture = new TextureDescriptor(*materialData.occlusionTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        occlusionTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.occlusionTexture->id);
     }
     if (materialData.emissiveTexture) {
-        emissiveTexture = new TextureDescriptor(*materialData.emissiveTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        emissiveTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.emissiveTexture->id);
     }
     if (materialData.specularGlossinessTexture) {
-        metallicRoughnessTexture = new TextureDescriptor(*materialData.specularGlossinessTexture->getAsset()->getAssetDataAs<am::TextureData>(), device, copyQueue);
+        metallicRoughnessTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.specularGlossinessTexture->id); // TODO this smells xd
     }
     
     // Setup descriptors if we have textures
-    if (baseColorTexture || normalTexture) {
-        setupDescriptors(materialLayout);
+    if (baseColorTexture) {
+        setUpDescriptorSet(assetHandleManager->materialLayout,assetHandleManager->materialPool);
     }
 }
 
 vks::MaterialDescriptor::~MaterialDescriptor() {
-    if (descriptorPool != VK_NULL_HANDLE) {
-        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    }
-    
     delete baseColorTexture;
     delete metallicRoughnessTexture;
     delete normalTexture;
@@ -58,75 +55,43 @@ vks::MaterialDescriptor::~MaterialDescriptor() {
     delete emissiveTexture;
 }
 
-void vks::MaterialDescriptor::createDescriptorPool() {
-    std::vector<VkDescriptorPoolSize> poolSizes;
-    uint32_t imageCount = 0;
-    
-    if (baseColorTexture && descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
-        imageCount++;
-    }
-    if (normalTexture && descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
-        imageCount++;
-    }
-    
-    if (imageCount > 0) {
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, imageCount});
-    }
-    
-    if (poolSizes.empty()) {
-        return; // No descriptors needed
-    }
-    
-    VkDescriptorPoolCreateInfo descriptorPoolCI{};
-    descriptorPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptorPoolCI.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-    descriptorPoolCI.pPoolSizes = poolSizes.data();
-    descriptorPoolCI.maxSets = 1;
-    VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolCI, nullptr, &descriptorPool));
-}
 
 
-void vks::MaterialDescriptor::createDescriptorSet(VkDescriptorSetLayout materialLayout) {
-    if (descriptorPool == VK_NULL_HANDLE) {
-        return; // No pool means no descriptors needed
-    }
-    
+void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialLayout,VkDescriptorPool materialDescriptorPool) {
     VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
     descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    descriptorSetAllocInfo.descriptorPool = descriptorPool;
+    descriptorSetAllocInfo.descriptorPool = materialDescriptorPool;
     descriptorSetAllocInfo.pSetLayouts = &materialLayout;
     descriptorSetAllocInfo.descriptorSetCount = 1;
     VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descriptorSetAllocInfo, &descriptorSet));
-    
+
     std::vector<VkWriteDescriptorSet> writeDescriptorSets{};
-    if (baseColorTexture && descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
-        VkWriteDescriptorSet writeDescriptorSet{};
-        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.dstSet = descriptorSet;
-        writeDescriptorSet.dstBinding = static_cast<uint32_t>(writeDescriptorSets.size());
-        writeDescriptorSet.pImageInfo = &baseColorTexture->descriptor;
-        writeDescriptorSets.push_back(writeDescriptorSet);
+
+    // Only add descriptor writes for textures that are actually present
+    if (baseColorTexture) {
+        VkWriteDescriptorSet baseColorWrite{};
+        baseColorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        baseColorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        baseColorWrite.descriptorCount = 1;
+        baseColorWrite.dstSet = descriptorSet;
+        baseColorWrite.dstBinding = 0;
+        baseColorWrite.pImageInfo = &baseColorTexture->descriptor;
+        writeDescriptorSets.push_back(baseColorWrite);
     }
-    if (normalTexture && descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
-        VkWriteDescriptorSet writeDescriptorSet{};
-        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.dstSet = descriptorSet;
-        writeDescriptorSet.dstBinding = static_cast<uint32_t>(writeDescriptorSets.size());
-        writeDescriptorSet.pImageInfo = &normalTexture->descriptor;
-        writeDescriptorSets.push_back(writeDescriptorSet);
-    }
-    
+
+    /*if (normalTexture) { For now we don't care
+        VkWriteDescriptorSet normalMapWrite{};
+        normalMapWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        normalMapWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        normalMapWrite.descriptorCount = 1;
+        normalMapWrite.dstSet = descriptorSet;
+        normalMapWrite.dstBinding = 1;
+        normalMapWrite.pImageInfo = &normalTexture->descriptor;
+        writeDescriptorSets.push_back(normalMapWrite);
+    }*/
+
     if (!writeDescriptorSets.empty()) {
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()),
-                               writeDescriptorSets.data(), 0, nullptr);
+                              writeDescriptorSets.data(), 0, nullptr);
     }
-}
-
-void vks::MaterialDescriptor::setupDescriptors(VkDescriptorSetLayout materialLayout) {
-    createDescriptorPool();
-    createDescriptorSet(materialLayout);
 }

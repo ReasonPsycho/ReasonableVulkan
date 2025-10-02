@@ -1,7 +1,7 @@
 // Copyright 2020 Google LLC
 
-Texture2D tex : register(t1);
-SamplerState samp : register(s1);
+[[vk::binding(0, 1)]] Texture2D tex;
+[[vk::binding(0, 1)]] SamplerState samp;
 
 struct VSOutput
 {
@@ -26,6 +26,8 @@ float4 main(VSOutput input) : SV_TARGET
     float3 Eye = normalize(-input.EyePos);
     float3 Reflected = normalize(reflect(-input.LightVec, input.Normal));
 
+    float4 texColor = tex.Sample(samp, input.UV);
+
     float3 halfVec = normalize(input.LightVec + input.EyePos);
     float diff = clamp(dot(input.LightVec, input.Normal), 0.0, 1.0);
     float spec = specpart(input.LightVec, input.Normal, halfVec);
@@ -36,7 +38,7 @@ float4 main(VSOutput input) : SV_TARGET
     float shininess = 0.75;
     float4 ISpecular = float4(0.5, 0.5, 0.5, 1.0) * pow(max(dot(Reflected, Eye), 0.0), 2.0) * shininess;
 
-    float4 outFragColor = float4((IAmbient + IDiffuse) * float4(input.Color, 1.0) + ISpecular);
+    float4 outFragColor = float4((IAmbient + IDiffuse) * texColor * float4(input.Color, 1.0) + ISpecular);
 
 // Some manual saturation
     if (intensity > 0.95)

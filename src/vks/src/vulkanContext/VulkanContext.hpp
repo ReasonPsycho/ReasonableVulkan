@@ -5,21 +5,67 @@
 #include <string>
 #include "../base/VulkanDevice.h"
 
+struct QueueFamilyIndices {
+    uint32_t graphics = UINT32_MAX;
+    uint32_t present = UINT32_MAX;
+    uint32_t transfer = UINT32_MAX;
+
+    bool isComplete() const {
+        return graphics != UINT32_MAX &&
+               present != UINT32_MAX &&
+               transfer != UINT32_MAX;
+    }
+};
+
+
+enum class QueueType {
+    Graphics,
+    Transfer
+};
+
 namespace vks {
     class VulkanContext {
     public:
         VulkanContext();
         ~VulkanContext();
 
-        void cleanup();
-
         // Getters
         VkInstance getInstance() const { return instance; }
         VkPhysicalDevice getPhysicalDevice() const { return physicalDevice; }
-        base::VulkanDevice& getDevice() const { return *device; }
+        VkDevice getDevice() const { return device; }
+        QueueFamilyIndices getQueueFamilyIndices() const { return queueFamilyIndices; }
 
         VkQueue getGraphicsQueue() const { return graphicsQueue; }
         VkQueue getTransferQueue() const { return transferQueue; }
+        VkCommandPool getTransferCommandPool() const { return transferCommandPool; }
+        VkCommandPool getGraphicsCommandPool() const { return graphicsCommandPool; }
+
+        void createBuffer(
+                    VkDeviceSize size,
+                    VkBufferUsageFlags usage,
+                    VkMemoryPropertyFlags properties,
+                    VkBuffer& buffer,
+                    VkDeviceMemory& bufferMemory) const;
+
+        void copyBuffer(
+            VkBuffer srcBuffer,
+            VkBuffer dstBuffer,
+            VkDeviceSize size,
+            QueueType queueType = QueueType::Transfer) const;
+
+
+        VkCommandBuffer beginSingleTimeCommands(QueueType queueType = QueueType::Transfer) const;
+        void endSingleTimeCommands(VkCommandBuffer commandBuffer, QueueType queueType = QueueType::Transfer) const;
+
+        // Helper method to get the appropriate queue
+        VkQueue getQueue(QueueType queueType) const {
+            return queueType == QueueType::Graphics ? graphicsQueue : transferQueue;
+        }
+
+        // Helper method to get the appropriate command pool
+        VkCommandPool getCommandPool(QueueType queueType) const {
+            return queueType == QueueType::Graphics ? graphicsCommandPool : transferCommandPool;
+        }
 
         const VkPhysicalDeviceProperties& getDeviceProperties() const { return deviceProperties; }
         const VkPhysicalDeviceFeatures& getDeviceFeatures() const { return deviceFeatures; }
@@ -36,9 +82,11 @@ namespace vks {
 
         // Device related
         VkPhysicalDevice physicalDevice{VK_NULL_HANDLE};
-        base::VulkanDevice *device{};
+        VkDevice device{VK_NULL_HANDLE};
         VkQueue graphicsQueue{VK_NULL_HANDLE};
         VkQueue transferQueue{VK_NULL_HANDLE};
+        VkCommandPool graphicsCommandPool{VK_NULL_HANDLE};
+        VkCommandPool transferCommandPool{VK_NULL_HANDLE};
 
         // Device properties
         VkPhysicalDeviceProperties deviceProperties{};
@@ -51,6 +99,12 @@ namespace vks {
         void pickPhysicalDevice();
         void createLogicalDevice();
         void createQueues();
+        void createCommandPools();
+
+        QueueFamilyIndices queueFamilyIndices;
+
+        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+        bool checkDeviceExtensionSupport(VkPhysicalDevice device);
 
         bool isDeviceSuitable(VkPhysicalDevice device);
         int rateDeviceSuitability(VkPhysicalDevice device);

@@ -34,7 +34,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
             {
                 auto mesh = std::make_unique<MeshDescriptor>(this,
                                                          *assetPtr->getAssetDataAs<am::MeshData>(), glm::mat4(1),
-                                                         context->getDevice(), context->getTransferQueue());
+                                                        *context);
                 loadedResources[assetId] = std::move(mesh);
                 return loadedResources[assetId].get();
                 break;
@@ -43,7 +43,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
         case am::AssetType::Model:
             {
                 auto model = std::make_unique<vks::ModelDescriptor>(this, *assetPtr->getAssetDataAs<am::ModelData>(),
-                                                           context->getDevice(), context->getTransferQueue());
+                                                          *context);
                 loadedResources[assetId] = std::move(model);
                 return loadedResources[assetId].get();
                 break;
@@ -52,7 +52,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
         case am::AssetType::Texture:
             {
                 auto texture = std::make_unique<TextureDescriptor>(
-                    *assetPtr->getAssetDataAs<am::TextureData>(), context->getDevice(), context->getTransferQueue());
+                    *assetPtr->getAssetDataAs<am::TextureData>(),defaultSampler,*context);
                 loadedResources[assetId] = std::move(texture);
                 return loadedResources[assetId].get();
                 break;
@@ -60,9 +60,9 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
 
         case am::AssetType::Material:
             {
-                auto material = std::make_unique<MaterialDescriptor>(
-                    *assetPtr->getAssetDataAs<am::MaterialData>(),materialLayout,
-                    context->getDevice(), context->getTransferQueue());
+                auto material = std::make_unique<MaterialDescriptor>(this,
+                    *assetPtr->getAssetDataAs<am::MaterialData>(),
+                   *context);
                 loadedResources[assetId] = std::move(material);
                 return loadedResources[assetId].get();
                 break;
@@ -71,7 +71,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
         case am::AssetType::Shader:
             {
                 auto shader = std::make_unique<ShaderDescriptor>(
-                    *assetPtr->getAssetDataAs<am::ShaderData>(),context->getDevice(), context->getTransferQueue());
+                    *assetPtr->getAssetDataAs<am::ShaderData>(),*context);
                 loadedResources[assetId] = std::move(shader);
                 return loadedResources[assetId].get();
                 break;

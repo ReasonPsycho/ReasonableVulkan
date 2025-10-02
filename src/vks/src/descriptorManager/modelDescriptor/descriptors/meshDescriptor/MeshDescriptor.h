@@ -34,23 +34,15 @@ namespace vks
         uint32_t firstVertex;
         uint32_t vertexCount;
 
-
-        // Descriptor management
-        VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-
         // Vertex input description - moved from VertexHandle
         static VkVertexInputBindingDescription vertexInputBindingDescription;
         static std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions;
         static VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo;
 
-
-        void setupDescriptors(VkDescriptorSetLayout meshUniformLayout);
-        void createDescriptorPool();
-        void createDescriptorSet(VkDescriptorSetLayout meshUniformLayout);
-
     public:
-        MeshDescriptor(DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix, vks::base::VulkanDevice& device, VkQueue copyQueue);
+        MeshDescriptor(DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix,VulkanContext& vulkanContext);
         ~MeshDescriptor();
+        void setUpDescriptorSet(VkDescriptorSetLayout meshUniformLayout,VkDescriptorPool meshDescriptorPool);
         void cleanup() override {};
 
         static VkVertexInputBindingDescription inputBindingDescription(uint32_t binding);

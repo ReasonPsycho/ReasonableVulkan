@@ -23,6 +23,10 @@ namespace vks {
         void initialize();
         void cleanup();
 
+
+        void createDefaultSampler();
+
+
         // Get descriptor set layouts
         VkDescriptorSetLayout getMaterialLayout() const { return materialLayout; }
         VkDescriptorSetLayout getMeshUniformLayout() const { return meshUniformLayout; }
@@ -54,6 +58,11 @@ namespace vks {
         VkDescriptorSetLayout materialLayout{VK_NULL_HANDLE};
         VkDescriptorSetLayout meshUniformLayout{VK_NULL_HANDLE};
         VkDescriptorSetLayout sceneLayout{VK_NULL_HANDLE};
+
+        //Image sampler
+        VkSampler defaultSampler = VK_NULL_HANDLE;
+        VkDescriptorImageInfo defaultImageInfo = {};
+
 
         // Resource cache
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<IVulkanDescriptor>> loadedResources;
