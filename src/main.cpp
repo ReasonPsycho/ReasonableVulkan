@@ -36,6 +36,9 @@ int main(int argc, char *argv[]) {
         platform::PollEvents(running); // sets `running` to false on quit
 
         float deltaTime = platform::GetDeltaTime();
+        auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
+        vulkanExample->loadModel(asset->get()->id);
+        vulkanExample->drawModel(asset->get()->id,glm::mat4(1.0f));
         vulkanExample->beginFrame();
         vulkanExample->renderFrame();
         vulkanExample->endFrame();

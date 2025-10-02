@@ -54,6 +54,39 @@ void RenderManager::createSyncObjects() {
     }
 }
 
+
+    void vks::RenderManager::renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, RenderCommand& cmd)
+{
+    for (const auto& node : mainNode->children) {
+        glm::mat4 nodeWorldTransform = cmd.transform * node->matrix;
+
+        for (const auto& mesh : node->meshes) {
+            VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+            // First bind the uniform buffer descriptor set
+            if (mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineManager->getMeshPipelineLayout(), 0, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
+            }
+
+            // Then bind the material descriptor set at set index 1
+            auto materialDescriptorSet = mesh->material->descriptorSet;
+            if (materialDescriptorSet != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineManager->getMeshPipelineLayout(), 1, 1, &materialDescriptorSet, 0, nullptr);
+            }
+
+            vkCmdPushConstants(commandBuffer, pipelineManager->getMeshPipelineLayout(),
+                VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeWorldTransform);
+
+            vkCmdDraw(commandBuffer, mesh->vertices.count, mesh->indices.count, 0, 0);
+        }
+    }
+}
+
 void RenderManager::cleanup() {
     vkDeviceWaitIdle(context->getDevice());
 
@@ -189,46 +222,35 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
 
-    // Begin the render pass
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Bind the model pipeline for model rendering
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getModelPipeline());
 
+    // Set dynamic viewport and scissor BEFORE drawing
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapChain->getSwapChainExtent().width);
+    viewport.height = static_cast<float>(swapChain->getSwapChainExtent().height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChain->getSwapChainExtent();
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
     // Process render queue
-    for (const auto& cmd : renderQueue) {
+    for (auto& cmd : renderQueue) {
         auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
         if (!modelDescriptor) continue;
 
-        // Traverse through model nodes
-        for (const auto& node : modelDescriptor->nodes) {
-            // Calculate world transform for this node
-            glm::mat4 nodeWorldTransform = cmd.transform * node->matrix;
-
-            // For each mesh in the node
-            for (const auto& mesh : node->meshes) {
-                // Bind vertex/index buffers
-                VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
-                VkDeviceSize offsets[] = { 0 };
-                vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-                vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-                // Bind material descriptor set
-                auto materialDescriptorSet = mesh->material->descriptorSet;
-                if (materialDescriptorSet != VK_NULL_HANDLE) {
-                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        pipelineManager->getPipelineLayout(), 0, 1, &materialDescriptorSet, 0, nullptr);
-                }
-
-                // Push the world transform as a push constant
-                vkCmdPushConstants(commandBuffer, pipelineManager->getPipelineLayout(),
-                    VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeWorldTransform);
-
-                vkCmdDraw(commandBuffer, mesh->vertices.count, mesh->indices.count, 0, 0);
-            }
-        }
+        renderNode(modelDescriptor->nodes[0], commandBuffer, cmd);
     }
 
+    renderQueue.clear();
     // Switch to skybox pipeline for skybox rendering
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getSkyboxPipeline());
 

@@ -7,7 +7,6 @@
 #include "../IVulkanDescriptor.h"
 #include <vulkan/vulkan_core.h>
 
-#include "../../../../base/VulkanDevice.h"
 #include "assetDatas/TextureData.h"
 
 
@@ -34,7 +33,7 @@ namespace vks
         void destroy();
         void cleanup() override {};
         
-        TextureDescriptor(am::TextureData& textureData, vks::base::VulkanDevice& device, VkQueue copyQueue);
+        TextureDescriptor(am::TextureData& textureData,VkSampler sampler,VulkanContext& vulkanContext);
     };
 }
 

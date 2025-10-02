@@ -99,6 +99,9 @@ private:
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
+
+        //Render helper functions
+        void renderNode(vks::NodeDescriptorStruct* mainNode,VkCommandBuffer commandBuffer,RenderCommand& cmd);
     };
 
 } // namespace vks

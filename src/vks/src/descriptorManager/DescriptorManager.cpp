@@ -20,7 +20,12 @@ void DescriptorManager::initialize() {
 
 void DescriptorManager::cleanup() {
     auto device = context->getDevice();
-    
+
+    if (defaultSampler != VK_NULL_HANDLE) {
+        vkDestroySampler(device, defaultSampler, nullptr);
+        defaultSampler = VK_NULL_HANDLE;
+    }
+
     // Clear resource cache
     loadedResources.clear();
 
@@ -93,19 +98,53 @@ void DescriptorManager::createDescriptorPools() {
     }
 }
 
-void DescriptorManager::createDescriptorSetLayouts() {
+    void DescriptorManager::createDefaultSampler() {
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.maxAnisotropy = 8.0f;
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxLod = 32.0f; // Large enough for most mipmaps
 
-    // Material layout
+    VK_CHECK_RESULT(vkCreateSampler(context->getDevice(), &samplerInfo, nullptr, &defaultSampler));
+
+    // Setup default image info
+    defaultImageInfo.sampler = defaultSampler;
+    defaultImageInfo.imageView = VK_NULL_HANDLE;
+    defaultImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+}
+
+
+void DescriptorManager::createDescriptorSetLayouts() {
     std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
-        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-        {1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+        {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pImmutableSamplers = nullptr
+        },
+        // Normal map texture binding
+        /*{ For now we don't care
+            .binding = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pImmutableSamplers = nullptr
+        }*/
     };
-    
+    // Material layout
+
     VkDescriptorSetLayoutCreateInfo materialLayoutInfo{};
     materialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
     materialLayoutInfo.pBindings = materialBindings.data();
-    
+
     if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &materialLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create material descriptor set layout!");
     }
@@ -116,12 +155,12 @@ void DescriptorManager::createDescriptorSetLayouts() {
     meshBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     meshBinding.descriptorCount = 1;
     meshBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    
+
     VkDescriptorSetLayoutCreateInfo meshLayoutInfo{};
     meshLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     meshLayoutInfo.bindingCount = 1;
     meshLayoutInfo.pBindings = &meshBinding;
-    
+
     if (vkCreateDescriptorSetLayout(context->getDevice(), &meshLayoutInfo, nullptr, &meshUniformLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create mesh descriptor set layout!");
     }
@@ -133,7 +172,7 @@ void DescriptorManager::createDescriptorSetLayouts() {
         // Cubemap sampler used by skybox fragment shader
         {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
     };
-    
+
     VkDescriptorSetLayoutCreateInfo sceneLayoutInfo{};
     sceneLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     sceneLayoutInfo.bindingCount = static_cast<uint32_t>(sceneBindings.size());

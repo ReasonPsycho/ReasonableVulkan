@@ -11,30 +11,58 @@
 
 namespace vks {
 
-VulkanContext::VulkanContext() {
-    createInstance();
-    pickPhysicalDevice();
-    setupDebugMessenger();
-    createLogicalDevice();
-    createQueues();
-}
-
-
-VulkanContext::~VulkanContext() {
-    if (debugMessenger != VK_NULL_HANDLE) {
-        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+    VulkanContext::VulkanContext() {
+        createInstance();
+        pickPhysicalDevice();
+        setupDebugMessenger();
+        createLogicalDevice();
+        createQueues();
+        createCommandPools();
     }
 
-    // Delete device object which will clean up the logical device
-    if (device) {
-        delete device;
+
+
+    VulkanContext::~VulkanContext() {
+        if (debugMessenger != VK_NULL_HANDLE) {
+            DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+        }
+
+        if (device != VK_NULL_HANDLE) {
+            if (graphicsCommandPool != VK_NULL_HANDLE) {
+                vkDestroyCommandPool(device, graphicsCommandPool, nullptr);
+            }
+            if (transferCommandPool != VK_NULL_HANDLE) {
+                vkDestroyCommandPool(device, transferCommandPool, nullptr);
+            }
+            vkDestroyDevice(device, nullptr);
+        }
+
+        if (instance != VK_NULL_HANDLE) {
+            vkDestroyInstance(instance, nullptr);
+        }
     }
 
-    if (instance != VK_NULL_HANDLE) {
-        vkDestroyInstance(instance, nullptr);
-    }
-}
+    void VulkanContext::createCommandPools() {
+        // Create graphics command pool
+        VkCommandPoolCreateInfo graphicsPoolInfo{};
+        graphicsPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        graphicsPoolInfo.queueFamilyIndex = queueFamilyIndices.graphics;
+        graphicsPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
+        if (vkCreateCommandPool(device, &graphicsPoolInfo, nullptr, &graphicsCommandPool) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create graphics command pool!");
+        }
+
+        // Create transfer command pool
+        VkCommandPoolCreateInfo transferPoolInfo{};
+        transferPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        transferPoolInfo.queueFamilyIndex = queueFamilyIndices.transfer;
+        transferPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+        if (vkCreateCommandPool(device, &transferPoolInfo, nullptr, &transferCommandPool) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create transfer command pool!");
+        }
+    }
 
 void VulkanContext::pickPhysicalDevice() {
     uint32_t deviceCount = 0;
@@ -71,13 +99,6 @@ void VulkanContext::pickPhysicalDevice() {
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
 
 
-    /*
-    std::string deviceName = deviceProperties.deviceName;
-    spdlog::info(fmt::runtime("Selected physical device: {}"), deviceName);
-    */
-
-    // Create the vulkan device wrapper
-    device = new base::VulkanDevice(physicalDevice);
 }
 
 bool VulkanContext::isDeviceSuitable(VkPhysicalDevice device) {
@@ -132,28 +153,113 @@ int VulkanContext::rateDeviceSuitability(VkPhysicalDevice device) {
 
     return score;
 }
-void VulkanContext::createLogicalDevice() {
-    // Enable required features and extensions
+    void VulkanContext::createLogicalDevice() {
+    queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = {
+        queueFamilyIndices.graphics,
+        queueFamilyIndices.present,
+        queueFamilyIndices.transfer
+    };
+
+    float queuePriority = 1.0f;
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
+
+    // Enable required features
     VkPhysicalDeviceFeatures enabledFeatures{};
+    enabledFeatures.samplerAnisotropy = VK_TRUE;
+    enabledFeatures.geometryShader = VK_TRUE;
+
+    // Required extensions
     std::vector<const char*> enabledExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
     // Create the logical device
-    VkResult result = device->createLogicalDevice(enabledFeatures, enabledExtensions,nullptr,false,VkQueueFlagBits(VK_QUEUE_GRAPHICS_BIT|VK_QUEUE_TRANSFER_BIT));
-    if (result != VK_SUCCESS) {
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    createInfo.pEnabledFeatures = &enabledFeatures;
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
+    createInfo.ppEnabledExtensionNames = enabledExtensions.data();
+
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device!");
     }
 }
 
+    QueueFamilyIndices VulkanContext::findQueueFamilies(VkPhysicalDevice device) {
+    QueueFamilyIndices indices;
 
-void VulkanContext::createQueues()
-{
-    // Create graphics queue
-    vkGetDeviceQueue(*device, device->queueFamilyIndices.graphics, 0, &graphicsQueue);
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
-    // Create transfer queue
-    vkGetDeviceQueue(*device, device->queueFamilyIndices.transfer, 0, &transferQueue);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    // Find queue families that support the required operations
+    for (uint32_t i = 0; i < queueFamilyCount; i++) {
+        const auto& queueFamily = queueFamilies[i];
+
+        // Graphics queue
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.graphics = i;
+            indices.present = i; // Assume present queue is the same as graphics for now
+        }
+
+        // Dedicated transfer queue
+        if ((queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) &&
+            !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            indices.transfer = i;
+            }
+
+        if (indices.isComplete()) {
+            break;
+        }
+    }
+
+    // If we didn't find a dedicated transfer queue, use the graphics queue
+    if (indices.transfer == UINT32_MAX) {
+        indices.transfer = indices.graphics;
+    }
+
+    return indices;
+}
+
+    // Add this method
+    bool VulkanContext::checkDeviceExtensionSupport(VkPhysicalDevice device) {
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+    std::set<std::string> requiredExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
+    for (const auto& extension : availableExtensions) {
+        requiredExtensions.erase(extension.extensionName);
+    }
+
+    return requiredExtensions.empty();
+}
+
+    void VulkanContext::createQueues() {
+    // Get graphics queue
+    vkGetDeviceQueue(device, queueFamilyIndices.graphics, 0, &graphicsQueue);
+
+    // Get transfer queue
+    vkGetDeviceQueue(device, queueFamilyIndices.transfer, 0, &transferQueue);
 
     if (graphicsQueue == VK_NULL_HANDLE) {
         throw std::runtime_error("Failed to get graphics queue!");
@@ -163,21 +269,6 @@ void VulkanContext::createQueues()
     }
 }
 
-void VulkanContext::cleanup()
-{
-
-    /*
-    if (debugMessenger != VK_NULL_HANDLE) {
-        vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-        debugMessenger = VK_NULL_HANDLE;
-    }
-
-    if (instance != VK_NULL_HANDLE) {
-        vkDestroyInstance(instance, nullptr);
-        instance = VK_NULL_HANDLE;
-    }
-*/
-}
 
 VkBool32 VKAPI_CALL VulkanContext::debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -294,6 +385,7 @@ const char* VulkanContext::vkResultToString(VkResult result) {
     }
 }
 
+
 VkResult VulkanContext::createInstance() {
     if (enableValidation) {
         // Check validation layer support
@@ -329,6 +421,15 @@ VkResult VulkanContext::createInstance() {
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
+    // Add validation features structure
+    VkValidationFeaturesEXT validationFeatures{};
+    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+    VkValidationFeatureDisableEXT disabledFeatures[] = {
+        VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT
+    };
+    validationFeatures.disabledValidationFeatureCount = 1;
+    validationFeatures.pDisabledValidationFeatures = disabledFeatures;
+
     // Instance create info
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -348,6 +449,11 @@ VkResult VulkanContext::createInstance() {
 
     if (enableValidation) {
         enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);  // Add this line
+
+        // Link validation features to create info chain
+        validationFeatures.pNext = createInfo.pNext;
+        createInfo.pNext = &validationFeatures;
     }
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
@@ -404,4 +510,85 @@ void VulkanContext::setupDebugMessenger() {
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
+    void vks::VulkanContext::createBuffer(
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    VkMemoryPropertyFlags properties,
+    VkBuffer& buffer,
+    VkDeviceMemory& bufferMemory) const {
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create buffer!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate buffer memory!");
+    }
+
+    vkBindBufferMemory(device, buffer, bufferMemory, 0);
+}
+
+VkCommandBuffer vks::VulkanContext::beginSingleTimeCommands(QueueType queueType) const {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = getCommandPool(queueType);
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    return commandBuffer;
+}
+
+void vks::VulkanContext::endSingleTimeCommands(VkCommandBuffer commandBuffer, QueueType queueType) const {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    VkQueue queue = getQueue(queueType);
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+
+    vkFreeCommandBuffers(device, getCommandPool(queueType), 1, &commandBuffer);
+}
+
+// Example of how copyBuffer could be modified to specify queue type
+void vks::VulkanContext::copyBuffer(
+    VkBuffer srcBuffer,
+    VkBuffer dstBuffer,
+    VkDeviceSize size,
+    QueueType queueType) const {
+
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(queueType);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    endSingleTimeCommands(commandBuffer, queueType);
+}
 } // namespace vks

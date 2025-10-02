@@ -13,6 +13,8 @@
 
 namespace vks
 {
+    class DescriptorManager;
+
     namespace base
     {
         struct VulkanDevice;
@@ -35,19 +37,15 @@ namespace vks
         TextureDescriptor *emissiveTexture = nullptr;
 
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-        VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
         uint32_t descriptorBindingFlags;
 
-        MaterialDescriptor( am::MaterialData& materialData,VkDescriptorSetLayout materialLayout, vks::base::VulkanDevice& device, VkQueue copyQueue);
+        MaterialDescriptor(DescriptorManager* assetHandleManager, am::MaterialData& materialData,VulkanContext& vulkanContext);
 
         ~MaterialDescriptor();
 
-        void createDescriptorPool();
-        void createDescriptorSet(VkDescriptorSetLayout materialLayout);
+        void setUpDescriptorSet(VkDescriptorSetLayout materialLayout,VkDescriptorPool materialDescriptorPool);
         void cleanup() override {};
 
-    private:
-        void setupDescriptors(VkDescriptorSetLayout materialLayout);
     };
 }
 

@@ -5,21 +5,19 @@
 #ifndef RENDERDATA_H
 #define RENDERDATA_H
 #include <vulkan/vulkan_core.h>
-#include "../../vks/src/base/VulkanDevice.h"
-
+#include "../../vks/src/vulkanContext/VulkanContext.hpp"
 namespace vks
 {
 
     class IVulkanDescriptor {
     public:
-        IVulkanDescriptor(vks::base::VulkanDevice& device, VkQueue copyQueue)
-            : device(device), copyQueue(copyQueue) {}
+        IVulkanDescriptor(VulkanContext& vulkanContext)
+            : device(vulkanContext.getDevice()) {}
         virtual ~IVulkanDescriptor() = default;
 
         virtual void cleanup(){};
     protected:
-        vks::base::VulkanDevice device;
-        VkQueue copyQueue;
+        VkDevice device; // Used for cleanup
     };
 
 

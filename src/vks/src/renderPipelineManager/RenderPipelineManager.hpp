@@ -24,7 +24,8 @@ namespace vks {
         VkRenderPass getRenderPass() const { return renderPass; }
         VkPipeline getModelPipeline() const { return pipelines.models; }
         VkPipeline getSkyboxPipeline() const { return pipelines.skybox; }
-        VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
+        VkPipelineLayout getMeshPipelineLayout() const { return meshPipelineLayout; }
+        VkPipelineLayout getSkyboxPipelineLayout() const { return skyboxPipelineLayout; }
         VkFramebuffer getFramebuffer(uint32_t index) const { return framebuffers[index]; }
 
         // Add these new members for depth resources
@@ -42,7 +43,8 @@ namespace vks {
         DescriptorManager* descriptorManager;
 
         VkRenderPass renderPass{VK_NULL_HANDLE};
-        VkPipelineLayout pipelineLayout{VK_NULL_HANDLE};
+        VkPipelineLayout meshPipelineLayout = VK_NULL_HANDLE;
+        VkPipelineLayout skyboxPipelineLayout = VK_NULL_HANDLE;
         VkPipelineCache pipelineCache{VK_NULL_HANDLE};
         std::vector<VkFramebuffer> framebuffers;
         void createPipelineCache();
