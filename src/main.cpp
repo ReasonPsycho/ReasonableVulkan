@@ -30,14 +30,16 @@ int main(int argc, char *argv[]) {
     // 4. Initialize game systems (ECS, scenes, etc.)
     auto scene = engine.CreateScene("Main scene");
 
+
+    auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
+    vulkanExample->loadModel(asset->get()->id);
+
     // 5. Main loop
     bool running = true;
     while (running) {
         platform::PollEvents(running); // sets `running` to false on quit
 
         float deltaTime = platform::GetDeltaTime();
-        auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
-        vulkanExample->loadModel(asset->get()->id);
         vulkanExample->drawModel(asset->get()->id,glm::mat4(1.0f));
         vulkanExample->beginFrame();
         vulkanExample->renderFrame();

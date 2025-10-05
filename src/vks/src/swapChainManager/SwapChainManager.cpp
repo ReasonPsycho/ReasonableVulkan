@@ -48,6 +48,9 @@ void SwapChainManager::createSurface(void* windowHandle) {
 
 
 void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
+    windowHeight = height;
+    windowWidth = width;
+
     auto device = context->getDevice();
     vkDeviceWaitIdle(device);
 
@@ -127,6 +130,9 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
 }
 
     void SwapChainManager::createSwapChain(uint32_t width, uint32_t height) {
+    windowHeight = height;
+    windowWidth = width;
+
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->getPhysicalDevice(), surface, &capabilities);
 
