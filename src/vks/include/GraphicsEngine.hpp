@@ -18,6 +18,8 @@ namespace gfx {
 
         virtual void initialize(void* windowHandle, uint32_t width, uint32_t height) = 0;
 
+
+        virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view,const glm::mat4& model, const glm::vec3& lightPos) = 0;
         virtual void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) = 0;
         virtual void loadModel(boost::uuids::uuid uuid) = 0;
         virtual void loadShader(boost::uuids::uuid uuid) = 0;

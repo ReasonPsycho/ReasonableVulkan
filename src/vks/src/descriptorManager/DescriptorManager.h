@@ -12,6 +12,8 @@
 #include "../../vks/src/base/VulkanDevice.h"
 #include <glm/glm.hpp>
 
+#include "buffers/SceneUBO.hpp"
+
 namespace vks {
     class IVulkanDescriptor;
 
@@ -40,6 +42,8 @@ namespace vks {
         T* getOrLoadResource(const boost::uuids::uuid& assetId);
         bool isResourceLoaded(const boost::uuids::uuid& assetId);
 
+        void createSceneUBO();
+        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view,const glm::mat4& model, const glm::vec3& lightPos);
 
         // Resource management
         template <typename T>
@@ -66,6 +70,7 @@ namespace vks {
 
         // Resource cache
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<IVulkanDescriptor>> loadedResources;
+        SceneUBO sceneUBO;
 
         void createDescriptorPools();
         void createDescriptorSetLayouts();

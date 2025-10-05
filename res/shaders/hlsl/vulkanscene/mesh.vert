@@ -16,10 +16,10 @@ struct UBO
     float4x4 model;
     float4x4 normal;
     float4x4 view;
-    float3 lightpos;
+    float4 lightpos;
 };
 
-cbuffer ubo : register(b0) { UBO ubo; }
+[[vk::binding(0, 0)]]  cbuffer ubo { UBO ubo; }
 
 struct VSOutput
 {
@@ -43,7 +43,7 @@ float4x4 modelView = mul(ubo.view, ubo.model);
 float4 pos = mul(modelView, input.Pos);
 output.Pos = mul(ubo.projection, pos);
 output.EyePos = mul(modelView, pos).xyz;
-float4 lightPos = mul(modelView, float4(ubo.lightpos, 1.0));
+float4 lightPos = mul(modelView, float4(ubo.lightpos.xyz, 1.0));
 output.LightVec = normalize(lightPos.xyz - output.EyePos);
 return output;
 }

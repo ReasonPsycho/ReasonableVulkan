@@ -78,11 +78,6 @@ private:
         RenderPipelineManager* pipelineManager;
         DescriptorManager* descriptorManager;
 
-        // Command buffer resources
-        VkCommandPool commandPool{VK_NULL_HANDLE};
-        std::vector<VkCommandBuffer> commandBuffers;
-
-
         struct ImageSyncData {
             VkSemaphore renderFinishedSemaphore;
             VkFence inFlightFence;
@@ -96,7 +91,6 @@ private:
         uint32_t currentImageIndex = 0;
 
         // Command buffer management
-        void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
 

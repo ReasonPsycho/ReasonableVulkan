@@ -16,10 +16,19 @@ DescriptorManager::~DescriptorManager() {
 void DescriptorManager::initialize() {
     createDescriptorPools();
     createDescriptorSetLayouts();
+    createSceneUBO();
 }
 
 void DescriptorManager::cleanup() {
     auto device = context->getDevice();
+
+    if (sceneUBO.buffer.buffer != VK_NULL_HANDLE) {
+        if (sceneUBO.buffer.mapped) {
+            vkUnmapMemory(device, sceneUBO.buffer.memory);
+        }
+        vkDestroyBuffer(device, sceneUBO.buffer.buffer, nullptr);
+        vkFreeMemory(device, sceneUBO.buffer.memory, nullptr);
+    }
 
     if (defaultSampler != VK_NULL_HANDLE) {
         vkDestroySampler(device, defaultSampler, nullptr);
@@ -170,7 +179,7 @@ void DescriptorManager::createDescriptorSetLayouts() {
         // UBO used by both vertex shaders (matrices)
         {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
         // Cubemap sampler used by skybox fragment shader
-        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+        //{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
     };
 
     VkDescriptorSetLayoutCreateInfo sceneLayoutInfo{};
@@ -192,4 +201,58 @@ bool DescriptorManager::isResourceLoaded(const boost::uuids::uuid& assetId)
     return loadedResources.find(assetId) != loadedResources.end();
 }
 
+void DescriptorManager::createSceneUBO() {
+    VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
+
+    // Create the buffer
+    context->createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        sceneUBO.buffer.buffer,
+        sceneUBO.buffer.memory);
+
+    // Setup descriptor buffer info
+    sceneUBO.buffer.descriptor.buffer = sceneUBO.buffer.buffer;
+    sceneUBO.buffer.descriptor.offset = 0;
+    sceneUBO.buffer.descriptor.range = bufferSize;
+
+    // Map the memory
+    VK_CHECK_RESULT(vkMapMemory(context->getDevice(), sceneUBO.buffer.memory,
+        0, bufferSize, 0, &sceneUBO.buffer.mapped));
+
+    // Allocate descriptor set
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = scenePool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &sceneLayout;
+
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &sceneUBO.buffer.descriptorSet));
+
+    // Update descriptor set
+    VkWriteDescriptorSet writeDescriptorSet{};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.dstSet = sceneUBO.buffer.descriptorSet;
+    writeDescriptorSet.dstBinding = 0;
+    writeDescriptorSet.pBufferInfo = &sceneUBO.buffer.descriptor;
+
+    vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
+}
+    void DescriptorManager::updateSceneUBO(const glm::mat4& projection, const glm::mat4& view,
+        const glm::mat4& model, const glm::vec3& lightPos) {
+    sceneUBO.uniformBlock.projection = projection;
+    sceneUBO.uniformBlock.view = view;
+    sceneUBO.uniformBlock.model = model;
+    sceneUBO.uniformBlock.normal = glm::transpose(glm::inverse(model));
+    sceneUBO.uniformBlock.lightpos = glm::vec4(lightPos.x,lightPos.y,lightPos.z,0);
+
+    VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
+
+    // Copy to GPU memory
+    memcpy(sceneUBO.buffer.mapped, &sceneUBO.uniformBlock, bufferSize);
+    // No barrier needed here - it will be handled in RenderManager
+}
 } // namespace vks

@@ -24,6 +24,8 @@ namespace vks {
 
         uint32_t getCurrentImageIndex() const { return currentImageIndex; }
 
+        float windowWidth;
+        float windowHeight;
     private:
         VulkanContext* context;
         VkSurfaceKHR surface{VK_NULL_HANDLE};

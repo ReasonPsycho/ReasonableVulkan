@@ -20,14 +20,13 @@ RenderManager::~RenderManager() {
 }
 
 void RenderManager::initialize() {
-    createCommandPool();
     createCommandBuffers();
     createSyncObjects();
 }
 
 void RenderManager::createSyncObjects() {
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    
+
     // Create sync objects for each swapchain image
     imageSync.resize(swapChain->getImageViews().size());
 
@@ -66,11 +65,11 @@ void RenderManager::createSyncObjects() {
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-            // First bind the uniform buffer descriptor set
+            /*// First bind the uniform buffer descriptor set
             if (mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipelineManager->getMeshPipelineLayout(), 0, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
-            }
+            }*/
 
             // Then bind the material descriptor set at set index 1
             auto materialDescriptorSet = mesh->material->descriptorSet;
@@ -99,7 +98,7 @@ void RenderManager::cleanup() {
         vkDestroyFence(context->getDevice(), sync.inFlightFence, nullptr);
     }
 
-    vkDestroyCommandPool(context->getDevice(), commandPool, nullptr);
+    vkDestroyCommandPool(context->getDevice(), context->getGraphicsCommandPool(), nullptr);
 }
 
 void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 transform)
@@ -107,28 +106,23 @@ void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 tr
     renderQueue.push_back(RenderCommand{modelId, transform});
 }
 
-void RenderManager::createCommandPool() {
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = 0; // TODO: Get from context
-
-    if (vkCreateCommandPool(context->getDevice(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create command pool!");
-    }
-}
-
-void RenderManager::createCommandBuffers() {
-    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    void RenderManager::createCommandBuffers() {
+    frameResources.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = context->getGraphicsCommandPool();
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+    allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
 
+    std::vector<VkCommandBuffer> commandBuffers(MAX_FRAMES_IN_FLIGHT);
     if (vkAllocateCommandBuffers(context->getDevice(), &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("Failed to allocate command buffers!");
+    }
+
+    // Assign the command buffers to frame resources
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        frameResources[i].commandBuffer = commandBuffers[i];
     }
 }
 
@@ -159,8 +153,8 @@ void RenderManager::createCommandBuffers() {
 void RenderManager::renderFrame() {
     // Update uniform buffers and record command buffer
     updateUniformBuffers(currentFrame);
-    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
-    recordCommandBuffer(commandBuffers[currentFrame], currentImageIndex);
+    vkResetCommandBuffer(frameResources[currentFrame].commandBuffer, 0);
+    recordCommandBuffer(frameResources[currentFrame].commandBuffer, currentImageIndex);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -172,7 +166,7 @@ void RenderManager::renderFrame() {
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+    submitInfo.pCommandBuffers = &frameResources[currentFrame].commandBuffer;
 
     VkSemaphore signalSemaphores[] = {imageSync[currentImageIndex].renderFinishedSemaphore};
     submitInfo.signalSemaphoreCount = 1;
@@ -201,13 +195,34 @@ void RenderManager::endFrame() {
 }
 
 
-void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+    void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("Failed to begin recording command buffer!");
     }
+
+    // Add memory barrier for UBO before using it
+    VkBufferMemoryBarrier bufferBarrier{};
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;  // Direct from host write
+    bufferBarrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = descriptorManager->sceneUBO.buffer.buffer;
+    bufferBarrier.offset = 0;
+    bufferBarrier.size = sizeof(SceneUBO::UniformBlock);
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_HOST_BIT,              // Direct from host
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,     // To vertex shader
+        0,
+        0, nullptr,
+        1, &bufferBarrier,
+        0, nullptr
+    );
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -227,6 +242,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     // Bind the model pipeline for model rendering
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getModelPipeline());
 
+
     // Set dynamic viewport and scissor BEFORE drawing
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -241,6 +257,15 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     scissor.offset = {0, 0};
     scissor.extent = swapChain->getSwapChainExtent();
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    vkCmdBindDescriptorSets(commandBuffer,
+    VK_PIPELINE_BIND_POINT_GRAPHICS,
+    pipelineManager->getMeshPipelineLayout(),    // Your pipeline layout
+    0,                 // First set
+    1,                 // Number of sets
+    &descriptorManager->sceneUBO.buffer.descriptorSet,
+    0,
+    nullptr);
 
     // Process render queue
     for (auto& cmd : renderQueue) {
@@ -262,14 +287,45 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 }
 
 void RenderManager::updateUniformBuffers(uint32_t currentImage) {
-    // Update uniform buffers here
+    // Create a perspective projection matrix
+    float aspectRatio = 1280 / (float)720; // Use your window's width and height
+    glm::mat4 projectionMatrix = glm::perspective(
+        glm::radians(45.0f),  // 45 degree field of view
+        aspectRatio,
+        0.1f,                 // Near plane
+        100.0f               // Far plane
+    );
+
+    // Position camera slightly back and up
+    glm::vec3 cameraPos = glm::vec3(0.0f, 2.0f, -10.0f);
+    glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);  // Look at center
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::mat4 viewMatrix = glm::lookAt(cameraPos, cameraTarget, cameraUp);
+
+    // Create model matrix - you might want to adjust these values based on your model
+    glm::mat4 modelMatrix = glm::mat4(1.0f);  // Identity matrix as starting point
+    modelMatrix = glm::rotate(modelMatrix, glm::radians(-45.0f), glm::vec3(0.5f, 0.5f, 0.0f)); // Rotate model upright
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(10.0f));  // Scale if needed
+
+    // Set light position above and slightly in front of the model
+    glm::vec3 lightPosition = glm::vec3(0.0f, 5.0f, 2.0f);
+
+
+
+
+    descriptorManager->updateSceneUBO(
+        projectionMatrix,               // Get your projection matrix
+        viewMatrix,                     // Get your view matrix
+        modelMatrix,                    // Your current model matrix
+        lightPosition                   // Your light position
+    );
 }
 
 VkCommandBuffer RenderManager::beginSingleTimeCommands() {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = context->getGraphicsCommandPool();
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
@@ -295,7 +351,7 @@ void RenderManager::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     vkQueueSubmit(context->getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(context->getGraphicsQueue());
 
-    vkFreeCommandBuffers(context->getDevice(), commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(context->getDevice(), context->getGraphicsCommandPool(), 1, &commandBuffer);
 }
 
 void RenderManager::waitIdle() {
