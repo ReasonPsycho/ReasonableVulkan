@@ -54,22 +54,21 @@ void RenderManager::createSyncObjects() {
 }
 
 
-    void vks::RenderManager::renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, RenderCommand& cmd)
+    void vks::RenderManager::renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix)
 {
     for (const auto& node : mainNode->children) {
-        glm::mat4 nodeWorldTransform = cmd.transform * node->matrix;
-
+        glm::mat4 nodeWorldTransform = matrix * node->matrix;
         for (const auto& mesh : node->meshes) {
             VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-            /*// First bind the uniform buffer descriptor set
+            // First bind the uniform buffer descriptor set
             if (mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineManager->getMeshPipelineLayout(), 0, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
-            }*/
+                    pipelineManager->getMeshPipelineLayout(), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
+            }
 
             // Then bind the material descriptor set at set index 1
             auto materialDescriptorSet = mesh->material->descriptorSet;
@@ -82,7 +81,9 @@ void RenderManager::createSyncObjects() {
                 VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeWorldTransform);
 
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
+
         }
+        renderNode(node, commandBuffer, matrix);
     }
 }
 
@@ -272,12 +273,12 @@ void RenderManager::endFrame() {
         auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
         if (!modelDescriptor) continue;
 
-        renderNode(modelDescriptor->nodes[0], commandBuffer, cmd);
+        renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
     }
 
     renderQueue.clear();
     // Switch to skybox pipeline for skybox rendering
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getSkyboxPipeline());
+    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getSkyboxPipeline());
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -302,22 +303,13 @@ void RenderManager::updateUniformBuffers(uint32_t currentImage) {
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     glm::mat4 viewMatrix = glm::lookAt(cameraPos, cameraTarget, cameraUp);
 
-    // Create model matrix - you might want to adjust these values based on your model
-    glm::mat4 modelMatrix = glm::mat4(1.0f);  // Identity matrix as starting point
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(-45.0f), glm::vec3(0.5f, 0.5f, 0.0f)); // Rotate model upright
-    modelMatrix = glm::scale(modelMatrix, glm::vec3(5.0f));  // Scale if needed
-
     // Set light position above and slightly in front of the model
     glm::vec3 lightPosition = glm::vec3(0.0f, 5.0f, 2.0f);
-
-
-
 
     descriptorManager->updateSceneUBO(
         projectionMatrix,               // Get your projection matrix
         viewMatrix,                     // Get your view matrix
-        modelMatrix,                    // Your current model matrix
-        lightPosition                   // Your light position
+        lightPosition // Your light position
     );
 }
 

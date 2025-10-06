@@ -34,13 +34,19 @@ int main(int argc, char *argv[]) {
     auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
     vulkanExample->loadModel(asset->get()->id);
 
+    // Create model matrix - you might want to adjust these values based on your model
+    glm::mat4 modelMatrix = glm::mat4(1.0f);  // Identity matrix as starting point
+    modelMatrix = glm::rotate(modelMatrix, glm::radians(-45.0f), glm::vec3(0.5f, 0.5f, 0.0f)); // Rotate model upright
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(5.0f));  // Scale if needed
+
+
     // 5. Main loop
     bool running = true;
     while (running) {
         platform::PollEvents(running); // sets `running` to false on quit
 
         float deltaTime = platform::GetDeltaTime();
-        vulkanExample->drawModel(asset->get()->id,glm::mat4(1.0f));
+        vulkanExample->drawModel(asset->get()->id,modelMatrix);
         vulkanExample->beginFrame();
         vulkanExample->renderFrame();
         vulkanExample->endFrame();

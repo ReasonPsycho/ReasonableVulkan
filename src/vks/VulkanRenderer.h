@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <glm/detail/type_mat4x4.hpp>
 #include <vulkan/vulkan_core.h>
 
 #include "include/GraphicsEngine.hpp"
@@ -21,7 +22,7 @@ namespace vks {
 		explicit VulkanRenderer(am::AssetManagerInterface* assetManagerInterface);
 		~VulkanRenderer() override;
 
-		void setCameraData(const glm::mat4& projection, const glm::mat4& view,const glm::mat4& model, const glm::vec3& lightPos) override;
+		void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3& lightPos) override;
 		void loadModel(boost::uuids::uuid uuid) override;
 		void loadShader(boost::uuids::uuid uuid) override;
 		void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) override;

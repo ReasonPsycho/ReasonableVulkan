@@ -95,7 +95,7 @@ private:
         void createSyncObjects();
 
         //Render helper functions
-        void renderNode(vks::NodeDescriptorStruct* mainNode,VkCommandBuffer commandBuffer,RenderCommand& cmd);
+        void renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix);
     };
 
 } // namespace vks
