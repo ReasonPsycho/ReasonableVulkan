@@ -34,6 +34,7 @@ vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager, am::M
         vertexStagingBuffer,
         vertexStagingMemory);
 
+
     // Copy vertex data to staging buffer
     void* data;
     vkMapMemory(vulkanContext.getDevice(), vertexStagingMemory, 0, vertexBufferSize, 0, &data);
@@ -178,14 +179,14 @@ VkVertexInputAttributeDescription vks::MeshDescriptor::inputAttributeDescription
             return VkVertexInputAttributeDescription({
                 location, binding, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(am::VertexAsset, Color)
             });
-        case VertexComponent::Tangent:
-            return VkVertexInputAttributeDescription({
-                location, binding, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(am::VertexAsset, Tangent)
-            });
-        case VertexComponent::Bitangent:
-            return VkVertexInputAttributeDescription({
-                location, binding, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(am::VertexAsset, Bitangent)
-            });
+    case VertexComponent::Tangent:
+        return VkVertexInputAttributeDescription({
+            location, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(am::VertexAsset, Tangent)
+        });
+    case VertexComponent::Bitangent:
+        return VkVertexInputAttributeDescription({
+            location, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(am::VertexAsset, Bitangent)
+        });
         default:
             return VkVertexInputAttributeDescription({});
     }

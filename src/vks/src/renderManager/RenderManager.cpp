@@ -81,7 +81,7 @@ void RenderManager::createSyncObjects() {
             vkCmdPushConstants(commandBuffer, pipelineManager->getMeshPipelineLayout(),
                 VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &nodeWorldTransform);
 
-            vkCmdDraw(commandBuffer, mesh->vertices.count, mesh->indices.count, 0, 0);
+            vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
         }
     }
 }
@@ -297,7 +297,7 @@ void RenderManager::updateUniformBuffers(uint32_t currentImage) {
     );
 
     // Position camera slightly back and up
-    glm::vec3 cameraPos = glm::vec3(0.0f, 2.0f, -10.0f);
+    glm::vec3 cameraPos = glm::vec3(0.0f, 2.0f, -12.0f);
     glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);  // Look at center
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     glm::mat4 viewMatrix = glm::lookAt(cameraPos, cameraTarget, cameraUp);
@@ -305,7 +305,7 @@ void RenderManager::updateUniformBuffers(uint32_t currentImage) {
     // Create model matrix - you might want to adjust these values based on your model
     glm::mat4 modelMatrix = glm::mat4(1.0f);  // Identity matrix as starting point
     modelMatrix = glm::rotate(modelMatrix, glm::radians(-45.0f), glm::vec3(0.5f, 0.5f, 0.0f)); // Rotate model upright
-    modelMatrix = glm::scale(modelMatrix, glm::vec3(10.0f));  // Scale if needed
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(5.0f));  // Scale if needed
 
     // Set light position above and slightly in front of the model
     glm::vec3 lightPosition = glm::vec3(0.0f, 5.0f, 2.0f);
