@@ -43,7 +43,7 @@ namespace vks {
         bool isResourceLoaded(const boost::uuids::uuid& assetId);
 
         void createSceneUBO();
-        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view,const glm::mat4& model, const glm::vec3& lightPos);
+        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view, const glm::vec3& lightPos);
 
         // Resource management
         template <typename T>

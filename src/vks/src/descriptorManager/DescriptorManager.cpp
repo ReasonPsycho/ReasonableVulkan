@@ -242,17 +242,13 @@ void DescriptorManager::createSceneUBO() {
     vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
 }
     void DescriptorManager::updateSceneUBO(const glm::mat4& projection, const glm::mat4& view,
-        const glm::mat4& model, const glm::vec3& lightPos) {
+                                           const glm::vec3& lightPos) {
     sceneUBO.uniformBlock.projection = projection;
     sceneUBO.uniformBlock.view = view;
-    sceneUBO.uniformBlock.model = model;
-    sceneUBO.uniformBlock.normal = glm::transpose(glm::inverse(model));
     sceneUBO.uniformBlock.lightpos = glm::vec4(lightPos.x,lightPos.y,lightPos.z,0);
 
     VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
 
-    // Copy to GPU memory
     memcpy(sceneUBO.buffer.mapped, &sceneUBO.uniformBlock, bufferSize);
-    // No barrier needed here - it will be handled in RenderManager
 }
 } // namespace vks

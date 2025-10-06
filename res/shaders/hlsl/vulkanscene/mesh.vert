@@ -14,13 +14,14 @@ struct VSInput
 struct UBO
 {
     float4x4 projection;
-    float4x4 model;
-    float4x4 normal;
     float4x4 view;
     float4 lightpos;
 };
 
 [[vk::binding(0, 0)]]  cbuffer ubo { UBO ubo; }
+[[vk::binding(0, 2)]] cbuffer mesh {
+    float4x4 model;
+};
 
 struct VSOutput
 {
@@ -37,22 +38,22 @@ struct VSOutput
 VSOutput main(VSInput input)
 {
     VSOutput output = (VSOutput)0;
-    
+
     // Pass through texture coordinates
     output.UV = input.TexCoord;
-    
-    // Transform normal vector to world space
-    output.Normal = normalize(mul((float3x3)ubo.normal, input.Normal));
-    
+
+    // Transform normal vector to world space using model matrix
+    output.Normal = normalize(mul((float3x3)model, input.Normal));
+
     // Pass through tangent and bitangent (transformed to world space)
-    output.Tangent = normalize(mul((float3x3)ubo.normal, input.Tangent));
-    output.Bitangent = normalize(mul((float3x3)ubo.normal, input.Bitangent));
+    output.Tangent = normalize(mul((float3x3)model, input.Tangent));
+    output.Bitangent = normalize(mul((float3x3)model, input.Bitangent));
     
     // Pass through vertex color (convert from float4 to float3)
     output.Color = input.Color.rgb;
     
     // Calculate position in view space for lighting
-    float4x4 modelView = mul(ubo.view, ubo.model);
+    float4x4 modelView = mul(ubo.view, model);
     float4 pos = float4(input.Pos, 1.0);
     float4 worldPos = mul(modelView, pos);
     

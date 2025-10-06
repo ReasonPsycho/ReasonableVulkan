@@ -11,8 +11,6 @@
 struct SceneUBO {
     struct UniformBlock {
         alignas(16) glm::mat4 projection;
-        alignas(16) glm::mat4 model;
-        alignas(16) glm::mat4 normal;
         alignas(16) glm::mat4 view;
         alignas(16) glm::vec4 lightpos;
     } uniformBlock;
