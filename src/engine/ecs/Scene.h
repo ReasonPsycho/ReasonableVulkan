@@ -10,6 +10,7 @@
 #include <typeindex>
 #include <unordered_map>
 
+#include "Engine.h"
 #include "componentArrays/IComponentArray.h"
 #include "componentArrays/ComponentArray.h"
 
@@ -17,7 +18,10 @@
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
-#include "../systems/transformSystem/TransformSystem.h"
+#include "systems/transformSystem/TransformSystem.h"
+#include "systems/renderingSystem/RenderSystem.h"
+#include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/renderingSystem/componets/Model.hpp"
 
 namespace engine::ecs
 {
@@ -25,10 +29,13 @@ namespace engine::ecs
     class Scene {
     public:
 
-        Scene()
+        explicit Scene(Engine& engine) : engine(engine)
         {
             RegisterIntegralComponent<Transform>();
             RegisterSystem<TransformSystem>();
+            RegisterComponent<Model>();
+            RegisterComponent<Camera>();
+            RegisterSystem<RenderSystem>();
         }
 
         void Update(float deltaTime);
@@ -81,7 +88,6 @@ namespace engine::ecs
         template<typename T>
         std::shared_ptr<T> GetSystem();
 
-
         //Scene Graph
         void SetParent(Entity child, Entity parent);
         void RemoveParent(Entity child);
@@ -91,6 +97,9 @@ namespace engine::ecs
 
         std::unordered_map<Entity, TransformNode> sceneGraph;
         std::vector<Entity> rootEntities;
+
+        //Engine
+        engine::Engine& engine;
     private:
 
         //Entities
@@ -108,6 +117,8 @@ namespace engine::ecs
 
         //Systems
         std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;
+
+
     };
 
 

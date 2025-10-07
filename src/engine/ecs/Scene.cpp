@@ -19,14 +19,13 @@ std::type_index Scene::GetTypeFromIndex(std::size_t index) const
 }
 
 void Scene::Update(float deltaTime) {
+    engine.graphicsEngine->beginFrame();
     for (auto& [_, system] : systems) {
-
     ZoneTransientN(zoneName,(system->name).c_str(),true);
         system->Update(deltaTime);
     }
+    engine.graphicsEngine->endFrame();
 }
-
-
 
 void Scene::SetParent(Entity child, Entity parent) {
     assert(child < maxEntityIndex && parent < maxEntityIndex);

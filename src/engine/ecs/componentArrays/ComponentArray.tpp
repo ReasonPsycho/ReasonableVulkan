@@ -58,8 +58,23 @@ bool ComponentArray<T>::IsComponentActive(Entity entity) const
     return activeComponents[entity];
 }
 
+
 template <typename T>
-const std::array<T, MAX_ENTITIES>& ComponentArray<T>::GetComponents() const
+Entity ComponentArray<T>::ComponentIndexToEntity(ComponentIndex index) const
+{
+    auto it = indexToEntityMap.find(index);
+    assert(it != indexToEntityMap.end());
+    return it->second;
+}
+
+template <typename T>
+std::size_t ComponentArray<T>::GetArraySize() const
+{
+    return size;
+}
+
+template <typename T>
+const std::array<T, MAX_COMPONENTS_ARRAY>& ComponentArray<T>::GetComponents() const
 {
     return componentArray;
 }

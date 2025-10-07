@@ -4,12 +4,13 @@
 
 #ifndef REASONABLEVULKAN_MODEL_HPP
 #define REASONABLEVULKAN_MODEL_HPP
+#include <boost/uuid/uuid.hpp>
 
 namespace engine::ecs
 {
     struct Model
     {
-
+        boost::uuids::uuid modelUuid;
     };
 }
 

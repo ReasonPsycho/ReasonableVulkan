@@ -1,5 +1,7 @@
 #include "Engine.h"
 
+#include "ecs/Scene.h"
+
 namespace engine {
 
     std::shared_ptr<Scene> Engine::CreateScene(const std::string& name) {
@@ -7,7 +9,7 @@ namespace engine {
             return scenes[name]; // Scene already exists, return it
         }
 
-        auto scene = std::make_shared<Scene>();
+        auto scene = std::make_shared<Scene>(*this);  // Changed from (this) to (*this)
         scenes[name] = scene;
 
         // Optionally set it active if it's the first one
@@ -52,5 +54,4 @@ namespace engine {
             activeScene->Update(deltaTime);
         }
     }
-
 } // namespace engine
