@@ -288,29 +288,7 @@ void RenderManager::endFrame() {
 }
 
 void RenderManager::updateUniformBuffers(uint32_t currentImage) {
-    // Create a perspective projection matrix
-    float aspectRatio = 1280 / (float)720; // Use your window's width and height
-    glm::mat4 projectionMatrix = glm::perspective(
-        glm::radians(45.0f),  // 45 degree field of view
-        aspectRatio,
-        0.1f,                 // Near plane
-        100.0f               // Far plane
-    );
 
-    // Position camera slightly back and up
-    glm::vec3 cameraPos = glm::vec3(0.0f, 2.0f, -12.0f);
-    glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);  // Look at center
-    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::mat4 viewMatrix = glm::lookAt(cameraPos, cameraTarget, cameraUp);
-
-    // Set light position above and slightly in front of the model
-    glm::vec3 lightPosition = glm::vec3(0.0f, 5.0f, 2.0f);
-
-    descriptorManager->updateSceneUBO(
-        projectionMatrix,               // Get your projection matrix
-        viewMatrix,                     // Get your view matrix
-        lightPosition // Your light position
-    );
 }
 
 VkCommandBuffer RenderManager::beginSingleTimeCommands() {

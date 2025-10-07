@@ -4,11 +4,10 @@
 
 #ifndef RENDERSYSTEM_H
 #define RENDERSYSTEM_H
-#include "componets/Camera.h"
+#include "componets/Camera.hpp"
 #include "componets/Model.hpp"
 #include "ecs/System.h"
 
-#endif //RENDERSYSTEM_H
 
 namespace engine::ecs
 {
@@ -23,6 +22,7 @@ namespace engine::ecs
     protected:
         void OnEntityAdded(Entity entity) override {}
         void OnEntityRemoved(Entity entity) override {}
-
     };
 }
+
+#endif //RENDERSYSTEM_H

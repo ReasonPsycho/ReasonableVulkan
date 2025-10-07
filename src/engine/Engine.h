@@ -5,12 +5,16 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 #include <memory>
+#include <unordered_map>
 
 #include "AssetManagerInterface.h"
 #include "GraphicsEngine.hpp"
-#include "ecs/Scene.h"
 
 namespace engine {
+    namespace ecs
+    {
+        class Scene;
+    }
 
     using namespace engine::ecs;
 
@@ -29,13 +33,13 @@ namespace engine {
         // Global update loop
         void Update(float deltaTime);
 
-    private:
 
+        gfx::GraphicsEngine* graphicsEngine;
+
+    private:
 
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
         std::shared_ptr<Scene> activeScene = nullptr;
-
-        gfx::GraphicsEngine* graphicsEngine;
         am::AssetManagerInterface* assetManagerInterface;
     };
 
