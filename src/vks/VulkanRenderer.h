@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "include/GraphicsEngine.hpp"
+#include "src/imguiManager/ImguiManager.hpp"
 
 namespace am
 {
@@ -32,6 +33,7 @@ namespace vks {
 		void endFrame() override;
 
 		void initialize(void* windowHandle, uint32_t width, uint32_t height) override;
+
 		void cleanup();
 		void waitIdle();
 		void handleWindowResize(uint32_t width, uint32_t height);
@@ -42,5 +44,10 @@ namespace vks {
 		std::unique_ptr<DescriptorManager> descriptorManager;
 		std::unique_ptr<RenderPipelineManager> pipelineManager;
 		std::unique_ptr<RenderManager> renderManager;
+
+#if ENABLE_IMGUI
+		std::unique_ptr<ImguiManager> imguiManager;
+#endif
+
 	};
 }

@@ -23,6 +23,7 @@ namespace vks {
         ~DescriptorManager();
 
         void initialize();
+
         void cleanup();
 
 
@@ -75,6 +76,7 @@ namespace vks {
         void createDescriptorPools();
         void createDescriptorSetLayouts();
         IVulkanDescriptor* loadResource(const boost::uuids::uuid& assetId);
+
     };
 
 #include "DescriptorManager.tpp"

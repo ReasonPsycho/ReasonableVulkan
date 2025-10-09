@@ -12,14 +12,13 @@ namespace platform {
     static float deltaTime = 0.0f;
 
     bool Init(const std::string& title, int width, int height) {
-        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
+        if (!SDL_Init(SDL_INIT_VIDEO)) {
             SDL_Log("SDL_Init failed: %s", SDL_GetError());
             return false;
         }
 
         window = SDL_CreateWindow(
             title.c_str(),
-            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             width, height,
             SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
         );
@@ -29,13 +28,15 @@ namespace platform {
             return false;
         }
 
+        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+
         lastFrameTime = std::chrono::steady_clock::now();
         return true;
     }
 
     void PollEvents(bool& running) {
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
+            if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             }
             // Add keyboard/mouse input here if needed
@@ -57,20 +58,6 @@ namespace platform {
 
     SDL_Window* GetWindow() {
         return window;
-    }
-
-    WindowInfo GetWindowInfo() {
-        SDL_SysWMinfo wmInfo;
-        SDL_VERSION(&wmInfo.version);
-        if (SDL_GetWindowWMInfo(window, &wmInfo) == SDL_FALSE) {
-            throw std::runtime_error("Failed to get native window info");
-        }
-
-        return {
-            GetModuleHandle(NULL),
-            (WNDPROC) GetWindowLongPtr(wmInfo.info.win.window, GWLP_WNDPROC),
-            wmInfo.info.win.window // This is the HWND
-        };
     }
 
     float GetDeltaTime() {

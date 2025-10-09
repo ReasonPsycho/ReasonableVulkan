@@ -4,6 +4,10 @@ cmake_policy(SET CMP0167 NEW)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(ENABLE_IMGUI)
+    add_compile_definitions(ENABLE_IMGUI)
+endif()
+
 if(SPDLOG_DISABLE_LOGGING)
     add_compile_definitions(SPDLOG_DISABLE_LOGGING)
 endif()

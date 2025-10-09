@@ -23,9 +23,9 @@ endif ()
 # Add option for integration tests
 option(ENABLE_INTEGRATION_TESTS "Enable integration testing" OFF)
 
-# Find and load SDL2 package with its configurations
+# Find and load SDL3 package with its configurations
 message(STATUS "Searching for packages")
-find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 
 if (MSVC)
     add_compile_options(/utf-8)
@@ -54,7 +54,7 @@ add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 platform vks am engine)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 platform vks am engine)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder
@@ -80,7 +80,7 @@ if (ENABLE_INTEGRATION_TESTS)
 
     target_link_libraries(integration_tests
             PRIVATE
-            SDL2::SDL2
+            SDL3::SDL3
             platform
             vks
             am

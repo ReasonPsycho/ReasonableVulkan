@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <glm/ext/matrix_transform.hpp>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include "platform.hpp"
 #include "assetManager/src/AssetManager.hpp"
 #include "ecs/Scene.h"
@@ -13,17 +13,18 @@
 
 
 int main(int argc, char *argv[]) {
-    am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
-    vks::VulkanRenderer *vulkanExample = new vks::VulkanRenderer(&assetManager);
-    engine::Engine engine = engine::Engine(vulkanExample,&assetManager);
-
     // 1. Initialize platform (SDL window, input, etc.)
     if (!platform::Init("My Game Engine", 1280, 720)) {
         return EXIT_FAILURE;
     }
 
-    platform::WindowInfo window_info = platform::GetWindowInfo();
-    vulkanExample->initialize(window_info.hwnd,1280, 720);
+    am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
+    vks::VulkanRenderer *vulkanExample = new vks::VulkanRenderer(&assetManager);
+    engine::Engine engine = engine::Engine(vulkanExample,&assetManager);
+
+
+
+    vulkanExample->initialize(platform::GetWindow(),1280, 720);
 
     /*
     // 3. Initialize the graphics abstraction
@@ -32,14 +33,12 @@ int main(int argc, char *argv[]) {
     // 4. Initialize game systems (ECS, scenes, etc.)
     auto scene = engine.CreateScene("Main scene");
 
-
     auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
     vulkanExample->loadModel(asset->get()->id);
 
     auto modelEntity = scene.get()->CreateEntity();
     setLocalScale(scene.get()->GetComponent<Transform>(modelEntity),{5,5,5});
     scene.get()->AddComponent<Model>(modelEntity,{asset->get()->id});
-
 
     float aspectRatio = 1280 / (float)720; // Use your window's width and height
     glm::mat4 projectionMatrix = glm::perspective(

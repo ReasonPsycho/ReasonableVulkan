@@ -17,7 +17,7 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
 # Find required dependencies
 message(STATUS "Searching for platform library dependencies")
-find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 
 # Create platform static library
 add_library(platform STATIC ${BASE_SRC})
@@ -32,7 +32,7 @@ target_include_directories(platform
 message(STATUS "Configuring platform library dependencies")
 target_link_libraries(platform 
     PRIVATE
-        SDL2::SDL2
+        SDL3::SDL3
 )
 
 # Configure tests

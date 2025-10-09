@@ -1,4 +1,6 @@
 #include "RenderManager.hpp"
+
+#include <imgui_impl_vulkan.h>
 #include <stdexcept>
 
 #include "../descriptorManager/modelDescriptor/ModelDescriptor.h"
@@ -128,6 +130,8 @@ void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 tr
 }
 
     void RenderManager::beginFrame() {
+
+
     // First wait for the previous frame to complete
     if (currentImageIndex != UINT32_MAX) {
         vkWaitForFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence, VK_TRUE, UINT64_MAX);
@@ -139,6 +143,11 @@ void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 tr
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("Failed to acquire swap chain image!");
     }
+
+#ifdef ENABLE_IMGUI
+    ImGui_ImplVulkan_NewFrame();
+    ImGui::NewFrame();
+#endif
 
     // Get the newly acquired image index from the swap chain manager
     currentImageIndex = swapChain->getCurrentImageIndex();
@@ -156,6 +165,13 @@ void RenderManager::renderFrame() {
     updateUniformBuffers(currentFrame);
     vkResetCommandBuffer(frameResources[currentFrame].commandBuffer, 0);
     recordCommandBuffer(frameResources[currentFrame].commandBuffer, currentImageIndex);
+
+#ifdef ENABLE_IMGUI
+    // Your ImGui commands here
+    ImGui::Begin("Demo Window");
+    ImGui::Text("Hello, Vulkan!");
+    ImGui::End();
+#endif
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -192,7 +208,14 @@ void RenderManager::renderFrame() {
 }
 
 void RenderManager::endFrame() {
-    // No longer need to do anything here as synchronization is handled in beginFrame
+#ifdef ENABLE_IMGUI
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Render();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable){
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
+#endif
 }
 
 
