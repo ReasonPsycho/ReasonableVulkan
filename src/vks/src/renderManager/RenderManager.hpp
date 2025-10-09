@@ -20,8 +20,8 @@ namespace vks {
     };
 
     class RenderManager {
+
 private:
-    static constexpr int MAX_FRAMES_IN_FLIGHT = 2;  // Double buffering
     struct FrameResource {
         VkCommandBuffer commandBuffer;
         VkSemaphore imageAvailableSemaphore;
@@ -40,6 +40,8 @@ private:
     std::vector<VkFence> imagesInFlight;
 
     public:
+        static constexpr int MAX_FRAMES_IN_FLIGHT = 2;  // Double buffering
+
         RenderManager(VulkanContext* context,
                      SwapChainManager* swapChain,
                      RenderPipelineManager* pipelineManager,

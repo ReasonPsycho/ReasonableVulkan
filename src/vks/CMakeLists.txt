@@ -5,9 +5,18 @@ cmake_policy(SET CMP0167 NEW)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(ENABLE_IMGUI)
+    add_compile_definitions(ENABLE_IMGUI)
+endif()
+
+if(PLATFORM_SDL3)
+    add_compile_definitions(PLATFORM_SDL3)
+endif()
+
 if(SPDLOG_DISABLE_LOGGING)
     add_compile_definitions(SPDLOG_DISABLE_LOGGING)
 endif()
+
 
 if(DEFINED SPDLOG_ACTIVE_LEVEL)
     add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
@@ -17,7 +26,7 @@ endif()
 message(STATUS "Searching for required packages for platform library")
 find_package(ktx CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
-find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -53,7 +62,7 @@ target_link_libraries(vks
         PUBLIC
         am
         KTX::ktx
-        SDL2::SDL2
+        SDL3::SDL3
         imgui::imgui
         glm::glm
         Vulkan::Vulkan

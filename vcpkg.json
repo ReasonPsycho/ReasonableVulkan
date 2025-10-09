@@ -18,7 +18,9 @@
     {
       "name": "imgui",
       "features": [
-        "docking-experimental"
+        "docking-experimental",
+        "vulkan-binding",
+        "sdl3-binding"
       ],
       "$comment": "vulkan-baseline, gameengine"
     },
@@ -51,7 +53,7 @@
       "$comment": "gameengine"
     },
     {
-      "name": "sdl2",
+      "name": "sdl3",
       "features": [
         "vulkan"
       ],

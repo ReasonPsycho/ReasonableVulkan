@@ -1,5 +1,8 @@
 
 #include "VulkanRenderer.h"
+
+#include <imgui.h>
+#include <imgui_impl_vulkan.h>
 #include "src/vulkanContext/Vulkancontext.hpp"
 #include "src/swapChainManager/SwapChainManager.hpp"
 #include "src/descriptorManager/DescriptorManager.h"
@@ -7,6 +10,9 @@
 #include "src/renderPipelineManager/RenderpipelineManager.hpp"
 #include <stdexcept>
 #include "src/descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderDescriptor.h"
+#include <SDL3/SDL_vulkan.h>
+
+#include "src/imguiManager/ImguiManager.hpp"
 
 namespace vks {
     class ModelDescriptor;
@@ -34,6 +40,14 @@ namespace vks {
             pipelineManager.get(),
             descriptorManager.get()
         );
+#if ENABLE_IMGUI
+        imguiManager = std::make_unique<ImguiManager>(
+        context.get(),
+        swapChain.get(),
+        pipelineManager.get(),
+        descriptorManager.get());
+#endif
+
     }
 
     VulkanRenderer::~VulkanRenderer() {
@@ -93,6 +107,11 @@ namespace vks {
 
         // Initialize render manager
         renderManager->initialize();
+
+#if ENABLE_IMGUI
+        imguiManager.get()->initialize(windowHandle);
+#endif
+
     }
 
     void VulkanRenderer::cleanup() {

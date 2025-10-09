@@ -6,10 +6,11 @@
 #include <libloaderapi.h>
 #include <limits>
 #include <stdexcept>
+#include <SDL3/SDL_video.h>
 #include <vulkan/vulkan_win32.h>
 
-#ifdef _WIN32
-    #include <windows.h>
+#if defined(PLATFORM_SDL3)
+#include <SDL3/SDL_vulkan.h>
 #endif
 
 namespace vks {
@@ -34,13 +35,12 @@ void SwapChainManager::cleanup() {
 }
 
 void SwapChainManager::createSurface(void* windowHandle) {
-#if defined(_WIN32)
-    VkWin32SurfaceCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = (HWND)windowHandle;
-    createInfo.hinstance = GetModuleHandle(nullptr);
+#if defined(PLATFORM_SDL3)
 
-    if (vkCreateWin32SurfaceKHR(context->getInstance(), &createInfo, nullptr, &surface) != VK_SUCCESS) {
+    if (!SDL_Vulkan_CreateSurface(reinterpret_cast<SDL_Window*>(windowHandle),context->getInstance(),
+                                      nullptr,
+                                      &surface))
+    {
         throw std::runtime_error("failed to create window surface!");
     }
 #endif
