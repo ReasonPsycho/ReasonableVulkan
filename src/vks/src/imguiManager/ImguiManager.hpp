@@ -31,9 +31,11 @@ namespace vks
         void createRenderPass();
         void cleanup();
         void createPipelineCache();
-    void initialize(void* windowHandle);
-    void createDescriptorPool();
-
+        void initialize(void* windowHandle);
+        void createDescriptorPool();
+        void imguiBeginFrame();
+        void imguiEndFrame();
+        void imguiRenderFrame(VkCommandBuffer commandBuffer,uint32_t imageIndex);
         VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
         VkCommandBuffer imguiCommandBuffer{VK_NULL_HANDLE};
         VkPipelineCache imguiPipelineCache{VK_NULL_HANDLE};

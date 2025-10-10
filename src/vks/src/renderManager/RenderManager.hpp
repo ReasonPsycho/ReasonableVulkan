@@ -9,6 +9,9 @@
 #include "../descriptorManager/DescriptorManager.h"
 
 namespace vks {
+#ifdef ENABLE_IMGUI
+    class ImguiManager;
+#endif
     class MeshDescriptor;
     struct NodeDescriptorStruct;
 
@@ -49,6 +52,9 @@ private:
         ~RenderManager();
 
         void initialize();
+        #ifdef ENABLE_IMGUI
+        void initializeImgui(ImguiManager* manager);
+        #endif
         void cleanup();
 
         // Core rendering functions
@@ -79,6 +85,10 @@ private:
         SwapChainManager* swapChain;
         RenderPipelineManager* pipelineManager;
         DescriptorManager* descriptorManager;
+
+#ifdef ENABLE_IMGUI
+        ImguiManager* imguiManager = nullptr;
+#endif
 
         struct ImageSyncData {
             VkSemaphore renderFinishedSemaphore;

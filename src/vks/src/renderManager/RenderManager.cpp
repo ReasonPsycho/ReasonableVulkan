@@ -1,9 +1,15 @@
 #include "RenderManager.hpp"
 
+#include <imgui_impl_sdl3.h>
 #include <imgui_impl_vulkan.h>
 #include <stdexcept>
 
 #include "../descriptorManager/modelDescriptor/ModelDescriptor.h"
+
+
+#ifdef ENABLE_IMGUI
+#include "../imguiManager/ImguiManager.hpp"
+#endif
 
 namespace vks {
 
@@ -12,9 +18,10 @@ RenderManager::RenderManager(VulkanContext* context,
                            RenderPipelineManager* pipelineManager,
                            DescriptorManager* descriptorManager)
     : context(context)
-    , swapChain(swapChain)
-    , pipelineManager(pipelineManager)
-    , descriptorManager(descriptorManager) {
+      , swapChain(swapChain)
+      , pipelineManager(pipelineManager)
+      , descriptorManager(descriptorManager)
+{
 }
 
 RenderManager::~RenderManager() {
@@ -25,6 +32,13 @@ void RenderManager::initialize() {
     createCommandBuffers();
     createSyncObjects();
 }
+
+#ifdef ENABLE_IMGUI
+void RenderManager::initializeImgui(ImguiManager* manager)
+{
+    imguiManager = manager;
+}
+#endif
 
 void RenderManager::createSyncObjects() {
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -145,9 +159,10 @@ void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 tr
     }
 
 #ifdef ENABLE_IMGUI
-    ImGui_ImplVulkan_NewFrame();
-    ImGui::NewFrame();
+    imguiManager->imguiBeginFrame();
 #endif
+
+
 
     // Get the newly acquired image index from the swap chain manager
     currentImageIndex = swapChain->getCurrentImageIndex();
@@ -164,14 +179,14 @@ void RenderManager::renderFrame() {
     // Update uniform buffers and record command buffer
     updateUniformBuffers(currentFrame);
     vkResetCommandBuffer(frameResources[currentFrame].commandBuffer, 0);
+
+    #ifdef ENABLE_IMGUI
+        imguiManager->imguiEndFrame();
+    #endif
+
     recordCommandBuffer(frameResources[currentFrame].commandBuffer, currentImageIndex);
 
-#ifdef ENABLE_IMGUI
-    // Your ImGui commands here
-    ImGui::Begin("Demo Window");
-    ImGui::Text("Hello, Vulkan!");
-    ImGui::End();
-#endif
+
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -205,17 +220,11 @@ void RenderManager::renderFrame() {
     }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
 }
 
 void RenderManager::endFrame() {
-#ifdef ENABLE_IMGUI
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::Render();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable){
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-    }
-#endif
+
 }
 
 
@@ -304,6 +313,12 @@ void RenderManager::endFrame() {
     //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getSkyboxPipeline());
 
     vkCmdEndRenderPass(commandBuffer);
+
+
+
+#ifdef ENABLE_IMGUI
+    imguiManager->imguiRenderFrame(commandBuffer,imageIndex);
+#endif
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("Failed to record command buffer!");

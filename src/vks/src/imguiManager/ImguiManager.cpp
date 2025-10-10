@@ -9,6 +9,7 @@
 
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../swapChainManager/SwapChainManager.hpp"
+#include "../renderPipelineManager/RenderPipelineManager.hpp"
 
 namespace vks
 {
@@ -22,8 +23,16 @@ namespace vks
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::GetStyle().WindowRounding = 0.0f;
+            ImGui::GetStyle().Colors[ImGuiCol_WindowBg].w = 1.0f;
+        }
+
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
         // Create command buffer for ImGui rendering
         VkCommandBufferAllocateInfo allocInfo{};
@@ -83,6 +92,41 @@ namespace vks
             throw std::runtime_error("failed to create descriptor pool!");
     }
 
+    void ImguiManager::imguiBeginFrame()
+    {
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+    }
+
+    void ImguiManager::imguiEndFrame()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::Render();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable){
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
+    }
+
+    void ImguiManager::imguiRenderFrame(VkCommandBuffer commandBuffer,uint32_t imageIndex)
+    {
+        // Remove ImGui::Render() from here - it should be in endFrame()
+        VkRenderPassBeginInfo imguiRenderPassInfo{};
+        imguiRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        imguiRenderPassInfo.renderPass = imguiRenderPass;
+        imguiRenderPassInfo.framebuffer = pipelineManager->getFramebuffer(imageIndex);
+        imguiRenderPassInfo.renderArea.offset = {0, 0};
+        imguiRenderPassInfo.renderArea.extent = swapChain->getSwapChainExtent();
+        imguiRenderPassInfo.clearValueCount = 0;
+        imguiRenderPassInfo.pClearValues = nullptr;
+
+        vkCmdBeginRenderPass(commandBuffer, &imguiRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+        vkCmdEndRenderPass(commandBuffer);
+    }
+
     void vks::ImguiManager::createPipelineCache()
     {
         VkPipelineCacheCreateInfo pipelineCacheInfo{};
@@ -93,57 +137,66 @@ namespace vks
         }
     }
 
+
     ImguiManager::ImguiManager(vks::VulkanContext* context, vks::SwapChainManager* swapChain,
-        vks::RenderPipelineManager* pipelineManager, vks::DescriptorManager* descriptorManager):
-        context(context), swapChain(swapChain), pipelineManager(pipelineManager), descriptorManager(descriptorManager)
+        vks::RenderPipelineManager* pipelineManager, vks::DescriptorManager* descriptorManager) : context(context),
+        swapChain(swapChain),
+        pipelineManager(pipelineManager), descriptorManager(
+            descriptorManager)
     {
     }
 
     void vks::ImguiManager::createRenderPass()
-    {
-        VkAttachmentDescription attachment = {};
-        attachment.format = swapChain->getSwapChainImageFormat();
-        attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-        attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+{
+    std::array<VkAttachmentDescription, 2> attachments = {};
 
-        VkAttachmentReference color_attachment = {};
-        color_attachment.attachment = 0;
-        color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    // Color attachment
+    attachments[0].format = swapChain->getSwapChainImageFormat();
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;  // Load existing content
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  // Initial layout matches the previous pass's final layout
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        VkSubpassDescription subpass = {};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &color_attachment;
+    // Depth attachment
+    attachments[1].format = VK_FORMAT_D32_SFLOAT;
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;  // Load existing depth
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-        VkSubpassDependency dependency = {};
-        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.srcAccessMask = 0;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkAttachmentReference colorAttachmentRef = {};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        VkRenderPassCreateInfo info = {};
-        info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        info.attachmentCount = 1;
-        info.pAttachments = &attachment;
-        info.subpassCount = 1;
-        info.pSubpasses = &subpass;
-        info.dependencyCount = 1;
-        info.pDependencies = &dependency;
+    VkAttachmentReference depthAttachmentRef = {};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-        if (vkCreateRenderPass(context->getDevice(), &info, nullptr, &imguiRenderPass) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create ImGui render pass!");
-        }
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+    VkRenderPassCreateInfo renderPassInfo = {};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    renderPassInfo.pAttachments = attachments.data();
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 0;
+    renderPassInfo.pDependencies = nullptr;
+
+    if (vkCreateRenderPass(context->getDevice(), &renderPassInfo, nullptr, &imguiRenderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create ImGui render pass!");
     }
-
-
-    void vks::ImguiManager::cleanup()
+}    void vks::ImguiManager::cleanup()
     {
         if (imguiFramebuffer != VK_NULL_HANDLE) {
             vkDestroyFramebuffer(context->getDevice(), imguiFramebuffer, nullptr);

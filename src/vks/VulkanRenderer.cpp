@@ -46,6 +46,7 @@ namespace vks {
         swapChain.get(),
         pipelineManager.get(),
         descriptorManager.get());
+        renderManager->initializeImgui(imguiManager.get());
 #endif
 
     }
