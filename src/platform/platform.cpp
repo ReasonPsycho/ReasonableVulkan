@@ -4,6 +4,8 @@
 
 #include "platform.hpp"
 
+#include <imgui_impl_sdl3.h>
+
 namespace platform {
     static SDL_Window* window = nullptr;
     static SDL_Event event;
@@ -36,6 +38,9 @@ namespace platform {
 
     void PollEvents(bool& running) {
         while (SDL_PollEvent(&event)) {
+
+            ImGui_ImplSDL3_ProcessEvent(&event);
+
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             }

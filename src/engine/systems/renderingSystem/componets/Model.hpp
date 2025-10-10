@@ -6,9 +6,11 @@
 #define REASONABLEVULKAN_MODEL_HPP
 #include <boost/uuid/uuid.hpp>
 
+#include "ecs/Component.hpp"
+
 namespace engine::ecs
 {
-    struct Model
+    struct Model : public Component
     {
         boost::uuids::uuid modelUuid;
     };

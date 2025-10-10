@@ -447,6 +447,8 @@ VkResult VulkanContext::createInstance() {
         enabledExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
     #endif
 
+
+
     if (enableValidation) {
         enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         enabledExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);  // Add this line

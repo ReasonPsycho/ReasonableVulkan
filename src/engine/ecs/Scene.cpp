@@ -4,8 +4,9 @@
 #include "Types.h"
 #include "../systems/transformSystem/componets/Transform.h"
 #include "Scene.h"
-
 #include "tracy/Tracy.hpp"
+#include "systems/editorSystem/EditorSystem.hpp"
+
 
 
 using namespace engine::ecs;
@@ -102,6 +103,13 @@ Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
     entitySignatures[entity] = signature;
 
     activeEntities.set(entity, true);
+    return entity;
+}
+
+Entity Scene::CreateEntity(std::string entityName, Transform transform,  Entity parentEntity)
+{
+    auto entity = CreateEntity(transform,parentEntity);
+    GetSystem<engine::ecs::EditorSystem>().get()->SetEntityName(entity,entityName);
     return entity;
 }
 

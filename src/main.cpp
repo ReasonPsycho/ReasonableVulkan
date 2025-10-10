@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
     vulkanExample->loadModel(asset->get()->id);
 
-    auto modelEntity = scene.get()->CreateEntity();
+    auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<Transform>(modelEntity),{5,5,5});
     scene.get()->AddComponent<Model>(modelEntity,{asset->get()->id});
 
@@ -57,8 +57,11 @@ int main(int argc, char *argv[]) {
     // Set light position above and slightly in front of the model
     glm::vec4 lightPosition = glm::vec4(0.0f, 5.0f, 2.0f,1.0f);
 
-    auto cameraEntity = scene.get()->CreateEntity();
+    auto cameraEntity = scene.get()->CreateEntity("Camera");
     scene.get()->AddComponent<Camera>(cameraEntity,{projectionMatrix,viewMatrix,lightPosition});
+
+    scene.get()->CreateEntity(); //Empty
+
 
     // 5. Main loop
     bool running = true;

@@ -18,8 +18,10 @@
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
+#include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/transformSystem/TransformSystem.h"
 #include "systems/renderingSystem/RenderSystem.h"
+#include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/renderingSystem/componets/Camera.hpp"
 #include "systems/renderingSystem/componets/Model.hpp"
 
@@ -31,17 +33,19 @@ namespace engine::ecs
 
         explicit Scene(Engine& engine) : engine(engine)
         {
-            RegisterIntegralComponent<Transform>();
-            RegisterSystem<TransformSystem>();
-            RegisterComponent<Model>();
+            RegisterComponent<Model>(); //For some reason I have to register them in reverse
             RegisterComponent<Camera>();
             RegisterSystem<RenderSystem>();
+            RegisterSystem<EditorSystem>();
+            RegisterIntegralComponent<Transform>();
+            RegisterSystem<TransformSystem>();
         }
 
         void Update(float deltaTime);
 
         //Entity
         Entity CreateEntity(Transform transform = {},Entity parentEntity = -1);
+        Entity CreateEntity(std::string entityName,Transform transform = {},Entity parentEntity = -1);
 
         void DestroyEntity(Entity entity);
 
