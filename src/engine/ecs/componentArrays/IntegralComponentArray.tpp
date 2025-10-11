@@ -45,6 +45,13 @@ std::array<T, MAX_ENTITIES>& IntegralComponentArray<T>::GetComponents() {
     return componentArray;
 }
 
+template <typename T>
+Component& IntegralComponentArray<T>::GetComponentUntyped(Entity entity)
+{
+    assert(entity < MAX_ENTITIES);
+    return componentArray[entity];
+}
+
 // Untyped overrides
 template <typename T>
 void IntegralComponentArray<T>::RemoveComponentUntyped(Entity entity) {

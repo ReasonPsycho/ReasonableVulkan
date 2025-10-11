@@ -1,13 +1,20 @@
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
 
+#include <imgui.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+#include "ecs/Component.hpp"
+#include "systems/editorSystem/ImGui_GLM_Helpers.hpp"
+
 namespace engine::ecs
 {
-    struct Transform
+    struct Transform;
+    inline void setLocalRotationFromEulerDegrees(Transform& t, const glm::vec3& eulerDegrees);
+
+    struct Transform: public Component
     {
         glm::vec3 position;
         glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
@@ -17,6 +24,33 @@ namespace engine::ecs
         glm::mat4 globalMatrix = glm::mat4(1.0f);  // local to world
 
         bool isDirty = true;
+
+        void ImGuiComponent() override
+        {
+            if (ImGui::DragVec3("Position", position, 0.1f))
+            {
+                isDirty = true;
+            }
+
+            // For rotation, we'll show it as Euler angles in degrees for easier editing
+            glm::vec3 eulerDegrees = glm::degrees(glm::eulerAngles(rotation));
+            if (ImGui::DragVec3("Rotation", eulerDegrees, 1.0f))
+            {
+                setLocalRotationFromEulerDegrees(*this, eulerDegrees);
+            }
+
+            if (ImGui::DragVec3("Scale", scale, 0.1f))
+            {
+                isDirty = true;
+            }
+
+            if (ImGui::TreeNode("Matrices"))
+            {
+                ImGui::DisplayMat4("Local Matrix", localMatrix);
+                ImGui::DisplayMat4("Global Matrix", globalMatrix);
+                ImGui::TreePop();
+            }
+        }
     };
 
     // Utility

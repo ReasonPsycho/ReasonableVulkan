@@ -23,6 +23,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "PLATFORM_SDL3": "ON",
+        "EDITOR_ENABLED": "ON",
         "GFX_ENABLE_TESTS": "ON",
         "PLATFORM_ENABLE_TESTS": "ON",
         "ENABLE_INTEGRATION_TESTS": "ON",

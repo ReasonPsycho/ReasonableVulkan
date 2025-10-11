@@ -24,6 +24,7 @@ namespace engine::ecs{
         const std::array<T, MAX_COMPONENTS_ARRAY>& GetComponents() const;
 
         //Untyped interface overrides
+        Component& GetComponentUntyped(Entity entity)  override;
         void RemoveComponentUntyped(Entity entity) override;
         bool HasComponentUntyped(Entity entity) const override;
         void SetComponentActiveUntyped(Entity entity, bool active) override;

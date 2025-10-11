@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
 
     auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<Transform>(modelEntity),{5,5,5});
-    scene.get()->AddComponent<Model>(modelEntity,{asset->get()->id});
+    scene.get()->AddComponent<Model>(modelEntity,Model(asset->get()->id));
 
     float aspectRatio = 1280 / (float)720; // Use your window's width and height
     glm::mat4 projectionMatrix = glm::perspective(

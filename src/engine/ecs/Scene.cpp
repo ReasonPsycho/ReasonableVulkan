@@ -12,6 +12,13 @@
 using namespace engine::ecs;
 
 
+
+size_t Scene::RegisteredComponentsSize() const
+{
+    return componentArrays.size();
+}
+
+
 std::type_index Scene::GetTypeFromIndex(std::size_t index) const
 {
     auto it = indexToType.find(index);
@@ -26,6 +33,11 @@ void Scene::Update(float deltaTime) {
         system->Update(deltaTime);
     }
     engine.graphicsEngine->endFrame();
+}
+
+const std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> Scene::GetSystems()
+{
+    return systems;
 }
 
 void Scene::SetParent(Entity child, Entity parent) {
@@ -141,4 +153,9 @@ void Scene::SetEntityActive(Entity entity, bool active)
 bool Scene::IsEntityActive(Entity entity) const
 {
     return activeEntities[entity];
+}
+
+std::unordered_map<std::type_index, std::shared_ptr<IComponentArray>> Scene::GetComponentArrays()
+{
+    return componentArrays;
 }
