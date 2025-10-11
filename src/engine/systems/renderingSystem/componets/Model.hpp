@@ -21,7 +21,10 @@ namespace engine::ecs
         explicit Model(boost::uuids::uuid id) : modelUuid(id) {}
         void ImGuiComponent() override
         {
-            ImGui::Text("Model UUID: %s", boost::uuids::to_string(modelUuid).c_str());
+            if (ImGui::CollapsingHeader("Model"))
+            {
+                ImGui::Text("UUID: %s", boost::uuids::to_string(modelUuid).c_str());
+            }
         }
     };
 }
