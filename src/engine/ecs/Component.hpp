@@ -9,7 +9,10 @@ struct Component
 {
 public:
     virtual ~Component() = default;
+
+#ifdef EDITOR_ENABLED
     virtual void ImGuiComponent() = 0;
+#endif
 };
 
 

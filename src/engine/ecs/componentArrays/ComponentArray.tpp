@@ -81,7 +81,7 @@ std::size_t ComponentArray<T>::GetArraySize() const
 }
 
 template <typename T>
-const std::array<T, MAX_COMPONENTS_ARRAY>& ComponentArray<T>::GetComponents() const
+ std::array<T, MAX_COMPONENTS_ARRAY>& ComponentArray<T>::GetComponents()
 {
     return componentArray;
 }

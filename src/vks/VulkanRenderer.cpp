@@ -141,6 +141,12 @@ namespace vks {
 
         // Recreate framebuffers
         pipelineManager->createFramebuffers(swapChain->getImageViews(),
-                                          swapChain->getSwapChainExtent());
+        swapChain->getSwapChainExtent());
+
+#if ENABLE_IMGUI
+        // Update ImGui display size
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
+#endif
     }
 } // namespace vks

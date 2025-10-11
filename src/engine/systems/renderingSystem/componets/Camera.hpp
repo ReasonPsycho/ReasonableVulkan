@@ -1,10 +1,8 @@
-//
-// Created by redkc on 05/08/2025.
-//
 
 #ifndef CAMERA_H
 #define CAMERA_H
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
 #include "ecs/Component.hpp"
 
@@ -12,23 +10,140 @@ namespace engine::ecs
 {
     struct Camera : public Component
     {
-        glm::mat4 projection;
-        glm::mat4 view;
-        glm::vec4 lightpos;
+        // Camera parameters
+        float fov = 45.0f;
+        float aspectRatio = 1.77f;  // 16:9 by default
+        float nearPlane = 0.1f;
+        float farPlane = 1000.0f;
+        
+        // Cached matrices
+        glm::mat4 projection{1.0f};
+        glm::mat4 view{1.0f};
+        glm::vec4 lightpos{0.0f};
 
-        Camera()
-    : projection(glm::mat4(1.0f))  // Identity matrix
-    , view(glm::mat4(1.0f))        // Identity matrix
-    , lightpos(glm::vec4(0.0f))       // Zero vector
-{}
-        Camera(const glm::mat4& projection, const glm::mat4& view, const glm::vec4& light)
-            : projection(projection), view(view), lightpos(light) {}
+        bool isDirty = true;
+#ifdef EDITOR_ENABLED
+
         void ImGuiComponent() override {
             if (ImGui::CollapsingHeader("Camera"))
             {
+                bool changed = false;
+                changed |= ImGui::SliderFloat("FOV", &fov, 1.0f, 120.0f);
+                changed |= ImGui::DragFloat("Aspect Ratio", &aspectRatio, 0.01f, 0.1f, 10.0f);
+                changed |= ImGui::DragFloat("Near Plane", &nearPlane, 0.01f, 0.001f, farPlane);
+                changed |= ImGui::DragFloat("Far Plane", &farPlane, 1.0f, nearPlane, 10000.0f);
 
+                if (changed) {
+                    isDirty = true;
+                }
+
+                if (ImGui::TreeNode("Matrices"))
+                {
+                    ImGui::Text("View Matrix:");
+                    for (int i = 0; i < 4; i++) {
+                        ImGui::Text("%.2f %.2f %.2f %.2f", 
+                            view[i][0], view[i][1], view[i][2], view[i][3]);
+                    }
+                    
+                    ImGui::Text("\nProjection Matrix:");
+                    for (int i = 0; i < 4; i++) {
+                        ImGui::Text("%.2f %.2f %.2f %.2f", 
+                            projection[i][0], projection[i][1], projection[i][2], projection[i][3]);
+                    }
+                    ImGui::TreePop();
+                }
             }
         }
+#endif
     };
+
+    // Utility functions
+    inline void updateProjectionMatrix(Camera& camera)
+    {
+        camera.projection = glm::perspective(glm::radians(camera.fov), 
+                                          camera.aspectRatio, 
+                                          camera.nearPlane, 
+                                          camera.farPlane);
+        camera.isDirty = false;
+    }
+
+    inline void updateViewMatrix(Camera& camera, const glm::mat4& transformMatrix)
+    {
+        camera.view = glm::inverse(transformMatrix);
+    }
+
+    // Setters
+    inline void setFov(Camera& camera, float fov)
+    {
+        camera.fov = fov;
+        camera.isDirty = true;
+    }
+
+    inline void setAspectRatio(Camera& camera, float aspectRatio)
+    {
+        camera.aspectRatio = aspectRatio;
+        camera.isDirty = true;
+    }
+
+    inline void setNearPlane(Camera& camera, float nearPlane)
+    {
+        camera.nearPlane = nearPlane;
+        camera.isDirty = true;
+    }
+
+    inline void setFarPlane(Camera& camera, float farPlane)
+    {
+        camera.farPlane = farPlane;
+        camera.isDirty = true;
+    }
+
+    inline void setLightPosition(Camera& camera, const glm::vec4& lightPos)
+    {
+        camera.lightpos = lightPos;
+    }
+
+    // Getters
+    inline float getFov(const Camera& camera)
+    {
+        return camera.fov;
+    }
+
+    inline float getAspectRatio(const Camera& camera)
+    {
+        return camera.aspectRatio;
+    }
+
+    inline float getNearPlane(const Camera& camera)
+    {
+        return camera.nearPlane;
+    }
+
+    inline float getFarPlane(const Camera& camera)
+    {
+        return camera.farPlane;
+    }
+
+    inline const glm::mat4& getProjectionMatrix(Camera& camera)
+    {
+        if (camera.isDirty) {
+            updateProjectionMatrix(camera);
+        }
+        return camera.projection;
+    }
+
+    inline const glm::mat4& getViewMatrix(const Camera& camera)
+    {
+        return camera.view;
+    }
+
+    inline const glm::vec4& getLightPosition(const Camera& camera)
+    {
+        return camera.lightpos;
+    }
+
+    inline bool isDirty(const Camera& camera)
+    {
+        return camera.isDirty;
+    }
 }
 #endif //CAMERA_H
