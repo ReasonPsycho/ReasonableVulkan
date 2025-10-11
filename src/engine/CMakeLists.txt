@@ -8,6 +8,10 @@ if(ENABLE_IMGUI)
     add_compile_definitions(ENABLE_IMGUI)
 endif()
 
+if(EDITOR_ENABLED)
+    add_compile_definitions(EDITOR_ENABLED)
+endif()
+
 if(SPDLOG_DISABLE_LOGGING)
     add_compile_definitions(SPDLOG_DISABLE_LOGGING)
 endif()

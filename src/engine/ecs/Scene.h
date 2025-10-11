@@ -33,10 +33,14 @@ namespace engine::ecs
 
         explicit Scene(Engine& engine) : engine(engine)
         {
+            RegisterSystem<RenderSystem>();
+
+#ifdef EDITOR_ENABLED
+            RegisterSystem<EditorSystem>();
+#endif
             RegisterComponent<Model>(); //For some reason I have to register them in reverse
             RegisterComponent<Camera>();
-            RegisterSystem<RenderSystem>();
-            RegisterSystem<EditorSystem>();
+
             RegisterIntegralComponent<Transform>();
             RegisterSystem<TransformSystem>();
         }
@@ -60,6 +64,9 @@ namespace engine::ecs
         template<typename T>
         void RegisterComponent();
 
+       std::unordered_map<std::type_index, std::shared_ptr<IComponentArray>> GetComponentArrays();
+
+
         template<typename T>
         std::shared_ptr<ComponentArray<T>> GetComponentArray();
 
@@ -74,6 +81,8 @@ namespace engine::ecs
 
         template<typename T>
         auto GetComponent(Entity entity) -> T&;
+
+        size_t RegisteredComponentsSize() const;
 
         template<typename T>
         bool HasComponent(Entity entity);
@@ -91,6 +100,8 @@ namespace engine::ecs
 
         template<typename T>
         std::shared_ptr<T> GetSystem();
+
+        const      std::unordered_map<std::type_index, std::shared_ptr<SystemBase>>GetSystems();
 
         //Scene Graph
         void SetParent(Entity child, Entity parent);

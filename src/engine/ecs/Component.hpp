@@ -7,7 +7,9 @@
 
 struct Component
 {
-
+public:
+    virtual ~Component() = default;
+    virtual void ImGuiComponent() = 0;
 };
 
 

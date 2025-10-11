@@ -41,6 +41,13 @@ T& ComponentArray<T>::GetComponent(Entity entity)
 }
 
 template <typename T>
+Component& ComponentArray<T>::GetComponentUntyped(Entity entity) {
+    auto it = entityToIndexMap.find(entity);
+    assert(it != entityToIndexMap.end() && "Entity does not have this component");
+    return const_cast<Component&>(reinterpret_cast<const Component&>(componentArray[it->second]));
+}
+
+template <typename T>
 bool ComponentArray<T>::HasComponent(Entity entity) const
 {
     return entityToIndexMap.find(entity) != entityToIndexMap.end();

@@ -6,9 +6,34 @@
 #include <imgui.h>
 #include "ecs/Scene.h"
 
+void EditorSystem::ImGuiInspector()
+{
+    ImGui::Begin("Inspector");
+    auto name = GetEntityName(selectedEntity);
+    ImGui::Text("Selected: %s", name.c_str());
+
+
+    auto componentArrays = scene->GetComponentArrays();
+
+    for (auto& [_, array] : componentArrays)
+    {
+        if (array.get()->HasComponentUntyped(selectedEntity))
+        {
+            array.get()->GetComponentUntyped(selectedEntity).ImGuiComponent();
+        }
+    }
+
+    ImGui::End();
+}
+
 void engine::ecs::EditorSystem::Update(float deltaTime)
 {
-    ShowSceneGraph();
+    ImGuiSceneGraph();
+if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
+{
+    ImGuiInspector();
+}
+
     ImGui::ShowDemoWindow();
 }
 
@@ -21,38 +46,62 @@ void EditorSystem::SetEntityName(Entity entity, const std::string& name)
     }
 }
 
-std::string_view EditorSystem::GetEntityName(Entity entity) const
+std::string EditorSystem::GetEntityName(Entity entity) const
 {
     auto it = named_entities.find(entity);
-    return it != named_entities.end() ? it->second : "Entity " + std::to_string(entity);
+    return it != named_entities.end() ? "(#" + std::to_string(entity) + ") " + it->second : "(#" + std::to_string(entity) +") Entity";
 }
 
-void engine::ecs::EditorSystem::ShowSceneGraph()
+void engine::ecs::EditorSystem::ImGuiSceneGraph()
 {
     ImGui::Begin("Scene graph");
 
     for (Entity root : scene->rootEntities)
     {
-        ShowEntity(root);
+        ImGuiGraphEntity(root);
     }
-
     ImGui::End();
 }
 
-void EditorSystem::ShowEntity(Entity entity)
+void EditorSystem::ImGuiGraphEntity(Entity entity)
 {
-    auto name = GetEntityName(entity);
-    ImGui::TextUnformatted(name.data(), name.data() + name.length());
-
+    std::string nameStr = GetEntityName(entity);
     auto it = scene->sceneGraph.find(entity);
-    if (it != scene->sceneGraph.end())
-    {
-        for (Entity child : it->second.children)
+    bool hasChildren = it != scene->sceneGraph.end() && !it->second.children.empty();
+
+    ImGuiTreeNodeFlags flags = hasChildren ? 0 : ImGuiTreeNodeFlags_Leaf;
+    flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+
+    // Add selection flag if this entity is selected
+    if (entity == selectedEntity) {
+        flags |= ImGuiTreeNodeFlags_Selected;
+    }
+
+    bool nodeOpen = ImGui::TreeNodeEx(nameStr.c_str(), flags, "%s", nameStr.c_str());
+
+    // Handle selection when clicked
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+        if (selectedEntity == entity)
         {
-            ShowEntity(child);
+            selectedEntity = std::numeric_limits<std::uint32_t>::max();
+        }else
+        {
+        selectedEntity = entity;
         }
     }
 
+    if (nodeOpen) {
+        ImGui::Indent();
+
+        if (hasChildren)
+        {
+            for (Entity child : it->second.children)
+            {
+                ImGuiGraphEntity(child);
+            }
+        }
+
+        ImGui::Unindent();
+        ImGui::TreePop();
+    }
 }
-
-
