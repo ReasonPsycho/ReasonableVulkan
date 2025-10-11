@@ -24,7 +24,10 @@ namespace engine::ecs
         Camera(const glm::mat4& projection, const glm::mat4& view, const glm::vec4& light)
             : projection(projection), view(view), lightpos(light) {}
         void ImGuiComponent() override {
-            ImGui::Text("Camera");
+            if (ImGui::CollapsingHeader("Camera"))
+            {
+
+            }
         }
     };
 }

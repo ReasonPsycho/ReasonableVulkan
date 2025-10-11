@@ -27,28 +27,31 @@ namespace engine::ecs
 
         void ImGuiComponent() override
         {
-            if (ImGui::DragVec3("Position", position, 0.1f))
+            if (ImGui::CollapsingHeader("Transform"))
             {
-                isDirty = true;
-            }
+                if (ImGui::DragVec3("Position", position, 0.1f))
+                {
+                    isDirty = true;
+                }
 
-            // For rotation, we'll show it as Euler angles in degrees for easier editing
-            glm::vec3 eulerDegrees = glm::degrees(glm::eulerAngles(rotation));
-            if (ImGui::DragVec3("Rotation", eulerDegrees, 1.0f))
-            {
-                setLocalRotationFromEulerDegrees(*this, eulerDegrees);
-            }
+                // For rotation, we'll show it as Euler angles in degrees for easier editing
+                glm::vec3 eulerDegrees = glm::degrees(glm::eulerAngles(rotation));
+                if (ImGui::DragVec3("Rotation", eulerDegrees, 1.0f))
+                {
+                    setLocalRotationFromEulerDegrees(*this, eulerDegrees);
+                }
 
-            if (ImGui::DragVec3("Scale", scale, 0.1f))
-            {
-                isDirty = true;
-            }
+                if (ImGui::DragVec3("Scale", scale, 0.1f))
+                {
+                    isDirty = true;
+                }
 
-            if (ImGui::TreeNode("Matrices"))
-            {
-                ImGui::DisplayMat4("Local Matrix", localMatrix);
-                ImGui::DisplayMat4("Global Matrix", globalMatrix);
-                ImGui::TreePop();
+                if (ImGui::TreeNode("Matrices"))
+                {
+                    ImGui::DisplayMat4("Local Matrix", localMatrix);
+                    ImGui::DisplayMat4("Global Matrix", globalMatrix);
+                    ImGui::TreePop();
+                }
             }
         }
     };
