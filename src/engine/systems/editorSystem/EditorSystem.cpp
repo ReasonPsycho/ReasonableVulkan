@@ -5,36 +5,98 @@
 #include "EditorSystem.hpp"
 #include <imgui.h>
 #include "ecs/Scene.h"
+#include <imgui_internal.h>
 
 void EditorSystem::ImGuiInspector()
 {
     ImGui::Begin("Inspector");
-    auto name = GetEntityName(selectedEntity);
-    ImGui::Text("Selected: %s", name.c_str());
-
-
-    auto componentArrays = scene->GetComponentArrays();
-
-    for (auto& [_, array] : componentArrays)
+    if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
     {
-        if (array.get()->HasComponentUntyped(selectedEntity))
+        auto name = GetEntityName(selectedEntity);
+        ImGui::Text("Selected: %s", name.c_str());
+
+
+        auto componentArrays = scene->GetComponentArrays();
+
+        for (auto& [_, array] : componentArrays)
         {
-            array.get()->GetComponentUntyped(selectedEntity).ImGuiComponent();
+            if (array.get()->HasComponentUntyped(selectedEntity))
+            {
+                array.get()->GetComponentUntyped(selectedEntity).ImGuiComponent();
+            }
         }
     }
-
     ImGui::End();
 }
 
+
+
+
+
 void engine::ecs::EditorSystem::Update(float deltaTime)
 {
-    ImGuiSceneGraph();
-if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
-{
-    ImGuiInspector();
-}
+    // Create the docking space with transparent background
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+                                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                  ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
 
-    ImGui::ShowDemoWindow();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+    ImGui::Begin("DockSpace", nullptr, window_flags);
+    ImGui::PopStyleVar(3);
+
+    ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+
+    // Set up the default docking layout (only once)
+    static bool first_time = true;
+    if (first_time)
+    {
+        first_time = false;
+        ImGui::DockBuilderRemoveNode(dockspace_id);
+        ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
+        ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+
+        // Define the splitting setup
+        ImGuiID dock_main_id = dockspace_id;
+        ImGuiID dock_left = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+        ImGuiID dock_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
+        ImGuiID dock_top = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 0.1f, nullptr, &dock_main_id);
+        ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.1f, nullptr, &dock_main_id);
+
+        // Dock the windows
+        ImGui::DockBuilderDockWindow("Scene graph", dock_left);
+        ImGui::DockBuilderDockWindow("Inspector", dock_right);
+        ImGui::DockBuilderDockWindow("Toolbar", dock_top);
+        ImGui::DockBuilderDockWindow("Menu", dock_bottom);
+
+        ImGui::DockBuilderFinish(dockspace_id);
+    }
+
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+
+    // Create the windows
+    ImGui::Begin("Toolbar");
+    ImGui::Text("Toolbar Content");
+    // Add your toolbar buttons/content here
+    ImGui::End();
+
+    ImGui::Begin("Menu");
+    ImGui::Text("Menu Content");
+    // Add your menu content here
+    ImGui::End();
+
+    ImGuiSceneGraph();
+    ImGuiInspector();
+
+    ImGui::End();
 }
 
 void EditorSystem::SetEntityName(Entity entity, const std::string& name)

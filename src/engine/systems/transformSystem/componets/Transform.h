@@ -25,6 +25,7 @@ namespace engine::ecs
 
         bool isDirty = true;
 
+#ifdef EDITOR_ENABLED
         void ImGuiComponent() override
         {
             if (ImGui::CollapsingHeader("Transform"))
@@ -54,6 +55,8 @@ namespace engine::ecs
                 }
             }
         }
+#endif
+
     };
 
     // Utility

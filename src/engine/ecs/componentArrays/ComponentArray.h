@@ -21,7 +21,7 @@ namespace engine::ecs{
         bool IsComponentActive(Entity entity) const;
         Entity ComponentIndexToEntity(ComponentIndex index) const;
         std::size_t GetArraySize() const;
-        const std::array<T, MAX_COMPONENTS_ARRAY>& GetComponents() const;
+        std::array<T, MAX_COMPONENTS_ARRAY>& GetComponents();
 
         //Untyped interface overrides
         Component& GetComponentUntyped(Entity entity)  override;
