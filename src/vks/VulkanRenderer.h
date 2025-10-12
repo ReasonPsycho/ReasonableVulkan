@@ -1,3 +1,4 @@
+
 #pragma once
 #include <memory>
 #include <glm/detail/type_mat4x4.hpp>
@@ -10,6 +11,8 @@ namespace am
 {
 	class AssetManagerInterface;
 }
+
+class PlatformInterface;
 
 namespace vks {
 	class RenderManager;
@@ -32,7 +35,7 @@ namespace vks {
 		void renderFrame() override;
 		void endFrame() override;
 
-		void initialize(void* windowHandle, uint32_t width, uint32_t height) override;
+		void initialize(PlatformInterface* platform, uint32_t width, uint32_t height) override;
 
 		void cleanup();
 		void waitIdle();
@@ -44,10 +47,11 @@ namespace vks {
 		std::unique_ptr<DescriptorManager> descriptorManager;
 		std::unique_ptr<RenderPipelineManager> pipelineManager;
 		std::unique_ptr<RenderManager> renderManager;
+		PlatformInterface* platformInterface;
 
+		bool running = true; //For minimalization for example
 #if ENABLE_IMGUI
 		std::unique_ptr<ImguiManager> imguiManager;
 #endif
-
 	};
 }

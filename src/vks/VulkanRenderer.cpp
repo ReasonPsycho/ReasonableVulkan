@@ -2,7 +2,6 @@
 #include "VulkanRenderer.h"
 
 #include <imgui.h>
-#include <imgui_impl_vulkan.h>
 #include "src/vulkanContext/Vulkancontext.hpp"
 #include "src/swapChainManager/SwapChainManager.hpp"
 #include "src/descriptorManager/DescriptorManager.h"
@@ -12,6 +11,7 @@
 #include "src/descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderDescriptor.h"
 #include <SDL3/SDL_vulkan.h>
 
+#include "include/PlatformInterface.hpp"
 #include "src/imguiManager/ImguiManager.hpp"
 
 namespace vks {
@@ -75,21 +75,56 @@ namespace vks {
 
 
     void VulkanRenderer::beginFrame() {
-        renderManager->beginFrame();
+        if (running)
+        {
+            renderManager->beginFrame();
+        }
     }
 
     void VulkanRenderer::renderFrame() {
-        renderManager->renderFrame();
+        if (running)
+        {
+            renderManager->renderFrame();
+        }
     }
 
     void VulkanRenderer::endFrame() {
-        renderManager->endFrame();
+        if (running)
+        {
+            renderManager->endFrame();
+        }
     }
 
-    void VulkanRenderer::initialize(void* windowHandle, uint32_t width, uint32_t height) {
+
+    void VulkanRenderer::initialize(PlatformInterface* platform, uint32_t width, uint32_t height) {
+        if (platform == nullptr) {
+            throw std::runtime_error("Platform interface cannot be null");
+        }
+
+        platformInterface = platform;
+        void* windowHandle = platform->GetNativeWindow();
+
         if (windowHandle == nullptr) {
             throw std::runtime_error("Window handle cannot be null");
         }
+
+        // Subscribe to window events
+        platform->SubscribeToEvent(PlatformInterface::EventType::WindowResize,
+            [this](const void* data) {
+                const auto* resizeEvent = static_cast<const PlatformInterface::WindowResizeEvent*>(data);
+                this->handleWindowResize(resizeEvent->width, resizeEvent->height);
+            });
+
+        platform->SubscribeToEvent(PlatformInterface::EventType::WindowMinimize,
+            [this](const void* /*data*/) {
+                waitIdle();
+                running = false;
+            });
+
+        platform->SubscribeToEvent(PlatformInterface::EventType::WindowMaximize,
+            [this](const void* /*data*/) {
+                running = true;
+            });
 
         // Initialize swap chain
         swapChain->createSurface(windowHandle);
@@ -112,8 +147,8 @@ namespace vks {
 #if ENABLE_IMGUI
         imguiManager.get()->initialize(windowHandle);
 #endif
-
     }
+
 
     void VulkanRenderer::cleanup() {
         waitIdle();
@@ -137,11 +172,13 @@ namespace vks {
         waitIdle();
 
         // Recreate swap chain
-        swapChain->createSwapChain(width, height);
+        swapChain->recreateSwapChain(width, height);
+
+        // Recreate depth resources with new dimensions
+        pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
 
         // Recreate framebuffers
-        pipelineManager->createFramebuffers(swapChain->getImageViews(),
-        swapChain->getSwapChainExtent());
+        pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
 
 #if ENABLE_IMGUI
         // Update ImGui display size

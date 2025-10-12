@@ -4,7 +4,8 @@
 #include <cstdlib>
 #include <glm/ext/matrix_transform.hpp>
 #include <SDL3/SDL.h>
-#include "platform.hpp"
+#include "platform/src/Platform.hpp"
+#include "platform/include/PlatformInterface.hpp"
 #include "assetManager/src/AssetManager.hpp"
 #include "ecs/Scene.h"
 #include "engine/Engine.h"
@@ -13,8 +14,9 @@
 
 
 int main(int argc, char *argv[]) {
+    PlatformInterface* platform = new Platform();
     // 1. Initialize platform (SDL window, input, etc.)
-    if (!platform::Init("My Game Engine", 1280, 720)) {
+    if (!platform->Init("My Game Engine", 1280, 720)) {
         return EXIT_FAILURE;
     }
 
@@ -24,7 +26,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    vulkanExample->initialize(platform::GetWindow(),1280, 720);
+    vulkanExample->initialize(platform,1280, 720);
 
     /*
     // 3. Initialize the graphics abstraction
@@ -49,9 +51,9 @@ int main(int argc, char *argv[]) {
     // 5. Main loop
     bool running = true;
     while (running) {
-        platform::PollEvents(running); // sets `running` to false on quit
+        platform->PollEvents(running); // sets `running` to false on quit
 
-        float deltaTime = platform::GetDeltaTime();
+        float deltaTime = platform->GetDeltaTime();
         engine.Update(deltaTime);     // game logic
     }
 
@@ -59,7 +61,7 @@ int main(int argc, char *argv[]) {
     /*game::Shutdown();
     gfx::Shutdown();
     vulkan::Shutdown();*/
-    platform::Shutdown();
+    platform->Shutdown();
 
     return EXIT_SUCCESS;
 }

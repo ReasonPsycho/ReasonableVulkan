@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE PlatformTests
 #include <boost/test/unit_test.hpp>
-#include "platform.hpp"
+#include "../src/Platform.hpp"
 
 struct PlatformTestFixture {
     // THIS doesn't work but prob is an error with vulkan itself so it stays here until i can rewrite it.
