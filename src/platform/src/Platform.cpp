@@ -52,6 +52,31 @@ void Platform::PollEvents(bool& running) {
                 }
                 break;
 
+        case SDL_EVENT_WINDOW_MINIMIZED:
+            if (event.window.windowID == SDL_GetWindowID(window)) {
+                for (const auto& callback : eventCallbacks[EventType::WindowMinimize]) {
+                    callback(nullptr);
+                }
+            }
+            break;
+
+        case SDL_EVENT_WINDOW_MAXIMIZED:
+            if (event.window.windowID == SDL_GetWindowID(window)) {
+                for (const auto& callback : eventCallbacks[EventType::WindowMaximize]) {
+                    callback(nullptr);
+                }
+            }
+            break;
+
+        case SDL_EVENT_WINDOW_RESTORED:
+            if (event.window.windowID == SDL_GetWindowID(window)) {
+                for (const auto& callback : eventCallbacks[EventType::WindowRestored]) {
+                    callback(nullptr);
+                }
+            }
+            break;
+
+
         case SDL_EVENT_KEY_DOWN:
             keyStates[static_cast<int>(event.key.key)] = true;
             {

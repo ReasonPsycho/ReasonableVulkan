@@ -154,11 +154,12 @@ void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 tr
     }
 
     VkResult result = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        throw std::runtime_error("Swap chain out of date!");
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        return; // Just return without throwing when swapchain is invalid/out of date
+    } else if (result != VK_SUCCESS) {
         throw std::runtime_error("Failed to acquire swap chain image!");
     }
+
 
 #ifdef ENABLE_IMGUI
     imguiManager->imguiBeginFrame();

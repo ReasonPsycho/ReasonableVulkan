@@ -22,8 +22,8 @@ int main(int argc, char *argv[]) {
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
     vks::VulkanRenderer *vulkanExample = new vks::VulkanRenderer(&assetManager);
-    engine::Engine engine = engine::Engine(vulkanExample,&assetManager);
-
+    engine::Engine engine = engine::Engine(platform,vulkanExample,&assetManager);
+    engine.Initialize();
 
 
     vulkanExample->initialize(platform,1280, 720);

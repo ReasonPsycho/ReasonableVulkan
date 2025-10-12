@@ -6,6 +6,7 @@
 
 #include "include/GraphicsEngine.hpp"
 #include "src/imguiManager/ImguiManager.hpp"
+#include "PlatformInterface.hpp"
 
 namespace am
 {
@@ -49,7 +50,7 @@ namespace vks {
 		std::unique_ptr<RenderManager> renderManager;
 		PlatformInterface* platformInterface;
 
-		bool running = true; //For minimalization for example
+		bool minimized = false;
 #if ENABLE_IMGUI
 		std::unique_ptr<ImguiManager> imguiManager;
 #endif

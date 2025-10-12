@@ -1,12 +1,11 @@
 message(STATUS "Running platform cmake")
 
-# Add option to enable/disable tests
-option(PLATFORM_ENABLE_TESTS "Enable testing for Platform module" OFF)
-
 # Define source files explicitly
 file(GLOB_RECURSE BASE_SRC
         "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
 # Remove test files from BASE_SRC if they exist
@@ -23,15 +22,17 @@ find_package(SDL3 CONFIG REQUIRED)
 add_library(platform STATIC ${BASE_SRC})
 
 # Configure include directories
-target_include_directories(platform 
-    PUBLIC 
-        ${CMAKE_CURRENT_SOURCE_DIR}
+target_include_directories(platform
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # Link dependencies
 message(STATUS "Configuring platform library dependencies")
-target_link_libraries(platform 
-    PRIVATE
+target_link_libraries(platform
+        PRIVATE
         SDL3::SDL3
 )
 

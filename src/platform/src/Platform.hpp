@@ -7,7 +7,7 @@
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <vector>
-#include "include/PlatformInterface.hpp"
+#include "PlatformInterface.hpp"
 
 class Platform : public PlatformInterface {
 public:

@@ -3,6 +3,18 @@
 #include "ecs/Scene.h"
 
 namespace engine {
+    void Engine::Initialize()
+    {
+        platform->SubscribeToEvent(PlatformInterface::EventType::WindowMinimize,
+      [this](const void* /*data*/) {
+          minimized = true;
+      });
+
+        platform->SubscribeToEvent(PlatformInterface::EventType::WindowRestored,
+            [this](const void* /*data*/) {
+                minimized = false;
+            });
+    }
 
     std::shared_ptr<Scene> Engine::CreateScene(const std::string& name) {
         if (scenes.find(name) != scenes.end()) {

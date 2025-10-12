@@ -13,6 +13,7 @@ public:
         WindowResize,
         WindowMinimize,
         WindowMaximize,
+        WindowRestored,
         WindowFocus,
         WindowLostFocus,
         KeyPressed,
