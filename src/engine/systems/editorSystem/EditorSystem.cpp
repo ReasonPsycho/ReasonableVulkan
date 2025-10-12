@@ -4,6 +4,8 @@
 
 #include "EditorSystem.hpp"
 #include <imgui.h>
+#include <ImGuizmo.h>
+
 #include "ecs/Scene.h"
 #include <imgui_internal.h>
 
@@ -32,7 +34,98 @@ void EditorSystem::ImGuiInspector()
 }
 
 
+void EditorSystem::ImGuiGizmo()
+{
+    if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
+    {
+        auto cameraEntity = scene->GetComponentArray<Camera>().get()->ComponentIndexToEntity(0);
+        auto& camera = scene->GetComponentArray<Camera>().get()->GetComponent(cameraEntity);
+        auto& transform = scene->GetIntegralComponentArray<Transform>().get()->GetComponent(selectedEntity);
 
+        static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
+        static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
+
+        // Keyboard shortcuts for operation changes
+        if (ImGui::IsKeyPressed(ImGuiKey_T))
+            currentGizmoOperation = ImGuizmo::TRANSLATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_E))
+            currentGizmoOperation = ImGuizmo::ROTATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_R))
+            currentGizmoOperation = ImGuizmo::SCALE;
+
+        // Operation radio buttons
+        if (ImGui::RadioButton("Translate", currentGizmoOperation == ImGuizmo::TRANSLATE))
+            currentGizmoOperation = ImGuizmo::TRANSLATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Rotate", currentGizmoOperation == ImGuizmo::ROTATE))
+            currentGizmoOperation = ImGuizmo::ROTATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Scale", currentGizmoOperation == ImGuizmo::SCALE))
+            currentGizmoOperation = ImGuizmo::SCALE;
+
+        // Mode selection (except for Scale)
+        if (currentGizmoOperation != ImGuizmo::SCALE)
+        {
+            if (ImGui::RadioButton("Local", currentGizmoMode == ImGuizmo::LOCAL))
+                currentGizmoMode = ImGuizmo::LOCAL;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("World", currentGizmoMode == ImGuizmo::WORLD))
+                currentGizmoMode = ImGuizmo::WORLD;
+        }
+
+        // Snapping
+        static bool useSnap = false;
+        if (ImGui::IsKeyPressed(ImGuiKey_S))
+            useSnap = !useSnap;
+        ImGui::Checkbox("Use Snap", &useSnap);
+
+        glm::vec3 snap(1.0f);
+        if (currentGizmoOperation == ImGuizmo::TRANSLATE)
+            snap = glm::vec3(0.5f); // Snap every 0.5 units for translation
+        else if (currentGizmoOperation == ImGuizmo::ROTATE)
+            snap = glm::vec3(45.0f); // Snap every 45 degrees for rotation
+        else if (currentGizmoOperation == ImGuizmo::SCALE)
+            snap = glm::vec3(0.1f); // Snap every 0.1 units for scale
+
+        // Get the viewport bounds for ImGuizmo
+        ImGuiIO& io = ImGui::GetIO();
+        ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+
+        // Convert glm matrices to float arrays for ImGuizmo
+        float viewMatrix[16], projMatrix[16], modelMatrix[16];
+        memcpy(viewMatrix, &camera.view[0][0], sizeof(float) * 16);
+        memcpy(projMatrix, &camera.projection[0][0], sizeof(float) * 16);
+        memcpy(modelMatrix, &transform.globalMatrix[0][0], sizeof(float) * 16);
+
+        // Manipulate the transform
+        if (ImGuizmo::Manipulate(
+            viewMatrix,
+            projMatrix,
+            currentGizmoOperation,
+            currentGizmoMode,
+            modelMatrix,
+            nullptr,
+            useSnap ? &snap[0] : nullptr))
+        {
+            // Convert the manipulated matrix back to our transform
+            glm::mat4 newGlobalMatrix;
+            memcpy(&newGlobalMatrix[0][0], modelMatrix, sizeof(float) * 16);
+
+            // If we have a parent, we need to convert global to local
+            auto it = scene->sceneGraph.find(selectedEntity);
+            if (it != scene->sceneGraph.end() && it->second.parent != std::numeric_limits<std::uint32_t>::max())
+            {
+                auto& parentTransform = scene->GetComponentArray<Transform>().get()->GetComponent(it->second.parent);
+                setLocalMatrixFromGlobal(transform, newGlobalMatrix, parentTransform.globalMatrix);
+            }
+            else
+            {
+                // No parent, just set the local matrix directly
+                setLocalMatrix(transform, newGlobalMatrix);
+            }
+        }
+    }
+}
 
 
 void engine::ecs::EditorSystem::Update(float deltaTime)
@@ -100,7 +193,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
 
     ImGuiSceneGraph();
     ImGuiInspector();
-
+    ImGuiGizmo();
     ImGui::End();
 }
 
