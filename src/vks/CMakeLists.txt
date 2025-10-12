@@ -30,6 +30,7 @@ find_package(ktx CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(imguizmo CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
@@ -67,6 +68,7 @@ target_link_libraries(vks
         KTX::ktx
         SDL3::SDL3
         imgui::imgui
+        imguizmo::imguizmo
         glm::glm
         Vulkan::Vulkan
         fmt::fmt

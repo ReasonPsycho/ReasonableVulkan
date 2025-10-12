@@ -37,6 +37,9 @@ void EditorSystem::ImGuiInspector()
 
 void engine::ecs::EditorSystem::Update(float deltaTime)
 {
+    if (scene->engine.minimized)
+        return;
+
     // Create the docking space with transparent background
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
                                   ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |

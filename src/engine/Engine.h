@@ -9,6 +9,7 @@
 
 #include "AssetManagerInterface.h"
 #include "GraphicsEngine.hpp"
+#include "PlatformInterface.hpp"
 
 namespace engine {
     namespace ecs
@@ -20,8 +21,10 @@ namespace engine {
 
     class Engine {
     public:
-        Engine(gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface) : graphicsEngine(graphicsEngine), assetManagerInterface(assetManagerInterface){};
+        Engine(PlatformInterface* platformInterface,gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface) : graphicsEngine(graphicsEngine), assetManagerInterface(assetManagerInterface), platform(platformInterface){};
         ~Engine() = default;
+
+        void Initialize();
 
         // Scene management
         std::shared_ptr<Scene> CreateScene(const std::string& name);
@@ -30,11 +33,14 @@ namespace engine {
         void SetActiveScene(const std::string& name);
         std::shared_ptr<Scene> GetActiveScene();
 
+
         // Global update loop
         void Update(float deltaTime);
 
 
         gfx::GraphicsEngine* graphicsEngine;
+        PlatformInterface* platform;
+        bool minimized = false;
 
     private:
 

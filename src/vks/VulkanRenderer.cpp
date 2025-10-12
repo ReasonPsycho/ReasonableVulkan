@@ -11,7 +11,7 @@
 #include "src/descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderDescriptor.h"
 #include <SDL3/SDL_vulkan.h>
 
-#include "include/PlatformInterface.hpp"
+#include "PlatformInterface.hpp"
 #include "src/imguiManager/ImguiManager.hpp"
 
 namespace vks {
@@ -75,21 +75,21 @@ namespace vks {
 
 
     void VulkanRenderer::beginFrame() {
-        if (running)
+        if (!minimized)
         {
             renderManager->beginFrame();
         }
     }
 
     void VulkanRenderer::renderFrame() {
-        if (running)
+        if (!minimized)
         {
             renderManager->renderFrame();
         }
     }
 
     void VulkanRenderer::endFrame() {
-        if (running)
+        if (!minimized)
         {
             renderManager->endFrame();
         }
@@ -118,12 +118,12 @@ namespace vks {
         platform->SubscribeToEvent(PlatformInterface::EventType::WindowMinimize,
             [this](const void* /*data*/) {
                 waitIdle();
-                running = false;
+                minimized = true;
             });
 
-        platform->SubscribeToEvent(PlatformInterface::EventType::WindowMaximize,
+        platform->SubscribeToEvent(PlatformInterface::EventType::WindowRestored,
             [this](const void* /*data*/) {
-                running = true;
+                minimized = false;
             });
 
         // Initialize swap chain
