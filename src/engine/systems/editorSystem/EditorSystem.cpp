@@ -22,6 +22,8 @@ void EditorSystem::ImGuiInspector()
         {
             if (array.get()->HasComponentUntyped(selectedEntity))
             {
+
+
                 array.get()->GetComponentUntyped(selectedEntity).ImGuiComponent();
             }
         }

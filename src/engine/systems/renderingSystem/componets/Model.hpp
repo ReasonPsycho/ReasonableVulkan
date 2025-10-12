@@ -19,7 +19,6 @@ namespace engine::ecs
         // Add explicit constructor
         explicit Model() : modelUuid(boost::uuids::nil_uuid()) {}
         explicit Model(boost::uuids::uuid id) : modelUuid(id) {}
-#ifdef EDITOR_ENABLED
 
         void ImGuiComponent() override
         {
@@ -28,7 +27,6 @@ namespace engine::ecs
                 ImGui::Text("UUID: %s", boost::uuids::to_string(modelUuid).c_str());
             }
         }
-#endif
 
     };
 }

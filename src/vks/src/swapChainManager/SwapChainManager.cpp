@@ -59,10 +59,6 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
         vkDestroyImageView(device, imageView, nullptr);
     }
 
-    if (swapChain != VK_NULL_HANDLE) {
-        vkDestroySwapchainKHR(device, swapChain, nullptr);
-    }
-
     // Create new swap chain
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->getPhysicalDevice(), surface, &capabilities);
@@ -173,7 +169,8 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(context->getDevice(), &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
+    auto resoult = vkCreateSwapchainKHR(context->getDevice(), &createInfo, nullptr, &swapChain);
+    if (resoult != VK_SUCCESS) {
         throw std::runtime_error("failed to create swap chain!");
     }
 

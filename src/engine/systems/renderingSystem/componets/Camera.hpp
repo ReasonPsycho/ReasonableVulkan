@@ -22,7 +22,6 @@ namespace engine::ecs
         glm::vec4 lightpos{0.0f};
 
         bool isDirty = true;
-#ifdef EDITOR_ENABLED
 
         void ImGuiComponent() override {
             if (ImGui::CollapsingHeader("Camera"))
@@ -54,7 +53,6 @@ namespace engine::ecs
                 }
             }
         }
-#endif
     };
 
     // Utility functions

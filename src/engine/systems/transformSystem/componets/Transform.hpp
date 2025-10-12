@@ -11,6 +11,7 @@
 
 namespace engine::ecs
 {
+
     struct Transform;
     inline void setLocalRotationFromEulerDegrees(Transform& t, const glm::vec3& eulerDegrees);
 
@@ -25,7 +26,6 @@ namespace engine::ecs
 
         bool isDirty = true;
 
-#ifdef EDITOR_ENABLED
         void ImGuiComponent() override
         {
             if (ImGui::CollapsingHeader("Transform"))
@@ -55,7 +55,6 @@ namespace engine::ecs
                 }
             }
         }
-#endif
 
     };
 

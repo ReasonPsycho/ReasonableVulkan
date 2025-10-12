@@ -9,6 +9,8 @@ if(ENABLE_IMGUI)
     add_compile_definitions(ENABLE_IMGUI)
 endif()
 
+
+
 if(PLATFORM_SDL3)
     add_compile_definitions(PLATFORM_SDL3)
 endif()
@@ -61,6 +63,7 @@ add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 target_link_libraries(vks
         PUBLIC
         am
+        platform
         KTX::ktx
         SDL3::SDL3
         imgui::imgui

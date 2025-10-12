@@ -8,12 +8,12 @@
 struct Component
 {
 public:
-    virtual ~Component() = default;
+    virtual ~Component() = 0;;
 
-#ifdef EDITOR_ENABLED
     virtual void ImGuiComponent() = 0;
-#endif
 };
 
+// Provide implementation for the pure virtual destructor in the header
+inline Component::~Component() = default;
 
 #endif //REASONABLEVULKAN_COMPONENT_HPP
