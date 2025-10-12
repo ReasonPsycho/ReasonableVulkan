@@ -1,11 +1,13 @@
 
 #include "ImguiManager.hpp"
 
+
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_vulkan.h>
 #include <stdexcept>
 #include <SDL3/SDL_video.h>
+#include <ImGuizmo.h>
 
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../swapChainManager/SwapChainManager.hpp"
@@ -21,7 +23,7 @@ namespace vks
 
         // Initialize ImGui
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+        auto ctx = ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
@@ -72,6 +74,8 @@ namespace vks
         VkCommandBuffer command_buffer = context->beginSingleTimeCommands();
         ImGui_ImplVulkan_CreateFontsTexture();
         context->endSingleTimeCommands(command_buffer);
+
+        ImGuizmo::SetImGuiContext(ctx);
     }
 
     void ImguiManager::createDescriptorPool()
@@ -97,6 +101,7 @@ namespace vks
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
+        ImGuizmo::BeginFrame();
     }
 
     void ImguiManager::imguiEndFrame()

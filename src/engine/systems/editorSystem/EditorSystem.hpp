@@ -59,6 +59,7 @@ namespace engine::ecs
         void ImGuiSceneGraph();
         void ImGuiGraphEntity(Entity entity);
         void ImGuiInspector();
+        void ImGuiGizmo();
 
     };
 }
