@@ -183,6 +183,10 @@ float Platform::GetDeltaTime() const {
     return deltaTime;
 }
 
+void Platform::GetWindowPosition(int& x, int& y) const {
+    SDL_GetWindowPosition(window, &x, &y);
+}
+
 void Platform::SubscribeToEvent(EventType type, EventCallback callback) {
     eventCallbacks[type].push_back(callback);
 }

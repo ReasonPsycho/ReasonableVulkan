@@ -24,7 +24,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         if (modelArray->IsComponentActive(modelArray->ComponentIndexToEntity(i)))
         {
             Entity entity = modelArray->ComponentIndexToEntity(i);
-            scene->engine.graphicsEngine->drawModel(models[i].modelUuid, transforms[entity].globalMatrix);
+            if (models[i].modelUuid != boost::uuids::nil_uuid())
+            {
+                scene->engine.graphicsEngine->drawModel(models[i].modelUuid, transforms[entity].globalMatrix);
+            }
         }
     }
 

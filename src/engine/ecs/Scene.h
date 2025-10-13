@@ -18,38 +18,21 @@
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
+#include "systems/transformSystem/componets/Transform.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
-#include "systems/transformSystem/TransformSystem.h"
-#include "systems/renderingSystem/RenderSystem.h"
-#include "systems/editorSystem/EditorSystem.hpp"
-#include "systems/renderingSystem/componets/Camera.hpp"
-#include "systems/renderingSystem/componets/Model.hpp"
-
+#include "../systems/transformSystem/componets/Transform.hpp"
 namespace engine::ecs
 {
-
     class Scene {
     public:
 
-        explicit Scene(Engine& engine) : engine(engine)
-        {
-            RegisterSystem<RenderSystem>();
-
-#ifdef EDITOR_ENABLED
-            RegisterSystem<EditorSystem>();
-#endif
-            RegisterComponent<Model>(); //For some reason I have to register them in reverse
-            RegisterComponent<Camera>();
-
-            RegisterIntegralComponent<Transform>();
-            RegisterSystem<TransformSystem>();
-        }
+        explicit Scene(Engine& engine);
 
         void Update(float deltaTime);
 
         //Entity
-        Entity CreateEntity(Transform transform = {},Entity parentEntity = -1);
-        Entity CreateEntity(std::string entityName,Transform transform = {},Entity parentEntity = -1);
+        Entity CreateEntity(Transform transform = Transform(),Entity parentEntity = -1);
+        Entity CreateEntity(std::string entityName,Transform transform = Transform(),Entity parentEntity = -1);
 
         void DestroyEntity(Entity entity);
 
@@ -74,7 +57,10 @@ namespace engine::ecs
         std::shared_ptr<IntegralComponentArray<T>> GetIntegralComponentArray();
 
         template<typename T>
-        void AddComponent(Entity entity, T component);
+        void AddComponent(Entity entity, T component = T());
+
+        void AddComponent(Entity entity,std::type_index typeIdx);
+
 
         template<typename T>
         void RemoveComponent(Entity entity);

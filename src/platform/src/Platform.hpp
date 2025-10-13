@@ -28,6 +28,7 @@ public:
 
     // Window utility functions
     void GetWindowSize(int& width, int& height) const override;
+    void GetWindowPosition(int& x, int& y) const override;
     bool IsWindowMinimized() const override;
     bool IsWindowFocused() const override;
 

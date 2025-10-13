@@ -72,6 +72,7 @@ public:
 
     // Window utility functions
     virtual void GetWindowSize(int& width, int& height) const = 0;
+    virtual void GetWindowPosition(int& x, int& y) const = 0;
     virtual bool IsWindowMinimized() const = 0;
     virtual bool IsWindowFocused() const = 0;
 

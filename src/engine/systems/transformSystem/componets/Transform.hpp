@@ -18,14 +18,15 @@ namespace engine::ecs
     struct Transform: public Component
     {
         glm::vec3 position;
-        glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-        glm::vec3 scale{1.0f, 1.0f, 1.0f};
+        glm::quat rotation ;
+        glm::vec3 scale;
 
-        glm::mat4 localMatrix = glm::mat4(1.0f);   // local to parent
-        glm::mat4 globalMatrix = glm::mat4(1.0f);  // local to world
+        glm::mat4 localMatrix;   // local to parent
+        glm::mat4 globalMatrix;  // local to world
 
-        bool isDirty = true;
+        bool isDirty;
 
+        Transform(): Component(), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f, 1.0f, 1.0f), localMatrix(1.0f), globalMatrix(1.0f), isDirty(true) {}
         void ImGuiComponent() override
         {
             if (ImGui::CollapsingHeader("Transform"))

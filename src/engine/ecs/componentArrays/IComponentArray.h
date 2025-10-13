@@ -13,6 +13,7 @@ namespace engine::ecs
         virtual ~IComponentArray() = default;
 
         // Untyped interface
+        virtual void AddComponentUntyped(Entity entity) = 0;
         virtual void RemoveComponentUntyped(Entity entity) = 0;
         virtual bool HasComponentUntyped(Entity entity) const = 0;
         virtual void SetComponentActiveUntyped(Entity entity, bool active) = 0;

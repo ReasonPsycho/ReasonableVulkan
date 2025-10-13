@@ -11,18 +11,18 @@ namespace engine::ecs
     struct Camera : public Component
     {
         // Camera parameters
-        float fov = 45.0f;
-        float aspectRatio = 1.77f;  // 16:9 by default
-        float nearPlane = 0.1f;
-        float farPlane = 1000.0f;
+        float fov;
+        float aspectRatio;  // 16:9 by default
+        float nearPlane;
+        float farPlane;
         
         // Cached matrices
-        glm::mat4 projection{1.0f};
-        glm::mat4 view{1.0f};
-        glm::vec4 lightpos{0.0f};
+        glm::mat4 projection;
+        glm::mat4 view;
+        glm::vec4 lightpos;
 
         bool isDirty = true;
-
+        Camera() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
         void ImGuiComponent() override {
             if (ImGui::CollapsingHeader("Camera"))
             {
