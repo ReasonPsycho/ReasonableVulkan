@@ -46,6 +46,12 @@ std::array<T, MAX_ENTITIES>& IntegralComponentArray<T>::GetComponents() {
 }
 
 template <typename T>
+void IntegralComponentArray<T>::AddComponentUntyped(Entity entity)
+{
+    AddComponentToEntity(entity, T());
+}
+
+template <typename T>
 Component& IntegralComponentArray<T>::GetComponentUntyped(Entity entity)
 {
     assert(entity < MAX_ENTITIES);

@@ -1,6 +1,7 @@
+
 #pragma once
-#include "../systems/transformSystem/componets/Transform.hpp"
 #include "Scene.h"
+
 
 
 template <typename ... Components>
@@ -18,24 +19,7 @@ std::vector<Entity> Scene::GetEntitiesWith()
     return matching;
 }
 
-template <typename T>
-void Scene::RegisterComponent()
-{
-    assert(componentArrays.find( typeid(T)) == componentArrays.end() && "Component already registered.");
 
-    std::type_index typeIdx = typeid(T);
-    componentArrays[typeIdx] = std::make_unique<ComponentArray<T>>();
-
-    ComponentTypeID componentTypeId = GetComponentTypeID<T>();
-    indexToType.insert_or_assign(componentTypeId, typeIdx);
-
-
-    #ifdef EDITOR_ENABLED
-
-    GetSystem<EditorSystem>().get()->RegisterComponentType<T>();
-
-    #endif
-}
 
 template <typename T>
 void Scene::AddComponent(Entity entity, T component)
@@ -52,13 +36,15 @@ void Scene::AddComponent(Entity entity, T component)
     Signature& signature = entitySignatures[entity];
     signature.set(GetComponentTypeID<T>(), true);
 
-    // 🔍 Check each system
+    // Check each system
     for (auto& [_, system] : systems) {
         if ((signature & system->signature) == system->signature) {
             system->AddEntity(entity);
         }
     }
 }
+
+
 
 template <typename T>
 void Scene::RemoveComponent(Entity entity)
@@ -71,7 +57,7 @@ void Scene::RemoveComponent(Entity entity)
     {
         GetComponentArray<T>()->RemoveComponentFronEntity(entity);
     }
-    
+
     Signature& signature = entitySignatures[entity];
     signature.set(GetComponentTypeID<T>(), false);
 
@@ -155,6 +141,31 @@ void  Scene::RegisterIntegralComponent()
 
     ComponentTypeID componentTypeId = GetComponentTypeID<T>();
     indexToType.insert_or_assign(componentTypeId, typeIdx);
+
+#ifdef EDITOR_ENABLED
+
+    GetSystem<EditorSystem>().get()->RegisterComponentType<T>();
+
+#endif
+}
+
+template <typename T>
+void Scene::RegisterComponent()
+{
+    assert(componentArrays.find( typeid(T)) == componentArrays.end() && "Component already registered.");
+
+    std::type_index typeIdx = typeid(T);
+    componentArrays[typeIdx] = std::make_unique<ComponentArray<T>>();
+
+    ComponentTypeID componentTypeId = GetComponentTypeID<T>();
+    indexToType.insert_or_assign(componentTypeId, typeIdx);
+
+
+#ifdef EDITOR_ENABLED
+
+    GetSystem<EditorSystem>().get()->RegisterComponentType<T>();
+
+#endif
 }
 
 template <typename T>

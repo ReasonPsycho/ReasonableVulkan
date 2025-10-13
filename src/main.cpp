@@ -9,6 +9,8 @@
 #include "assetManager/src/AssetManager.hpp"
 #include "ecs/Scene.h"
 #include "engine/Engine.h"
+#include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/renderingSystem/componets/Model.hpp"
 #include "vks/VulkanRenderer.h"
 
 
@@ -43,7 +45,7 @@ int main(int argc, char *argv[]) {
     scene.get()->AddComponent<Model>(modelEntity,Model(asset->get()->id));
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");
-    scene.get()->AddComponent<Camera>(cameraEntity,Camera());
+    scene.get()->AddComponent<Camera>(cameraEntity);
 
     scene.get()->CreateEntity(); //Empty
 

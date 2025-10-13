@@ -8,6 +8,7 @@
 
 #include "ecs/Scene.h"
 #include <imgui_internal.h>
+#include "systems/renderingSystem/componets/Camera.hpp"  // Adjust path as needed
 
 void EditorSystem::ImGuiInspector()
 {
@@ -29,9 +30,31 @@ void EditorSystem::ImGuiInspector()
                 array.get()->GetComponentUntyped(selectedEntity).ImGuiComponent();
             }
         }
+
+        if (ImGui::Button("Add Component"))
+        {
+            ImGui::OpenPopup("Components List");
+        }
+
+        if (ImGui::BeginPopup("Components List"))
+        {
+            for (const auto& [typeIndex, info] : registeredComponents)
+            {
+                if (info.displayName != "Transform")
+                {
+                    if (ImGui::MenuItem(info.displayName.c_str()))
+                    {
+                        scene->AddComponent(selectedEntity,typeIndex);
+                    }
+                }
+            }
+            ImGui::EndPopup();
+        }
     }
+
     ImGui::End();
 }
+
 
 
 void EditorSystem::ImGuiGizmo()
@@ -87,14 +110,25 @@ void EditorSystem::ImGuiGizmo()
         else if (currentGizmoOperation == ImGuizmo::SCALE)
             snap = glm::vec3(0.1f); // Snap every 0.1 units for scale
 
+        int windowPos[2];
+        int windowSize[2];
+
+        scene->engine.platform->GetWindowPosition(windowPos[0],windowPos[1]);
+        scene->engine.platform->GetWindowSize(windowSize[0],windowSize[1]);
+
         // Get the viewport bounds for ImGuizmo
         ImGuiIO& io = ImGui::GetIO();
-        ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+        ImGuizmo::SetRect(windowPos[0], windowPos[1], windowSize[0], windowSize[1]);
 
         // Convert glm matrices to float arrays for ImGuizmo
         float viewMatrix[16], projMatrix[16], modelMatrix[16];
+
+        // Create a flipped projection matrix to correct the Y-axis
+        glm::mat4 flippedProj = camera.projection;
+        flippedProj[1][1] *= -1; // Flip the Y component
+
         memcpy(viewMatrix, &camera.view[0][0], sizeof(float) * 16);
-        memcpy(projMatrix, &camera.projection[0][0], sizeof(float) * 16);
+        memcpy(projMatrix, &flippedProj[0][0], sizeof(float) * 16);
         memcpy(modelMatrix, &transform.globalMatrix[0][0], sizeof(float) * 16);
 
         // Manipulate the transform
@@ -127,6 +161,22 @@ void EditorSystem::ImGuiGizmo()
     }
 }
 
+void EditorSystem::ImguiToolbar()
+{
+    // Create the windows
+    ImGui::Begin("Toolbar");
+    ImGui::Text("Toolbar Content");
+    // Add your toolbar buttons/content here
+    ImGui::End();
+}
+
+void EditorSystem::ImguiMenu()
+{
+    ImGui::Begin("Menu");
+    ImGui::Text("Menu Content");
+    // Add your menu content here
+    ImGui::End();
+}
 
 void engine::ecs::EditorSystem::Update(float deltaTime)
 {
@@ -180,20 +230,12 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
 
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-    // Create the windows
-    ImGui::Begin("Toolbar");
-    ImGui::Text("Toolbar Content");
-    // Add your toolbar buttons/content here
-    ImGui::End();
-
-    ImGui::Begin("Menu");
-    ImGui::Text("Menu Content");
-    // Add your menu content here
-    ImGui::End();
-
+    ImguiToolbar();
+    ImguiMenu();
     ImGuiSceneGraph();
     ImGuiInspector();
     ImGuiGizmo();
+
     ImGui::End();
 }
 
@@ -214,7 +256,16 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 
 void engine::ecs::EditorSystem::ImGuiSceneGraph()
 {
-    ImGui::Begin("Scene graph");
+    ImGui::Begin("Scene graph", nullptr, ImGuiWindowFlags_MenuBar);
+
+    if (ImGui::BeginMenuBar())
+    {
+        if (ImGui::Button("New Entity"))
+        {
+            scene->CreateEntity();
+        }
+        ImGui::EndMenuBar();
+    }
 
     for (Entity root : scene->rootEntities)
     {

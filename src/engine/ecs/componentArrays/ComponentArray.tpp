@@ -87,6 +87,12 @@ template <typename T>
 }
 
 template <typename T>
+void ComponentArray<T>::AddComponentUntyped(Entity entity)
+{
+    AddComponentToEntity(entity, T());
+}
+
+template <typename T>
 void ComponentArray<T>::RemoveComponentUntyped(Entity entity)
 {
     RemoveComponentFronEntity(entity);

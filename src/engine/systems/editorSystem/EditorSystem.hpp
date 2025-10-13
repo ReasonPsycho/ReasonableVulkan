@@ -8,12 +8,11 @@
 #include <limits>
 #include <typeindex>
 #include <unordered_map>
-
+#include <glm/glm.hpp>
 #include "ecs/System.h"
 
 namespace engine::ecs
 {
-    class Scene;
     class EditorSystem :  public System<EditorSystem>
     {
     public:
@@ -60,7 +59,8 @@ namespace engine::ecs
         void ImGuiGraphEntity(Entity entity);
         void ImGuiInspector();
         void ImGuiGizmo();
-
+        void ImguiToolbar();
+        void ImguiMenu();
     };
 }
 

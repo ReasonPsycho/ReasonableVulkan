@@ -17,7 +17,7 @@ namespace engine::ecs
         boost::uuids::uuid modelUuid;
 
         // Add explicit constructor
-        explicit Model() : modelUuid(boost::uuids::nil_uuid()) {}
+        Model() : modelUuid(boost::uuids::nil_uuid()) {}
         explicit Model(boost::uuids::uuid id) : modelUuid(id) {}
 
         void ImGuiComponent() override

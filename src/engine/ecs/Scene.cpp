@@ -11,7 +11,27 @@
 
 using namespace engine::ecs;
 
+#include "systems/editorSystem/EditorSystem.hpp"
+#include "systems/transformSystem/TransformSystem.h"
+#include "systems/renderingSystem/RenderSystem.h"
+#include "systems/editorSystem/EditorSystem.hpp"
+#include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/renderingSystem/componets/Model.hpp"
 
+void Scene::AddComponent(Entity entity, std::type_index typeIdx)
+{
+    componentArrays[typeIdx]->AddComponentUntyped(entity);
+
+    Signature& signature = entitySignatures[entity];
+    signature.set(GetUniqueComponentTypeID(), true);
+
+    // Check each system
+    for (auto& [_, system] : systems) {
+        if ((signature & system->signature) == system->signature) {
+            system->AddEntity(entity);
+        }
+    }
+}
 
 size_t Scene::RegisteredComponentsSize() const
 {
@@ -24,6 +44,20 @@ std::type_index Scene::GetTypeFromIndex(std::size_t index) const
     auto it = indexToType.find(index);
     assert(it != indexToType.end() && "Index not registered.");
     return it->second;
+}
+
+Scene::Scene(Engine& engine): engine(engine)
+{
+    RegisterSystem<RenderSystem>();
+
+#ifdef EDITOR_ENABLED
+    RegisterSystem<EditorSystem>();
+#endif
+    RegisterComponent<Model>(); //For some reason I have to register them in reverse
+    RegisterComponent<Camera>();
+
+    RegisterIntegralComponent<Transform>();
+    RegisterSystem<TransformSystem>();
 }
 
 void Scene::Update(float deltaTime) {
