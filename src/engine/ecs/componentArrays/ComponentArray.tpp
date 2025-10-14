@@ -41,7 +41,7 @@ T& ComponentArray<T>::GetComponent(Entity entity)
 }
 
 template <typename T>
-Component& ComponentArray<T>::GetComponentUntyped(Entity entity) {
+engine::Component& ComponentArray<T>::GetComponentUntyped(Entity entity) {
     auto it = entityToIndexMap.find(entity);
     assert(it != entityToIndexMap.end() && "Entity does not have this component");
     return const_cast<Component&>(reinterpret_cast<const Component&>(componentArray[it->second]));
@@ -60,9 +60,9 @@ void ComponentArray<T>::SetComponentActive(Entity entity, bool active)
 }
 
 template <typename T>
-bool ComponentArray<T>::IsComponentActive(Entity entity) const
+bool ComponentArray<T>::IsComponentActive(ComponentIndex componentIndex) const
 {
-    return activeComponents[entity];
+    return activeComponents[componentIndex];
 }
 
 

@@ -37,7 +37,7 @@ namespace engine {
         // Global update loop
         void Update(float deltaTime);
 
-
+        am::AssetManagerInterface* assetManagerInterface;
         gfx::GraphicsEngine* graphicsEngine;
         PlatformInterface* platform;
         bool minimized = false;
@@ -46,7 +46,6 @@ namespace engine {
 
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
         std::shared_ptr<Scene> activeScene = nullptr;
-        am::AssetManagerInterface* assetManagerInterface;
     };
 
 } // namespace engine

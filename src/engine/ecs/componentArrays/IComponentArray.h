@@ -17,7 +17,7 @@ namespace engine::ecs
         virtual void RemoveComponentUntyped(Entity entity) = 0;
         virtual bool HasComponentUntyped(Entity entity) const = 0;
         virtual void SetComponentActiveUntyped(Entity entity, bool active) = 0;
-        virtual bool IsComponentActiveUntyped(Entity entity) const = 0;
+        virtual bool IsComponentActiveUntyped(ComponentIndex entity) const = 0;
         virtual Component& GetComponentUntyped(Entity entity) = 0;  // Changed to return const reference
     };
 }

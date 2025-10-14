@@ -15,7 +15,10 @@ namespace am
         virtual ~AssetManagerInterface() = default;
         virtual std::optional<std::shared_ptr<am::AssetInfo>> registerAsset(std::string path) = 0;
         virtual  std::optional<std::shared_ptr<am::AssetInfo>> getAssetInfo(const boost::uuids::uuid& id) const = 0;
-        virtual std::optional<am::Asset*> getAsset(const boost::uuids::uuid &id) const = 0;
+        virtual std::optional<am::Asset*> getAsset(const boost::uuids::uuid &id) = 0;
+        virtual std::vector<std::shared_ptr<am::AssetInfo>> getRegisteredAssets() const = 0;
+        virtual std::vector<std::shared_ptr<am::AssetInfo>> getRegisteredAssets(AssetType type) const = 0;
+
     };
 }
 

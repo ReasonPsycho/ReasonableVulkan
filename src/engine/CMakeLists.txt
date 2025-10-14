@@ -26,6 +26,7 @@ find_package(glm  CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(imguizmo CONFIG REQUIRED)
+find_package(RapidJSON CONFIG REQUIRED)
 
 # Define source files explicitly, excluding test directory
 file(GLOB_RECURSE BASE_SRC
@@ -53,6 +54,7 @@ target_include_directories(engine
 
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 
+
 # Platform specific linking
 target_link_libraries(engine PUBLIC
         platform
@@ -60,6 +62,7 @@ target_link_libraries(engine PUBLIC
         vks
         Tracy::TracyClient
         glm::glm
+        RapidJSON
         spdlog::spdlog
         imgui::imgui
         imguizmo::imguizmo

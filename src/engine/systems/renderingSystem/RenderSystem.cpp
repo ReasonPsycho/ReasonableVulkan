@@ -21,7 +21,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     // Only iterate up to the actual size of used components
     for (ComponentIndex i = 0; i < modelArray->GetArraySize(); i++)
     {
-        if (modelArray->IsComponentActive(modelArray->ComponentIndexToEntity(i)))
+        if (modelArray->IsComponentActive(i))
         {
             Entity entity = modelArray->ComponentIndexToEntity(i);
             if (models[i].modelUuid != boost::uuids::nil_uuid())

@@ -3,6 +3,7 @@
 
 #include <ostream>
 
+
 namespace am {
     enum class AssetType {
         Mesh,
@@ -38,6 +39,23 @@ namespace am {
         }
     }
 
+    inline std::string AssetTypeToString(AssetType type) {
+        std::stringstream ss;
+        ss << type;
+        return ss.str();
+    }
+
+    inline AssetType StringToAssetType(const std::string& str) {
+        if (str == "Mesh") return AssetType::Mesh;
+        if (str == "Model") return AssetType::Model;
+        if (str == "Texture") return AssetType::Texture;
+        if (str == "Shader") return AssetType::Shader;
+        if (str == "Animation") return AssetType::Animation;
+        if (str == "Material") return AssetType::Material;
+        if (str == "Animator") return AssetType::Animator;
+        return AssetType::Other;
+    }
+
     inline AssetType GetAssetTypeFromExtension(const std::string& extension) {
         if (extension == ".fbx")       return AssetType::Model;
         if (extension == ".png")       return AssetType::Texture;
@@ -46,5 +64,6 @@ namespace am {
         return AssetType::Other;
     }
 }
+
 
 #endif //ASSETTYPES_HPP

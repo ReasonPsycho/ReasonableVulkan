@@ -18,6 +18,7 @@ find_package(assimp CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Stb REQUIRED)  # Add STB
 find_package(spdlog CONFIG REQUIRED)
+find_package(RapidJSON CONFIG REQUIRED)
 
 # Find Boost with required components
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
@@ -45,11 +46,11 @@ target_include_directories(am
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${Stb_INCLUDE_DIR}  # Add STB include directory
 )
-
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 # Link Assimp and Boost UUID
 target_link_libraries(am
         PUBLIC
+        RapidJSON
         assimp::assimp
         Boost::uuid
         fmt::fmt
