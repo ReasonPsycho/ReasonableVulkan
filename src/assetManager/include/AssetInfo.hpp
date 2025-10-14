@@ -5,7 +5,10 @@
 #ifndef ASSETINFO_HPP
 #define ASSETINFO_HPP
 #include <boost/uuid/uuid.hpp>
-
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <boost/uuid/string_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>  // For to_string
 
 namespace am {
     class Asset; // Forward declaration
@@ -67,6 +70,11 @@ namespace am {
             other.loadedAsset = nullptr;
             other.isLoaded = false;
         }
+
+    void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+
+        // Add this static method for deserialization
+    static AssetInfo DeserializeFromJson(const rapidjson::Value& obj);
     };
 }
 

@@ -18,6 +18,14 @@
 #include "AssetManagerInterface.h"
 #include "../include/AssetInfo.hpp"
 
+
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/istreamwrapper.h>
+#include <rapidjson/ostreamwrapper.h>
+
 namespace am {
     class AssetManager : public AssetManagerInterface {
         using AssetFactory = std::function<std::unique_ptr<am::Asset>(am::AssetFactoryData &)>;
@@ -38,12 +46,21 @@ namespace am {
         std::optional<std::shared_ptr<AssetInfo>> registerAsset(AssetFactoryData *factoryContext);
 
         [[nodiscard]] std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
-        [[nodiscard]] std::optional<Asset *> getAsset(const boost::uuids::uuid &id) const override;
+        [[nodiscard]] std::optional<Asset *> getAsset(const boost::uuids::uuid &id) override;
+
+        std::vector<std::shared_ptr<am::AssetInfo>> getRegisteredAssets() const override;
+        std::vector<std::shared_ptr<am::AssetInfo>> getRegisteredAssets(AssetType type) const override;
+
 
         //UUIDS
         template <typename T>
         std::shared_ptr<T> getByUUID(const boost::uuids::uuid &id);
         [[nodiscard]] std::vector<boost::uuids::uuid> getUUIDsByPath(const std::string &path) const;
+
+        //Json
+        bool saveMetadataToFile(const std::string& filename) const;
+        bool loadMetadataFromFile(const std::string& filename);
+
 
     private:
         AssetManager();

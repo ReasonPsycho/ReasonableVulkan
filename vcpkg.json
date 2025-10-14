@@ -47,6 +47,9 @@
     {
       "name": "assimp",
       "$comment": "gameengine"
+    },{
+      "name": "rapidjson",
+      "$comment": "gameengine"
     },
     {
       "name": "spdlog",

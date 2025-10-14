@@ -18,7 +18,7 @@ namespace engine::ecs{
         T& GetComponent(Entity entity);
         bool HasComponent(Entity entity) const;
         void SetComponentActive(Entity entity, bool active);
-        bool IsComponentActive(Entity entity) const;
+        bool IsComponentActive(ComponentIndex componentIndex) const;
         Entity ComponentIndexToEntity(ComponentIndex index) const;
         std::size_t GetArraySize() const;
         std::array<T, MAX_COMPONENTS_ARRAY>& GetComponents();

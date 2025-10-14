@@ -3,7 +3,6 @@
 #define CAMERA_H
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <imgui.h>
 #include "ecs/Component.hpp"
 
 namespace engine::ecs
@@ -23,36 +22,6 @@ namespace engine::ecs
 
         bool isDirty = true;
         Camera() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
-        void ImGuiComponent() override {
-            if (ImGui::CollapsingHeader("Camera"))
-            {
-                bool changed = false;
-                changed |= ImGui::SliderFloat("FOV", &fov, 1.0f, 120.0f);
-                changed |= ImGui::DragFloat("Aspect Ratio", &aspectRatio, 0.01f, 0.1f, 10.0f);
-                changed |= ImGui::DragFloat("Near Plane", &nearPlane, 0.01f, 0.001f, farPlane);
-                changed |= ImGui::DragFloat("Far Plane", &farPlane, 1.0f, nearPlane, 10000.0f);
-
-                if (changed) {
-                    isDirty = true;
-                }
-
-                if (ImGui::TreeNode("Matrices"))
-                {
-                    ImGui::Text("View Matrix:");
-                    for (int i = 0; i < 4; i++) {
-                        ImGui::Text("%.2f %.2f %.2f %.2f", 
-                            view[i][0], view[i][1], view[i][2], view[i][3]);
-                    }
-                    
-                    ImGui::Text("\nProjection Matrix:");
-                    for (int i = 0; i < 4; i++) {
-                        ImGui::Text("%.2f %.2f %.2f %.2f", 
-                            projection[i][0], projection[i][1], projection[i][2], projection[i][3]);
-                    }
-                    ImGui::TreePop();
-                }
-            }
-        }
     };
 
     // Utility functions

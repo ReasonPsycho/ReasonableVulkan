@@ -142,11 +142,6 @@ void  Scene::RegisterIntegralComponent()
     ComponentTypeID componentTypeId = GetComponentTypeID<T>();
     indexToType.insert_or_assign(componentTypeId, typeIdx);
 
-#ifdef EDITOR_ENABLED
-
-    GetSystem<EditorSystem>().get()->RegisterComponentType<T>();
-
-#endif
 }
 
 template <typename T>
@@ -159,13 +154,6 @@ void Scene::RegisterComponent()
 
     ComponentTypeID componentTypeId = GetComponentTypeID<T>();
     indexToType.insert_or_assign(componentTypeId, typeIdx);
-
-
-#ifdef EDITOR_ENABLED
-
-    GetSystem<EditorSystem>().get()->RegisterComponentType<T>();
-
-#endif
 }
 
 template <typename T>

@@ -6,7 +6,9 @@
 #include "Scene.h"
 #include "tracy/Tracy.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
-
+#include "systems/editorSystem/showImGuiComponents/ShowImGuiCamera.hpp"
+#include "systems/editorSystem/showImGuiComponents/ShowImGuiModel.hpp"
+#include "systems/editorSystem/showImGuiComponents/ShowImGuiTransform.hpp"
 
 
 using namespace engine::ecs;
@@ -52,6 +54,15 @@ Scene::Scene(Engine& engine): engine(engine)
 
 #ifdef EDITOR_ENABLED
     RegisterSystem<EditorSystem>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<Transform>([](Scene* scene, Transform* transform) {
+        ShowImGuiTransform(scene, transform);
+    });
+    GetSystem<EditorSystem>().get()->RegisterComponentType<Model>([](Scene* scene, Model* model) {
+        ShowImGuiModel(scene, model);
+    });
+    GetSystem<EditorSystem>().get()->RegisterComponentType<Camera>([](Scene* scene, Camera* camera) {
+        ShowImGuiCamera(scene, camera);
+    });
 #endif
     RegisterComponent<Model>(); //For some reason I have to register them in reverse
     RegisterComponent<Camera>();

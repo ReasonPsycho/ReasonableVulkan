@@ -24,10 +24,10 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
          return dynamic_cast<IVulkanDescriptor*>(loadedResources[assetId].get());
     }
 
-    std::optional<am::Asset*> asset = assetManager->getAsset(assetId);
-    if (asset.has_value())
+    auto assetInfo = assetManager->getAssetInfo(assetId);
+    if (assetInfo.has_value())
     {
-        am::Asset* assetPtr = asset.value();
+        auto assetPtr = assetInfo->get()->getAsset();
         switch (assetPtr->getType())
         {
         case am::AssetType::Mesh:

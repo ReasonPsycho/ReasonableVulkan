@@ -13,14 +13,11 @@
 #include "Engine.h"
 #include "componentArrays/IComponentArray.h"
 #include "componentArrays/ComponentArray.h"
-
 #include "Types.h"
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
 #include "systems/transformSystem/componets/Transform.hpp"
-#include "systems/editorSystem/EditorSystem.hpp"
-#include "../systems/transformSystem/componets/Transform.hpp"
 namespace engine::ecs
 {
     class Scene {

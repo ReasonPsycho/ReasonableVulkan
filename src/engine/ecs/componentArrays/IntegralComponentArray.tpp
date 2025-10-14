@@ -52,7 +52,7 @@ void IntegralComponentArray<T>::AddComponentUntyped(Entity entity)
 }
 
 template <typename T>
-Component& IntegralComponentArray<T>::GetComponentUntyped(Entity entity)
+engine::Component& IntegralComponentArray<T>::GetComponentUntyped(Entity entity)
 {
     assert(entity < MAX_ENTITIES);
     return componentArray[entity];

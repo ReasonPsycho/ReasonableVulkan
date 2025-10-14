@@ -19,25 +19,52 @@ bool am::AssetFactoryData::operator==(const AssetFactoryData& factory_context) c
     return true;
 }
 
+
 am::Asset *am::AssetInfo::getAsset() {
-    if (!isLoaded && !loadedAsset) {
-        // Use the asset manager to load the asset
-        AssetManager &assetManager = AssetManager::getInstance();
-        auto factory = assetManager.getFactory(type);
-        if (factory) {
-            auto loadResult = factory(assetFactoryData);
-            if (!loadResult) {
-                spdlog::error("Failed to load asset: {}", path);
-                throw std::runtime_error("Failed to load asset: " + path);
-            }
-            loadedAsset = loadResult.get();
-            isLoaded = true;
-        }
-        assetManager.importer.FreeScene(); // This runs just in case assimp was used
-    }
-    return loadedAsset;
+    return AssetManager::getInstance().getAsset(id).value();
 }
 
 bool am::AssetInfo::isAssetLoaded() const {
     return isLoaded;
+}
+
+void am::AssetInfo::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+{
+    // Convert UUID to string
+    std::string uuidStr = boost::uuids::to_string(id);
+
+    obj.AddMember("id", rapidjson::Value(uuidStr.c_str(), allocator), allocator);
+    obj.AddMember("path", rapidjson::Value(path.c_str(), allocator), allocator);
+    obj.AddMember("type", rapidjson::Value(AssetTypeToString(type).c_str(), allocator), allocator);
+    obj.AddMember("contentHash", rapidjson::Value(static_cast<uint64_t>(contentHash)), allocator);
+
+    // Add AssetFactoryData
+    rapidjson::Value factoryDataObj(rapidjson::kObjectType);
+    factoryDataObj.AddMember("path", rapidjson::Value(assetFactoryData.path.c_str(), allocator), allocator);
+    factoryDataObj.AddMember("assetType", rapidjson::Value(AssetTypeToString(assetFactoryData.assetType).c_str(), allocator), allocator);
+    factoryDataObj.AddMember("assimpIndex", rapidjson::Value(assetFactoryData.assimpIndex), allocator);
+
+    obj.AddMember("assetFactoryData", factoryDataObj, allocator);
+}
+
+am::AssetInfo am::AssetInfo::DeserializeFromJson(const rapidjson::Value& obj)
+{
+    boost::uuids::string_generator gen;
+    boost::uuids::uuid id = gen(obj["id"].GetString());
+
+    std::string path = obj["path"].GetString();
+    AssetType type = StringToAssetType(obj["type"].GetString());
+    size_t contentHash = obj["contentHash"].GetUint64();
+
+    const auto& factoryData = obj["assetFactoryData"];
+    AssetFactoryData assetFactoryData(
+        factoryData["path"].GetString(),
+        StringToAssetType(factoryData["assetType"].GetString()),
+        factoryData["assimpIndex"].GetInt()
+    );
+
+    AssetInfo info(id, path, type, contentHash, assetFactoryData);
+    info.isLoaded = false;
+
+    return info;
 }
