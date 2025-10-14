@@ -149,7 +149,6 @@ void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescripto
     std::vector<VkDescriptorSetLayout> meshLayouts = {
         descriptorManager->getSceneLayout(),
         descriptorManager->getMaterialLayout(),
-        descriptorManager->getMeshUniformLayout()
     };
 
     VkPipelineLayoutCreateInfo meshPipelineLayoutInfo{};
@@ -166,7 +165,6 @@ void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescripto
     // Skybox pipeline layout (uses only sceneLayout)
     std::vector<VkDescriptorSetLayout> skyboxLayouts = {
         descriptorManager->getSceneLayout(),
-        descriptorManager->getMeshUniformLayout()
     };
 
     VkPipelineLayoutCreateInfo skyboxPipelineLayoutInfo{};

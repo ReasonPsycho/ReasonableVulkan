@@ -6,9 +6,11 @@ struct UBO
 };
 
 [[vk::binding(0, 0)]] cbuffer ubo : register(b0) { UBO ubo; }
-[[vk::binding(0, 1)]] cbuffer mesh {
+
+struct PushConstants {
     float4x4 model;
 };
+[[vk::push_constant]] PushConstants pushConstants;
 
 struct VSOutput
 {
@@ -26,7 +28,7 @@ VSOutput main([[vk::location(0)]] float3 Pos : POSITION0)
     viewMat[1][3] = 0.0;
     viewMat[2][3] = 0.0;
     output.UVW = Pos;
-    output.Pos = mul(ubo.projection, mul(viewMat, mul(model, float4(Pos.xyz, 1.0))));
+    output.Pos = mul(ubo.projection, mul(viewMat, mul(pushConstants.model, float4(Pos.xyz, 1.0))));
 
     return output;
 }

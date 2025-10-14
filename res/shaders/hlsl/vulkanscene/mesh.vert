@@ -19,9 +19,11 @@ struct UBO
 };
 
 [[vk::binding(0, 0)]]  cbuffer ubo { UBO ubo; }
-[[vk::binding(0, 2)]] cbuffer mesh {
+
+struct PushConstants {
     float4x4 model;
 };
+[[vk::push_constant]] PushConstants pushConstants;
 
 struct VSOutput
 {
@@ -43,17 +45,17 @@ VSOutput main(VSInput input)
     output.UV = input.TexCoord;
 
     // Transform normal vector to world space using model matrix
-    output.Normal = normalize(mul((float3x3)model, input.Normal));
+    output.Normal = normalize(mul((float3x3)pushConstants.model, input.Normal));
 
     // Pass through tangent and bitangent (transformed to world space)
-    output.Tangent = normalize(mul((float3x3)model, input.Tangent));
-    output.Bitangent = normalize(mul((float3x3)model, input.Bitangent));
+    output.Tangent = normalize(mul((float3x3)pushConstants.model, input.Tangent));
+    output.Bitangent = normalize(mul((float3x3)pushConstants.model, input.Bitangent));
     
     // Pass through vertex color (convert from float4 to float3)
     output.Color = input.Color.rgb;
     
     // Calculate position in view space for lighting
-    float4x4 modelView = mul(ubo.view, model);
+    float4x4 modelView = mul(ubo.view, pushConstants.model);
     float4 pos = float4(input.Pos, 1.0);
     float4 worldPos = mul(modelView, pos);
     
