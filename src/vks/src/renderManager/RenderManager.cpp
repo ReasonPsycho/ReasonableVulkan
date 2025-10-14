@@ -75,21 +75,20 @@ void RenderManager::createSyncObjects() {
     for (const auto& node : mainNode->children) {
         glm::mat4 nodeWorldTransform = matrix * node->matrix;
         for (const auto& mesh : node->meshes) {
-            // Update the mesh's uniform buffer with the new transform
-            void* data;
-            vkMapMemory(context->getDevice(), mesh->uniformBuffer.buffer.memory, 0, sizeof(glm::mat4), 0, &data);
-            memcpy(data, &nodeWorldTransform, sizeof(glm::mat4));
-            vkUnmapMemory(context->getDevice(), mesh->uniformBuffer.buffer.memory);
+            // Create a push constant for the transform instead of using uniform buffer
+            vkCmdPushConstants(
+                commandBuffer,
+                pipelineManager->getMeshPipelineLayout(),
+                VK_SHADER_STAGE_VERTEX_BIT,
+                0,
+                sizeof(glm::mat4),
+                &nodeWorldTransform
+            );
 
             VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-            if (mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineManager->getMeshPipelineLayout(), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
-            }
 
             // Then bind the material descriptor set at set index 1
             auto materialDescriptorSet = mesh->material->descriptorSet;
@@ -99,7 +98,6 @@ void RenderManager::createSyncObjects() {
             }
 
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
-
         }
         renderNode(node, commandBuffer, matrix);
     }
