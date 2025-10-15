@@ -25,7 +25,7 @@ void EditorSystem::ImGuiInspector()
         {
             if (array.get()->HasComponentUntyped(selectedEntity))
             {
-                registeredShowImGuiComponents[typeIndex].showImGuiComponent(scene, &array.get()->GetComponentUntyped(selectedEntity));
+                registeredComponentTypes[typeIndex].showImGuiComponent(scene,&array.get()->GetComponentUntyped(selectedEntity));
             }
         }
 
@@ -36,7 +36,7 @@ void EditorSystem::ImGuiInspector()
 
         if (ImGui::BeginPopup("Components List"))
         {
-            for (const auto& [typeIndex, info] : registeredShowImGuiComponents)
+            for (const auto& [typeIndex, info] : registeredComponentTypes)
             {
                 if (info.displayName != boost::core::demangle(typeid(Transform).name()))
                 {

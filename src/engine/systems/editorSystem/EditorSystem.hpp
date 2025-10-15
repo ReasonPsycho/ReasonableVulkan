@@ -24,24 +24,22 @@ namespace engine::ecs
 
         struct ComponentInfo {
             std::string displayName;
-            std::function<void(Scene* scene,Component* componentData)> showImGuiComponent;
-        };
+            std::function<void(Scene* scene, Component* component)> showImGuiComponent;
+         };
 
-        // Register component type with a display name and its ImGui renderer
+        // Register component type with a display name and ImGui renderer
         template<typename T>
-        void RegisterComponentType(std::function<void(Scene* scene, T* componentData)> showImGuiComponent) {
-            ComponentInfo newComponentInfo;
-            newComponentInfo.displayName = boost::core::demangle(typeid(T).name());
-            // Create a wrapper that performs the type cast
-            newComponentInfo.showImGuiComponent = [showImGuiComponent](Scene* scene, Component* componentData) {
-                T* derived = static_cast<T*>(componentData);
-                showImGuiComponent(scene, derived);
+        void RegisterComponentType() {
+            ComponentInfo info;
+            info.displayName = boost::core::demangle(typeid(T).name());
+            info.showImGuiComponent = [](Scene* scene, Component* component) {
+                if (auto* typedComponent = dynamic_cast<T*>(component)) {
+                    typedComponent->ShowImGui(scene, component);
+                }
             };
-            registeredShowImGuiComponents[typeid(T)] = newComponentInfo;
+            registeredComponentTypes[typeid(T)] = std::move(info);
         }
 
-        void RegisterShowImGuiComponent(std::type_index typeIndex,std::function<void(Scene* scene)> function) {
-        }
 
         void SetEntityName(Entity entity, const std::string& name);
         std::string GetEntityName(Entity entity) const;
@@ -56,7 +54,7 @@ namespace engine::ecs
     private:
         std::unordered_map<Entity, std::string> named_entities;
         Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();;
-        std::unordered_map<std::type_index,ComponentInfo> registeredShowImGuiComponents;
+        std::unordered_map<std::type_index,ComponentInfo> registeredComponentTypes;
         void ImGuiSceneGraph();
         void ImGuiGraphEntity(Entity entity);
         void ImGuiInspector();
