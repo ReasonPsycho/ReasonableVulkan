@@ -4,16 +4,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
-
 #include "ecs/Component.hpp"
 #include "systems/editorSystem/ImGui_GLM_Helpers.hpp"
 
 namespace engine::ecs
 {
-
-    struct Transform;
-    inline void setLocalRotationFromEulerDegrees(Transform& t, const glm::vec3& eulerDegrees);
-
     struct Transform: public Component
     {
         glm::vec3 position;
@@ -27,9 +22,11 @@ namespace engine::ecs
 
         Transform(): Component(), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f, 1.0f, 1.0f), localMatrix(1.0f), globalMatrix(1.0f), isDirty(true) {}
 
-    };
+        void ShowImGui(Scene* scene,Component* component) const override;
+ };
 
-    // Utility
+
+   // Utility
     inline void decomposeMtx(const glm::mat4& m, glm::vec3& pos, glm::quat& rot, glm::vec3& scale)
     {
         pos = glm::vec3(m[3]);
@@ -172,5 +169,6 @@ namespace engine::ecs
         return glm::inverse(parent.localMatrix) * child.localMatrix;
     }
 }
+
 
 #endif // TRANSFORM_H

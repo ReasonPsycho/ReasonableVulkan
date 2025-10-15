@@ -22,14 +22,16 @@ namespace engine::ecs
 
         bool isDirty = true;
         Camera() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
+
+        void ShowImGui(Scene* scene,Component* component) const override;
     };
 
-    // Utility functions
-    inline void updateProjectionMatrix(Camera& camera)
+
+inline void updateProjectionMatrix(Camera& camera)
     {
-        camera.projection = glm::perspective(glm::radians(camera.fov), 
-                                          camera.aspectRatio, 
-                                          camera.nearPlane, 
+        camera.projection = glm::perspective(glm::radians(camera.fov),
+                                          camera.aspectRatio,
+                                          camera.nearPlane,
                                           camera.farPlane);
         camera.isDirty = false;
     }
@@ -112,5 +114,6 @@ namespace engine::ecs
     {
         return camera.isDirty;
     }
+
 }
 #endif //CAMERA_H

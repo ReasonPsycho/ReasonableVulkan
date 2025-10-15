@@ -12,10 +12,9 @@ namespace engine::ecs
     struct Component
     {
     public:
-        virtual ~Component() = 0;;
+        virtual ~Component() = default;
+        virtual void ShowImGui(Scene* scene, Component* component) const = 0;
     };
 
-    // Provide implementation for the pure virtual destructor in the header
-    inline Component::~Component() = default;
 }
 #endif //REASONABLEVULKAN_COMPONENT_HPP

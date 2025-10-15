@@ -10,6 +10,7 @@
 #include <typeindex>
 #include <unordered_map>
 
+#include "systems/transformSystem/componets/Transform.hpp"
 #include "Engine.h"
 #include "componentArrays/IComponentArray.h"
 #include "componentArrays/ComponentArray.h"
@@ -17,9 +18,10 @@
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
-#include "systems/transformSystem/componets/Transform.hpp"
 namespace engine::ecs
 {
+    struct Transform;
+
     class Scene {
     public:
 
@@ -28,8 +30,11 @@ namespace engine::ecs
         void Update(float deltaTime);
 
         //Entity
-        Entity CreateEntity(Transform transform = Transform(),Entity parentEntity = -1);
-        Entity CreateEntity(std::string entityName,Transform transform = Transform(),Entity parentEntity = -1);
+        Entity CreateEntity(Entity parentEntity = -1);
+        Entity CreateEntity(Transform transform,Entity parentEntity = -1);
+        Entity CreateEntity(std::string entityName,Entity parentEntity = -1);
+        Entity CreateEntity(std::string entityName,Transform transform,Entity parentEntity = -1);
+
 
         void DestroyEntity(Entity entity);
 

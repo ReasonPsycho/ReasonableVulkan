@@ -6,17 +6,12 @@
 #include "Scene.h"
 #include "tracy/Tracy.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
-#include "systems/editorSystem/showImGuiComponents/ShowImGuiCamera.hpp"
-#include "systems/editorSystem/showImGuiComponents/ShowImGuiModel.hpp"
-#include "systems/editorSystem/showImGuiComponents/ShowImGuiTransform.hpp"
 
 
 using namespace engine::ecs;
 
-#include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/transformSystem/TransformSystem.h"
 #include "systems/renderingSystem/RenderSystem.h"
-#include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/renderingSystem/componets/Camera.hpp"
 #include "systems/renderingSystem/componets/Model.hpp"
 
@@ -54,15 +49,9 @@ Scene::Scene(Engine& engine): engine(engine)
 
 #ifdef EDITOR_ENABLED
     RegisterSystem<EditorSystem>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<Transform>([](Scene* scene, Transform* transform) {
-        ShowImGuiTransform(scene, transform);
-    });
-    GetSystem<EditorSystem>().get()->RegisterComponentType<Model>([](Scene* scene, Model* model) {
-        ShowImGuiModel(scene, model);
-    });
-    GetSystem<EditorSystem>().get()->RegisterComponentType<Camera>([](Scene* scene, Camera* camera) {
-        ShowImGuiCamera(scene, camera);
-    });
+    GetSystem<EditorSystem>().get()->RegisterComponentType<Transform>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<Model>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<Camera>();
 #endif
     RegisterComponent<Model>(); //For some reason I have to register them in reverse
     RegisterComponent<Camera>();
@@ -78,6 +67,11 @@ void Scene::Update(float deltaTime) {
         system->Update(deltaTime);
     }
     engine.graphicsEngine->endFrame();
+}
+
+Entity Scene::CreateEntity(Entity parentEntity)
+{
+    return CreateEntity(Transform(),parentEntity);
 }
 
 const std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> Scene::GetSystems()
@@ -161,6 +155,11 @@ Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
 
     activeEntities.set(entity, true);
     return entity;
+}
+
+Entity Scene::CreateEntity(std::string entityName, Entity parentEntity)
+{
+    return CreateEntity(entityName,Transform(),parentEntity);
 }
 
 Entity Scene::CreateEntity(std::string entityName, Transform transform,  Entity parentEntity)
