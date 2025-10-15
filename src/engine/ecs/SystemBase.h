@@ -4,6 +4,8 @@
 
 #ifndef SYSTEMBASE_H
 #define SYSTEMBASE_H
+#include <rapidjson/document.h>
+
 #include "Types.h"
 
 namespace engine::ecs
@@ -18,6 +20,9 @@ namespace engine::ecs
 
         std::string name;
         Signature signature;
+
+        virtual void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const = 0;
+        virtual void DeserializeFromJson(const rapidjson::Value& obj) = 0;
     };
 }
 #endif //SYSTEMBASE_H

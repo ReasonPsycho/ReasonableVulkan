@@ -23,7 +23,10 @@ namespace engine::ecs
         Transform(): Component(), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f, 1.0f, 1.0f), localMatrix(1.0f), globalMatrix(1.0f), isDirty(true) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
- };
+
+        void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
+        void DeserializeFromJson(const rapidjson::Value& obj) override;
+    };
 
 
    // Utility
