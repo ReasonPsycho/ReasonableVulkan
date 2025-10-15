@@ -24,6 +24,9 @@ namespace engine::ecs
         Camera() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
+
+        void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
+        void DeserializeFromJson(const rapidjson::Value& obj) override;
     };
 
 

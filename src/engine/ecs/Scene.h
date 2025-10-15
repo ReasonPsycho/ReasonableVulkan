@@ -98,6 +98,10 @@ namespace engine::ecs
         const std::vector<Entity>& GetChildren(Entity entity) const;
         bool HasParent(Entity entity) const;
 
+        void SerializeToJson(rapidjson::Document& doc) const;
+        void DeserializeFromJson(const rapidjson::Document& doc);
+        void AddComponent(const std::type_index& type);
+
         std::unordered_map<Entity, TransformNode> sceneGraph;
         std::vector<Entity> rootEntities;
 
@@ -121,7 +125,16 @@ namespace engine::ecs
         //Systems
         std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;
 
+        void SerializeEntities(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeComponents(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeSystems(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeSceneGraph(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
 
+        void RegisterSystem(const std::type_index& type);
+        void DeserializeEntities(const rapidjson::Value& obj);
+        void DeserializeComponents(const rapidjson::Value& obj);
+        void DeserializeSystems(const rapidjson::Value& obj);
+        void DeserializeSceneGraph(const rapidjson::Value& obj);
     };
 
 

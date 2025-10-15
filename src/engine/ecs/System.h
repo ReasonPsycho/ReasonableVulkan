@@ -47,10 +47,63 @@ namespace engine::ecs
             }
         }
 
+        void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override {
+            // Store system name
+            rapidjson::Value nameVal;
+            nameVal.SetString(name.c_str(), allocator);
+            obj.AddMember("name", nameVal, allocator);
+
+            // Store signature
+            std::string sigStr = signature.to_string();
+            rapidjson::Value sigVal;
+            sigVal.SetString(sigStr.c_str(), allocator);
+            obj.AddMember("signature", sigVal, allocator);
+
+            // Store entities
+            rapidjson::Value entitiesArray(rapidjson::kArrayType);
+            for (Entity entity : entities) {
+                entitiesArray.PushBack(static_cast<uint64_t>(entity), allocator);
+            }
+            obj.AddMember("entities", entitiesArray, allocator);
+
+            // Allow derived systems to serialize additional data
+            rapidjson::Value extraData(rapidjson::kObjectType);
+            static_cast<const Derived*>(this)->SerializeExtraData(extraData, allocator);
+            obj.AddMember("extraData", extraData, allocator);
+        }
+
+        void DeserializeFromJson(const rapidjson::Value& obj) override {
+            // Clear existing entities
+            entities.clear();
+
+            // Load entities
+            if (obj.HasMember("entities") && obj["entities"].IsArray()) {
+                const auto& entitiesArray = obj["entities"];
+                for (rapidjson::SizeType i = 0; i < entitiesArray.Size(); i++) {
+                    Entity entity = static_cast<Entity>(entitiesArray[i].GetUint64());
+                    entities.push_back(entity);
+                    OnEntityAdded(entity);
+                }
+            }
+
+            // Load extra data from derived system
+            if (obj.HasMember("extraData") && obj["extraData"].IsObject()) {
+                static_cast<Derived*>(this)->DeserializeExtraData(obj["extraData"]);
+            }
+        }
+
     protected:
         Scene* scene;
         virtual void OnEntityAdded(Entity entity) = 0;
         virtual void OnEntityRemoved(Entity entity)  = 0;
+
+        virtual void SerializeExtraData(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
+            // Default implementation does nothing
+        }
+
+        virtual void DeserializeExtraData(const rapidjson::Value& obj) {
+            // Default implementation does nothing
+        }
 
     private:
         template <typename... Ts>

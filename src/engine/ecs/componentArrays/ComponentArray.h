@@ -31,6 +31,8 @@ namespace engine::ecs{
         void SetComponentActiveUntyped(Entity entity, bool active) override;
         bool IsComponentActiveUntyped(Entity entity) const override;
 
+        void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
+        void DeserializeFromJson(const rapidjson::Value& obj) override;
     private:
         std::array<T, MAX_COMPONENTS_ARRAY> componentArray;
         std::bitset<MAX_COMPONENTS_ARRAY> activeComponents;

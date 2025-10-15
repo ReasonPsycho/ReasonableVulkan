@@ -32,3 +32,20 @@ void Model::ShowImGui(Scene* scene, Component* component) const
     }
 
 }
+
+void Model::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+{
+    rapidjson::Value uuidStr;
+    std::string uuidString = boost::uuids::to_string(modelUuid);
+    uuidStr.SetString(uuidString.c_str(), allocator);
+    obj.AddMember("modelUuid", uuidStr, allocator);
+}
+
+void Model::DeserializeFromJson(const rapidjson::Value& obj)
+{
+    if (obj.HasMember("modelUuid") && obj["modelUuid"].IsString()) {
+        std::string uuidStr = obj["modelUuid"].GetString();
+        boost::uuids::string_generator gen;
+        modelUuid = gen(uuidStr);
+    }
+}
