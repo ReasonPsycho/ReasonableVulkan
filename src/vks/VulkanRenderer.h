@@ -36,7 +36,7 @@ namespace vks {
 		void renderFrame() override;
 		void endFrame() override;
 
-		void initialize(PlatformInterface* platform, uint32_t width, uint32_t height) override;
+		void initialize(plt::PlatformInterface* platform, uint32_t width, uint32_t height) override;
 
 		void cleanup();
 		void waitIdle();
@@ -48,7 +48,7 @@ namespace vks {
 		std::unique_ptr<DescriptorManager> descriptorManager;
 		std::unique_ptr<RenderPipelineManager> pipelineManager;
 		std::unique_ptr<RenderManager> renderManager;
-		PlatformInterface* platformInterface;
+		plt::PlatformInterface* platformInterface;
 
 		bool minimized = false;
 #if ENABLE_IMGUI

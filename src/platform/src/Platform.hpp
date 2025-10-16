@@ -9,6 +9,10 @@
 #include <vector>
 #include "PlatformInterface.hpp"
 
+namespace  plt
+{
+
+
 class Platform : public PlatformInterface {
 public:
     Platform() : PlatformInterface()
@@ -52,4 +56,6 @@ private:
     float lastMouseX = 0.0f, lastMouseY = 0.0f;
 };
 
+
+}
 #endif //PLATFORM_HPP

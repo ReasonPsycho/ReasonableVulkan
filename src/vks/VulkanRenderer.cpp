@@ -11,7 +11,6 @@
 #include "src/descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderDescriptor.h"
 #include <SDL3/SDL_vulkan.h>
 
-#include "PlatformInterface.hpp"
 #include "src/imguiManager/ImguiManager.hpp"
 
 namespace vks {
@@ -96,7 +95,7 @@ namespace vks {
     }
 
 
-    void VulkanRenderer::initialize(PlatformInterface* platform, uint32_t width, uint32_t height) {
+    void VulkanRenderer::initialize(plt::PlatformInterface* platform, uint32_t width, uint32_t height) {
         if (platform == nullptr) {
             throw std::runtime_error("Platform interface cannot be null");
         }
@@ -109,19 +108,19 @@ namespace vks {
         }
 
         // Subscribe to window events
-        platform->SubscribeToEvent(PlatformInterface::EventType::WindowResize,
+        platform->SubscribeToEvent(plt::EventType::WindowResize,
             [this](const void* data) {
-                const auto* resizeEvent = static_cast<const PlatformInterface::WindowResizeEvent*>(data);
+                const auto* resizeEvent = static_cast<const plt::WindowResizeEvent*>(data);
                 this->handleWindowResize(resizeEvent->width, resizeEvent->height);
             });
 
-        platform->SubscribeToEvent(PlatformInterface::EventType::WindowMinimize,
+        platform->SubscribeToEvent(plt::EventType::WindowMinimize,
             [this](const void* /*data*/) {
                 waitIdle();
                 minimized = true;
             });
 
-        platform->SubscribeToEvent(PlatformInterface::EventType::WindowRestored,
+        platform->SubscribeToEvent(plt::EventType::WindowRestored,
             [this](const void* /*data*/) {
                 minimized = false;
             });
