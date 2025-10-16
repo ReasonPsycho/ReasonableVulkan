@@ -18,9 +18,17 @@
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
+#include "systems/renderingSystem/componets/Camera.hpp"
+
 namespace engine::ecs
 {
     struct Transform;
+
+    struct CameraObject
+    {
+        Camera* camera;
+        Transform* transform;
+    };
 
     class Scene {
     public:
@@ -97,6 +105,7 @@ namespace engine::ecs
         Entity GetParent(Entity entity) const;
         const std::vector<Entity>& GetChildren(Entity entity) const;
         bool HasParent(Entity entity) const;
+        bool IsAncestor(Entity potentialAncestor, Entity entity) const;
 
         void SerializeToJson(rapidjson::Document& doc) const;
         void DeserializeFromJson(const rapidjson::Document& doc);
@@ -104,6 +113,8 @@ namespace engine::ecs
 
         std::unordered_map<Entity, TransformNode> sceneGraph;
         std::vector<Entity> rootEntities;
+
+        CameraObject GetActiveCamera();
 
         //Engine
         engine::Engine& engine;

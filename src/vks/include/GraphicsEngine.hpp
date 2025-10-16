@@ -6,7 +6,10 @@
 #include <glm/fwd.hpp>
 #include <glm/detail/type_mat4x4.hpp>
 
-class PlatformInterface;
+namespace plt
+{
+    class PlatformInterface;
+}
 
 namespace gfx {
     class GraphicsEngine {
@@ -16,7 +19,7 @@ namespace gfx {
     public:
         virtual ~GraphicsEngine() = default;
 
-        virtual void initialize(PlatformInterface* platform, uint32_t width, uint32_t height) = 0;
+        virtual void initialize(plt::PlatformInterface* platform, uint32_t width, uint32_t height) = 0;
 
         virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3& lightPos) = 0;
         virtual void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) = 0;

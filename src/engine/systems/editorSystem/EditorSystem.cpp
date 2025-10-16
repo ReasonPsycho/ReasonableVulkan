@@ -8,7 +8,10 @@
 
 #include "ecs/Scene.h"
 #include <imgui_internal.h>
-#include "systems/renderingSystem/componets/Camera.hpp"  // Adjust path as needed
+#include <SDL3/SDL_mouse.h>
+
+#include "systems/renderingSystem/componets/Camera.hpp"
+#include "PlatformInterface.hpp"
 
 void EditorSystem::ImGuiInspector()
 {
@@ -59,8 +62,6 @@ void EditorSystem::ImGuiGizmo()
 {
     if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
     {
-        auto cameraEntity = scene->GetComponentArray<Camera>().get()->ComponentIndexToEntity(0);
-        auto& camera = scene->GetComponentArray<Camera>().get()->GetComponent(cameraEntity);
         auto& transform = scene->GetIntegralComponentArray<Transform>().get()->GetComponent(selectedEntity);
 
         static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
@@ -145,9 +146,9 @@ void EditorSystem::ImGuiGizmo()
 
             // If we have a parent, we need to convert global to local
             auto it = scene->sceneGraph.find(selectedEntity);
-            if (it != scene->sceneGraph.end() && it->second.parent != std::numeric_limits<std::uint32_t>::max())
+            if (it != scene->sceneGraph.end() && it->second.parent != MAX_ENTITIES)
             {
-                auto& parentTransform = scene->GetComponentArray<Transform>().get()->GetComponent(it->second.parent);
+                auto& parentTransform = scene->GetIntegralComponentArray<Transform>().get()->GetComponent(it->second.parent);
                 setLocalMatrixFromGlobal(transform, newGlobalMatrix, parentTransform.globalMatrix);
             }
             else
@@ -174,6 +175,11 @@ void EditorSystem::ImguiMenu()
     ImGui::Text("Menu Content");
     // Add your menu content here
     ImGui::End();
+}
+
+EditorSystem::EditorSystem(Scene* scene): System(scene)
+{
+    Initialize();
 }
 
 void engine::ecs::EditorSystem::Update(float deltaTime)
@@ -252,6 +258,96 @@ std::string EditorSystem::GetEntityName(Entity entity) const
     return it != named_entities.end() ? "(#" + std::to_string(entity) + ") " + it->second : "(#" + std::to_string(entity) +") Entity";
 }
 
+void EditorSystem::Initialize()
+{
+    SetUpCameraControls(scene->engine.platform);
+}
+
+
+void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
+{
+    platform->SubscribeToEvent(plt::EventType::MouseButtonPressed, [this](const void* eventData) {
+     const auto& mouseEvent = *static_cast<const plt::MouseButtonEvent*>(eventData);
+     if (mouseEvent.button == SDL_BUTTON_RIGHT) {
+         isRightMousePressed = true;
+     } else if (mouseEvent.button == SDL_BUTTON_MIDDLE) {
+         isMiddleMousePressed = true;
+     }
+ });
+
+    platform->SubscribeToEvent(plt::EventType::MouseButtonReleased, [this](const void* eventData) {
+        const auto& mouseEvent = *static_cast<const plt::MouseButtonEvent*>(eventData);
+        if (mouseEvent.button == SDL_BUTTON_RIGHT) {
+            isRightMousePressed = false;
+        } else if (mouseEvent.button == SDL_BUTTON_MIDDLE) {
+            isMiddleMousePressed = false;
+        }
+    });
+
+    // Set up mouse motion handler
+    platform->SubscribeToEvent(plt::EventType::MouseMoved, [this, platform](const void* eventData) {
+        const auto& motionEvent = *static_cast<const plt::MouseMoveEvent*>(eventData);
+
+        if (isRightMousePressed) {
+            // Orbit camera
+            float sensitivity = 0.3f;
+            cameraYaw += motionEvent.deltaX * sensitivity;
+            cameraPitch += -motionEvent.deltaY * sensitivity;
+
+            // Clamp pitch to prevent camera flipping
+            cameraPitch = glm::clamp(cameraPitch, -89.0f, 89.0f);
+
+            UpdateCameraPosition();
+        }
+        else if (isMiddleMousePressed) {
+            // Pan camera
+            float sensitivity = 0.001f * cameraDistance;
+            glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0, 1, 0),
+                cameraTransform.position - cameraTarget));
+            glm::vec3 up = glm::cross(right, cameraTransform.position - cameraTarget);
+
+            cameraTarget += right * (-motionEvent.deltaX * sensitivity);
+            cameraTarget += up * (motionEvent.deltaY * sensitivity);
+
+            UpdateCameraPosition();
+        }
+    });
+
+    // Set up mouse wheel handler
+    platform->SubscribeToEvent(plt::EventType::MouseScrolled, [this](const void* eventData) {
+        const auto& wheelEvent = *static_cast<const plt::MouseScrollEvent*>(eventData);
+        // Zoom camera
+        float zoomSensitivity = 0.1f;
+        cameraDistance = glm::max(0.1f, cameraDistance - wheelEvent.yOffset * zoomSensitivity);
+        UpdateCameraPosition();
+    });
+
+    // Initialize camera position
+    UpdateCameraPosition();
+}
+
+void EditorSystem::UpdateCameraPosition()
+{
+    // Calculate camera position based on spherical coordinates
+    float x = cameraDistance * cos(glm::radians(cameraPitch)) * cos(glm::radians(cameraYaw));
+    float y = cameraDistance * sin(glm::radians(cameraPitch));
+    float z = cameraDistance * cos(glm::radians(cameraPitch)) * sin(glm::radians(cameraYaw));
+
+    // Update camera transform
+    cameraTransform.position = cameraTarget + glm::vec3(x, y, z);
+    cameraTransform.rotation = glm::quatLookAt(
+        glm::normalize(cameraTarget - cameraTransform.position),
+        glm::vec3(0, 1, 0)
+    );
+
+
+    // Update camera matrices
+    computeLocalMatrix(cameraTransform);
+    cameraTransform.globalMatrix = cameraTransform.localMatrix;
+    updateViewMatrix(camera, cameraTransform.localMatrix);
+}
+
+
 void engine::ecs::EditorSystem::ImGuiSceneGraph()
 {
     ImGui::Begin("Scene graph", nullptr, ImGuiWindowFlags_MenuBar);
@@ -280,6 +376,18 @@ void engine::ecs::EditorSystem::ImGuiSceneGraph()
     {
         ImGuiGraphEntity(root);
     }
+
+    // Handle dropping onto empty space (to make an entity a root)
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+        {
+            Entity droppedEntity = *(const Entity*)payload->Data;
+            scene->RemoveParent(droppedEntity);
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     ImGui::End();
 }
 
@@ -299,14 +407,39 @@ void EditorSystem::ImGuiGraphEntity(Entity entity)
 
     bool nodeOpen = ImGui::TreeNodeEx(nameStr.c_str(), flags, "%s", nameStr.c_str());
 
+    // Start drag operation
+    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+    {
+        // Set payload to carry the entity index
+        ImGui::SetDragDropPayload("SCENE_ENTITY", &entity, sizeof(Entity));
+        ImGui::Text("Moving %s", nameStr.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Handle incoming drag
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+        {
+            Entity droppedEntity = *(const Entity*)payload->Data;
+            // Prevent dropping on itself or its children
+            if (droppedEntity != entity)
+            {
+                scene->SetParent(droppedEntity, entity);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     // Handle selection when clicked
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
         if (selectedEntity == entity)
         {
             selectedEntity = std::numeric_limits<std::uint32_t>::max();
-        }else
+        }
+        else
         {
-        selectedEntity = entity;
+            selectedEntity = entity;
         }
     }
 

@@ -11,6 +11,15 @@
 #include <glm/glm.hpp>
 #include <utility>
 #include "ecs/System.h"
+#include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/transformSystem/componets/Transform.hpp"
+
+namespace plt
+{
+    class PlatformInterface;
+}
+
+class PlatformInterface;
 
 namespace engine::ecs
 {
@@ -19,7 +28,7 @@ namespace engine::ecs
     class EditorSystem :  public System<EditorSystem>
     {
     public:
-        EditorSystem(Scene* scene) : System(scene) {}
+        EditorSystem(Scene* scene);
         void Update(float deltaTime) override;
 
         struct ComponentInfo {
@@ -47,6 +56,15 @@ namespace engine::ecs
         Entity GetSelectedEntity() const { return selectedEntity; }
         void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
 
+        Camera camera = Camera();
+        Transform cameraTransform = Transform();
+
+        bool inEditMode = true;
+
+        void Initialize();
+
+        void SetUpCameraControls(plt::PlatformInterface* platfrom);
+
     protected:
         void OnEntityAdded(Entity entity) override {}
         void OnEntityRemoved(Entity entity) override {}
@@ -61,6 +79,15 @@ namespace engine::ecs
         void ImGuiGizmo();
         void ImguiToolbar();
         void ImguiMenu();
+
+        bool isRightMousePressed = false;
+        bool isMiddleMousePressed = false;
+        float cameraDistance = 5.0f;
+        float cameraYaw = 0.0f;
+        float cameraPitch = -45.0f;
+        glm::vec3 cameraTarget = glm::vec3(0.0f);
+
+        void UpdateCameraPosition();
     };
 }
 

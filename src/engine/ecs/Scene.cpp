@@ -79,8 +79,30 @@ const std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> Scene::Ge
     return systems;
 }
 
+
+bool Scene::IsAncestor(Entity potentialAncestor, Entity entity) const {
+    Entity current = entity;
+    while (HasParent(current)) {
+        current = GetParent(current);
+        if (current == potentialAncestor) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Scene::SetParent(Entity child, Entity parent) {
     assert(child < maxEntityIndex && parent < maxEntityIndex);
+
+    // Prevent setting parent to itself
+    if (child == parent) {
+        return;
+    }
+
+    // Check for circular reference
+    if (IsAncestor(child, parent)) {
+        return;
+    }
 
     // Remove child from previous parent and from rootEntities if needed
     RemoveParent(child);
@@ -395,6 +417,34 @@ void Scene::AddComponent(const std::type_index& type) {
         componentArrays[type] = engine.CreateComponentArray(type);
     }
 }
+
+CameraObject Scene::GetActiveCamera()
+    {
+        static Transform defaultTransform;
+        static Camera defaultCamera;
+
+        if (GetSystem<EditorSystem>()->inEditMode)
+        {
+            return {&GetSystem<EditorSystem>()->camera, &GetSystem<EditorSystem>()->cameraTransform};
+        }
+        else
+        {
+            auto& cameras = GetComponentArray<Camera>().get()->GetComponents();
+            auto& transforms = GetIntegralComponentArray<Transform>().get()->GetComponents();
+
+            for (int i = 0; i < cameras.size(); i++)
+            {
+                if (GetComponentArray<Camera>().get()->IsComponentActive(i))
+                {
+                    auto cameraEntity = GetComponentArray<Camera>().get()->ComponentIndexToEntity(i);
+                    return {&cameras[cameraEntity], &transforms[cameraEntity]};
+                }
+            }
+        }
+
+        // If no active camera found, return default camera
+        return {&defaultCamera, &defaultTransform};
+    }
 
 void Scene::RegisterSystem(const std::type_index& type) {
     if (systems.find(type) == systems.end()) {

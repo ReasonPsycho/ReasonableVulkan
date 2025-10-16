@@ -4,9 +4,11 @@
 
 #include "RenderSystem.h"
 
+#include "PlatformInterface.hpp"
 #include "systems/transformSystem/componets/Transform.hpp"
 #include"componets/Camera.hpp"
 #include "ecs/Scene.h"
+#include "systems/editorSystem/EditorSystem.hpp"
 
 void engine::ecs::RenderSystem::Update(float deltaTime)
 {
@@ -16,7 +18,6 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     auto modelArray = scene->GetComponentArray<Model>().get();
     auto& models = modelArray->GetComponents();
     auto& transforms = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
-    auto& cameras = scene->GetComponentArray<Camera>().get()->GetComponents();
 
     // Only iterate up to the actual size of used components
     for (ComponentIndex i = 0; i < modelArray->GetArraySize(); i++)
@@ -31,16 +32,16 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         }
     }
 
-    auto cameraEntity =scene->GetComponentArray<Camera>().get()->ComponentIndexToEntity(0); //This will blow up on first change in camera
+    CameraObject cameraObject = scene->GetActiveCamera();
 
     int width, height;
     scene->engine.platform->GetWindowSize(width, height);
     float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
 
-    updateViewMatrix(cameras[0], transforms[cameraEntity].globalMatrix);
-    cameras[0].aspectRatio = aspectRatio;
-    updateProjectionMatrix(cameras[0]);
+    updateViewMatrix(*cameraObject.camera, cameraObject.transform->globalMatrix);
+    cameraObject.camera->aspectRatio = aspectRatio;
+    updateProjectionMatrix(*cameraObject.camera);
 
-    scene->engine.graphicsEngine->setCameraData(cameras[0].projection, cameras[0].view, cameras[0].lightpos);
+    scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view, cameraObject.camera->lightpos);
     scene->engine.graphicsEngine->renderFrame();
 }

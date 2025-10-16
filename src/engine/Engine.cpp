@@ -1,35 +1,40 @@
 #include "Engine.h"
 
+#include "PlatformInterface.hpp"
 #include "ecs/Scene.h"
 #include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
 
 namespace engine {
-    Engine::Engine(PlatformInterface* platformInterface, gfx::GraphicsEngine* graphicsEngine,
-        am::AssetManagerInterface* assetManagerInterface): graphicsEngine(graphicsEngine), assetManagerInterface(assetManagerInterface), platform(platformInterface)
+
+
+    Engine::Engine(plt::PlatformInterface* platformInterface, gfx::GraphicsEngine* graphicsEngine,
+        am::AssetManagerInterface* assetManagerInterface) : assetManagerInterface(assetManagerInterface), graphicsEngine(graphicsEngine),
+                                                            platform(platformInterface)
     {
-            RegisterSystemType<RenderSystem>();
+        RegisterSystemType<RenderSystem>();
 
 #ifdef EDITOR_ENABLED
-            RegisterSystemType<EditorSystem>();
+        RegisterSystemType<EditorSystem>();
 
 #endif
-            RegisterComponentType<Model>(); //For some reason I have to register them in reverse
-            RegisterComponentType<Camera>();
+        RegisterComponentType<Model>(); //For some reason I have to register them in reverse
+        RegisterComponentType<Camera>();
 
-            RegisterComponentType<Transform>();
-            RegisterSystemType<TransformSystem>();
+        RegisterComponentType<Transform>();
+        RegisterSystemType<TransformSystem>();
+
     }
 
     void Engine::Initialize()
     {
-        platform->SubscribeToEvent(PlatformInterface::EventType::WindowMinimize,
+        platform->SubscribeToEvent(plt::EventType::WindowMinimize,
       [this](const void* /*data*/) {
           minimized = true;
       });
 
-        platform->SubscribeToEvent(PlatformInterface::EventType::WindowRestored,
+        platform->SubscribeToEvent(plt::EventType::WindowRestored,
             [this](const void* /*data*/) {
                 minimized = false;
             });
@@ -84,6 +89,24 @@ namespace engine {
         if (activeScene) {
             activeScene->Update(deltaTime);
         }
+    }
+
+    std::shared_ptr<IComponentArray> Engine::CreateComponentArray(const std::type_index& type) const
+    {
+        auto it = componentFactories.find(type);
+        if (it != componentFactories.end()) {
+            return it->second();
+        }
+        throw std::runtime_error("No factory registered for component type: " + std::string(type.name()));
+    }
+
+    std::shared_ptr<SystemBase> Engine::CreateSystem(const std::type_index& type, Scene* scene) const
+    {
+        auto it = systemFactories.find(type);
+        if (it != systemFactories.end()) {
+            return it->second(scene);
+        }
+        throw std::runtime_error("No factory registered for system type: " + std::string(type.name()));
     }
 
     void Engine::SaveScene(std::string filename)

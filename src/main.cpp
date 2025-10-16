@@ -16,7 +16,7 @@
 
 
 int main(int argc, char *argv[]) {
-    PlatformInterface* platform = new Platform();
+    plt::PlatformInterface* platform = new plt::Platform();
     // 1. Initialize platform (SDL window, input, etc.)
     if (!platform->Init("My Game Engine", 1280, 720)) {
         return EXIT_FAILURE;

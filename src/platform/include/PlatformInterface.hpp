@@ -5,10 +5,8 @@
 #include <string>
 #include <functional>
 #include <chrono>
-
-class PlatformInterface {
-public:
-    // Event system types
+namespace  plt
+{
     enum class EventType {
         WindowResize,
         WindowMinimize,
@@ -57,32 +55,35 @@ public:
 
     using EventCallback = std::function<void(const void*)>;
 
-    virtual ~PlatformInterface() = default;
+    class PlatformInterface {
+    public:
 
-    // Main platform functions
-    virtual bool Init(const std::string& title, int width, int height) = 0;
-    virtual void PollEvents(bool& running) = 0;
-    virtual void Shutdown() = 0;
-    virtual void* GetNativeWindow() const = 0;
-    virtual float GetDeltaTime() const = 0;
+        virtual ~PlatformInterface() = default;
 
-    // Event system functions
-    virtual void SubscribeToEvent(EventType type, EventCallback callback) = 0;
-    virtual void UnsubscribeFromEvent(EventType type, const EventCallback& callback) = 0;
+        // Main platform functions
+        virtual bool Init(const std::string& title, int width, int height) = 0;
+        virtual void PollEvents(bool& running) = 0;
+        virtual void Shutdown() = 0;
+        virtual void* GetNativeWindow() const = 0;
+        virtual float GetDeltaTime() const = 0;
 
-    // Window utility functions
-    virtual void GetWindowSize(int& width, int& height) const = 0;
-    virtual void GetWindowPosition(int& x, int& y) const = 0;
-    virtual bool IsWindowMinimized() const = 0;
-    virtual bool IsWindowFocused() const = 0;
+        // Event system functions
+        virtual void SubscribeToEvent(EventType type, EventCallback callback) = 0;
+        virtual void UnsubscribeFromEvent(EventType type, const EventCallback& callback) = 0;
 
-    // Input state functions
-    virtual bool IsKeyPressed(int keyCode) const = 0;
-    virtual bool IsMouseButtonPressed(uint8_t button) const = 0;
-    virtual void GetMousePosition(float& x, float& y) const = 0;
+        // Window utility functions
+        virtual void GetWindowSize(int& width, int& height) const = 0;
+        virtual void GetWindowPosition(int& x, int& y) const = 0;
+        virtual bool IsWindowMinimized() const = 0;
+        virtual bool IsWindowFocused() const = 0;
 
-protected:
-    PlatformInterface() = default;
-};
+        // Input state functions
+        virtual bool IsKeyPressed(int keyCode) const = 0;
+        virtual bool IsMouseButtonPressed(uint8_t button) const = 0;
+        virtual void GetMousePosition(float& x, float& y) const = 0;
 
+    protected:
+        PlatformInterface() = default;
+    };
+}
 #endif //REASONABLEVULKAN_PLATFORMINTERFACE_HPP
