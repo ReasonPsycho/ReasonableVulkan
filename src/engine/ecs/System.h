@@ -22,29 +22,27 @@ namespace engine::ecs
     class System : public SystemBase
     {
     public:
-        std::vector<Entity> entities;
 
         explicit System(Scene* scene) : scene(scene)
         {
-            signature = GenerateSignature<Components...>();
+            registeredComponentTypes = {std::type_index(typeid(Components))...};
             name = boost::core::demangle(typeid(Derived).name());
         }
 
         virtual ~System() = default;
 
-        void AddEntity(Entity entity) override
+
+        void AddComponent(ComponentID entity, std::type_index type) override
         {
-            entities.push_back(entity);
-            OnEntityAdded(entity);
+
+            // Prob could add them to a list now needed for now
+            OnComponentAdded(entity, type);
         }
 
-        void RemoveEntity(Entity entity) override
+        void RemoveComponent(ComponentID component, std::type_index type) override
         {
-            auto it = std::find(entities.begin(), entities.end(), entity);
-            if (it != entities.end()) {
-                entities.erase(it);
-                OnEntityRemoved(entity);
-            }
+            // Prob could add them to a list now needed for now
+            OnEntityRemoved(component, type);
         }
 
         void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override {
@@ -53,19 +51,6 @@ namespace engine::ecs
             nameVal.SetString(name.c_str(), allocator);
             obj.AddMember("name", nameVal, allocator);
 
-            // Store signature
-            std::string sigStr = signature.to_string();
-            rapidjson::Value sigVal;
-            sigVal.SetString(sigStr.c_str(), allocator);
-            obj.AddMember("signature", sigVal, allocator);
-
-            // Store entities
-            rapidjson::Value entitiesArray(rapidjson::kArrayType);
-            for (Entity entity : entities) {
-                entitiesArray.PushBack(static_cast<uint64_t>(entity), allocator);
-            }
-            obj.AddMember("entities", entitiesArray, allocator);
-
             // Allow derived systems to serialize additional data
             rapidjson::Value extraData(rapidjson::kObjectType);
             static_cast<const Derived*>(this)->SerializeExtraData(extraData, allocator);
@@ -73,18 +58,6 @@ namespace engine::ecs
         }
 
         void DeserializeFromJson(const rapidjson::Value& obj) override {
-            // Clear existing entities
-            entities.clear();
-
-            // Load entities
-            if (obj.HasMember("entities") && obj["entities"].IsArray()) {
-                const auto& entitiesArray = obj["entities"];
-                for (rapidjson::SizeType i = 0; i < entitiesArray.Size(); i++) {
-                    Entity entity = static_cast<Entity>(entitiesArray[i].GetUint64());
-                    entities.push_back(entity);
-                    OnEntityAdded(entity);
-                }
-            }
 
             // Load extra data from derived system
             if (obj.HasMember("extraData") && obj["extraData"].IsObject()) {
@@ -94,8 +67,8 @@ namespace engine::ecs
 
     protected:
         Scene* scene;
-        virtual void OnEntityAdded(Entity entity) = 0;
-        virtual void OnEntityRemoved(Entity entity)  = 0;
+        virtual void OnComponentAdded(ComponentID componentID, std::type_index type) = 0;
+        virtual void OnEntityRemoved(ComponentID componentID, std::type_index type)  = 0;
 
         virtual void SerializeExtraData(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
             // Default implementation does nothing
@@ -105,14 +78,6 @@ namespace engine::ecs
             // Default implementation does nothing
         }
 
-    private:
-        template <typename... Ts>
-        static Signature GenerateSignature()
-        {
-            Signature sig;
-            (sig.set(GetComponentTypeID<Ts>()), ...); // Fold expression
-            return sig;
-        }
     };
 }
 

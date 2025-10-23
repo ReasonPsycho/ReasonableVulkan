@@ -52,8 +52,9 @@ namespace engine {
         template<typename T>
         void RegisterComponentType();
 
-        template<typename T>
+        template <class T>
         void RegisterSystemType();
+
 
         // Factory getters
         std::shared_ptr<IComponentArray> CreateComponentArray(const std::type_index& type) const;

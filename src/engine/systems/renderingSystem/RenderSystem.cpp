@@ -4,7 +4,9 @@
 
 #include "RenderSystem.h"
 
+#include "Asset.hpp"
 #include "PlatformInterface.hpp"
+#include "assetDatas/ModelData.h"
 #include "systems/transformSystem/componets/Transform.hpp"
 #include"componets/Camera.hpp"
 #include "ecs/Scene.h"
@@ -20,7 +22,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     auto& transforms = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
 
     // Only iterate up to the actual size of used components
-    for (ComponentIndex i = 0; i < modelArray->GetArraySize(); i++)
+    for (ComponentID i = 0; i < modelArray->GetArraySize(); i++)
     {
         if (modelArray->IsComponentActive(i))
         {
@@ -44,4 +46,15 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
     scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view, cameraObject.camera->lightpos);
     scene->engine.graphicsEngine->renderFrame();
+}
+
+void RenderSystem::OnComponentAdded(ComponentID componentID, std::type_index type)
+{
+  if (type == typeid(Model))
+  {
+      auto& model = scene->GetComponentArray<Model>().get()->GetComponent(componentID);
+      auto modelData = scene->engine.assetManagerInterface->getAsset(model.modelUuid).value()->getAssetDataAs<am::ModelData>();
+      model.boundingBoxMin = modelData->boundingBoxMin;
+      model.boundingBoxMax = modelData->boundingBoxMax;
+  }
 }

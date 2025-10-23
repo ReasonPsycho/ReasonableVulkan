@@ -4,22 +4,31 @@
 using namespace engine::ecs;
 
 template <typename T>
-void IntegralComponentArray<T>::AddComponentToEntity(Entity entity, T component) {
+ComponentID IntegralComponentArray<T>::AddComponentToEntity(Entity entity, T component) {
     assert(entity < MAX_ENTITIES);
     componentArray[entity] = component;
     activeComponents[entity] = true;
+    return entity;
 }
 
 template <typename T>
-void IntegralComponentArray<T>::RemoveComponentFronEntity(Entity entity) {
+ComponentID IntegralComponentArray<T>::RemoveComponentFronEntity(Entity entity) {
     assert(entity < MAX_ENTITIES);
     activeComponents[entity] = false;
+    return entity;
+
 }
 
 template <typename T>
-T& IntegralComponentArray<T>::GetComponent(Entity entity) {
+T& IntegralComponentArray<T>::GetComponentFromEntity(Entity entity) {
     assert(entity < MAX_ENTITIES);
     return componentArray[entity];
+}
+
+template <typename T>
+T& IntegralComponentArray<T>::GetComponent(ComponentID componentId)
+{
+    return componentArray[componentId];
 }
 
 template <typename T>
@@ -46,9 +55,9 @@ std::array<T, MAX_ENTITIES>& IntegralComponentArray<T>::GetComponents() {
 }
 
 template <typename T>
-void IntegralComponentArray<T>::AddComponentUntyped(Entity entity)
+ComponentID IntegralComponentArray<T>::AddComponentUntyped(ComponentID entity)
 {
-    AddComponentToEntity(entity, T());
+   return AddComponentToEntity(entity, T());
 }
 
 template <typename T>

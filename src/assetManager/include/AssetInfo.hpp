@@ -56,6 +56,7 @@ namespace am {
 
         // Method to get or load asset
         Asset *getAsset();
+        am::Asset* getAssetWithRelisingScene();
 
         bool isAssetLoaded() const;
 

@@ -14,6 +14,7 @@ void Engine::RegisterComponentType()
     };
 }
 
+
 template <typename T>
 void Engine::RegisterSystemType()
 {

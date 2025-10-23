@@ -24,6 +24,9 @@ namespace am
             return;
         }
 
+        data.boundingBoxMin = glm::vec3(std::numeric_limits<float>::max());
+        data.boundingBoxMax = glm::vec3(std::numeric_limits<float>::lowest());
+
         // process ASSIMP's root node recursively
        data.rootNode = processNode(base_factory_context, scene->mRootNode, scene);
        importer.FreeScene();
@@ -70,8 +73,21 @@ namespace am
             // the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
             aiMesh* aiMesh = scene->mMeshes[aiNode->mMeshes[i]];
             std::shared_ptr<AssetInfo> mesh = processMesh(base_factory_context, aiMesh, scene);
+            auto meshData = mesh.get()->getAsset()->getAssetDataAs<MeshData>();
+
+            data.boundingBoxMin.x = std::min(data.boundingBoxMin.x,meshData->boundingBoxMin.x);
+            data.boundingBoxMin.y = std::min(data.boundingBoxMin.y,meshData->boundingBoxMin.y);
+            data.boundingBoxMin.z = std::min(data.boundingBoxMin.z,meshData->boundingBoxMin.z);
+
+            data.boundingBoxMax.x = std::max(data.boundingBoxMax.x,meshData->boundingBoxMax.x);
+            data.boundingBoxMax.y = std::max(data.boundingBoxMax.y,meshData->boundingBoxMax.y);
+            data.boundingBoxMax.z = std::max(data.boundingBoxMax.z,meshData->boundingBoxMax.z);
+
             meshes.push_back(mesh);
         }
+
+
+
         node.meshes = meshes;
         // after we've processed all the meshes (if any) we then recursively process each of the children nodes
         for (unsigned int i = 0; i < aiNode->mNumChildren; i++)

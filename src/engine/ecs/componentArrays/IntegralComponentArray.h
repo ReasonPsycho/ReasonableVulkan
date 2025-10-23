@@ -11,16 +11,17 @@ namespace engine::ecs {
     template<typename T>
     class IntegralComponentArray : public IComponentArray {
     public:
-        void AddComponentToEntity(Entity entity, T component);
-        void RemoveComponentFronEntity(Entity entity);
-        T& GetComponent(Entity entity);
+        ComponentID AddComponentToEntity(Entity entity, T component);
+        ComponentID RemoveComponentFronEntity(Entity entity);
+        T& GetComponentFromEntity(Entity entity);
+        T& GetComponent(ComponentID componentId);
         bool HasComponent(Entity entity) const;
         void SetComponentActive(Entity entity, bool active);
         bool IsComponentActive(Entity entity) const;
         std::array<T, MAX_ENTITIES>& GetComponents();
 
         // Untyped interface overrides
-        virtual void AddComponentUntyped(Entity entity) override;
+        ComponentID AddComponentUntyped(Entity entity) override;
         Component& GetComponentUntyped(Entity entity) override;
         void RemoveComponentUntyped(Entity entity) override;
         bool HasComponentUntyped(Entity entity) const override;

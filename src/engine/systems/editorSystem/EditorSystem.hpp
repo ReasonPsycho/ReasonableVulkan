@@ -18,9 +18,6 @@ namespace plt
 {
     class PlatformInterface;
 }
-
-class PlatformInterface;
-
 namespace engine::ecs
 {
     struct Component;
@@ -66,8 +63,8 @@ namespace engine::ecs
         void SetUpCameraControls(plt::PlatformInterface* platfrom);
 
     protected:
-        void OnEntityAdded(Entity entity) override {}
-        void OnEntityRemoved(Entity entity) override {}
+        void OnComponentAdded(ComponentID componentID, std::type_index type) override {}
+        void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
 
     private:
         std::unordered_map<Entity, std::string> named_entities;
@@ -81,6 +78,7 @@ namespace engine::ecs
         void ImguiMenu();
 
         bool isRightMousePressed = false;
+        bool isLeftMousePressed = false;
         bool isMiddleMousePressed = false;
         float cameraDistance = 5.0f;
         float cameraYaw = 0.0f;

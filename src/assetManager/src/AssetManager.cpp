@@ -263,7 +263,6 @@ bool AssetManager::loadMetadataFromFile(const std::string& filename) {
             assetInfo->second.get()->loadedAsset = assets[id].get();
             assetInfo->second.get()->isLoaded = true;
         }
-        importer.FreeScene();
 
         return assets[id].get();
     }

@@ -6,7 +6,7 @@
 
 using namespace engine::ecs;
 template <typename T>
-  void ComponentArray<T>::AddComponentToEntity(Entity entity, T component)
+ComponentID ComponentArray<T>::AddComponentToEntity(Entity entity, T component)
 {
     assert(entityToIndexMap.find(entity) == entityToIndexMap.end());
     std::size_t newIndex = size;
@@ -15,10 +15,11 @@ template <typename T>
     componentArray[newIndex] = component;
     activeComponents[newIndex] = true;
     ++size;
+    return newIndex;
 }
 
 template <typename T>
-void ComponentArray<T>::RemoveComponentFronEntity(Entity entity)
+ComponentID ComponentArray<T>::RemoveComponentFronEntity(Entity entity)
 {
     assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
     std::size_t indexOfRemoved = entityToIndexMap[entity];
@@ -31,13 +32,20 @@ void ComponentArray<T>::RemoveComponentFronEntity(Entity entity)
     entityToIndexMap.erase(entity);
     indexToEntityMap.erase(indexOfLast);
     --size;
+    return indexOfRemoved;
 }
 
 template <typename T>
-T& ComponentArray<T>::GetComponent(Entity entity)
+T& ComponentArray<T>::GetComponentFromEntity(Entity entity)
 {
     assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
     return componentArray[entityToIndexMap[entity]];
+}
+
+template <typename T>
+T& ComponentArray<T>::GetComponent(ComponentID componentID)
+{
+    return componentArray[componentID];
 }
 
 template <typename T>
@@ -60,14 +68,14 @@ void ComponentArray<T>::SetComponentActive(Entity entity, bool active)
 }
 
 template <typename T>
-bool ComponentArray<T>::IsComponentActive(ComponentIndex componentIndex) const
+bool ComponentArray<T>::IsComponentActive(ComponentID componentIndex) const
 {
     return activeComponents[componentIndex];
 }
 
 
 template <typename T>
-Entity ComponentArray<T>::ComponentIndexToEntity(ComponentIndex index) const
+Entity ComponentArray<T>::ComponentIndexToEntity(ComponentID index) const
 {
     auto it = indexToEntityMap.find(index);
     assert(it != indexToEntityMap.end());
@@ -87,9 +95,9 @@ template <typename T>
 }
 
 template <typename T>
-void ComponentArray<T>::AddComponentUntyped(Entity entity)
+ComponentID ComponentArray<T>::AddComponentUntyped(Entity entity)
 {
-    AddComponentToEntity(entity, T());
+    return AddComponentToEntity(entity, T());
 }
 
 template <typename T>
@@ -167,7 +175,7 @@ void ComponentArray<T>::DeserializeFromJson(const rapidjson::Value& obj) {
 
             if (componentObj.HasMember("entity") && componentObj.HasMember("data")) {
                 Entity entity = componentObj["entity"].GetUint64();
-                ComponentIndex index = i;
+                ComponentID index = i;
 
                 // Create and deserialize component
                 T component;
