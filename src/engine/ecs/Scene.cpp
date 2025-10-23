@@ -4,6 +4,8 @@
 #include "Types.h"
 #include "../systems/transformSystem/componets/Transform.hpp"
 #include "Scene.h"
+
+#include "systems/collisionSystem/CollisionSystem.hpp"
 #include "tracy/Tracy.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
 
@@ -17,15 +19,20 @@ using namespace engine::ecs;
 
 void Scene::AddComponent(Entity entity, std::type_index typeIdx)
 {
-    componentArrays[typeIdx]->AddComponentUntyped(entity);
+    auto componentID = componentArrays[typeIdx]->AddComponentUntyped(entity);
 
     Signature& signature = entitySignatures[entity];
     signature.set(GetUniqueComponentTypeID(), true);
 
     // Check each system
-    for (auto& [_, system] : systems) {
-        if ((signature & system->signature) == system->signature) {
-            system->AddEntity(entity);
+    for (auto& [_, system] : systems)
+    {
+        for (auto type : system->registeredComponentTypes)
+        {
+            if (type == typeIdx)
+            {
+                system->AddComponent(componentID, typeIdx);
+            }
         }
     }
 }
@@ -58,6 +65,7 @@ Scene::Scene(Engine& engine): engine(engine)
 
     RegisterIntegralComponent<Transform>();
     RegisterSystem<TransformSystem>();
+    RegisterSystem<CollisionSystem>();
 }
 
 void Scene::Update(float deltaTime) {
@@ -159,8 +167,7 @@ Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
         entity = maxEntityIndex++;
     }
 
-    AddComponent<Transform>(entity,transform);
-
+    AddComponent<Transform>(entity, transform);
 
     if (parentEntity == -1)
     {
@@ -193,9 +200,10 @@ Entity Scene::CreateEntity(std::string entityName, Transform transform,  Entity 
 
 void Scene::DestroyEntity(Entity entity) {
     Signature signature = entitySignatures[entity]; // Get entity signature
+    std::type_index componentIndex(typeid(void)); // Initialize with a dummy type
     for (size_t i = 0; i < signature.size(); ++i) {
         if (signature.test(i)) {
-            auto componentIndex = GetTypeFromIndex(i);
+            componentIndex = GetTypeFromIndex(i);
             auto& array = componentArrays[componentIndex];
             array->RemoveComponentUntyped(entity);
         }
@@ -204,7 +212,7 @@ void Scene::DestroyEntity(Entity entity) {
     activeEntities.reset(entity);
 
     for (auto& [_, system] : systems) {
-        system->RemoveEntity(entity);
+        system->RemoveComponent(entity,componentIndex);
     }
 
     freeEntities.push(entity);  // add ID back for reuse

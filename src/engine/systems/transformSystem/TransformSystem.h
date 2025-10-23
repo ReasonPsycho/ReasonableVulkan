@@ -1,6 +1,8 @@
 #ifndef TRANSFORMSYSTEM_H
 #define TRANSFORMSYSTEM_H
 
+#include <typeindex>
+
 #include "componets/Transform.hpp"
 #include "../../ecs/System.h"
 
@@ -16,8 +18,8 @@ namespace engine::ecs
         void Update(float deltaTime) override;
 
     protected:
-        void OnEntityAdded(Entity entity) override {}
-        void OnEntityRemoved(Entity entity) override {}
+        void OnComponentAdded(ComponentID componentID, std::type_index type) override {}
+        void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
 
     private:
         void UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<Transform, MAX_ENTITIES>& transforms);

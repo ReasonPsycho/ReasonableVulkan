@@ -12,6 +12,8 @@ namespace am
     struct ModelData
     {
         am::Node rootNode;
+        glm::vec3 boundingBoxMin;
+        glm::vec3 boundingBoxMax;
     };
 }
 #endif //MODELDATA_H

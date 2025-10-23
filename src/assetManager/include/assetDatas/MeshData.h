@@ -14,6 +14,8 @@ namespace am
         std::vector<am::VertexAsset> vertices;
         std::vector<unsigned int> indices;
         std::shared_ptr<am::AssetInfo> material;
+        glm::vec3 boundingBoxMin;
+        glm::vec3 boundingBoxMax;
     };
 }
 #endif //MESHDATA_H

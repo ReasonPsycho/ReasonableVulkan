@@ -48,6 +48,9 @@ namespace am {
         AssetManager &assetManager = AssetManager::getInstance();
         auto scene = assetManager.importer.GetScene();
 
+        data.boundingBoxMin = glm::vec3(std::numeric_limits<float>::max());
+        data.boundingBoxMax = glm::vec3(std::numeric_limits<float>::lowest());
+
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             scene = assetManager.importer.ReadFile(meshFactoryContext.path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
@@ -80,6 +83,15 @@ namespace am {
             vector.y = mesh->mVertices[i].y;
             vector.z = mesh->mVertices[i].z;
             vertex.Position = vector;
+
+            //Bounding box
+            data.boundingBoxMin.x = std::min(data.boundingBoxMin.x,vector.x);
+            data.boundingBoxMin.y = std::min(data.boundingBoxMin.y,vector.y);
+            data.boundingBoxMin.z = std::min(data.boundingBoxMin.z,vector.z);
+
+            data.boundingBoxMax.x = std::max(data.boundingBoxMax.x,vector.x);
+            data.boundingBoxMax.y = std::max(data.boundingBoxMax.y,vector.y);
+            data.boundingBoxMax.z = std::max(data.boundingBoxMax.z,vector.z);
 
             // normals
             if (mesh->HasNormals()) {
@@ -123,6 +135,25 @@ namespace am {
 
             data.vertices.push_back(vertex);
         }
+
+        if ( std::abs(data.boundingBoxMin.x - data.boundingBoxMax.x) <= 0.0f )
+        {
+            data.boundingBoxMin.x -= 0.1f;
+            data.boundingBoxMax.x += 0.1f;
+        }
+
+        if ( std::abs(data.boundingBoxMin.y - data.boundingBoxMax.y) <= 0.0f )
+        {
+            data.boundingBoxMin.y -= 0.1f;
+            data.boundingBoxMax.y += 0.1f;
+        }
+
+        if ( std::abs(data.boundingBoxMin.z - data.boundingBoxMax.z) <= 0.0f )
+        {
+            data.boundingBoxMin.z -= 0.1f;
+            data.boundingBoxMax.z += 0.1f;
+        }
+
         // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
         for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
             aiFace face = mesh->mFaces[i];

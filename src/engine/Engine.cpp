@@ -2,6 +2,7 @@
 
 #include "PlatformInterface.hpp"
 #include "ecs/Scene.h"
+#include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
@@ -17,14 +18,14 @@ namespace engine {
 
 #ifdef EDITOR_ENABLED
         RegisterSystemType<EditorSystem>();
-
 #endif
+
         RegisterComponentType<Model>(); //For some reason I have to register them in reverse
         RegisterComponentType<Camera>();
-
         RegisterComponentType<Transform>();
-        RegisterSystemType<TransformSystem>();
 
+        RegisterSystemType<TransformSystem>();
+        RegisterSystemType<CollisionSystem>();
     }
 
     void Engine::Initialize()

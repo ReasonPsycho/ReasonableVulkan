@@ -29,6 +29,9 @@ void Model::ShowImGui(Scene* scene, Component* component) const
             }
             ImGui::EndPopup();
         }
+
+        ImGui::DragVec3("Min bounding box", typed->boundingBoxMin);
+        ImGui::DragVec3("Max bounding box", typed->boundingBoxMax);
     }
 
 }

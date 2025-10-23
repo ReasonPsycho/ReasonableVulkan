@@ -12,6 +12,7 @@
 
 #include "systems/renderingSystem/componets/Camera.hpp"
 #include "PlatformInterface.hpp"
+#include "systems/collisionSystem/CollisionSystem.hpp"
 
 void EditorSystem::ImGuiInspector()
 {
@@ -62,7 +63,7 @@ void EditorSystem::ImGuiGizmo()
 {
     if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
     {
-        auto& transform = scene->GetIntegralComponentArray<Transform>().get()->GetComponent(selectedEntity);
+        auto& transform = scene->GetIntegralComponentArray<Transform>().get()->GetComponentFromEntity(selectedEntity);
 
         static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
         static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
@@ -148,7 +149,7 @@ void EditorSystem::ImGuiGizmo()
             auto it = scene->sceneGraph.find(selectedEntity);
             if (it != scene->sceneGraph.end() && it->second.parent != MAX_ENTITIES)
             {
-                auto& parentTransform = scene->GetIntegralComponentArray<Transform>().get()->GetComponent(it->second.parent);
+                auto& parentTransform = scene->GetIntegralComponentArray<Transform>().get()->GetComponentFromEntity(it->second.parent);
                 setLocalMatrixFromGlobal(transform, newGlobalMatrix, parentTransform.globalMatrix);
             }
             else
@@ -260,7 +261,8 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 
 void EditorSystem::Initialize()
 {
-    SetUpCameraControls(scene->engine.platform);
+        SetUpCameraControls(scene->engine.platform);
+
 }
 
 
@@ -272,8 +274,29 @@ void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
          isRightMousePressed = true;
      } else if (mouseEvent.button == SDL_BUTTON_MIDDLE) {
          isMiddleMousePressed = true;
-     }
- });
+     }else
+        if (mouseEvent.button == SDL_BUTTON_LEFT) {
+            isLeftMousePressed = true;
+
+            if (!ImGui::GetIO().WantCaptureMouse) {
+                auto* collisionSystem = scene->GetSystem<CollisionSystem>().get();
+                if (collisionSystem) {
+                    int windowWidth, windowHeight;
+                    scene->engine.platform->GetWindowSize(windowWidth, windowHeight);
+
+                    Ray ray = collisionSystem->ScreenToWorldRay(camera, mouseEvent.x,
+                                                                mouseEvent.y, windowWidth, windowHeight);
+
+                    auto hit = collisionSystem->RayCastClosest(ray);
+                    if (hit.has_value()) {
+                        SetSelectedEntity(hit->entity);
+                    } else {
+                        SetSelectedEntity(std::numeric_limits<std::uint32_t>::max());
+                    }
+                }
+            }
+        }
+    });
 
     platform->SubscribeToEvent(plt::EventType::MouseButtonReleased, [this](const void* eventData) {
         const auto& mouseEvent = *static_cast<const plt::MouseButtonEvent*>(eventData);
@@ -281,6 +304,8 @@ void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
             isRightMousePressed = false;
         } else if (mouseEvent.button == SDL_BUTTON_MIDDLE) {
             isMiddleMousePressed = false;
+        }else if (mouseEvent.button == SDL_BUTTON_LEFT) {
+            isLeftMousePressed = false;
         }
     });
 

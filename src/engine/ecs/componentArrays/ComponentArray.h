@@ -13,18 +13,19 @@ namespace engine::ecs{
     template<typename T>
     class ComponentArray : public IComponentArray {
     public:
-        void AddComponentToEntity(Entity entity, T component);
-        void RemoveComponentFronEntity(Entity entity);
-        T& GetComponent(Entity entity);
+        ComponentID AddComponentToEntity(Entity entity, T component);
+        ComponentID RemoveComponentFronEntity(Entity entity);
+        T& GetComponentFromEntity(Entity entity);
+        T& GetComponent(ComponentID componentID);
         bool HasComponent(Entity entity) const;
         void SetComponentActive(Entity entity, bool active);
-        bool IsComponentActive(ComponentIndex componentIndex) const;
-        Entity ComponentIndexToEntity(ComponentIndex index) const;
+        bool IsComponentActive(ComponentID componentIndex) const;
+        Entity ComponentIndexToEntity(ComponentID index) const;
         std::size_t GetArraySize() const;
         std::array<T, MAX_COMPONENTS_ARRAY>& GetComponents();
 
         //Untyped interface overrides
-        void AddComponentUntyped(Entity entity) override;
+        ComponentID AddComponentUntyped(Entity entity) override;
         Component& GetComponentUntyped(Entity entity)  override;
         void RemoveComponentUntyped(Entity entity) override;
         bool HasComponentUntyped(Entity entity) const override;
@@ -36,8 +37,8 @@ namespace engine::ecs{
     private:
         std::array<T, MAX_COMPONENTS_ARRAY> componentArray;
         std::bitset<MAX_COMPONENTS_ARRAY> activeComponents;
-        std::unordered_map<Entity, ComponentIndex> entityToIndexMap;
-        std::unordered_map<ComponentIndex, Entity> indexToEntityMap;
+        std::unordered_map<Entity, ComponentID> entityToIndexMap;
+        std::unordered_map<ComponentID, Entity> indexToEntityMap;
         std::size_t size = 0;
     };
 };

@@ -24,6 +24,14 @@ am::Asset *am::AssetInfo::getAsset() {
     return AssetManager::getInstance().getAsset(id).value();
 }
 
+am::Asset *am::AssetInfo::getAssetWithRelisingScene() {
+    auto* asset = AssetManager::getInstance().getAsset(id).value();
+    AssetManager& assetManager = AssetManager::getInstance();
+    Assimp::Importer& importer = assetManager.importer;
+    importer.FreeScene();
+    return asset;
+}
+
 bool am::AssetInfo::isAssetLoaded() const {
     return isLoaded;
 }

@@ -6,18 +6,17 @@
 
 namespace engine::ecs
 {
-    using ComponentIndex = std::uint32_t;
 
     class IComponentArray {
     public:
         virtual ~IComponentArray() = default;
 
         // Untyped interface
-        virtual void AddComponentUntyped(Entity entity) = 0;
+        virtual ComponentID AddComponentUntyped(Entity entity) = 0;
         virtual void RemoveComponentUntyped(Entity entity) = 0;
         virtual bool HasComponentUntyped(Entity entity) const = 0;
         virtual void SetComponentActiveUntyped(Entity entity, bool active) = 0;
-        virtual bool IsComponentActiveUntyped(ComponentIndex entity) const = 0;
+        virtual bool IsComponentActiveUntyped(ComponentID entity) const = 0;
         virtual Component& GetComponentUntyped(Entity entity) = 0;  // Changed to return const reference
 
         virtual void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const = 0;

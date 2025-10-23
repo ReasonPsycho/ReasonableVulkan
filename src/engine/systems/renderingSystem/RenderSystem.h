@@ -13,15 +13,15 @@ namespace engine::ecs
 {
     class Scene;
 
-    class RenderSystem :  public System<RenderSystem,Camera, Model>
+    class RenderSystem :  public System<RenderSystem,Model,Camera>
     {
     public:
         explicit RenderSystem(Scene* scene) : System(scene) {}
         void Update(float deltaTime) override;
 
     protected:
-        void OnEntityAdded(Entity entity) override {}
-        void OnEntityRemoved(Entity entity) override {}
+        void OnComponentAdded(ComponentID componentID, std::type_index type) override;
+        void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
     };
 }
 

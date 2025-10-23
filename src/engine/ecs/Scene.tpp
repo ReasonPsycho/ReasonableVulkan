@@ -20,50 +20,60 @@ std::vector<Entity> Scene::GetEntitiesWith()
 }
 
 
-
 template <typename T>
 void Scene::AddComponent(Entity entity, T component)
 {
+    ComponentID componentId;
+
     if constexpr (std::is_same<T, Transform>::value)
     {
-        GetIntegralComponentArray<T>()->AddComponentToEntity(entity, component);
+       componentId = GetIntegralComponentArray<T>()->AddComponentToEntity(entity, component);
     }
     else
     {
-        GetComponentArray<T>()->AddComponentToEntity(entity, component);
+       componentId = GetComponentArray<T>()->AddComponentToEntity(entity, component);
     }
 
     Signature& signature = entitySignatures[entity];
     signature.set(GetComponentTypeID<T>(), true);
 
-    // Check each system
+    std::type_index componentType(typeid(T));
     for (auto& [_, system] : systems) {
-        if ((signature & system->signature) == system->signature) {
-            system->AddEntity(entity);
+        for (auto type : system->registeredComponentTypes)
+        {
+            if (type == componentType)
+            {
+                system->AddComponent(componentId, componentType);
+            }
         }
     }
 }
 
 
-
 template <typename T>
 void Scene::RemoveComponent(Entity entity)
 {
+    ComponentID componentId;
     if constexpr (std::is_same<T, Transform>::value)
     {
-        GetIntegralComponentArray<T>()->RemoveComponentFronEntity(entity);
+       componentId=  GetIntegralComponentArray<T>()->RemoveComponentFronEntity(entity);
     }
     else
     {
-        GetComponentArray<T>()->RemoveComponentFronEntity(entity);
+      componentId =  GetComponentArray<T>()->RemoveComponentFronEntity(entity);
     }
 
     Signature& signature = entitySignatures[entity];
     signature.set(GetComponentTypeID<T>(), false);
 
+    // Check each system
     for (auto& [_, system] : systems) {
-        if ((signature & system->signature) != system->signature) {
-            system->RemoveEntity(entity);
+        for (auto type : system->registeredComponentTypes)
+        {
+            if (type == typeid(T))
+            {
+                system->RemoveComponent(componentId, type);
+            }
         }
     }
 }
@@ -112,11 +122,11 @@ auto Scene::GetComponent(Entity entity) -> T&
 {
     if constexpr (std::is_same<T, Transform>::value)
     {
-        return GetIntegralComponentArray<T>()->GetComponent(entity);
+        return GetIntegralComponentArray<T>()->GetComponentFromEntity(entity);
     }
     else
     {
-        return GetComponentArray<T>()->GetComponent(entity);
+        return GetComponentArray<T>()->GetComponentFromEntity(entity);
     }
 }
 
