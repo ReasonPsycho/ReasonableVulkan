@@ -33,3 +33,12 @@ void TransformSystem::UpdateTransformRecursive(Entity entity,const glm::mat4* pa
         }
     }
 }
+
+void TransformSystem::ResetDirtyFlags()
+{
+    auto componentArray = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
+    for (int i = 0; i < scene->maxEntityIndex; i++)
+    {
+        componentArray[i].isDirty = false;
+    }
+}

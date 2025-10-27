@@ -12,6 +12,7 @@
 #include "../../vks/src/base/VulkanDevice.h"
 #include <glm/glm.hpp>
 
+#include "buffers/LightSSBO.hpp"
 #include "buffers/SceneUBO.hpp"
 
 namespace vks {
@@ -22,9 +23,11 @@ namespace vks {
         DescriptorManager(am::AssetManagerInterface* assetManager, VulkanContext* context);
         ~DescriptorManager();
 
+        void createLightSSBO();
         void initialize();
 
         void cleanup();
+        void CreateLightBuffer();
 
 
         void createDefaultSampler();
@@ -44,7 +47,7 @@ namespace vks {
         bool isResourceLoaded(const boost::uuids::uuid& assetId);
 
         void createSceneUBO();
-        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view, const glm::vec3& lightPos);
+        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view);
 
         // Resource management
         template <typename T>
@@ -58,11 +61,13 @@ namespace vks {
         VkDescriptorPool materialPool{VK_NULL_HANDLE};
         VkDescriptorPool meshPool{VK_NULL_HANDLE};
         VkDescriptorPool scenePool{VK_NULL_HANDLE};
+        VkDescriptorPool lightPool{VK_NULL_HANDLE};
 
         // Descriptor set layouts
         VkDescriptorSetLayout materialLayout{VK_NULL_HANDLE};
         VkDescriptorSetLayout meshUniformLayout{VK_NULL_HANDLE};
         VkDescriptorSetLayout sceneLayout{VK_NULL_HANDLE};
+        VkDescriptorSetLayout lightLayout{VK_NULL_HANDLE};
 
         //Image sampler
         VkSampler defaultSampler = VK_NULL_HANDLE;
@@ -72,6 +77,11 @@ namespace vks {
         // Resource cache
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<IVulkanDescriptor>> loadedResources;
         SceneUBO sceneUBO;
+        LightSSBO lightSSBO;
+
+        // For light ssbo
+        VkBuffer lightBuffer{VK_NULL_HANDLE};
+        VkDeviceMemory lightBufferMemory{VK_NULL_HANDLE};
 
         void createDescriptorPools();
         void createDescriptorSetLayouts();

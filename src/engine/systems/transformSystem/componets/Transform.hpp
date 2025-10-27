@@ -62,7 +62,6 @@ namespace engine::ecs
     inline void computeLocalMatrix(Transform& t)
     {
         t.localMatrix = getLocalModelMatrix(t);
-        t.isDirty = false;
     }
 
     inline void computeGlobalMatrix(Transform& t, const glm::mat4& parentGlobal)

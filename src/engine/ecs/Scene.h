@@ -118,10 +118,12 @@ namespace engine::ecs
 
         //Engine
         engine::Engine& engine;
+
+        uint32_t maxEntityIndex = 0;
+
     private:
 
         //Entities
-        uint32_t maxEntityIndex = 0;
         std::queue<Entity> freeEntities;  // recycled IDs
         std::unordered_map<Entity, Signature> entitySignatures;
         std::bitset<MAX_ENTITIES> activeEntities;

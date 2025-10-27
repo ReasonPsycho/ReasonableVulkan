@@ -16,6 +16,7 @@ namespace engine::ecs
     public:
         explicit TransformSystem(Scene* scene) : System(scene) {}
         void Update(float deltaTime) override;
+        void ResetDirtyFlags();
 
     protected:
         void OnComponentAdded(ComponentID componentID, std::type_index type) override {}

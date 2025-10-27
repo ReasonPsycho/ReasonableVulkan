@@ -2,6 +2,8 @@
 #include "DescriptorManager.h"
 #include <stdexcept>
 
+#include "buffers/LightSSBO.hpp"
+
 namespace vks {
 
 DescriptorManager::DescriptorManager(am::AssetManagerInterface* assetManager, VulkanContext* context)
@@ -13,10 +15,28 @@ DescriptorManager::~DescriptorManager() {
     cleanup();
 }
 
+void DescriptorManager::createLightSSBO()
+{
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(context->getDevice(), lightBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    // Choose memory type that is host visible and coherent for easy updating
+    allocInfo.memoryTypeIndex = context->findMemoryType(memRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &lightBufferMemory);
+    vkBindBufferMemory(context->getDevice(), lightBuffer, lightBufferMemory, 0);
+}
+
 void DescriptorManager::initialize() {
+    CreateLightBuffer();
     createDescriptorPools();
     createDescriptorSetLayouts();
     createSceneUBO();
+    createLightSSBO();
 }
 
 void DescriptorManager::cleanup() {
@@ -58,6 +78,38 @@ void DescriptorManager::cleanup() {
     }
     if (scenePool != VK_NULL_HANDLE) {
         vkDestroyDescriptorPool(device, scenePool, nullptr);
+    }
+}
+
+void DescriptorManager::CreateLightBuffer()
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(LightBufferSSBO);
+    bufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(context->getDevice(), &bufferInfo, nullptr, &lightBuffer)  != VK_SUCCESS){
+        throw std::runtime_error("failed to create light buffer!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(context->getDevice(), lightBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = context->findMemoryType(
+        memRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &lightBufferMemory))
+    {
+        throw std::runtime_error("failed to allocate light buffer memory!");
+    }
+    if (vkBindBufferMemory(context->getDevice(), lightBuffer, lightBufferMemory, 0))
+    {
+        throw std::runtime_error("failed to bind light buffer memory!");
     }
 }
 
@@ -105,6 +157,28 @@ void DescriptorManager::createDescriptorPools() {
     if (vkCreateDescriptorPool(context->getDevice(), &scenePoolInfo, nullptr, &scenePool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create scene descriptor pool!");
     }
+
+    // Light ssbo
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    poolSize.descriptorCount = 1;
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = 1;
+
+    VkDescriptorPool descriptorPool;
+    vkCreateDescriptorPool(context->getDevice(), &poolInfo, nullptr, &descriptorPool);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &lightLayout;
+
+    vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &lightLayout);
 }
 
     void DescriptorManager::createDefaultSampler() {
@@ -130,6 +204,8 @@ void DescriptorManager::createDescriptorPools() {
 
 
 void DescriptorManager::createDescriptorSetLayouts() {
+
+    // Material lyaout
     std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
         {
             .binding = 0,
@@ -147,7 +223,6 @@ void DescriptorManager::createDescriptorSetLayouts() {
             .pImmutableSamplers = nullptr
         }*/
     };
-    // Material layout
 
     VkDescriptorSetLayoutCreateInfo materialLayoutInfo{};
     materialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -190,6 +265,20 @@ void DescriptorManager::createDescriptorSetLayouts() {
     if (vkCreateDescriptorSetLayout(context->getDevice(), &sceneLayoutInfo, nullptr, &sceneLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create scene descriptor set layout!");
     }
+
+    //
+    VkDescriptorSetLayoutBinding lightSSBOLayoutBinding{};
+    lightSSBOLayoutBinding.binding = 0;  // Binding point in shader
+    lightSSBOLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    lightSSBOLayoutBinding.descriptorCount = 1;
+    lightSSBOLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;  // Or whatever shader stage you need
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &lightSSBOLayoutBinding;
+
+    vkCreateDescriptorSetLayout(context->getDevice(), &layoutInfo, nullptr, &lightLayout);
 }
 
 std::vector<VkDescriptorSetLayout> DescriptorManager::getAllLayouts() const {
@@ -241,11 +330,9 @@ void DescriptorManager::createSceneUBO() {
 
     vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
 }
-    void DescriptorManager::updateSceneUBO(const glm::mat4& projection, const glm::mat4& view,
-                                           const glm::vec3& lightPos) {
+    void DescriptorManager::updateSceneUBO(const glm::mat4& projection, const glm::mat4& view) {
     sceneUBO.uniformBlock.projection = projection;
     sceneUBO.uniformBlock.view = view;
-    sceneUBO.uniformBlock.lightpos = glm::vec4(lightPos.x,lightPos.y,lightPos.z,0);
 
     VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
 

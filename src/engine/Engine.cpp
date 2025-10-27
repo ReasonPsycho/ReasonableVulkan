@@ -4,29 +4,39 @@
 #include "ecs/Scene.h"
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
+#include "systems/lightSystem/LightSystem.hpp"
+#include "systems/lightSystem/components/DirectionalLight.hpp"
+#include "systems/lightSystem/components/PointLight.hpp"
+#include "systems/lightSystem/components/SpotLight.hpp"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
 
 namespace engine {
-
-
     Engine::Engine(plt::PlatformInterface* platformInterface, gfx::GraphicsEngine* graphicsEngine,
-        am::AssetManagerInterface* assetManagerInterface) : assetManagerInterface(assetManagerInterface), graphicsEngine(graphicsEngine),
-                                                            platform(platformInterface)
+                   am::AssetManagerInterface* assetManagerInterface) : assetManagerInterface(assetManagerInterface), graphicsEngine(graphicsEngine),
+                                                                       platform(platformInterface)
     {
         RegisterSystemType<RenderSystem>();
+        RegisterComponentType<Model>(); //For some reason I have to register them in reverse
+        RegisterComponentType<Camera>();
 
 #ifdef EDITOR_ENABLED
         RegisterSystemType<EditorSystem>();
 #endif
 
-        RegisterComponentType<Model>(); //For some reason I have to register them in reverse
-        RegisterComponentType<Camera>();
+        RegisterSystemType<TransformSystem>();
         RegisterComponentType<Transform>();
 
-        RegisterSystemType<TransformSystem>();
         RegisterSystemType<CollisionSystem>();
+
+        RegisterSystemType<LightSystem>();
+        RegisterComponentType<PointLight>();
+        RegisterComponentType<DirectionalLight>();
+        RegisterComponentType<SpotLight>();
+
     }
+
+
 
     void Engine::Initialize()
     {

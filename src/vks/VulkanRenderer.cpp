@@ -54,10 +54,9 @@ namespace vks {
         cleanup();
     }
 
-    void VulkanRenderer::setCameraData(const glm::mat4& projection, const glm::mat4& view,
-                                       const glm::vec3& lightPos)
+    void VulkanRenderer::setCameraData(const glm::mat4& projection, const glm::mat4& view)
     {
-            descriptorManager->updateSceneUBO(projection, view, lightPos);
+            descriptorManager->updateSceneUBO(projection, view);
     }
 
     void VulkanRenderer::loadModel(boost::uuids::uuid uuid) {

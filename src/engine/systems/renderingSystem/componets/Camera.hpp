@@ -18,10 +18,9 @@ namespace engine::ecs
         // Cached matrices
         glm::mat4 projection;
         glm::mat4 view;
-        glm::vec4 lightpos;
 
         bool isDirty = true;
-        Camera() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
+        Camera() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
 
@@ -69,10 +68,6 @@ inline void updateProjectionMatrix(Camera& camera)
         camera.isDirty = true;
     }
 
-    inline void setLightPosition(Camera& camera, const glm::vec4& lightPos)
-    {
-        camera.lightpos = lightPos;
-    }
 
     // Getters
     inline float getFov(const Camera& camera)
@@ -106,11 +101,6 @@ inline void updateProjectionMatrix(Camera& camera)
     inline const glm::mat4& getViewMatrix(const Camera& camera)
     {
         return camera.view;
-    }
-
-    inline const glm::vec4& getLightPosition(const Camera& camera)
-    {
-        return camera.lightpos;
     }
 
     inline bool isDirty(const Camera& camera)

@@ -74,6 +74,7 @@ void Scene::Update(float deltaTime) {
     ZoneTransientN(zoneName,(system->name).c_str(),true);
         system->Update(deltaTime);
     }
+    GetSystem<TransformSystem>().get()->ResetDirtyFlags();
     engine.graphicsEngine->endFrame();
 }
 

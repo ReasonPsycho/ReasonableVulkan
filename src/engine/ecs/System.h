@@ -31,6 +31,7 @@ namespace engine::ecs
 
         virtual ~System() = default;
 
+        virtual void Update(float deltaTime) = 0;
 
         void AddComponent(ComponentID entity, std::type_index type) override
         {
