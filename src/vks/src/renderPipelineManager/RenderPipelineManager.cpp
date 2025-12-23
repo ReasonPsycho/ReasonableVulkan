@@ -3,7 +3,6 @@
 #include <stdexcept>
 
 #include "../descriptorManager/modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
-#include "../descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderDescriptor.h"
 
 namespace vks
 {

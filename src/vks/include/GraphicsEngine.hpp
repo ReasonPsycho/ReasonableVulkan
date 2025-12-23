@@ -6,6 +6,9 @@
 #include <glm/fwd.hpp>
 #include <glm/detail/type_mat4x4.hpp>
 
+#include "LightData.hpp"
+
+
 namespace plt
 {
     class PlatformInterface;
@@ -21,8 +24,11 @@ namespace gfx {
 
         virtual void initialize(plt::PlatformInterface* platform, uint32_t width, uint32_t height) = 0;
 
-        virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3& lightPos) = 0;
+        virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view) = 0;
         virtual void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) = 0;
+        virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
+        virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;
+        virtual void drawLight(DirectionalLightData directionalLightData, const glm::mat4& transform) = 0;
         virtual void loadModel(boost::uuids::uuid uuid) = 0;
         virtual void loadShader(boost::uuids::uuid uuid) = 0;
 

@@ -59,9 +59,11 @@ Scene::Scene(Engine& engine): engine(engine)
     GetSystem<EditorSystem>().get()->RegisterComponentType<Transform>();
     GetSystem<EditorSystem>().get()->RegisterComponentType<Model>();
     GetSystem<EditorSystem>().get()->RegisterComponentType<Camera>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<Light>();
 #endif
     RegisterComponent<Model>(); //For some reason I have to register them in reverse
     RegisterComponent<Camera>();
+    RegisterComponent<Light>();
 
     RegisterIntegralComponent<Transform>();
     RegisterSystem<TransformSystem>();

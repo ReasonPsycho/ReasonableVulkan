@@ -1,50 +1,175 @@
-// Copyright 2020 Google LLC
-
 [[vk::binding(0, 1)]] Texture2D tex;
 [[vk::binding(0, 1)]] SamplerState samp;
 
-struct VSOutput
-{
-[[vk::location(0)]] float2 UV : TEXCOORD0;
-[[vk::location(1)]] float3 Normal : NORMAL0;
-[[vk::location(2)]] float3 Color : COLOR0;
-[[vk::location(3)]] float3 EyePos : POSITION0;
-[[vk::location(4)]] float3 LightVec : TEXCOORD2;
+struct DirectionalLight {
+    float3 direction;
+    float intensity;
+    float3 color;
+    float padding;
 };
 
-float specpart(float3 L, float3 N, float3 H)
+struct PointLight {
+    float3 position;
+    float intensity;
+    float3 color;
+    float radius;
+    float falloff;
+    float padding[3];
+};
+
+struct SpotLight {
+    float3 position;
+    float intensity;
+    float3 direction;
+    float innerAngle;
+    float3 color;
+    float outerAngle;
+    float range;
+    float padding[3];
+};
+
+[[vk::binding(1, 0)]] StructuredBuffer<DirectionalLight> directionalLightSSBO;
+[[vk::binding(2, 0)]] StructuredBuffer<PointLight> pointLightSSBO;
+[[vk::binding(3, 0)]] StructuredBuffer<SpotLight> spotLightSSBO;
+
+struct VSOutput
 {
-    if (dot(N, L) > 0.0)
-    {
-        return pow(clamp(dot(H, N), 0.0, 1.0), 64.0);
-    }
-    return 0.0;
+    [[vk::location(0)]] float2 UV : TEXCOORD0;
+    [[vk::location(1)]] float3 Normal : NORMAL0;
+    [[vk::location(2)]] float3 Color : COLOR0;
+    [[vk::location(4)]] float3 WorldPos : TEXCOORD1;
+};
+
+// Constants
+static const float SHININESS = 32.0;
+static const float3 AMBIENT_LIGHT = float3(0.2, 0.2, 0.2);
+
+float3 calculateDirectionalLight(DirectionalLight light, float3 normal, float3 fragPos, float3 viewDir)
+{
+    float3 lightDir = normalize(-light.direction);
+
+    // Diffuse
+    float diff = max(dot(normal, lightDir), 0.0);
+    float3 diffuse = light.color * diff * light.intensity;
+
+    // Specular
+    float3 halfDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfDir), 0.0), SHININESS);
+    float3 specular = light.color * spec * light.intensity * 0.5;
+
+    return diffuse + specular;
+}
+
+float3 calculatePointLight(PointLight light, float3 normal, float3 fragPos, float3 viewDir)
+{
+    float3 lightDir = normalize(light.position - fragPos);
+    float distance = length(light.position - fragPos);
+
+    // Attenuation with falloff
+    float attenuation = 1.0 / (1.0 + light.falloff * distance * distance);
+    attenuation *= smoothstep(light.radius, 0.0, distance); // Smooth cutoff at radius
+
+    // Diffuse
+    float diff = max(dot(normal, lightDir), 0.0);
+    float3 diffuse = light.color * diff * light.intensity * attenuation;
+
+    // Specular
+    float3 halfDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfDir), 0.0), SHININESS);
+    float3 specular = light.color * spec * light.intensity * attenuation * 0.5;
+
+    return diffuse + specular;
+}
+
+float3 calculateSpotLight(SpotLight light, float3 normal, float3 fragPos, float3 viewDir)
+{
+    float3 lightDir = normalize(light.position - fragPos);
+    float distance = length(light.position - fragPos);
+
+    // Check range
+    if (distance > light.range)
+        return float3(0.0, 0.0, 0.0);
+
+    // Cone angle attenuation
+    float theta = acos(dot(lightDir, normalize(-light.direction)));
+    float innerRad = radians(light.innerAngle);
+    float outerRad = radians(light.outerAngle);
+
+    float spotIntensity = smoothstep(outerRad, innerRad, theta);
+
+    // Distance attenuation
+    float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);
+    attenuation *= spotIntensity;
+
+    // Diffuse
+    float diff = max(dot(normal, lightDir), 0.0);
+    float3 diffuse = light.color * diff * light.intensity * attenuation;
+
+    // Specular
+    float3 halfDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfDir), 0.0), SHININESS);
+    float3 specular = light.color * spec * light.intensity * attenuation * 0.5;
+
+    return diffuse + specular;
 }
 
 float4 main(VSOutput input) : SV_TARGET
 {
-    float3 Eye = normalize(-input.EyePos);
-    float3 Reflected = normalize(reflect(-input.LightVec, input.Normal));
-
     float4 texColor = tex.Sample(samp, input.UV);
+    float3 normal = normalize(input.Normal);
+    float3 viewDir = normalize(-input.WorldPos);  // Changed from input.EyePos to use WorldPos
 
-    float3 halfVec = normalize(input.LightVec + input.EyePos);
-    float diff = clamp(dot(input.LightVec, input.Normal), 0.0, 1.0);
-    float spec = specpart(input.LightVec, input.Normal, halfVec);
-    float intensity = 0.1 + diff + spec;
+    // Start with ambient lighting
+    float3 finalColor = AMBIENT_LIGHT * texColor.rgb;
 
-    float4 IAmbient = float4(0.2, 0.2, 0.2, 1.0);
-    float4 IDiffuse = float4(0.5, 0.5, 0.5, 0.5) * max(dot(input.Normal, input.LightVec), 0.0);
-    float shininess = 0.75;
-    float4 ISpecular = float4(0.5, 0.5, 0.5, 1.0) * pow(max(dot(Reflected, Eye), 0.0), 2.0) * shininess;
+    // Apply directional lights
+    uint directionalLightCount;
+    uint stride;
+    directionalLightSSBO.GetDimensions(directionalLightCount, stride);
 
-    float4 outFragColor = float4((IAmbient + IDiffuse) * texColor * float4(input.Color, 1.0) + ISpecular);
+    for (uint i = 0; i < directionalLightCount; i++)
+    {
+        finalColor += calculateDirectionalLight(
+            directionalLightSSBO[i],
+            normal,
+            input.WorldPos,
+            viewDir
+        ) * texColor.rgb;
+    }
 
-// Some manual saturation
-    if (intensity > 0.95)
-    outFragColor *= 2.25;
-    if (intensity < 0.15)
-    outFragColor = float4(0.1, 0.1, 0.1, 0.1);
+    // Apply point lights
+    uint pointLightCount;
+    pointLightSSBO.GetDimensions(pointLightCount, stride);
 
-    return outFragColor;
+    for (uint i = 0; i < pointLightCount; i++)
+    {
+        finalColor += calculatePointLight(
+            pointLightSSBO[i],
+            normal,
+            input.WorldPos,
+            viewDir
+        ) * texColor.rgb;
+    }
+
+    // Apply spot lights
+    uint spotLightCount;
+    spotLightSSBO.GetDimensions(spotLightCount, stride);
+
+    for (uint i = 0; i < spotLightCount; i++)
+    {
+        finalColor += calculateSpotLight(
+            spotLightSSBO[i],
+            normal,
+            input.WorldPos,
+            viewDir
+        ) * texColor.rgb;
+    }
+
+    // Apply vertex color tint
+    finalColor *= input.Color;
+
+    // Clamp to prevent overexposure
+    finalColor = clamp(finalColor, 0.0, 1.0);
+
+    return float4(finalColor, texColor.a);
 }

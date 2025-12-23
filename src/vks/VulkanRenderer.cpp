@@ -54,10 +54,9 @@ namespace vks {
         cleanup();
     }
 
-    void VulkanRenderer::setCameraData(const glm::mat4& projection, const glm::mat4& view,
-                                       const glm::vec3& lightPos)
+    void VulkanRenderer::setCameraData(const glm::mat4& projection, const glm::mat4& view)
     {
-            descriptorManager->updateSceneUBO(projection, view, lightPos);
+            descriptorManager->updateSceneUBO(projection, view);
     }
 
     void VulkanRenderer::loadModel(boost::uuids::uuid uuid) {
@@ -70,6 +69,21 @@ namespace vks {
 
     void VulkanRenderer::drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) {
         renderManager->submitRenderCommand(uuid, transform);
+    }
+
+    void VulkanRenderer::drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform)
+    {
+        renderManager->submitLightCommand(pointLightData, transform);
+    }
+
+    void VulkanRenderer::drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform)
+    {
+        renderManager->submitLightCommand(spotLightData, transform);
+    }
+
+    void VulkanRenderer::drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform)
+    {
+        renderManager->submitLightCommand(directionalLightData, transform);
     }
 
 
