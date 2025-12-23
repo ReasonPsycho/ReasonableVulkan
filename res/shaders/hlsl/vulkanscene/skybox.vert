@@ -2,7 +2,6 @@ struct UBO
 {
     float4x4 projection;
     float4x4 view;
-    float4 lightpos;
 };
 
 [[vk::binding(0, 0)]] cbuffer ubo : register(b0) { UBO ubo; }

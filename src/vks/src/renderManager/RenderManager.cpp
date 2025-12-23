@@ -123,7 +123,50 @@ void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 tr
     renderQueue.push_back(RenderCommand{modelId, transform});
 }
 
-    void RenderManager::createCommandBuffers() {
+    void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
+{
+    DirectionalLightBufferData bufferData{};
+    bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+    bufferData.intensity = data.intensity;
+    bufferData.color = data.color;
+    bufferData.padding = 0.0f;
+
+    directionalLightQueue.push_back(bufferData);
+}
+
+    void RenderManager::submitLightCommand(gfx::PointLightData data, glm::mat4 transform)
+{
+    PointLightBufferData bufferData{};
+    bufferData.position = glm::vec3(transform[3]);  // Extract position from transform
+    bufferData.intensity = data.intensity;
+    bufferData.color = data.color;
+    bufferData.radius = data.radius;
+    bufferData.falloff = data.falloff;
+    bufferData.padding[0] = 0.0f;
+    bufferData.padding[1] = 0.0f;
+    bufferData.padding[2] = 0.0f;
+
+    pointLightQueue.push_back(bufferData);
+}
+
+    void RenderManager::submitLightCommand(gfx::SpotLightData data, glm::mat4 transform)
+{
+    SpotLightBufferData bufferData{};
+    bufferData.position = glm::vec3(transform[3]);  // Extract position from transform
+    bufferData.intensity = data.intensity;
+    bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+    bufferData.innerAngle = data.innerAngle;
+    bufferData.color = data.color;
+    bufferData.outerAngle = data.outerAngle;
+    bufferData.range = data.range;
+    bufferData.padding[0] = 0.0f;
+    bufferData.padding[1] = 0.0f;
+    bufferData.padding[2] = 0.0f;
+
+    spotLightQueue.push_back(bufferData);
+}
+
+void RenderManager::createCommandBuffers() {
     frameResources.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo allocInfo{};
@@ -310,6 +353,12 @@ void RenderManager::endFrame() {
     }
 
     renderQueue.clear();
+
+    descriptorManager->updateLightSSBO(directionalLightQueue, pointLightQueue, spotLightQueue);
+
+    directionalLightQueue.clear();
+    pointLightQueue.clear();
+    spotLightQueue.clear();
     // Switch to skybox pipeline for skybox rendering
     //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getSkyboxPipeline());
 

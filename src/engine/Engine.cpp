@@ -23,6 +23,7 @@ namespace engine {
         RegisterComponentType<Model>(); //For some reason I have to register them in reverse
         RegisterComponentType<Camera>();
         RegisterComponentType<Transform>();
+        RegisterComponentType<Light>();
 
         RegisterSystemType<TransformSystem>();
         RegisterSystemType<CollisionSystem>();
@@ -135,6 +136,7 @@ namespace engine {
             // Save to file
             std::ofstream ofs(filename, std::ios::out | std::ios::binary);
             if (!ofs.is_open()) {
+
                 spdlog::error("Failed to open file for writing: {}", filename);
                 return;
             }

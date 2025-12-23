@@ -21,7 +21,6 @@ namespace engine::ecs
         glm::vec3 boundingBoxMin;
         glm::vec3 boundingBoxMax;
 
-        // Add explicit constructor
         Model() : modelUuid(boost::uuids::nil_uuid()), boundingBoxMin(0.0f), boundingBoxMax(0.0f) {}
         explicit Model(boost::uuids::uuid id) : modelUuid(id),boundingBoxMin(0.0f),boundingBoxMax(0.0f) {}
 

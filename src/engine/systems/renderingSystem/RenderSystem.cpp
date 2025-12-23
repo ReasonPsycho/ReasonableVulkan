@@ -19,6 +19,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
     auto modelArray = scene->GetComponentArray<Model>().get();
     auto& models = modelArray->GetComponents();
+
+    auto lightArray = scene->GetComponentArray<Light>().get();
+    auto& lights = lightArray->GetComponents();
+
     auto& transforms = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
 
     // Only iterate up to the actual size of used components
@@ -34,6 +38,64 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         }
     }
 
+    // Only iterate up to the actual size of used components
+      for (ComponentID i = 0; i < lightArray->GetArraySize(); i++)
+        {
+            if (lightArray->IsComponentActive(i))
+            {
+                Entity entity = lightArray->ComponentIndexToEntity(i);
+                const auto& lightComponent = lightArray->GetComponent(i);
+
+                switch (lightComponent.type)
+                {
+                case Light::Type::Point:
+                {
+                    auto pointLightArray = scene->GetComponentArray<PointLight>().get();
+                    if (pointLightArray->IsComponentActive(entity))
+                    {
+                        const auto& pointLight = pointLightArray->GetComponent(entity);
+                        gfx::PointLightData lightData{
+                            lightComponent.intensity,
+                            lightComponent.color,
+                            pointLight.radius,
+                            pointLight.falloff
+                        };
+                        scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
+                    }
+                    break;
+                }
+                case Light::Type::Spot:
+                {
+                    auto spotLightArray = scene->GetComponentArray<SpotLight>().get();
+                    if (spotLightArray->IsComponentActive(entity))
+                    {
+                        const auto& spotLight = spotLightArray->GetComponent(entity);
+                        gfx::SpotLightData lightData{
+                            lightComponent.intensity,
+                            spotLight.innerAngle,
+                            lightComponent.color,
+                            spotLight.outerAngle,
+                            spotLight.range
+                        };
+                        scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
+                    }
+                    break;
+                }
+                case Light::Type::Directional:
+                {
+                    gfx::DirectionalLightData lightData{
+                        lightComponent.intensity,
+                        lightComponent.color,
+                    };
+                    scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+        }
+
     CameraObject cameraObject = scene->GetActiveCamera();
 
     int width, height;
@@ -44,7 +106,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     cameraObject.camera->aspectRatio = aspectRatio;
     updateProjectionMatrix(*cameraObject.camera);
 
-    scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view, cameraObject.camera->lightpos);
+    scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view);
     scene->engine.graphicsEngine->renderFrame();
 }
 

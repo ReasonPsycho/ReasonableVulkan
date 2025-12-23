@@ -12,6 +12,8 @@
 #include "../../vks/src/base/VulkanDevice.h"
 #include <glm/glm.hpp>
 
+#include "buffers/LightBufferData.hpp"
+#include "buffers/LightSSBO.hpp"
 #include "buffers/SceneUBO.hpp"
 
 namespace vks {
@@ -44,7 +46,13 @@ namespace vks {
         bool isResourceLoaded(const boost::uuids::uuid& assetId);
 
         void createSceneUBO();
-        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view, const glm::vec3& lightPos);
+        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view);
+
+        void createLightSSBO();
+        void updateLightSSBO(
+                 const std::vector<DirectionalLightBufferData>& directionalLights,
+                 const std::vector<PointLightBufferData>& pointLights,
+                 const std::vector<SpotLightBufferData>& spotLights);
 
         // Resource management
         template <typename T>
@@ -68,10 +76,16 @@ namespace vks {
         VkSampler defaultSampler = VK_NULL_HANDLE;
         VkDescriptorImageInfo defaultImageInfo = {};
 
-
         // Resource cache
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<IVulkanDescriptor>> loadedResources;
         SceneUBO sceneUBO;
+        LightSSBO directionalLightSSBO;
+        LightSSBO pointLightSSBO;
+        LightSSBO spotLightSSBO;
+
+        int maxDirectionalLights = 4;
+        int maxPointLights = 124;
+        int maxSpotLights = 124;
 
         void createDescriptorPools();
         void createDescriptorSetLayouts();

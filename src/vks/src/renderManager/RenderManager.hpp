@@ -1,12 +1,13 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include <vector>
-#include <glm/matrix.hpp>
 
+#include "LightData.hpp"
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../swapChainManager/SwapChainManager.hpp"
 #include "../renderPipelineManager/RenderPipelineManager.hpp"
 #include "../descriptorManager/DescriptorManager.h"
+#include "../descriptorManager/buffers/LightBufferData.hpp"
 
 namespace vks {
 #ifdef ENABLE_IMGUI
@@ -59,7 +60,11 @@ private:
 
         // Core rendering functions
         void submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 transform);
-        void beginFrame();
+        void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
+        void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
+        void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
+
+    void beginFrame();
         void renderFrame();
         void endFrame();
         void waitIdle();
@@ -79,6 +84,9 @@ private:
 
     private:
         std::vector<RenderCommand> renderQueue;
+        std::vector<DirectionalLightBufferData> directionalLightQueue;
+        std::vector<PointLightBufferData> pointLightQueue;
+        std::vector<SpotLightBufferData> spotLightQueue;
 
         // Core Vulkan components
         VulkanContext* context;
