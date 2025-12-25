@@ -9,9 +9,20 @@ struct UBO
 
 [[vk::binding(0, 0)]]  cbuffer ubo { UBO ubo; }
 
+// Material descriptors moved to Set 1 (was Set 2)
 [[vk::binding(0, 1)]] SamplerState defaultSampler;
 [[vk::binding(1, 1)]] Texture2D albedoTex;
 [[vk::binding(2, 1)]] Texture2D normalTex;
+
+struct LightInfo
+{
+    int directionalLightCount;
+    int pointLightCount;
+    int spotLightCount;
+    int padding;
+};
+
+
 
 struct DirectionalLight {
     float3 direction;
@@ -40,9 +51,10 @@ struct SpotLight {
     float padding[3];
 };
 
-[[vk::binding(1, 0)]] StructuredBuffer<DirectionalLight> directionalLightSSBO;
-[[vk::binding(2, 0)]] StructuredBuffer<PointLight> pointLightSSBO;
-[[vk::binding(3, 0)]] StructuredBuffer<SpotLight> spotLightSSBO;
+[[vk::binding(0, 3)]] cbuffer lightInfo { LightInfo lights; }
+[[vk::binding(1, 3)]] StructuredBuffer<DirectionalLight> directionalLightSSBO;
+[[vk::binding(2, 3)]] StructuredBuffer<PointLight> pointLightSSBO;
+[[vk::binding(3, 3)]] StructuredBuffer<SpotLight> spotLightSSBO;
 
 struct VSOutput
 {
@@ -137,48 +149,39 @@ float4 main(VSOutput input) : SV_TARGET
     // Start with ambient lighting
     float3 finalColor = AMBIENT_LIGHT * texColor.rgb;
 
-    // Apply directional lights
-    uint directionalLightCount;
-    uint stride;
-    directionalLightSSBO.GetDimensions(directionalLightCount, stride);
 
-    for (uint i = 0; i < directionalLightCount; i++)
-    {
-        finalColor += calculateDirectionalLight(
-            directionalLightSSBO[i],
-            normal,
-            input.WorldPos,
-            viewDir
-        ) * texColor.rgb;
-    }
+       // Apply directional lights
+        for (int i = 0; i < lights.directionalLightCount; i++)
+        {
+            finalColor += calculateDirectionalLight(
+                directionalLightSSBO[i],
+                normal,
+                input.WorldPos,
+                viewDir
+            ) * texColor.rgb;
+        }
 
     // Apply point lights
-    uint pointLightCount;
-    pointLightSSBO.GetDimensions(pointLightCount, stride);
-
-    for (uint i = 0; i < pointLightCount; i++)
-    {
-        finalColor += calculatePointLight(
-            pointLightSSBO[i],
-            normal,
-            input.WorldPos,
-            viewDir
-        ) * texColor.rgb;
-    }
+       for (int i = 0; i < lights.pointLightCount; i++)
+       {
+           finalColor += calculatePointLight(
+               pointLightSSBO[i],
+               normal,
+               input.WorldPos,
+               viewDir
+           ) * texColor.rgb;
+       }
 
     // Apply spot lights
-    uint spotLightCount;
-    spotLightSSBO.GetDimensions(spotLightCount, stride);
-
-    for (uint i = 0; i < spotLightCount; i++)
-    {
-        finalColor += calculateSpotLight(
-            spotLightSSBO[i],
-            normal,
-            input.WorldPos,
-            viewDir
-        ) * texColor.rgb;
-    }
+    for (int i = 0; i < lights.spotLightCount; i++)
+     {
+         finalColor += calculateSpotLight(
+             spotLightSSBO[i],
+             normal,
+             input.WorldPos,
+             viewDir
+         ) * texColor.rgb;
+     }
 
     // Apply vertex color tint
     finalColor *= input.Color;

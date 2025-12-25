@@ -10,6 +10,23 @@
 
 namespace vks
 {
+    struct LightsInfoUBO {
+        struct UniformBlock {
+            alignas(4) int32_t directionalLightCount;
+            alignas(4) int32_t pointLightCount;
+            alignas(4) int32_t spotLightCount;
+            alignas(4) int32_t padding;
+        } uniformBlock;
+
+        struct {
+            VkBuffer buffer;
+            VkDeviceMemory memory;
+            VkDescriptorSet descriptorSet;
+            VkDescriptorBufferInfo descriptor;
+            void* mapped = nullptr;
+        } buffer;
+    };
+
     // Directional light rendering data
     struct DirectionalLightBufferData
     {
