@@ -43,7 +43,7 @@ namespace vks
 
         ~MaterialDescriptor();
 
-        void setUpDescriptorSet(VkDescriptorSetLayout materialLayout,VkDescriptorPool materialDescriptorPool);
+        void setUpDescriptorSet(VkDescriptorSetLayout materialLayout, VkDescriptorPool materialDescriptorPool, VkDescriptorImageInfo defaultImageInfo);
         void cleanup() override {};
 
     };

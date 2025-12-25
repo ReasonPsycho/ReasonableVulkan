@@ -25,7 +25,6 @@ vks::MaterialDescriptor::MaterialDescriptor(DescriptorManager* assetHandleManage
     }
     if (materialData.metallicRoughnessTexture) {
         metallicRoughnessTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.metallicRoughnessTexture->id);
-
     }
     if (materialData.normalTexture) {
         normalTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.normalTexture->id);
@@ -38,15 +37,12 @@ vks::MaterialDescriptor::MaterialDescriptor(DescriptorManager* assetHandleManage
         emissiveTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.emissiveTexture->id);
     }
     if (materialData.specularGlossinessTexture) {
-        metallicRoughnessTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.specularGlossinessTexture->id); // TODO this smells xd
+        metallicRoughnessTexture = assetHandleManager->getOrLoadResource<TextureDescriptor>(materialData.specularGlossinessTexture->id);
     }
-    
-    // Setup descriptors if we have textures
-    if (baseColorTexture) {
-        setUpDescriptorSet(assetHandleManager->materialLayout,assetHandleManager->materialPool);
-    }
-}
 
+    // Setup descriptors - ALWAYS create descriptor set, even if no textures
+    setUpDescriptorSet(assetHandleManager->materialLayout, assetHandleManager->materialPool, assetHandleManager->defaultImageInfo);
+}
 vks::MaterialDescriptor::~MaterialDescriptor() {
     delete baseColorTexture;
     delete metallicRoughnessTexture;
@@ -55,9 +51,7 @@ vks::MaterialDescriptor::~MaterialDescriptor() {
     delete emissiveTexture;
 }
 
-
-
-void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialLayout,VkDescriptorPool materialDescriptorPool) {
+void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialLayout, VkDescriptorPool materialDescriptorPool, VkDescriptorImageInfo defaultImageInfo) {
     VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
     descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     descriptorSetAllocInfo.descriptorPool = materialDescriptorPool;
@@ -67,28 +61,60 @@ void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialL
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets{};
 
-    // Only add descriptor writes for textures that are actually present
+    // Binding 0: Default Sampler (ONLY sampler, no image!)
+    VkDescriptorImageInfo samplerInfo{};
+    samplerInfo.sampler = defaultImageInfo.sampler;
+    samplerInfo.imageView = VK_NULL_HANDLE;
+    // DO NOT set imageLayout for samplers!
+
+    VkWriteDescriptorSet samplerWrite{};
+    samplerWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    samplerWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    samplerWrite.descriptorCount = 1;
+    samplerWrite.dstSet = descriptorSet;
+    samplerWrite.dstBinding = 0;
+    samplerWrite.pImageInfo = &samplerInfo;
+    writeDescriptorSets.push_back(samplerWrite);
+
+    // Binding 1: Base Color Image
+    VkDescriptorImageInfo baseColorImageInfo{};
+    baseColorImageInfo.sampler = VK_NULL_HANDLE;  // No sampler for SAMPLED_IMAGE!
+    baseColorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
     if (baseColorTexture) {
-        VkWriteDescriptorSet baseColorWrite{};
-        baseColorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        baseColorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        baseColorWrite.descriptorCount = 1;
-        baseColorWrite.dstSet = descriptorSet;
-        baseColorWrite.dstBinding = 0;
-        baseColorWrite.pImageInfo = &baseColorTexture->descriptor;
-        writeDescriptorSets.push_back(baseColorWrite);
+        baseColorImageInfo.imageView = baseColorTexture->descriptor.imageView;
+    } else {
+        baseColorImageInfo.imageView = defaultImageInfo.imageView;
     }
 
-    /*if (normalTexture) { For now we don't care
-        VkWriteDescriptorSet normalMapWrite{};
-        normalMapWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        normalMapWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        normalMapWrite.descriptorCount = 1;
-        normalMapWrite.dstSet = descriptorSet;
-        normalMapWrite.dstBinding = 1;
-        normalMapWrite.pImageInfo = &normalTexture->descriptor;
-        writeDescriptorSets.push_back(normalMapWrite);
-    }*/
+    VkWriteDescriptorSet baseColorWrite{};
+    baseColorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    baseColorWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    baseColorWrite.descriptorCount = 1;
+    baseColorWrite.dstSet = descriptorSet;
+    baseColorWrite.dstBinding = 1;
+    baseColorWrite.pImageInfo = &baseColorImageInfo;
+    writeDescriptorSets.push_back(baseColorWrite);
+
+    // Binding 2: Normal Map Image
+    VkDescriptorImageInfo normalMapImageInfo{};
+    normalMapImageInfo.sampler = VK_NULL_HANDLE;  // No sampler for SAMPLED_IMAGE!
+    normalMapImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    if (normalTexture) {
+        normalMapImageInfo.imageView = normalTexture->descriptor.imageView;
+    } else {
+        normalMapImageInfo.imageView = defaultImageInfo.imageView;
+    }
+
+    VkWriteDescriptorSet normalMapWrite{};
+    normalMapWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    normalMapWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    normalMapWrite.descriptorCount = 1;
+    normalMapWrite.dstSet = descriptorSet;
+    normalMapWrite.dstBinding = 2;
+    normalMapWrite.pImageInfo = &normalMapImageInfo;
+    writeDescriptorSets.push_back(normalMapWrite);
 
     if (!writeDescriptorSets.empty()) {
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()),

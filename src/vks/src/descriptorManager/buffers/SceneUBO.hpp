@@ -13,6 +13,8 @@ namespace vks
         struct UniformBlock {
             alignas(16) glm::mat4 projection;
             alignas(16) glm::mat4 view;
+            alignas(16) glm::mat4 viewProj;
+            alignas(16) glm::vec3 cameraPos;
         } uniformBlock;
 
         struct {

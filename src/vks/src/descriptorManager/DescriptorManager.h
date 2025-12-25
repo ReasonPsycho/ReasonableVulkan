@@ -46,7 +46,7 @@ namespace vks {
         bool isResourceLoaded(const boost::uuids::uuid& assetId);
 
         void createSceneUBO();
-        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view);
+        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view, glm::vec3 cameraPos);
 
         void createLightSSBO();
         void updateLightSSBO(
@@ -75,6 +75,9 @@ namespace vks {
         //Image sampler
         VkSampler defaultSampler = VK_NULL_HANDLE;
         VkDescriptorImageInfo defaultImageInfo = {};
+        VkImage defaultImage = VK_NULL_HANDLE;
+        VkImageView defaultImageView = VK_NULL_HANDLE;
+        VkDeviceMemory defaultImageMemory = VK_NULL_HANDLE;
 
         // Resource cache
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<IVulkanDescriptor>> loadedResources;
@@ -88,6 +91,7 @@ namespace vks {
         int maxSpotLights = 124;
 
         void createDescriptorPools();
+        void createDefaultTexture();
         void createDescriptorSetLayouts();
         IVulkanDescriptor* loadResource(const boost::uuids::uuid& assetId);
 

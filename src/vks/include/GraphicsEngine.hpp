@@ -24,7 +24,7 @@ namespace gfx {
 
         virtual void initialize(plt::PlatformInterface* platform, uint32_t width, uint32_t height) = 0;
 
-        virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view) = 0;
+        virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) = 0;
         virtual void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) = 0;
         virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;

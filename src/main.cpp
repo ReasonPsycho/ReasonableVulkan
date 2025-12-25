@@ -10,6 +10,7 @@
 #include "ecs/Scene.h"
 #include "engine/Engine.h"
 #include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/renderingSystem/componets/Light.hpp"
 #include "systems/renderingSystem/componets/Model.hpp"
 #include "vks/VulkanRenderer.h"
 
@@ -43,9 +44,13 @@ int main(int argc, char *argv[]) {
     auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<Transform>(modelEntity),{1,1,1});
     scene.get()->AddComponent<Model>(modelEntity,Model(asset->get()->id));
+    scene.get()->GetComponent<Transform>(modelEntity).position = glm::vec3(0,0,0);
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");
     scene.get()->AddComponent<Camera>(cameraEntity);
+
+    auto lightEntity = scene.get()->CreateEntity("Light");
+    scene.get()->AddComponent<Light>(lightEntity);
 
     scene.get()->CreateEntity(); //Empty
 

@@ -141,6 +141,7 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData& textureData,VkSampler
     vkDestroyBuffer(vulkanContext.getDevice(), stagingBuffer, nullptr);
     vkFreeMemory(vulkanContext.getDevice(), stagingMemory, nullptr);
 
+    /*
     // Create sampler
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -155,6 +156,7 @@ vks::TextureDescriptor::TextureDescriptor(am::TextureData& textureData,VkSampler
     samplerInfo.anisotropyEnable = VK_TRUE;
 
     VK_CHECK_RESULT(vkCreateSampler(vulkanContext.getDevice(), &samplerInfo, nullptr, &sampler));
+    */
 
     // Create image view
     VkImageViewCreateInfo viewInfo{};
