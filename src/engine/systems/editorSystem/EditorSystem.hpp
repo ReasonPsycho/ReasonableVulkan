@@ -82,7 +82,7 @@ namespace engine::ecs
         bool isMiddleMousePressed = false;
         float cameraDistance = 5.0f;
         float cameraYaw = 0.0f;
-        float cameraPitch = -45.0f;
+        float cameraPitch = 45.0f;
         glm::vec3 cameraTarget = glm::vec3(0.0f);
 
         void UpdateCameraPosition();

@@ -8,6 +8,7 @@
 #include "src/imguiManager/ImguiManager.hpp"
 #include "PlatformInterface.hpp"
 
+
 namespace am
 {
 	class AssetManagerInterface;
@@ -27,7 +28,7 @@ namespace vks {
 		explicit VulkanRenderer(am::AssetManagerInterface* assetManagerInterface);
 		~VulkanRenderer() override;
 
-		void setCameraData(const glm::mat4& projection, const glm::mat4& view) override;
+		void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) override;
 		void loadModel(boost::uuids::uuid uuid) override;
 		void loadShader(boost::uuids::uuid uuid) override;
 		void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) override;

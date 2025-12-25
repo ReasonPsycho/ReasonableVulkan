@@ -3,6 +3,7 @@
 
 #include "buffers/LightBufferData.hpp"
 
+
 namespace vks
 {
     DescriptorManager::DescriptorManager(am::AssetManagerInterface* assetManager, VulkanContext* context)
@@ -20,6 +21,7 @@ namespace vks
     {
         createDescriptorPools();
         createDescriptorSetLayouts();
+        createDefaultSampler();
         createSceneUBO();
         createLightSSBO();
     }
@@ -102,11 +104,10 @@ namespace vks
 
     void DescriptorManager::createDescriptorPools()
     {
-        // Material pool (no changes needed)
         std::vector<VkDescriptorPoolSize> materialPoolSizes = {
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100},
+            {VK_DESCRIPTOR_TYPE_SAMPLER, 100},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100},
             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100},
-
         };
 
         VkDescriptorPoolCreateInfo materialPoolInfo{};
@@ -152,6 +153,144 @@ namespace vks
         }
     }
 
+
+    void DescriptorManager::createDefaultTexture()
+    {
+        auto device = context->getDevice();
+
+        // Create a 1x1 white texture (RGBA: 255, 255, 255, 255)
+        uint32_t whitePixel = 0xFFFFFFFF;
+
+        // Create staging buffer
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingMemory;
+
+        context->createBuffer(
+            sizeof(whitePixel),
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            stagingBuffer,
+            stagingMemory);
+
+        // Copy white pixel data to staging buffer
+        void* data;
+        VK_CHECK_RESULT(vkMapMemory(device, stagingMemory, 0, sizeof(whitePixel), 0, &data));
+        memcpy(data, &whitePixel, sizeof(whitePixel));
+        vkUnmapMemory(device, stagingMemory);
+
+        // Create image
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent = {1, 1, 1};
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VK_CHECK_RESULT(vkCreateImage(device, &imageInfo, nullptr, &defaultImage));
+
+        // Allocate memory
+        VkMemoryRequirements memReqs;
+        vkGetImageMemoryRequirements(device, defaultImage, &memReqs);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memReqs.size;
+        allocInfo.memoryTypeIndex = context->findMemoryType(
+            memReqs.memoryTypeBits,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VK_CHECK_RESULT(vkAllocateMemory(device, &allocInfo, nullptr, &defaultImageMemory));
+        VK_CHECK_RESULT(vkBindImageMemory(device, defaultImage, defaultImageMemory, 0));
+
+        // Transition image layout and copy data using GRAPHICS queue
+        VkCommandBuffer cmdBuffer = context->beginSingleTimeCommands(QueueType::Graphics);
+
+        // Transition to transfer destination optimal
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = defaultImage;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            cmdBuffer,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        // Copy buffer to image
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {1, 1, 1};
+
+        vkCmdCopyBufferToImage(
+            cmdBuffer,
+            stagingBuffer,
+            defaultImage,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &region);
+
+        // Transition to shader read optimal
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            cmdBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        context->endSingleTimeCommands(cmdBuffer, QueueType::Graphics);
+
+        // Cleanup staging buffer
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingMemory, nullptr);
+
+        // Create image view
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = defaultImage;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        VK_CHECK_RESULT(vkCreateImageView(device, &viewInfo, nullptr, &defaultImageView));
+    }
     void DescriptorManager::createDefaultSampler()
     {
         VkSamplerCreateInfo samplerInfo{};
@@ -162,92 +301,98 @@ namespace vks
         samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.maxLod = static_cast<float>(0);
         samplerInfo.maxAnisotropy = 8.0f;
         samplerInfo.anisotropyEnable = VK_TRUE;
-        samplerInfo.maxLod = 32.0f; // Large enough for most mipmaps
 
         VK_CHECK_RESULT(vkCreateSampler(context->getDevice(), &samplerInfo, nullptr, &defaultSampler));
 
+        createDefaultTexture();
+
         // Setup default image info
         defaultImageInfo.sampler = defaultSampler;
-        defaultImageInfo.imageView = VK_NULL_HANDLE;
+        defaultImageInfo.imageView = defaultImageView;
         defaultImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
 
 
-    void DescriptorManager::createDescriptorSetLayouts()
+void DescriptorManager::createDescriptorSetLayouts()
+{
+    // Set 0: Mesh/Vertex shader uniforms (UNCHANGED)
+    VkDescriptorSetLayoutBinding meshBinding{};
+    meshBinding.binding = 0;
+    meshBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    meshBinding.descriptorCount = 1;
+    meshBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo meshLayoutInfo{};
+    meshLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    meshLayoutInfo.bindingCount = 1;
+    meshLayoutInfo.pBindings = &meshBinding;
+
+    if (vkCreateDescriptorSetLayout(context->getDevice(), &meshLayoutInfo, nullptr, &meshUniformLayout) !=
+        VK_SUCCESS)
     {
-        std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
-            {
-                .binding = 0,
-                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .pImmutableSamplers = nullptr
-            },
-            // Normal map texture binding
-            /*{ For now we don't care
-                .binding = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .pImmutableSamplers = nullptr
-            }*/
-        };
-        // Material layout
-
-        VkDescriptorSetLayoutCreateInfo materialLayoutInfo{};
-        materialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
-        materialLayoutInfo.pBindings = materialBindings.data();
-
-        if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &materialLayout) !=
-            VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create material descriptor set layout!");
-        }
-
-        // Mesh layout
-        VkDescriptorSetLayoutBinding meshBinding{};
-        meshBinding.binding = 0;
-        meshBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        meshBinding.descriptorCount = 1;
-        meshBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-        VkDescriptorSetLayoutCreateInfo meshLayoutInfo{};
-        meshLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        meshLayoutInfo.bindingCount = 1;
-        meshLayoutInfo.pBindings = &meshBinding;
-
-        if (vkCreateDescriptorSetLayout(context->getDevice(), &meshLayoutInfo, nullptr, &meshUniformLayout) !=
-            VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create mesh descriptor set layout!");
-        }
-
-        // Scene layout (updated to match skybox shader requirements)
-        std::vector<VkDescriptorSetLayoutBinding> sceneBindings = {
-            // UBO used by both vertex shaders (matrices)
-            {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
-            {1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}, // Directional
-            {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}, // Point
-            {3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}  // Spot
-        };
-
-        VkDescriptorSetLayoutCreateInfo sceneLayoutInfo{};
-        sceneLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        sceneLayoutInfo.bindingCount = static_cast<uint32_t>(sceneBindings.size());
-        sceneLayoutInfo.pBindings = sceneBindings.data();
-
-        if (vkCreateDescriptorSetLayout(context->getDevice(), &sceneLayoutInfo, nullptr, &sceneLayout) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create scene descriptor set layout!");
-        }
+        throw std::runtime_error("failed to create mesh descriptor set layout!");
     }
 
+    // Set 1: Material descriptors (sampler + images)
+    std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
+        {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,  // CHANGED to FRAGMENT_BIT
+            .pImmutableSamplers = nullptr
+        },
+        {
+            .binding = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pImmutableSamplers = nullptr
+        },
+        {
+            .binding = 2,
+            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pImmutableSamplers = nullptr
+        }
+    };
+
+    VkDescriptorSetLayoutCreateInfo materialLayoutInfo{};
+    materialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
+    materialLayoutInfo.pBindings = materialBindings.data();
+
+    if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &materialLayout) !=
+        VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create material descriptor set layout!");
+    }
+
+    // Set 2: Scene descriptors (UNCHANGED)
+    std::vector<VkDescriptorSetLayoutBinding> sceneBindings = {
+        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+        {1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+    };
+
+    VkDescriptorSetLayoutCreateInfo sceneLayoutInfo{};
+    sceneLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    sceneLayoutInfo.bindingCount = static_cast<uint32_t>(sceneBindings.size());
+    sceneLayoutInfo.pBindings = sceneBindings.data();
+
+    if (vkCreateDescriptorSetLayout(context->getDevice(), &sceneLayoutInfo, nullptr, &sceneLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create scene descriptor set layout!");
+    }
+}
     std::vector<VkDescriptorSetLayout> DescriptorManager::getAllLayouts() const
     {
-        return {sceneLayout, materialLayout, meshUniformLayout};
+        return {meshUniformLayout, materialLayout, sceneLayout};  // Order matters!
     }
 
     bool DescriptorManager::isResourceLoaded(const boost::uuids::uuid& assetId)
@@ -297,10 +442,12 @@ namespace vks
         vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
     }
 
-    void DescriptorManager::updateSceneUBO(const glm::mat4& projection, const glm::mat4& view)
+    void DescriptorManager::updateSceneUBO(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos)
     {
         sceneUBO.uniformBlock.projection = projection;
         sceneUBO.uniformBlock.view = view;
+        sceneUBO.uniformBlock.viewProj = projection * view;
+        sceneUBO.uniformBlock.cameraPos = cameraPos;
 
         VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
 

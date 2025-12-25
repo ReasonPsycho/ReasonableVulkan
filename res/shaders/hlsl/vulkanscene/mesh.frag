@@ -1,5 +1,17 @@
-[[vk::binding(0, 1)]] Texture2D tex;
-[[vk::binding(0, 1)]] SamplerState samp;
+struct UBO
+{
+    float4x4 projection;
+    float4x4 view;
+    float4x4 viewProj;
+    float3 cameraPos;
+    float padding;
+};
+
+[[vk::binding(0, 0)]]  cbuffer ubo { UBO ubo; }
+
+[[vk::binding(0, 1)]] SamplerState defaultSampler;
+[[vk::binding(1, 1)]] Texture2D albedoTex;
+[[vk::binding(2, 1)]] Texture2D normalTex;
 
 struct DirectionalLight {
     float3 direction;
@@ -34,10 +46,13 @@ struct SpotLight {
 
 struct VSOutput
 {
+    float4 Pos : SV_POSITION;
     [[vk::location(0)]] float2 UV : TEXCOORD0;
     [[vk::location(1)]] float3 Normal : NORMAL0;
     [[vk::location(2)]] float3 Color : COLOR0;
-    [[vk::location(4)]] float3 WorldPos : TEXCOORD1;
+    [[vk::location(3)]] float3 WorldPos : TEXCOORD1;
+    [[vk::location(4)]] float3 Tangent : COLOR1;
+    [[vk::location(5)]] float3 Bitangent : COLOR2;
 };
 
 // Constants
@@ -115,9 +130,9 @@ float3 calculateSpotLight(SpotLight light, float3 normal, float3 fragPos, float3
 
 float4 main(VSOutput input) : SV_TARGET
 {
-    float4 texColor = tex.Sample(samp, input.UV);
+    float4 texColor = albedoTex.Sample(defaultSampler, input.UV);
     float3 normal = normalize(input.Normal);
-    float3 viewDir = normalize(-input.WorldPos);  // Changed from input.EyePos to use WorldPos
+    float3 viewDir = normalize(ubo.cameraPos - input.WorldPos);
 
     // Start with ambient lighting
     float3 finalColor = AMBIENT_LIGHT * texColor.rgb;
@@ -171,5 +186,6 @@ float4 main(VSOutput input) : SV_TARGET
     // Clamp to prevent overexposure
     finalColor = clamp(finalColor, 0.0, 1.0);
 
+//finalColor = float3(1.0,1.0,1.0);
     return float4(finalColor, texColor.a);
 }

@@ -123,12 +123,10 @@ void EditorSystem::ImGuiGizmo()
         // Convert glm matrices to float arrays for ImGuizmo
         float viewMatrix[16], projMatrix[16], modelMatrix[16];
 
-        // Create a flipped projection matrix to correct the Y-axis
-        glm::mat4 flippedProj = camera.projection;
-        flippedProj[1][1] *= -1; // Flip the Y component
+
 
         memcpy(viewMatrix, &camera.view[0][0], sizeof(float) * 16);
-        memcpy(projMatrix, &flippedProj[0][0], sizeof(float) * 16);
+        memcpy(projMatrix, &camera.projection[0][0], sizeof(float) * 16);
         memcpy(modelMatrix, &transform.globalMatrix[0][0], sizeof(float) * 16);
 
         // Manipulate the transform
@@ -369,7 +367,7 @@ void EditorSystem::UpdateCameraPosition()
     // Update camera matrices
     computeLocalMatrix(cameraTransform);
     cameraTransform.globalMatrix = cameraTransform.localMatrix;
-    updateViewMatrix(camera, cameraTransform.localMatrix);
+    updateViewMatrix(camera, cameraTransform.globalMatrix);
 }
 
 

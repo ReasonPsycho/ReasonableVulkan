@@ -40,61 +40,53 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
     // Only iterate up to the actual size of used components
       for (ComponentID i = 0; i < lightArray->GetArraySize(); i++)
-        {
-            if (lightArray->IsComponentActive(i))
             {
-                Entity entity = lightArray->ComponentIndexToEntity(i);
-                const auto& lightComponent = lightArray->GetComponent(i);
+                if (lightArray->IsComponentActive(i))
+                {
+                    Entity entity = lightArray->ComponentIndexToEntity(i);
+                    auto& lightComponent = lights[i];
 
-                switch (lightComponent.type)
-                {
-                case Light::Type::Point:
-                {
-                    auto pointLightArray = scene->GetComponentArray<PointLight>().get();
-                    if (pointLightArray->IsComponentActive(entity))
+                    switch (lightComponent.type)
                     {
-                        const auto& pointLight = pointLightArray->GetComponent(entity);
+                    case Light::Type::Point:
+                    {
+                        const auto& pointData = std::get<PointLightData>(lightComponent.data);
                         gfx::PointLightData lightData{
                             lightComponent.intensity,
                             lightComponent.color,
-                            pointLight.radius,
-                            pointLight.falloff
+                            pointData.radius,
+                            pointData.falloff
                         };
                         scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
+                        break;
                     }
-                    break;
-                }
-                case Light::Type::Spot:
-                {
-                    auto spotLightArray = scene->GetComponentArray<SpotLight>().get();
-                    if (spotLightArray->IsComponentActive(entity))
+                    case Light::Type::Spot:
                     {
-                        const auto& spotLight = spotLightArray->GetComponent(entity);
+                        const auto& spotData = std::get<SpotLightData>(lightComponent.data);
                         gfx::SpotLightData lightData{
                             lightComponent.intensity,
-                            spotLight.innerAngle,
+                            spotData.innerAngle,
                             lightComponent.color,
-                            spotLight.outerAngle,
-                            spotLight.range
+                            spotData.outerAngle,
+                            spotData.range
                         };
                         scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
+                        break;
                     }
-                    break;
-                }
-                case Light::Type::Directional:
-                {
-                    gfx::DirectionalLightData lightData{
-                        lightComponent.intensity,
-                        lightComponent.color,
-                    };
-                    scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
-                    break;
-                }
-                default:
-                    break;
+                    case Light::Type::Directional:
+                    {
+                        gfx::DirectionalLightData lightData{
+                            lightComponent.intensity,
+                            lightComponent.color,
+                        };
+                        scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
+                        break;
+                    }
+                    default:
+                        break;
+                    }
                 }
             }
-        }
 
     CameraObject cameraObject = scene->GetActiveCamera();
 
@@ -106,7 +98,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     cameraObject.camera->aspectRatio = aspectRatio;
     updateProjectionMatrix(*cameraObject.camera);
 
-    scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view);
+    scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view, cameraObject.transform->position);
     scene->engine.graphicsEngine->renderFrame();
 }
 

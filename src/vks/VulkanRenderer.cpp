@@ -13,6 +13,7 @@
 
 #include "src/imguiManager/ImguiManager.hpp"
 
+
 namespace vks {
     class ModelDescriptor;
 
@@ -54,9 +55,12 @@ namespace vks {
         cleanup();
     }
 
-    void VulkanRenderer::setCameraData(const glm::mat4& projection, const glm::mat4& view)
+    void VulkanRenderer::setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos)
     {
-            descriptorManager->updateSceneUBO(projection, view);
+        glm::mat4 proj = projection; //Vulkan has inverted Y in clip space compared to OpenGL
+        proj[1][1] *= -1.0f;
+
+        descriptorManager->updateSceneUBO(proj, view, cameraPos);
     }
 
     void VulkanRenderer::loadModel(boost::uuids::uuid uuid) {

@@ -1,3 +1,4 @@
+
 //
 // Created by redkc on 22/12/2025.
 //
@@ -16,11 +17,55 @@ void engine::ecs::Light::ShowImGui(Scene* scene, Component* component) const
 
         if (ImGui::Combo("Light Type", &typeInt, items, IM_ARRAYSIZE(items)))
         {
-            typed->type = static_cast<Type>(typeInt);
+            Type newType = static_cast<Type>(typeInt);
+            if (newType != typed->type)
+            {
+                typed->type = newType;
+                // Update variant to match the new type
+                switch (newType)
+                {
+                    case Type::Directional:
+                        typed->data = DirectionalLightData{};
+                        break;
+                    case Type::Point:
+                        typed->data = PointLightData{};
+                        break;
+                    case Type::Spot:
+                        typed->data = SpotLightData{};
+                        break;
+                }
+            }
         }
 
         ImGui::ColorEdit3("Light Color", &typed->color[0]);
         ImGui::SliderFloat("Intensity##Light", &typed->intensity, 0.0f, 10.0f);
+
+        // Show type-specific controls
+        switch (typed->type)
+        {
+            case Type::Point:
+            {
+                auto& pointData = std::get<PointLightData>(typed->data);
+                ImGui::Separator();
+                ImGui::Text("Point Light Settings");
+                ImGui::SliderFloat("Radius##PointLight", &pointData.radius, 0.1f, 100.0f);
+                ImGui::SliderFloat("Falloff##PointLight", &pointData.falloff, 0.0f, 5.0f);
+                break;
+            }
+            case Type::Spot:
+            {
+                auto& spotData = std::get<SpotLightData>(typed->data);
+                ImGui::Separator();
+                ImGui::Text("Spot Light Settings");
+                ImGui::SliderFloat("Inner Angle##SpotLight", &spotData.innerAngle, 0.0f, 90.0f);
+                ImGui::SliderFloat("Outer Angle##SpotLight", &spotData.outerAngle, 0.0f, 90.0f);
+                ImGui::SliderFloat("Range##SpotLight", &spotData.range, 0.1f, 200.0f);
+                break;
+            }
+            case Type::Directional:
+                // No extra settings for directional lights
+                break;
+        }
     }
 }
 
@@ -35,12 +80,49 @@ void engine::ecs::Light::SerializeToJson(rapidjson::Value& obj, rapidjson::Docum
     obj.AddMember("color", colorArray, allocator);
 
     obj.AddMember("intensity", intensity, allocator);
+
+    // Serialize type-specific data
+    switch (type)
+    {
+        case Type::Point:
+        {
+            const auto& pointData = std::get<PointLightData>(data);
+            obj.AddMember("radius", pointData.radius, allocator);
+            obj.AddMember("falloff", pointData.falloff, allocator);
+            break;
+        }
+        case Type::Spot:
+        {
+            const auto& spotData = std::get<SpotLightData>(data);
+            obj.AddMember("innerAngle", spotData.innerAngle, allocator);
+            obj.AddMember("outerAngle", spotData.outerAngle, allocator);
+            obj.AddMember("range", spotData.range, allocator);
+            break;
+        }
+        case Type::Directional:
+            // No extra data
+            break;
+    }
 }
 
 void engine::ecs::Light::DeserializeFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("lightType") && obj["lightType"].IsInt()) {
         type = static_cast<Type>(obj["lightType"].GetInt());
+
+        // Initialize variant based on type
+        switch (type)
+        {
+            case Type::Directional:
+                data = DirectionalLightData{};
+                break;
+            case Type::Point:
+                data = PointLightData{};
+                break;
+            case Type::Spot:
+                data = SpotLightData{};
+                break;
+        }
     }
 
     if (obj.HasMember("color") && obj["color"].IsArray()) {
@@ -55,64 +137,37 @@ void engine::ecs::Light::DeserializeFromJson(const rapidjson::Value& obj)
     if (obj.HasMember("intensity") && obj["intensity"].IsNumber()) {
         intensity = obj["intensity"].GetFloat();
     }
-}
 
-void engine::ecs::PointLight::ShowImGui(Scene* scene, Component* component) const
-{
-    auto typed = dynamic_cast<PointLight*>(component);
-    if (ImGui::CollapsingHeader("Point Light Data"))
+    // Deserialize type-specific data
+    switch (type)
     {
-        ImGui::SliderFloat("Radius##PointLight", &typed->radius, 0.1f, 100.0f);
-        ImGui::SliderFloat("Falloff##PointLight", &typed->falloff, 0.0f, 5.0f);
-    }
-}
-
-void engine::ecs::PointLight::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
-{
-    obj.AddMember("radius", radius, allocator);
-    obj.AddMember("falloff", falloff, allocator);
-}
-
-void engine::ecs::PointLight::DeserializeFromJson(const rapidjson::Value& obj)
-{
-    if (obj.HasMember("radius") && obj["radius"].IsNumber()) {
-        radius = obj["radius"].GetFloat();
-    }
-
-    if (obj.HasMember("falloff") && obj["falloff"].IsNumber()) {
-        falloff = obj["falloff"].GetFloat();
-    }
-}
-
-void engine::ecs::SpotLight::ShowImGui(Scene* scene, Component* component) const
-{
-    auto typed = dynamic_cast<SpotLight*>(component);
-    if (ImGui::CollapsingHeader("Spot Light Data"))
-    {
-        ImGui::SliderFloat("Inner Angle##SpotLight", &typed->innerAngle, 0.0f, 90.0f);
-        ImGui::SliderFloat("Outer Angle##SpotLight", &typed->outerAngle, 0.0f, 90.0f);
-        ImGui::SliderFloat("Range##SpotLight", &typed->range, 0.1f, 200.0f);
-    }
-}
-
-void engine::ecs::SpotLight::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
-{
-    obj.AddMember("innerAngle", innerAngle, allocator);
-    obj.AddMember("outerAngle", outerAngle, allocator);
-    obj.AddMember("range", range, allocator);
-}
-
-void engine::ecs::SpotLight::DeserializeFromJson(const rapidjson::Value& obj)
-{
-    if (obj.HasMember("innerAngle") && obj["innerAngle"].IsNumber()) {
-        innerAngle = obj["innerAngle"].GetFloat();
-    }
-
-    if (obj.HasMember("outerAngle") && obj["outerAngle"].IsNumber()) {
-        outerAngle = obj["outerAngle"].GetFloat();
-    }
-
-    if (obj.HasMember("range") && obj["range"].IsNumber()) {
-        range = obj["range"].GetFloat();
+        case Type::Point:
+        {
+            auto& pointData = std::get<PointLightData>(data);
+            if (obj.HasMember("radius") && obj["radius"].IsNumber()) {
+                pointData.radius = obj["radius"].GetFloat();
+            }
+            if (obj.HasMember("falloff") && obj["falloff"].IsNumber()) {
+                pointData.falloff = obj["falloff"].GetFloat();
+            }
+            break;
+        }
+        case Type::Spot:
+        {
+            auto& spotData = std::get<SpotLightData>(data);
+            if (obj.HasMember("innerAngle") && obj["innerAngle"].IsNumber()) {
+                spotData.innerAngle = obj["innerAngle"].GetFloat();
+            }
+            if (obj.HasMember("outerAngle") && obj["outerAngle"].IsNumber()) {
+                spotData.outerAngle = obj["outerAngle"].GetFloat();
+            }
+            if (obj.HasMember("range") && obj["range"].IsNumber()) {
+                spotData.range = obj["range"].GetFloat();
+            }
+            break;
+        }
+        case Type::Directional:
+            // No extra data
+            break;
     }
 }
