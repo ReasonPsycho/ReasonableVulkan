@@ -3,7 +3,10 @@
 //
 #include <imgui.h>
 #include "Model.hpp"
+
+#include "Asset.hpp"
 #include "AssetTypes.hpp"
+#include "assetDatas/ModelData.h"
 #include "ecs/Scene.h"
 
 
@@ -25,6 +28,10 @@ void Model::ShowImGui(Scene* scene, Component* component) const
                 if (ImGui::MenuItem(idStr.c_str()))
                 {
                     typed->modelUuid = assetInfo.get()->id;
+
+                    auto modelData = scene->engine.assetManagerInterface->getAsset(assetInfo.get()->id).value()->getAssetDataAs<am::ModelData>();
+                    typed->boundingBoxMin = modelData->boundingBoxMin;
+                    typed->boundingBoxMax = modelData->boundingBoxMax;
                 }
             }
             ImGui::EndPopup();

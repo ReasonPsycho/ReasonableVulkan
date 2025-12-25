@@ -90,7 +90,7 @@ void RenderManager::createSyncObjects() {
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-            // Then bind the material descriptor set at set index 1
+            // Bind material descriptor set at set index 1
             auto materialDescriptorSet = mesh->material->descriptorSet;
             if (materialDescriptorSet != VK_NULL_HANDLE) {
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -271,8 +271,7 @@ void RenderManager::endFrame() {
 
 }
 
-
-    void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -319,8 +318,6 @@ void RenderManager::endFrame() {
     // Bind the model pipeline for model rendering
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getModelPipeline());
 
-
-    // Set dynamic viewport and scissor BEFORE drawing
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -335,14 +332,33 @@ void RenderManager::endFrame() {
     scissor.extent = swapChain->getSwapChainExtent();
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdBindDescriptorSets(commandBuffer,
-    VK_PIPELINE_BIND_POINT_GRAPHICS,
-    pipelineManager->getMeshPipelineLayout(),    // Your pipeline layout
-    0,                 // First set
-    1,                 // Number of sets
-    &descriptorManager->sceneUBO.buffer.descriptorSet,
-    0,
-    nullptr);
+    vkCmdBindDescriptorSets(
+          commandBuffer,
+          VK_PIPELINE_BIND_POINT_GRAPHICS,
+          pipelineManager->getMeshPipelineLayout(),
+          0,                                    // First set index (Set 0)
+          1,                                    // Number of sets
+          &descriptorManager->sceneUBO.buffer.descriptorSet,
+          0, nullptr);
+
+    vkCmdBindDescriptorSets(
+          commandBuffer,
+          VK_PIPELINE_BIND_POINT_GRAPHICS,
+          pipelineManager->getMeshPipelineLayout(),
+          3,                                    // Set index 3
+          1,                                    // Number of sets
+          &descriptorManager->directionalLightSSBO.descriptorSet,
+          0, nullptr);
+
+    //Process lights
+    descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue);
+
+    //Process lights
+    descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue);
+
+    directionalLightQueue.clear();
+    pointLightQueue.clear();
+    spotLightQueue.clear();
 
     // Process render queue
     for (auto& cmd : renderQueue) {
@@ -354,11 +370,7 @@ void RenderManager::endFrame() {
 
     renderQueue.clear();
 
-    descriptorManager->updateLightSSBO(directionalLightQueue, pointLightQueue, spotLightQueue);
 
-    directionalLightQueue.clear();
-    pointLightQueue.clear();
-    spotLightQueue.clear();
     // Switch to skybox pipeline for skybox rendering
     //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getSkyboxPipeline());
 

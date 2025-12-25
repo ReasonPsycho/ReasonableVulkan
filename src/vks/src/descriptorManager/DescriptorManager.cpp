@@ -23,10 +23,10 @@ namespace vks
         createDescriptorSetLayouts();
         createDefaultSampler();
         createSceneUBO();
-        createLightSSBO();
+        createLightsData();
     }
 
-    void DescriptorManager::cleanup()
+ void DescriptorManager::cleanup()
     {
         auto device = context->getDevice();
 
@@ -38,6 +38,16 @@ namespace vks
             }
             vkDestroyBuffer(device, sceneUBO.buffer.buffer, nullptr);
             vkFreeMemory(device, sceneUBO.buffer.memory, nullptr);
+        }
+
+        if (lightInfoUBO.buffer.buffer != VK_NULL_HANDLE)
+        {
+            if (lightInfoUBO.buffer.mapped)
+            {
+                vkUnmapMemory(device, lightInfoUBO.buffer.memory);
+            }
+            vkDestroyBuffer(device, lightInfoUBO.buffer.buffer, nullptr);
+            vkFreeMemory(device, lightInfoUBO.buffer.memory, nullptr);
         }
 
         if (directionalLightSSBO.buffer.buffer != VK_NULL_HANDLE) {
@@ -85,6 +95,10 @@ namespace vks
         if (sceneLayout != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorSetLayout(device, sceneLayout, nullptr);
+        }
+        if (lightsLayout != VK_NULL_HANDLE)
+        {
+            vkDestroyDescriptorSetLayout(device, lightsLayout, nullptr);
         }
 
         // Destroy descriptor pools
@@ -316,89 +330,131 @@ namespace vks
     }
 
 
-void DescriptorManager::createDescriptorSetLayouts()
-{
-    // Set 0: Mesh/Vertex shader uniforms (UNCHANGED)
-    VkDescriptorSetLayoutBinding meshBinding{};
-    meshBinding.binding = 0;
-    meshBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    meshBinding.descriptorCount = 1;
-    meshBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkDescriptorSetLayoutCreateInfo meshLayoutInfo{};
-    meshLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    meshLayoutInfo.bindingCount = 1;
-    meshLayoutInfo.pBindings = &meshBinding;
-
-    if (vkCreateDescriptorSetLayout(context->getDevice(), &meshLayoutInfo, nullptr, &meshUniformLayout) !=
-        VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create mesh descriptor set layout!");
-    }
-
-    // Set 1: Material descriptors (sampler + images)
-    std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
+        void DescriptorManager::createDescriptorSetLayouts()
         {
-            .binding = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,  // CHANGED to FRAGMENT_BIT
-            .pImmutableSamplers = nullptr
-        },
-        {
-            .binding = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .pImmutableSamplers = nullptr
-        },
-        {
-            .binding = 2,
-            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .pImmutableSamplers = nullptr
+            // Set 0: Scene descriptors (Camera UBO + Light Info UBO)
+            std::vector<VkDescriptorSetLayoutBinding> sceneBindings = {
+                    {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+            };
+
+            VkDescriptorSetLayoutCreateInfo sceneLayoutInfo{};
+            sceneLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            sceneLayoutInfo.bindingCount = static_cast<uint32_t>(sceneBindings.size());
+            sceneLayoutInfo.pBindings = sceneBindings.data();
+
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &sceneLayoutInfo, nullptr, &sceneLayout) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create scene descriptor set layout!");
+            }
+
+            // Set 1: Material descriptors (sampler + images)
+            std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
+                {
+                    .binding = 0,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 2,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                }
+            };
+
+            VkDescriptorSetLayoutCreateInfo materialLayoutInfo{};
+            materialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
+            materialLayoutInfo.pBindings = materialBindings.data();
+
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &materialLayout) !=
+                VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create material descriptor set layout!");
+            }
+
+            // Set 2: Mesh/Vertex shader uniforms
+            VkDescriptorSetLayoutBinding meshBinding{};
+            meshBinding.binding = 0;
+            meshBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            meshBinding.descriptorCount = 1;
+            meshBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+            VkDescriptorSetLayoutCreateInfo meshLayoutInfo{};
+            meshLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            meshLayoutInfo.bindingCount = 1;
+            meshLayoutInfo.pBindings = &meshBinding;
+
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &meshLayoutInfo, nullptr, &meshUniformLayout) !=
+                VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create mesh descriptor set layout!");
+            }
+
+            // Set 3: Lights descriptors (All light types as storage buffers)
+            std::vector<VkDescriptorSetLayoutBinding> lightsBindings = {
+                {
+                    .binding = 0,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 2,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 3,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                }
+            };
+
+            VkDescriptorSetLayoutCreateInfo lightsLayoutInfo{};
+            lightsLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            lightsLayoutInfo.bindingCount = static_cast<uint32_t>(lightsBindings.size());
+            lightsLayoutInfo.pBindings = lightsBindings.data();
+
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &lightsLayoutInfo, nullptr, &lightsLayout) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create lights descriptor set layout!");
+            }
         }
-    };
 
-    VkDescriptorSetLayoutCreateInfo materialLayoutInfo{};
-    materialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
-    materialLayoutInfo.pBindings = materialBindings.data();
 
-    if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &materialLayout) !=
-        VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create material descriptor set layout!");
-    }
-
-    // Set 2: Scene descriptors (UNCHANGED)
-    std::vector<VkDescriptorSetLayoutBinding> sceneBindings = {
-        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
-        {1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-        {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-        {3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
-    };
-
-    VkDescriptorSetLayoutCreateInfo sceneLayoutInfo{};
-    sceneLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    sceneLayoutInfo.bindingCount = static_cast<uint32_t>(sceneBindings.size());
-    sceneLayoutInfo.pBindings = sceneBindings.data();
-
-    if (vkCreateDescriptorSetLayout(context->getDevice(), &sceneLayoutInfo, nullptr, &sceneLayout) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create scene descriptor set layout!");
-    }
-}
     std::vector<VkDescriptorSetLayout> DescriptorManager::getAllLayouts() const
     {
-        return {meshUniformLayout, materialLayout, sceneLayout};  // Order matters!
+        return {sceneLayout, materialLayout, meshUniformLayout, lightsLayout};  // Order: 0, 1, 2, 3
     }
 
     bool DescriptorManager::isResourceLoaded(const boost::uuids::uuid& assetId)
     {
         return loadedResources.find(assetId) != loadedResources.end();
     }
+
 
     void DescriptorManager::createSceneUBO()
     {
@@ -430,13 +486,13 @@ void DescriptorManager::createDescriptorSetLayouts()
 
         VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &sceneUBO.buffer.descriptorSet));
 
-        // Update descriptor set
+        // Write the UBO buffer info to the descriptor set
         VkWriteDescriptorSet writeDescriptorSet{};
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         writeDescriptorSet.descriptorCount = 1;
         writeDescriptorSet.dstSet = sceneUBO.buffer.descriptorSet;
-        writeDescriptorSet.dstBinding = 0;
+        writeDescriptorSet.dstBinding = 0;  // Binding 0 in Set 0
         writeDescriptorSet.pBufferInfo = &sceneUBO.buffer.descriptor;
 
         vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
@@ -455,142 +511,147 @@ void DescriptorManager::createDescriptorSetLayouts()
     }
 
 
-void DescriptorManager::createLightSSBO()
-{
-    VkDeviceSize bufferSize = maxDirectionalLights * sizeof(DirectionalLightBufferData);
+    void DescriptorManager::createLightsData()
+    {
+        VkDeviceSize bufferSize = sizeof(LightsInfoUBO::UniformBlock);
 
-    context->createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        directionalLightSSBO.buffer.buffer,
-        directionalLightSSBO.buffer.memory);
+        // Create the buffer
+        context->createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            lightInfoUBO.buffer.buffer,
+            lightInfoUBO.buffer.memory);
 
-    directionalLightSSBO.buffer.descriptor.buffer = directionalLightSSBO.buffer.buffer;
-    directionalLightSSBO.buffer.descriptor.offset = 0;
-    directionalLightSSBO.buffer.descriptor.range = bufferSize;
+        // Setup descriptor buffer info
+        lightInfoUBO.buffer.descriptor.buffer = lightInfoUBO.buffer.buffer;
+        lightInfoUBO.buffer.descriptor.offset = 0;
+        lightInfoUBO.buffer.descriptor.range = bufferSize;
 
-    VK_CHECK_RESULT(vkMapMemory(context->getDevice(), directionalLightSSBO.buffer.memory,
-        0, bufferSize, 0, &directionalLightSSBO.buffer.mapped));
+        // Map the memory
+        VK_CHECK_RESULT(vkMapMemory(context->getDevice(), lightInfoUBO.buffer.memory,
+            0, bufferSize, 0, &lightInfoUBO.buffer.mapped));
 
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = scenePool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &sceneLayout;
+        // Allocate descriptor set
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = scenePool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &sceneLayout;
 
-    VK_CHECK_RESULT(
-        vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &directionalLightSSBO.descriptorSet));
+        VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &lightInfoUBO.buffer.descriptorSet));
 
-    VkWriteDescriptorSet writeDescriptorSet{};
-    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    writeDescriptorSet.descriptorCount = 1;
-    writeDescriptorSet.dstSet = directionalLightSSBO.descriptorSet;
-    writeDescriptorSet.dstBinding = 1;
-    writeDescriptorSet.pBufferInfo = &directionalLightSSBO.buffer.descriptor;
 
-    vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
+        bufferSize = maxDirectionalLights * sizeof(DirectionalLightBufferData);
 
-    // ... point lights setup ...
-    bufferSize = maxPointLights * sizeof(PointLightBufferData);
+        context->createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            directionalLightSSBO.buffer.buffer,
+            directionalLightSSBO.buffer.memory);
 
-    context->createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        pointLightSSBO.buffer.buffer,
-        pointLightSSBO.buffer.memory);
+        directionalLightSSBO.buffer.descriptor.buffer = directionalLightSSBO.buffer.buffer;
+        directionalLightSSBO.buffer.descriptor.offset = 0;
+        directionalLightSSBO.buffer.descriptor.range = bufferSize;
 
-    pointLightSSBO.buffer.descriptor.buffer = pointLightSSBO.buffer.buffer;
-    pointLightSSBO.buffer.descriptor.offset = 0;
-    pointLightSSBO.buffer.descriptor.range = bufferSize;
+        VK_CHECK_RESULT(vkMapMemory(context->getDevice(), directionalLightSSBO.buffer.memory,
+            0, bufferSize, 0, &directionalLightSSBO.buffer.mapped));
 
-    VK_CHECK_RESULT(vkMapMemory(context->getDevice(), pointLightSSBO.buffer.memory,
-        0, bufferSize, 0, &pointLightSSBO.buffer.mapped));
+        // ... point lights setup ...
+        bufferSize = maxPointLights * sizeof(PointLightBufferData);
 
-    allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = scenePool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &sceneLayout;
+        context->createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            pointLightSSBO.buffer.buffer,
+            pointLightSSBO.buffer.memory);
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &pointLightSSBO.descriptorSet));
+        pointLightSSBO.buffer.descriptor.buffer = pointLightSSBO.buffer.buffer;
+        pointLightSSBO.buffer.descriptor.offset = 0;
+        pointLightSSBO.buffer.descriptor.range = bufferSize;
 
-    writeDescriptorSet = {};
-    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    writeDescriptorSet.descriptorCount = 1;
-    writeDescriptorSet.dstSet = pointLightSSBO.descriptorSet;
-    writeDescriptorSet.dstBinding = 2;
-    writeDescriptorSet.pBufferInfo = &pointLightSSBO.buffer.descriptor;
+        VK_CHECK_RESULT(vkMapMemory(context->getDevice(), pointLightSSBO.buffer.memory,
+            0, bufferSize, 0, &pointLightSSBO.buffer.mapped));
 
-    vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
+        // ... spot lights setup ...
+        bufferSize = maxSpotLights * sizeof(SpotLightBufferData);
 
-    // ... spot lights setup ...
-    bufferSize = maxSpotLights * sizeof(SpotLightBufferData);
+        context->createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            spotLightSSBO.buffer.buffer,
+            spotLightSSBO.buffer.memory);
 
-    context->createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        spotLightSSBO.buffer.buffer,
-        spotLightSSBO.buffer.memory);
+        spotLightSSBO.buffer.descriptor.buffer = spotLightSSBO.buffer.buffer;
+        spotLightSSBO.buffer.descriptor.offset = 0;
+        spotLightSSBO.buffer.descriptor.range = bufferSize;
 
-    spotLightSSBO.buffer.descriptor.buffer = spotLightSSBO.buffer.buffer;
-    spotLightSSBO.buffer.descriptor.offset = 0;
-    spotLightSSBO.buffer.descriptor.range = bufferSize;
+        VK_CHECK_RESULT(vkMapMemory(context->getDevice(), spotLightSSBO.buffer.memory,
+            0, bufferSize, 0, &spotLightSSBO.buffer.mapped));
 
-    VK_CHECK_RESULT(vkMapMemory(context->getDevice(), spotLightSSBO.buffer.memory,
-        0, bufferSize, 0, &spotLightSSBO.buffer.mapped));
+        // Allocate a single descriptor set for all lights from the lights layout
+        allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = scenePool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &lightsLayout;
 
-    allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = scenePool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &sceneLayout;
+        VkDescriptorSet lightsDescriptorSet;
+        VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &lightsDescriptorSet));
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &spotLightSSBO.descriptorSet));
+        // Write all three light buffers to the single lights descriptor set
+        std::array<VkWriteDescriptorSet, 4> lightWrites{};
 
-    writeDescriptorSet = {};
-    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    writeDescriptorSet.descriptorCount = 1;
-    writeDescriptorSet.dstSet = spotLightSSBO.descriptorSet;
-    writeDescriptorSet.dstBinding = 3;
-    writeDescriptorSet.pBufferInfo = &spotLightSSBO.buffer.descriptor;
+        lightWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        lightWrites[0].descriptorCount = 1;
+        lightWrites[0].dstSet = lightsDescriptorSet;
+        lightWrites[0].dstBinding = 0;  // Light info UBO at binding 0
+        lightWrites[0].pBufferInfo = &lightInfoUBO.buffer.descriptor;
 
-    vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
+        lightWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        lightWrites[1].descriptorCount = 1;
+        lightWrites[1].dstSet = lightsDescriptorSet;
+        lightWrites[1].dstBinding = 1;  // Directional lights at binding 1
+        lightWrites[1].pBufferInfo = &directionalLightSSBO.buffer.descriptor;
 
-    // NOW update the main scene UBO descriptor set with all three light SSBOs
-    std::array<VkWriteDescriptorSet, 3> lightWrites{};
+        lightWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        lightWrites[2].descriptorCount = 1;
+        lightWrites[2].dstSet = lightsDescriptorSet;
+        lightWrites[2].dstBinding = 2;  // Point lights at binding 2
+        lightWrites[2].pBufferInfo = &pointLightSSBO.buffer.descriptor;
 
-    lightWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    lightWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    lightWrites[0].descriptorCount = 1;
-    lightWrites[0].dstSet = sceneUBO.buffer.descriptorSet;
-    lightWrites[0].dstBinding = 1;  // Directional lights at binding 1
-    lightWrites[0].pBufferInfo = &directionalLightSSBO.buffer.descriptor;
+        lightWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        lightWrites[3].descriptorCount = 1;
+        lightWrites[3].dstSet = lightsDescriptorSet;
+        lightWrites[3].dstBinding = 3;  // Spot lights at binding 3
+        lightWrites[3].pBufferInfo = &spotLightSSBO.buffer.descriptor;
 
-    lightWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    lightWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    lightWrites[1].descriptorCount = 1;
-    lightWrites[1].dstSet = sceneUBO.buffer.descriptorSet;
-    lightWrites[1].dstBinding = 2;  // Point lights at binding 2
-    lightWrites[1].pBufferInfo = &pointLightSSBO.buffer.descriptor;
+        vkUpdateDescriptorSets(context->getDevice(), 4, lightWrites.data(), 0, nullptr);
+        // Store the descriptor set in each SSBO (optional, for convenience)
+        directionalLightSSBO.descriptorSet = lightsDescriptorSet;
+        pointLightSSBO.descriptorSet = lightsDescriptorSet;
+        spotLightSSBO.descriptorSet = lightsDescriptorSet;
+    }
 
-    lightWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    lightWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    lightWrites[2].descriptorCount = 1;
-    lightWrites[2].dstSet = sceneUBO.buffer.descriptorSet;
-    lightWrites[2].dstBinding = 3;  // Spot lights at binding 3
-    lightWrites[2].pBufferInfo = &spotLightSSBO.buffer.descriptor;
-
-    vkUpdateDescriptorSets(context->getDevice(), 3, lightWrites.data(), 0, nullptr);
-}
-    void DescriptorManager::updateLightSSBO(const std::vector<DirectionalLightBufferData>& directionalLights,
+    void DescriptorManager::updateLightsData(const std::vector<DirectionalLightBufferData>& directionalLights,
         const std::vector<PointLightBufferData>& pointLights, const std::vector<SpotLightBufferData>& spotLights)
     {
+
+        lightInfoUBO.uniformBlock.directionalLightCount = directionalLights.size();
+        lightInfoUBO.uniformBlock.pointLightCount = pointLights.size();
+        lightInfoUBO.uniformBlock.spotLightCount = spotLights.size();
+        lightInfoUBO.uniformBlock.padding = 0;
+
+        VkDeviceSize bufferSize = sizeof(LightsInfoUBO::UniformBlock);
+        memcpy(lightInfoUBO.buffer.mapped, &lightInfoUBO.uniformBlock, bufferSize);
+
         // Update directional lights
         if (!directionalLights.empty()) {
             size_t copySize = std::min(static_cast<size_t>(maxDirectionalLights), directionalLights.size());
@@ -614,8 +675,6 @@ void DescriptorManager::createLightSSBO()
                    spotLights.data(),
                    copySize * sizeof(SpotLightBufferData));
         }
-
-
     }
 
 } // namespace vks
