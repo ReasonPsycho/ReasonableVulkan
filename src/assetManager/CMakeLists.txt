@@ -1,8 +1,13 @@
+
 message(STATUS "Running asset manager cmake")
 cmake_policy(SET CMP0167 NEW)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(MINGW)
+    add_compile_definitions(_ALLOW_KEYWORD_MACROS)
+endif()
 
 if(SPDLOG_DISABLE_LOGGING)
     add_compile_definitions(SPDLOG_DISABLE_LOGGING)
@@ -12,13 +17,13 @@ if(DEFINED SPDLOG_ACTIVE_LEVEL)
     add_compile_definitions(SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 endif()
 
-
 # Find Assimp package
 find_package(assimp CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(Stb REQUIRED)  # Add STB
+find_package(Stb REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
+find_package(directx-dxc CONFIG REQUIRED)
 
 # Find Boost with required components
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
@@ -44,10 +49,10 @@ target_include_directories(am
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${Stb_INCLUDE_DIR}  # Add STB include directory
+        ${Stb_INCLUDE_DIR}
 )
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
-# Link Assimp and Boost UUID
+# Link Assimp, Boost UUID, and DirectX DXC
 target_link_libraries(am
         PUBLIC
         RapidJSON
@@ -55,6 +60,9 @@ target_link_libraries(am
         Boost::uuid
         fmt::fmt
         spdlog::spdlog
+        Microsoft::DirectXShaderCompiler
+        dxguid
+        dxcompiler
 )
 
 # Enable tests in Debug mode by default or when explicitly enabled

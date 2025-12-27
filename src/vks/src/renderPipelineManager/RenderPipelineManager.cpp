@@ -218,11 +218,13 @@ void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescripto
         VkPipelineDepthStencilStateCreateInfo depthStencilState =
             vks::base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
+        /*
         // Load mesh shader stages
         shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.vert.spv")->getShaderStage();
         shaderStages[1] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.frag.spv")->getShaderStage();
+            */
 
         // Create mesh pipeline
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
