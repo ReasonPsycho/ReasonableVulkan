@@ -218,13 +218,13 @@ void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescripto
         VkPipelineDepthStencilStateCreateInfo depthStencilState =
             vks::base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
-        /*
+
         // Load mesh shader stages
         shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.vert.spv")->getShaderStage();
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.vert")->getShaderStage();
         shaderStages[1] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/mesh.frag.spv")->getShaderStage();
-            */
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.frag")->getShaderStage();
+
 
         // Create mesh pipeline
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
@@ -265,9 +265,9 @@ void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescripto
 
         // Load skybox shader stages
         shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.vert.spv")->getShaderStage();
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/vulkanscene/skybox.vert")->getShaderStage();
         shaderStages[1] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/hlsl/vulkanscene/skybox.frag.spv")->getShaderStage();
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/vulkanscene/skybox.frag")->getShaderStage();
 
         // Create skybox pipeline
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
