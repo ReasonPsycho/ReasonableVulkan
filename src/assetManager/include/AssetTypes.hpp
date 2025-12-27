@@ -61,6 +61,8 @@ namespace am {
         if (extension == ".png")       return AssetType::Texture;
         if (extension == ".spv")       return AssetType::Shader;
         if (extension == ".spdv")      return AssetType::Shader;
+        if (extension == ".frag")      return AssetType::Shader;
+        if (extension == ".vert")      return AssetType::Shader;
         return AssetType::Other;
     }
 }

@@ -5,6 +5,7 @@
 #ifndef SHADERDATA_H
 #define SHADERDATA_H
 #include <cstdint>
+#include <map>
 #include <vector>
 
 
@@ -22,6 +23,9 @@ namespace am
     struct ShaderData {
         std::vector<std::uint32_t> bytecode;
         ShaderStage stage;
+        std::map<std::string, std::string> defines;
+        std::string originalSource;
+
     };
 }
 #endif //SHADERDATA_H

@@ -54,5 +54,8 @@
   }, {
     "name" : "boost-uuid",
     "version>=" : "1.88.0"
+  }, {
+    "name" : "glslang",
+    "version>=" : "15.1.0"
   } ]
 }

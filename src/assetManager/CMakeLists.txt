@@ -23,7 +23,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
-find_package(directx-dxc CONFIG REQUIRED)
+find_package(glslang CONFIG REQUIRED)
 
 # Find Boost with required components
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
@@ -52,7 +52,7 @@ target_include_directories(am
         ${Stb_INCLUDE_DIR}
 )
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
-# Link Assimp, Boost UUID, and DirectX DXC
+# Link Assimp, Boost UUID
 target_link_libraries(am
         PUBLIC
         RapidJSON
@@ -60,9 +60,7 @@ target_link_libraries(am
         Boost::uuid
         fmt::fmt
         spdlog::spdlog
-        Microsoft::DirectXShaderCompiler
-        dxguid
-        dxcompiler
+        glslang::glslang glslang::glslang-default-resource-limits glslang::SPIRV glslang::SPVRemapper
 )
 
 # Enable tests in Debug mode by default or when explicitly enabled

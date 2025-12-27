@@ -19,7 +19,6 @@
 
 namespace am {
 
-
     class ShaderAsset : public Asset {
     public:
 
@@ -30,6 +29,18 @@ namespace am {
 
         void loadFromFile(const std::string &path);
 
+        // Recompile with modified defines
+        bool recompileWithDefines(const std::map<std::string, std::string>& newDefines);
+
+        // Get current defines
+        const std::map<std::string, std::string>& getDefines() const {
+            return data.defines;
+        }
+
+        // Modify a single define and recompile
+        bool setDefineAndRecompile(const std::string& name, const std::string& value);
+
+
         // Returns a view into the shader bytecode
         [[nodiscard]] std::span<const std::uint32_t> getBytecode() const;
 
@@ -38,6 +49,12 @@ namespace am {
         void* getAssetData() override { return &data; }
     private:
         ShaderData data;
+
+        [[nodiscard]] std::vector<std::uint32_t> compileGLSLToSPIRV(
+           const std::string &source,
+           ShaderStage stage,
+           const std::map<std::string, std::string>& defines = {}
+       ) const;
 
         size_t calculateContentHash() const override;
         [[nodiscard]] AssetType getType() const override;
