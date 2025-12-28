@@ -370,10 +370,6 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 
     renderQueue.clear();
 
-
-    // Switch to skybox pipeline for skybox rendering
-    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getSkyboxPipeline());
-
     vkCmdEndRenderPass(commandBuffer);
 
 
