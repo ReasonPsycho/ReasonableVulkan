@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Graphics Engine" pattern="file[ReasonableVulkan]:src/vks//*" />
+</component>
