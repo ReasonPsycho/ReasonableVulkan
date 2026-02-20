@@ -2,7 +2,7 @@
 <project version="4">
   <component name="SharedFileColors">
     <fileColor scope="Platform" color="190000" />
-    <fileColor scope="Asset Manager" color="190d00" />
+    <fileColor scope="Asset Manager" color="000019" />
     <fileColor scope="Engine" color="001819" />
     <fileColor scope="Graphics Engine" color="191500" />
   </component>
