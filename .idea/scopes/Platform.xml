@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Platform" pattern="file[ReasonableVulkan]:src/platform//*" />
+</component>
