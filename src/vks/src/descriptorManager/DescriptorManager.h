@@ -67,6 +67,7 @@ namespace vks {
         VkDescriptorPool materialPool{VK_NULL_HANDLE};
         VkDescriptorPool meshPool{VK_NULL_HANDLE};
         VkDescriptorPool scenePool{VK_NULL_HANDLE};
+        VkDescriptorPool skyboxPool{VK_NULL_HANDLE};
 
         // Descriptor set layouts
         VkDescriptorSetLayout getMaterialLayout() const { return materialLayout; }

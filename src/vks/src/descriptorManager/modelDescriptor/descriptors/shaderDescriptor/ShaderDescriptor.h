@@ -16,6 +16,7 @@ namespace vks
         void cleanup() override;
 
     private:
+
         VkShaderModule createShaderModule(const std::vector<uint32_t>& code);
         VkShaderModule shaderModule{VK_NULL_HANDLE};
         VkPipelineShaderStageCreateInfo shaderStage{};

@@ -158,6 +158,12 @@ namespace vks {
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
 
+        /*
+        pipelineManager->createGraphicsPipeline("skybox",descriptorSetLayouts);
+        pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
+        pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
+        */
+
         // Initialize render manager
         renderManager->initialize();
 
