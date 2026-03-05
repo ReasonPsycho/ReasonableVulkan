@@ -4,6 +4,6 @@
     <fileColor scope="Platform" color="Gray" />
     <fileColor scope="Asset Manager" color="Green" />
     <fileColor scope="Engine" color="Blue" />
-    <fileColor scope="Graphics Engine" color="Rose" />
+    <fileColor scope="Graphics Engine" color="Orange" />
   </component>
 </project>

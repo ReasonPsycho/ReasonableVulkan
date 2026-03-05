@@ -114,6 +114,10 @@ namespace vks
         {
             vkDestroyDescriptorPool(device, scenePool, nullptr);
         }
+        if (skyboxPool != VK_NULL_HANDLE)
+        {
+            vkDestroyDescriptorPool(device, skyboxPool, nullptr);
+        }
     }
 
     void DescriptorManager::createDescriptorPools()
@@ -148,22 +152,37 @@ namespace vks
             throw std::runtime_error("failed to create mesh descriptor pool!");
         }
 
-        // Scene pool (updated to include skybox resources)
+        // Scene pool
         std::vector<VkDescriptorPoolSize> scenePoolSizes = {
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100}, // For camera, lighting, and skybox uniforms
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100}, // For environment maps and skybox cubemap
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100}
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10}, // For camera and lighting uniforms
         };
 
         VkDescriptorPoolCreateInfo scenePoolInfo{};
         scenePoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         scenePoolInfo.poolSizeCount = static_cast<uint32_t>(scenePoolSizes.size());
         scenePoolInfo.pPoolSizes = scenePoolSizes.data();
-        scenePoolInfo.maxSets = 100;
+        scenePoolInfo.maxSets = 10;
 
         if (vkCreateDescriptorPool(context->getDevice(), &scenePoolInfo, nullptr, &scenePool) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create scene descriptor pool!");
+        }
+
+        // Skybox pool
+        std::vector<VkDescriptorPoolSize> skyboxPoolSizes = {
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5}
+        };
+
+        VkDescriptorPoolCreateInfo skyboxPoolInfo{};
+        skyboxPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        skyboxPoolInfo.poolSizeCount = static_cast<uint32_t>(skyboxPoolSizes.size());
+        skyboxPoolInfo.pPoolSizes = skyboxPoolSizes.data();
+        skyboxPoolInfo.maxSets = 5;
+
+        if (vkCreateDescriptorPool(context->getDevice(), &skyboxPoolInfo, nullptr, &skyboxPool) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create skybox descriptor pool!");
         }
     }
 

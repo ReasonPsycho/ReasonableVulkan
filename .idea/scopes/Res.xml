@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Res" pattern="file[ReasonableVulkan]:res//*" />
+</component>
