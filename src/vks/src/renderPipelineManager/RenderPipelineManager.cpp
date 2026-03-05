@@ -1,5 +1,6 @@
 #include "RenderPipelineManager.hpp"
 #include <stdexcept>
+#include <algorithm>
 
 #include "../descriptorManager/modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
 
@@ -15,6 +16,31 @@ namespace vks
         cleanup();
     }
 
+    const RenderPipelineManager::Pipeline* RenderPipelineManager::findPipeline(const std::string& pipelineId) const
+    {
+        auto it = std::find_if(pipelines.begin(), pipelines.end(),
+                              [&pipelineId](const Pipeline& p) { return p.id == pipelineId; });
+        return (it != pipelines.end()) ? &(*it) : nullptr;
+    }
+
+    VkPipeline RenderPipelineManager::getPipeline(const std::string& pipelineId) const
+    {
+        const Pipeline* pipeline = findPipeline(pipelineId);
+        if (!pipeline) {
+            throw std::runtime_error("Pipeline not found: " + pipelineId);
+        }
+        return pipeline->handle;
+    }
+
+    VkPipelineLayout RenderPipelineManager::getPipelineLayout(const std::string& pipelineId) const
+    {
+        const Pipeline* pipeline = findPipeline(pipelineId);
+        if (!pipeline) {
+            throw std::runtime_error("Pipeline layout not found: " + pipelineId);
+        }
+        return pipeline->layout;
+    }
+
     void RenderPipelineManager::cleanup()
     {
         for (auto framebuffer : framebuffers)
@@ -24,18 +50,19 @@ namespace vks
 
         cleanupDepthResources();
 
-        if (pipelines.models != VK_NULL_HANDLE)
+        // Cleanup all pipelines and layouts
+        for (const auto& pipeline : pipelines)
         {
-            vkDestroyPipeline(context->getDevice(), pipelines.models, nullptr);
+            if (pipeline.handle != VK_NULL_HANDLE)
+            {
+                vkDestroyPipeline(context->getDevice(), pipeline.handle, nullptr);
+            }
+            if (pipeline.layout != VK_NULL_HANDLE)
+            {
+                vkDestroyPipelineLayout(context->getDevice(), pipeline.layout, nullptr);
+            }
         }
-
-
-        if (meshPipelineLayout != VK_NULL_HANDLE)
-        {
-            vkDestroyPipelineLayout(context->getDevice(), meshPipelineLayout, nullptr);
-            meshPipelineLayout = VK_NULL_HANDLE;
-        }
-
+        pipelines.clear();
 
         if (renderPass != VK_NULL_HANDLE)
         {
@@ -140,9 +167,15 @@ namespace vks
     }
 
 
-    void RenderPipelineManager::createGraphicsPipeline(const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
+    void RenderPipelineManager::createGraphicsPipeline(const std::string& pipelineId,
+                                                       const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
     {
         createPipelineCache();
+
+        // Check if pipeline already exists
+        if (findPipeline(pipelineId)) {
+            throw std::runtime_error("Pipeline already exists: " + pipelineId);
+        }
 
         // Define push constant range for the vertex shader transform matrix
         VkPushConstantRange pushConstantRange{};
@@ -151,18 +184,11 @@ namespace vks
         pushConstantRange.size = sizeof(glm::mat4);
 
 
-        // Mesh pipeline layout (uses meshUniformLayout and materialLayout)
-        std::vector<VkDescriptorSetLayout> meshLayouts = {
-            descriptorManager->getSceneLayout(),
-            descriptorManager->getMaterialLayout(),
-            descriptorManager->getMeshUniformLayout(),
-            descriptorManager->getLightsLayout(),
-        };
-
+        VkPipelineLayout meshPipelineLayout = VK_NULL_HANDLE;
         VkPipelineLayoutCreateInfo meshPipelineLayoutInfo{};
         meshPipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        meshPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(meshLayouts.size());
-        meshPipelineLayoutInfo.pSetLayouts = meshLayouts.data();
+        meshPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+        meshPipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
         meshPipelineLayoutInfo.pushConstantRangeCount = 1;
         meshPipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
@@ -171,7 +197,6 @@ namespace vks
         {
             throw std::runtime_error("failed to create mesh pipeline layout!");
         }
-
 
         // Common pipeline settings
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
@@ -201,7 +226,6 @@ namespace vks
         // Load shaders
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
 
-
         // Mesh-specific rasterization state
         VkPipelineRasterizationStateCreateInfo rasterizationState =
             vks::base::initializers::pipelineRasterizationStateCreateInfo(
@@ -211,13 +235,11 @@ namespace vks
         VkPipelineDepthStencilStateCreateInfo depthStencilState =
             vks::base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
-
         // Load mesh shader stages
         shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.vert")->getShaderStage();
         shaderStages[1] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.frag")->getShaderStage();
-
 
         // Create mesh pipeline
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
@@ -240,15 +262,24 @@ namespace vks
             VertexComponent::Bitangent
         });
 
-        if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelines.models)
+        VkPipeline pipelineHandle = VK_NULL_HANDLE;
+        if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelineHandle)
             != VK_SUCCESS)
         {
+            vkDestroyPipelineLayout(context->getDevice(), meshPipelineLayout, nullptr);
             throw std::runtime_error("failed to create mesh graphics pipeline!");
         }
+
+        // Add pipeline to vector
+        pipelines.push_back(Pipeline{pipelineId, pipelineHandle, meshPipelineLayout});
     }
 
     void RenderPipelineManager::createPipelineCache()
     {
+        if (pipelineCache != VK_NULL_HANDLE) {
+            return; // Cache already created
+        }
+
         VkPipelineCacheCreateInfo pipelineCacheCreateInfo{};
         pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 

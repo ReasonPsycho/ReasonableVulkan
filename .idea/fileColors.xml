@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="SharedFileColors">
-    <fileColor scope="Platform" color="190000" />
-    <fileColor scope="Asset Manager" color="000019" />
-    <fileColor scope="Engine" color="001819" />
-    <fileColor scope="Graphics Engine" color="191500" />
+    <fileColor scope="Platform" color="Gray" />
+    <fileColor scope="Asset Manager" color="Green" />
+    <fileColor scope="Engine" color="Blue" />
+    <fileColor scope="Graphics Engine" color="Rose" />
   </component>
 </project>

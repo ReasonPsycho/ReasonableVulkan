@@ -154,7 +154,7 @@ namespace vks {
         // Get descriptor set layouts from descriptor manager
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
-        pipelineManager->createGraphicsPipeline(descriptorSetLayouts);
+        pipelineManager->createGraphicsPipeline("model",descriptorSetLayouts);
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
 
