@@ -5,6 +5,8 @@
 #include "assetDatas/ShaderData.h"
 #include <vulkan/vulkan.h>
 
+#include "ShaderDefinesEnum.hpp"
+
 namespace vks
 {
     class ShaderDescriptor : public vks::IVulkanDescriptor {
@@ -15,12 +17,15 @@ namespace vks
         VkPipelineShaderStageCreateInfo getShaderStage() const { return shaderStage; }
         void cleanup() override;
 
+        const std::vector<ShaderDefinesEnum> getDefines() const { return defines; }
     private:
 
         VkShaderModule createShaderModule(const std::vector<uint32_t>& code);
         VkShaderModule shaderModule{VK_NULL_HANDLE};
         VkPipelineShaderStageCreateInfo shaderStage{};
+        std::vector<ShaderDefinesEnum> defines;
         static VkShaderStageFlagBits convertShaderStage(am::ShaderStage stage);
+        static std::vector<ShaderDefinesEnum> convertDefines(std::map<std::string, std::string> defines);
     };
 }
 #endif //SHADERHANDLE_H

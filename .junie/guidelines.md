@@ -10,7 +10,6 @@ ReasonableVulkan is a modular game engine transitioned from ReasonableGL to Vulk
 - **Vulkan SDK**
 
 ## Build & Run
-Do not run a separate build option only use a full build `ReasonableVulkan` from preset.
 ### Build Presets
 - `debug`: Standard debug build.
 - `debug-with-tests`: Includes unit and integration tests.

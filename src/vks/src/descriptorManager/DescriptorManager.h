@@ -12,6 +12,7 @@
 #include "../../vks/src/base/VulkanDevice.h"
 #include <glm/glm.hpp>
 
+#include "ShaderDefinesEnum.hpp"
 #include "buffers/LightBufferData.hpp"
 #include "buffers/LightSSBO.hpp"
 #include "buffers/SceneUBO.hpp"
@@ -74,6 +75,7 @@ namespace vks {
         VkDescriptorSetLayout getMeshUniformLayout() const { return meshUniformLayout; }
         VkDescriptorSetLayout getSceneLayout() const { return sceneLayout; }
         VkDescriptorSetLayout getLightsLayout() const { return lightsLayout; }
+        std::vector<VkDescriptorSetLayout> getLayoutsFromEnums(std::vector<ShaderDefinesEnum> definitions);
 
         //Image sampler
         VkSampler defaultSampler = VK_NULL_HANDLE;

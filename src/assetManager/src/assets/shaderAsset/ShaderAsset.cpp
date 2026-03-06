@@ -6,6 +6,7 @@
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <filesystem>
 #include <regex>
+#include <set>
 
 #include "ShaderIncluder.hpp"
 
@@ -13,33 +14,82 @@ namespace am {
 
 
     // Helper function to extract defines from shader source
-    std::map<std::string, std::string> extractDefines(const std::string& source) {
-        std::map<std::string, std::string> defines;
-
+    void extractDefinesRecursive(const std::string& source, const std::filesystem::path& currentFilePath,
+                                 const std::filesystem::path& shaderBaseDir,
+                                 std::map<std::string, std::string>& defines,
+                                 std::set<std::filesystem::path>& processedFiles) {
         // Regex to match: #define NAME VALUE (with optional value)
         std::regex defineRegex(R"(#\s*define\s+(\w+)(?:\s+([^\n\r]+?))?\s*(?:\n|\r|$))");
+        // Regex to match: #include "PATH" or #include <PATH>
+        std::regex includeRegex(R"(#\s*include\s+["<]([^">]+)[">])");
 
-        std::sregex_iterator begin(source.begin(), source.end(), defineRegex);
-        std::sregex_iterator end;
+        // Mark this file as processed to avoid infinite inclusion loops
+        try {
+            processedFiles.insert(std::filesystem::canonical(currentFilePath));
+        } catch (...) {
+            processedFiles.insert(currentFilePath);
+        }
 
-        for (auto it = begin; it != end; ++it) {
-            std::string name = std::string((*it)[1]);
-            std::string value = (*it)[2].matched ? std::string((*it)[2]) : "";
+        // 1. Extract defines from the current source
+        std::sregex_iterator d_begin(source.begin(), source.end(), defineRegex);
+        std::sregex_iterator d_end;
+        for (auto it = d_begin; it != d_end; ++it) {
+            std::string name = (*it)[1].str();
+            std::string value = (*it)[2].matched ? (*it)[2].str() : "";
 
-            // Trim whitespace from value
             if (!value.empty()) {
                 value.erase(0, value.find_first_not_of(" \t"));
                 value.erase(value.find_last_not_of(" \t") + 1);
             }
 
-            defines[name] = value;
-            spdlog::info("Found shader define: {} = '{}'", name, value);
+            if (defines.find(name) == defines.end()) {
+                defines[name] = value;
+                spdlog::info("Found shader define: {} = '{}' (in {})", name, value, currentFilePath.string());
+            }
         }
 
-        return defines;
+        // 2. Process includes recursively
+        std::sregex_iterator i_begin(source.begin(), source.end(), includeRegex);
+        std::sregex_iterator i_end;
+        for (auto it = i_begin; it != i_end; ++it) {
+            std::string includePathStr = (*it)[1];
+            std::filesystem::path includePath;
+
+            // Resolve path (logic mirrored from ShaderIncluder)
+            std::filesystem::path currentDir = currentFilePath.parent_path();
+            includePath = currentDir / includePathStr;
+
+            if (!std::filesystem::exists(includePath)) {
+                includePath = shaderBaseDir / includePathStr;
+            }
+
+            if (std::filesystem::exists(includePath)) {
+                try {
+                    std::filesystem::path canonicalPath = std::filesystem::canonical(includePath);
+                    if (processedFiles.find(canonicalPath) == processedFiles.end()) {
+                        std::ifstream file(canonicalPath, std::ios::binary | std::ios::in | std::ios::ate);
+                        if (file.is_open()) {
+                            size_t fileSize = static_cast<size_t>(file.tellg());
+                            file.seekg(0);
+                            std::string includeSource(fileSize, '\0');
+                            file.read(includeSource.data(), fileSize);
+                            file.close();
+
+                            extractDefinesRecursive(includeSource, canonicalPath, shaderBaseDir, defines,
+                                                     processedFiles);
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("Failed to process include {} for defines: {}", includePathStr, e.what());
+                }
+            } else {
+                spdlog::warn("Could not find include file: {} (while processing {})", includePathStr,
+                             currentFilePath.string());
+            }
+        }
     }
 
- void ShaderAsset::loadFromFile(const std::string &path) {
+    void ShaderAsset::loadFromFile(const std::string& path) {
         // Read the GLSL source file
         std::ifstream file(path, std::ios::binary | std::ios::in | std::ios::ate);
 
@@ -80,8 +130,11 @@ namespace am {
             stage = ShaderStage::TessellationEvaluation;
         }
 
-        // Extract defines from shader source
-        auto defines = extractDefines(source);
+        // Extract defines from shader source (recursively including files)
+        std::map<std::string, std::string> defines;
+        std::set<std::filesystem::path> processedFiles;
+        std::filesystem::path shaderBaseDir("res/shaders/glsl/entry");
+        extractDefinesRecursive(source, std::filesystem::absolute(path), shaderBaseDir, defines, processedFiles);
 
         // Compile GLSL to SPIR-V with extracted defines
         auto bytecode = compileGLSLToSPIRV(source, stage, defines);

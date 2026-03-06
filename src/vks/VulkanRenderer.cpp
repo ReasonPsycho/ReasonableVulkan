@@ -154,15 +154,17 @@ namespace vks {
         // Get descriptor set layouts from descriptor manager
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
-        pipelineManager->createGraphicsPipeline("model",descriptorSetLayouts);
+        // Load mesh shader stages
+        auto vertexShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.vert");
+        auto fragmentShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.frag");
+
+
+        pipelineManager->createGraphicsPipeline("model",vertexShaderDescriptor, fragmentShaderDescriptor);
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
 
-        /*
-        pipelineManager->createGraphicsPipeline("skybox",descriptorSetLayouts);
-        pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
-        pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
-        */
 
         // Initialize render manager
         renderManager->initialize();

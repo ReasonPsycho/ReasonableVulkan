@@ -11,6 +11,8 @@ namespace vks
         shaderModule = createShaderModule(shaderData.bytecode);
         assert(shaderModule != VK_NULL_HANDLE);
 
+        defines = convertDefines(shaderData.defines);
+
         // Setup shader stage info
         shaderStage = {};
         shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -62,5 +64,25 @@ namespace vks
         default:
             throw std::runtime_error("Unknown shader stage");
         }
+    }
+
+    std::vector<ShaderDefinesEnum> ShaderDescriptor::convertDefines(std::map<std::string, std::string> defines)
+    {
+        std::vector<ShaderDefinesEnum> result;
+       for (auto& [key, value] : defines)
+       {
+           if (key == "SCENE_UBO_GLSL") {
+               result.push_back(ShaderDefinesEnum::SCENE_UBO_GLSL);
+           } else if (key == "VERTEX_IO_GLSL")  {
+               result.push_back(ShaderDefinesEnum::VERTEX_IO_GLSL);
+           }else if (key == "LIGHTING_COMMON_GLSL")  {
+               result.push_back(ShaderDefinesEnum::LIGHTING_COMMON_GLSL);
+           }else if (key == "MESH_VERTEX_GLSL")  {
+               result.push_back(ShaderDefinesEnum::MESH_VERTEX_GLSL);
+           }else if (key == "MATERIAL_PBR_GLSL")  {
+               result.push_back(ShaderDefinesEnum::MATERIAL_PBR_GLSL);
+           }
+       }
+        return result;
     }
 }

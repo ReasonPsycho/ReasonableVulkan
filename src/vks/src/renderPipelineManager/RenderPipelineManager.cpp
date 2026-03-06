@@ -167,8 +167,7 @@ namespace vks
     }
 
 
-    void RenderPipelineManager::createGraphicsPipeline(const std::string& pipelineId,
-                                                       const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
+    void RenderPipelineManager::createGraphicsPipeline(const std::string& pipelineId, ShaderDescriptor* vertexShaderDescriptor, ShaderDescriptor* fragmentShaderDescriptor)
     {
         createPipelineCache();
 
@@ -177,23 +176,74 @@ namespace vks
             throw std::runtime_error("Pipeline already exists: " + pipelineId);
         }
 
-        // Define push constant range for the vertex shader transform matrix
-        VkPushConstantRange pushConstantRange{};
-        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        pushConstantRange.offset = 0;
-        pushConstantRange.size = sizeof(glm::mat4);
+        const auto& vertexDefines = vertexShaderDescriptor->getDefines();
+        const auto& fragmentDefines = fragmentShaderDescriptor->getDefines();
 
+        std::vector<ShaderDefinesEnum> combinedDefines = vertexDefines;
+        combinedDefines.insert(combinedDefines.end(), fragmentDefines.begin(), fragmentDefines.end());
+        std::ranges::sort(combinedDefines);
+        combinedDefines.erase(std::ranges::unique(combinedDefines).begin(), combinedDefines.end());
+
+        // Get layouts for each define - ensuring they are at the correct set index
+        // We know the set indices: 0: Scene, 1: Material, 2: Mesh, 3: Lights
+        // DescriptorManager::getLayoutsFromEnums should ideally return them in the correct order,
+        // but it doesn't guarantee the size or empty slots.
+        
+        // Let's get them one by one or filter.
+        std::vector<VkDescriptorSetLayout> combinedLayouts;
+        
+        // Find max define index to determine layout count
+        int maxSet = 0;
+        for (auto def : combinedDefines) {
+            if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
+            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
+            else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL) maxSet = std::max(maxSet, 3);
+        }
+        
+        combinedLayouts.resize(maxSet + 1, VK_NULL_HANDLE);
+        
+        // Fill them based on define
+        for (auto def : combinedDefines) {
+            switch (def) {
+                case ShaderDefinesEnum::SCENE_UBO_GLSL: combinedLayouts[0] = descriptorManager->getSceneLayout(); break;
+                case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getMaterialLayout(); break;
+                case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
+                case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
+            }
+        }
+        
+        // Check for any null layouts in the sequence (up to maxSet)
+        for (int i = 0; i <= maxSet; ++i) {
+            if (combinedLayouts[i] == VK_NULL_HANDLE) {
+                // If a shader skips a set, we still need a valid (but possibly empty) layout if it's not the last one
+                // However, our current shaders use sets 0, 1, 2, 3 in order.
+                // For now, let's log or use a dummy if needed. 
+                // Given the issue, we just need to make sure Material is at index 1.
+            }
+        }
 
         VkPipelineLayout meshPipelineLayout = VK_NULL_HANDLE;
         VkPipelineLayoutCreateInfo meshPipelineLayoutInfo{};
         meshPipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        meshPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
-        meshPipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-        meshPipelineLayoutInfo.pushConstantRangeCount = 1;
-        meshPipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        meshPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(combinedLayouts.size());
+        meshPipelineLayoutInfo.pSetLayouts = combinedLayouts.data();
+
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != combinedDefines.end())
+        {
+            meshPipelineLayoutInfo.pushConstantRangeCount = 1;
+
+            // Define push constant range for the vertex shader transform matrix
+            VkPushConstantRange pushConstantRange{};
+            pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+            pushConstantRange.offset = 0;
+            pushConstantRange.size = sizeof(glm::mat4);
+
+            meshPipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        }
 
         if (vkCreatePipelineLayout(context->getDevice(), &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) !=
-            VK_SUCCESS)
+             VK_SUCCESS)
         {
             throw std::runtime_error("failed to create mesh pipeline layout!");
         }
@@ -236,10 +286,8 @@ namespace vks
             vks::base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
         // Load mesh shader stages
-        shaderStages[0] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.vert")->getShaderStage();
-        shaderStages[1] = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.frag")->getShaderStage();
+        shaderStages[0] = vertexShaderDescriptor->getShaderStage();
+        shaderStages[1] = fragmentShaderDescriptor->getShaderStage();
 
         // Create mesh pipeline
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
