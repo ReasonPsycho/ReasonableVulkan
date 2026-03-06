@@ -696,4 +696,26 @@ namespace vks
         }
     }
 
+    std::vector<VkDescriptorSetLayout> DescriptorManager::getLayoutsFromEnums(std::vector<ShaderDefinesEnum> definitions)
+    {
+        std::vector<VkDescriptorSetLayout> layouts;
+        for (auto definition : definitions) {
+            switch (definition)
+            {
+            case SCENE_UBO_GLSL:
+                layouts.push_back(sceneLayout);
+                break;
+            case LIGHTING_COMMON_GLSL:
+                layouts.push_back(lightsLayout);
+                break;
+            case VERTEX_IO_GLSL:
+                layouts.push_back(meshUniformLayout);
+                break;
+            case MATERIAL_PBR_GLSL:
+                layouts.push_back(materialLayout);
+                break;
+            }
+        }
+        return layouts;
+    }
 } // namespace vks

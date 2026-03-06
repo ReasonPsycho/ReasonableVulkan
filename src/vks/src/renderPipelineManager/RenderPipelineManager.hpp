@@ -13,8 +13,7 @@ namespace vks {
         ~RenderPipelineManager();
 
         void createRenderPass();
-        void createGraphicsPipeline(const std::string& pipelineId,
-                                   const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+        void createGraphicsPipeline(const std::string& pipelineId, ShaderDescriptor* vertexShaderDescriptor, ShaderDescriptor* fragmentShaderDescriptor);
         void createFramebuffers(const std::vector<VkImageView>& swapChainImageViews,
                                VkExtent2D swapChainExtent);
 
