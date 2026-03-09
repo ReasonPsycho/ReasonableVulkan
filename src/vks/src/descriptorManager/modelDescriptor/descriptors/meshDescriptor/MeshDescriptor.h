@@ -40,7 +40,7 @@ namespace vks
         static VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo;
 
     public:
-        MeshDescriptor(DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix,VulkanContext& vulkanContext);
+        MeshDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager,am::MeshData& meshData, glm::mat4 matrix,VulkanContext& vulkanContext);
         ~MeshDescriptor();
         void setUpDescriptorSet(VkDescriptorSetLayout meshUniformLayout,VkDescriptorPool meshDescriptorPool);
         void cleanup() override {};

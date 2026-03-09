@@ -10,7 +10,7 @@
 // Static member definition
 
 
-vks::MaterialDescriptor::MaterialDescriptor(DescriptorManager* assetHandleManager, am::MaterialData& materialData,VulkanContext& vulkanContext) : IVulkanDescriptor(vulkanContext)
+vks::MaterialDescriptor::MaterialDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager, am::MaterialData& materialData,VulkanContext& vulkanContext) : IVulkanDescriptor(assetId, vulkanContext)
 {
     // Initialize numeric fields
     alphaCutoff = materialData.alphaCutoff;

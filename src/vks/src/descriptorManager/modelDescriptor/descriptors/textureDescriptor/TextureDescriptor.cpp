@@ -22,8 +22,8 @@ void vks::TextureDescriptor::destroy() {
 }
 // Modified `fromglTfImage` function
 
-vks::TextureDescriptor::TextureDescriptor(am::TextureData& textureData,VkSampler sampler, VulkanContext& vulkanContext)
-    : IVulkanDescriptor(vulkanContext) {
+vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am::TextureData& textureData,VkSampler sampler, VulkanContext& vulkanContext)
+    : IVulkanDescriptor(assetId, vulkanContext) {
     this->width = textureData.width;
     this->height = textureData.height;
     this->channels = textureData.channels;

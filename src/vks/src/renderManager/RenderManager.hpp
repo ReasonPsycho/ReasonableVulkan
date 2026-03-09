@@ -54,7 +54,7 @@ private:
                      DescriptorManager* descriptorManager);
         ~RenderManager();
 
-        void initialize();
+        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId);
         #ifdef ENABLE_IMGUI
         void initializeImgui(ImguiManager* manager);
         #endif
@@ -83,6 +83,8 @@ private:
         // Command recording
         void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
+        boost::uuids::uuid pbrShaderId;
+        boost::uuids::uuid skyboxShaderId;
 
     private:
         std::vector<RenderCommand> renderQueue;

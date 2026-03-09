@@ -46,7 +46,7 @@ void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeDe
 	}
 }
 
-vks::ModelDescriptor::ModelDescriptor(DescriptorManager* assetHandleManager,am::ModelData modelData,VulkanContext& vulkanContext) : IVulkanDescriptor(vulkanContext)
+vks::ModelDescriptor::ModelDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager,am::ModelData modelData,VulkanContext& vulkanContext) : IVulkanDescriptor(assetId, vulkanContext)
 {
     loadNode(assetHandleManager,nullptr, modelData.rootNode, *this,vulkanContext);
 }

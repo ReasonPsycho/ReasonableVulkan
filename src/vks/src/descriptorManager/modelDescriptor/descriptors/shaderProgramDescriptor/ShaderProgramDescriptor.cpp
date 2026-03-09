@@ -4,8 +4,8 @@
 
 namespace vks {
 
-    ShaderProgramDescriptor::ShaderProgramDescriptor(am::ShaderProgramData& programData, DescriptorManager* descriptorManager, VulkanContext& vulkanContext)
-        : IVulkanDescriptor(vulkanContext) {
+    ShaderProgramDescriptor::ShaderProgramDescriptor(const boost::uuids::uuid& assetId, am::ShaderProgramData& programData, DescriptorManager* descriptorManager, VulkanContext& vulkanContext)
+        : IVulkanDescriptor(assetId, vulkanContext) {
         
         auto processStage = [&](std::shared_ptr<am::AssetInfo> stageInfo) {
             if (stageInfo) {

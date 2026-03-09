@@ -1,3 +1,4 @@
+#include <boost/uuid/uuid_io.hpp>
 #include "RenderPipelineManager.hpp"
 #include <stdexcept>
 #include <algorithm>
@@ -17,27 +18,27 @@ namespace vks
         cleanup();
     }
 
-    const RenderPipelineManager::Pipeline* RenderPipelineManager::findPipeline(const std::string& pipelineId) const
+    const RenderPipelineManager::Pipeline* RenderPipelineManager::findPipeline(const boost::uuids::uuid& pipelineId) const
     {
         auto it = std::find_if(pipelines.begin(), pipelines.end(),
                               [&pipelineId](const Pipeline& p) { return p.id == pipelineId; });
         return (it != pipelines.end()) ? &(*it) : nullptr;
     }
 
-    VkPipeline RenderPipelineManager::getPipeline(const std::string& pipelineId) const
+    VkPipeline RenderPipelineManager::getPipeline(const boost::uuids::uuid& pipelineId) const
     {
         const Pipeline* pipeline = findPipeline(pipelineId);
         if (!pipeline) {
-            throw std::runtime_error("Pipeline not found: " + pipelineId);
+            throw std::runtime_error("Pipeline not found: " + boost::uuids::to_string(pipelineId));
         }
         return pipeline->handle;
     }
 
-    VkPipelineLayout RenderPipelineManager::getPipelineLayout(const std::string& pipelineId) const
+    VkPipelineLayout RenderPipelineManager::getPipelineLayout(const boost::uuids::uuid& pipelineId) const
     {
         const Pipeline* pipeline = findPipeline(pipelineId);
         if (!pipeline) {
-            throw std::runtime_error("Pipeline layout not found: " + pipelineId);
+            throw std::runtime_error("Pipeline layout not found: " + boost::uuids::to_string(pipelineId));
         }
         return pipeline->layout;
     }
@@ -168,13 +169,14 @@ namespace vks
     }
 
 
-    void RenderPipelineManager::createGraphicsPipeline(const std::string& pipelineId, ShaderProgramDescriptor* shaderProgramDescriptor)
+    void RenderPipelineManager::createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
     {
+        boost::uuids::uuid pipelineId = shaderProgramDescriptor->getAssetId();
         createPipelineCache();
 
         // Check if pipeline already exists
         if (findPipeline(pipelineId)) {
-            throw std::runtime_error("Pipeline already exists: " + pipelineId);
+            throw std::runtime_error("Pipeline already exists: " + boost::uuids::to_string(pipelineId));
         }
 
         const auto& combinedDefines = shaderProgramDescriptor->getCombinedDefines();
