@@ -10,7 +10,7 @@
 #include <imgui_internal.h>
 #include <SDL3/SDL_mouse.h>
 
-#include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "PlatformInterface.hpp"
 #include "systems/collisionSystem/CollisionSystem.hpp"
 

@@ -11,7 +11,7 @@
 
 namespace engine::ecs {
     struct Transform;
-    struct Camera;
+    struct CameraComponent;
 
     struct Ray {
         glm::vec3 origin;
@@ -29,7 +29,7 @@ namespace engine::ecs {
         CollisionSystem(Scene* scene) : System(scene) {}
         void Update(float deltaTime) override {};
         // Convert screen coordinates to world ray
-        Ray ScreenToWorldRay(const Camera& camera,
+        Ray ScreenToWorldRay(const CameraComponent& camera,
                              float screenX, float screenY, float windowWidth, float windowHeight);
 
         // Ray-AABB intersection test

@@ -4,9 +4,9 @@
 
 #ifndef RENDERSYSTEM_H
 #define RENDERSYSTEM_H
-#include "componets/Camera.hpp"
-#include "componets/Light.hpp"
-#include "componets/Model.hpp"
+#include "componets/CameraComponent.hpp"
+#include "componets/LightComponent.hpp"
+#include "componets/RendererComponent.hpp"
 #include "ecs/System.h"
 
 
@@ -14,7 +14,7 @@ namespace engine::ecs
 {
     class Scene;
 
-    class RenderSystem :  public System<RenderSystem,Model,Camera,Light>
+    class RenderSystem :  public System<RenderSystem,RendererComponent,CameraComponent,LightComponent>
     {
     public:
         explicit RenderSystem(Scene* scene) : System(scene) {}

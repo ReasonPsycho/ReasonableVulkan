@@ -8,7 +8,7 @@
 #include "PlatformInterface.hpp"
 #include "assetDatas/ModelData.h"
 #include "systems/transformSystem/componets/Transform.hpp"
-#include"componets/Camera.hpp"
+#include"componets/CameraComponent.hpp"
 #include "ecs/Scene.h"
 #include "systems/editorSystem/EditorSystem.hpp"
 
@@ -17,10 +17,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     if (scene->engine.minimized)
         return;
 
-    auto modelArray = scene->GetComponentArray<Model>().get();
+    auto modelArray = scene->GetComponentArray<RendererComponent>().get();
     auto& models = modelArray->GetComponents();
 
-    auto lightArray = scene->GetComponentArray<Light>().get();
+    auto lightArray = scene->GetComponentArray<LightComponent>().get();
     auto& lights = lightArray->GetComponents();
 
     auto& transforms = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
@@ -48,7 +48,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
                     switch (lightComponent.type)
                     {
-                    case Light::Type::Point:
+                    case LightComponent::Type::Point:
                     {
                         const auto& pointData = std::get<PointLightData>(lightComponent.data);
                         gfx::PointLightData lightData{
@@ -60,7 +60,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                         scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
                         break;
                     }
-                    case Light::Type::Spot:
+                    case LightComponent::Type::Spot:
                     {
                         const auto& spotData = std::get<SpotLightData>(lightComponent.data);
                         gfx::SpotLightData lightData{
@@ -73,7 +73,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                         scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
                         break;
                     }
-                    case Light::Type::Directional:
+                    case LightComponent::Type::Directional:
                     {
                         gfx::DirectionalLightData lightData{
                             lightComponent.intensity,
@@ -104,9 +104,9 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
 void RenderSystem::OnComponentAdded(ComponentID componentID, std::type_index type)
 {
-  if (type == typeid(Model))
+  if (type == typeid(RendererComponent))
   {
-      auto& model = scene->GetComponentArray<Model>().get()->GetComponent(componentID);
+      auto& model = scene->GetComponentArray<RendererComponent>().get()->GetComponent(componentID);
 
       if (model.modelUuid == boost::uuids::nil_uuid())
           return;

@@ -2,7 +2,7 @@
 // Created by redkc on 15/10/2025.
 //
 #include <imgui.h>
-#include "Model.hpp"
+#include "RendererComponent.hpp"
 
 #include "Asset.hpp"
 #include "AssetTypes.hpp"
@@ -10,9 +10,9 @@
 #include "ecs/Scene.h"
 
 
-void Model::ShowImGui(Scene* scene, Component* component) const
+void RendererComponent::ShowImGui(Scene* scene, Component* component) const
 {
-    auto typed = dynamic_cast<Model*>(component);
+    auto typed = dynamic_cast<RendererComponent*>(component);
     if (ImGui::CollapsingHeader("Model"))
     {
         if (ImGui::Button(typed->modelUuid.is_nil() ? "Select Model" : boost::uuids::to_string(typed->modelUuid).c_str()))
@@ -43,7 +43,7 @@ void Model::ShowImGui(Scene* scene, Component* component) const
 
 }
 
-void Model::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void RendererComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     rapidjson::Value uuidStr;
     std::string uuidString = boost::uuids::to_string(modelUuid);
@@ -51,7 +51,7 @@ void Model::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::Allocato
     obj.AddMember("modelUuid", uuidStr, allocator);
 }
 
-void Model::DeserializeFromJson(const rapidjson::Value& obj)
+void RendererComponent::DeserializeFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("modelUuid") && obj["modelUuid"].IsString()) {
         std::string uuidStr = obj["modelUuid"].GetString();

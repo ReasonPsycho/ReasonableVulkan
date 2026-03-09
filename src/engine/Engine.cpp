@@ -20,10 +20,10 @@ namespace engine {
         RegisterSystemType<EditorSystem>();
 #endif
 
-        RegisterComponentType<Model>(); //For some reason I have to register them in reverse
-        RegisterComponentType<Camera>();
+        RegisterComponentType<RendererComponent>(); //For some reason I have to register them in reverse
+        RegisterComponentType<CameraComponent>();
         RegisterComponentType<Transform>();
-        RegisterComponentType<Light>();
+        RegisterComponentType<LightComponent>();
 
         RegisterSystemType<TransformSystem>();
         RegisterSystemType<CollisionSystem>();
