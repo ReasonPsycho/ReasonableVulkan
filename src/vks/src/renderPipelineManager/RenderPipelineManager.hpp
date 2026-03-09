@@ -1,4 +1,3 @@
-
 #pragma once
 #include <vulkan/vulkan.h>
 #include <vector>
@@ -7,13 +6,15 @@
 #include "../descriptorManager/DescriptorManager.h"
 
 namespace vks {
+    class ShaderProgramDescriptor;
+
     class RenderPipelineManager {
     public:
         RenderPipelineManager(VulkanContext* context, DescriptorManager* descriptorManager);
         ~RenderPipelineManager();
 
         void createRenderPass();
-        void createGraphicsPipeline(const std::string& pipelineId, ShaderDescriptor* vertexShaderDescriptor, ShaderDescriptor* fragmentShaderDescriptor);
+        void createGraphicsPipeline(const std::string& pipelineId, ShaderProgramDescriptor* shaderProgramDescriptor);
         void createFramebuffers(const std::vector<VkImageView>& swapChainImageViews,
                                VkExtent2D swapChainExtent);
 
