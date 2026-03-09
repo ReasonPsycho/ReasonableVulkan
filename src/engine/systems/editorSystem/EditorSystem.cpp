@@ -76,31 +76,65 @@ void EditorSystem::ImGuiGizmo()
         if (ImGui::IsKeyPressed(ImGuiKey_R))
             currentGizmoOperation = ImGuizmo::SCALE;
 
-        // Operation radio buttons
-        if (ImGui::RadioButton("Translate", currentGizmoOperation == ImGuizmo::TRANSLATE))
-            currentGizmoOperation = ImGuizmo::TRANSLATE;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Rotate", currentGizmoOperation == ImGuizmo::ROTATE))
-            currentGizmoOperation = ImGuizmo::ROTATE;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Scale", currentGizmoOperation == ImGuizmo::SCALE))
-            currentGizmoOperation = ImGuizmo::SCALE;
-
-        // Mode selection (except for Scale)
-        if (currentGizmoOperation != ImGuizmo::SCALE)
-        {
-            if (ImGui::RadioButton("Local", currentGizmoMode == ImGuizmo::LOCAL))
-                currentGizmoMode = ImGuizmo::LOCAL;
-            ImGui::SameLine();
-            if (ImGui::RadioButton("World", currentGizmoMode == ImGuizmo::WORLD))
-                currentGizmoMode = ImGuizmo::WORLD;
-        }
-
         // Snapping
         static bool useSnap = false;
         if (ImGui::IsKeyPressed(ImGuiKey_S))
             useSnap = !useSnap;
-        ImGui::Checkbox("Use Snap", &useSnap);
+
+        // Tool Overlay Window in Top Right
+        {
+            const float PADDING = 10.0f;
+            const ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImVec2 window_pos = ImVec2(viewport->Pos.x + viewport->Size.x - PADDING, viewport->Pos.y + PADDING);
+            ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
+            ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+            ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+            ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+            
+            if (ImGui::Begin("GizmoTools", nullptr, window_flags))
+            {
+                // Translate
+                if (ImGui::RadioButton("T", currentGizmoOperation == ImGuizmo::TRANSLATE))
+                    currentGizmoOperation = ImGuizmo::TRANSLATE;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Translate (T)");
+                ImGui::SameLine();
+
+                // Rotate
+                if (ImGui::RadioButton("R", currentGizmoOperation == ImGuizmo::ROTATE))
+                    currentGizmoOperation = ImGuizmo::ROTATE;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rotate (E)");
+                ImGui::SameLine();
+
+                // Scale
+                if (ImGui::RadioButton("S", currentGizmoOperation == ImGuizmo::SCALE))
+                    currentGizmoOperation = ImGuizmo::SCALE;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale (R)");
+                ImGui::SameLine();
+
+                ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 3.0f);
+                ImGui::SameLine();
+
+                // Mode selection (except for Scale)
+                if (currentGizmoOperation != ImGuizmo::SCALE)
+                {
+                    if (ImGui::RadioButton("L", currentGizmoMode == ImGuizmo::LOCAL))
+                        currentGizmoMode = ImGuizmo::LOCAL;
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Local Mode");
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("W", currentGizmoMode == ImGuizmo::WORLD))
+                        currentGizmoMode = ImGuizmo::WORLD;
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("World Mode");
+                    ImGui::SameLine();
+                }
+
+                // Snap toggle
+                if (ImGui::Checkbox("##Snap", &useSnap))
+                {
+                }
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use Snap (S)");
+            }
+            ImGui::End();
+        }
 
         glm::vec3 snap(1.0f);
         if (currentGizmoOperation == ImGuizmo::TRANSLATE)

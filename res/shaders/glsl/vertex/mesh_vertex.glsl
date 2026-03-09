@@ -5,10 +5,7 @@
 
 #include "../common/scene_ubo.glsl"
 #include "../common/vertex_io.glsl"
-
-layout(push_constant) uniform PushConstants {
-    mat4 model;
-} push;
+#include "../common/model_pc.glsl"
 
 VSOutput VertexTransform(VSInput vInput)
 {

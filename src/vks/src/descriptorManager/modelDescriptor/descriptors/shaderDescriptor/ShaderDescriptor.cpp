@@ -77,8 +77,8 @@ namespace vks
                result.push_back(ShaderDefinesEnum::VERTEX_IO_GLSL);
            }else if (key == "LIGHTING_COMMON_GLSL")  {
                result.push_back(ShaderDefinesEnum::LIGHTING_COMMON_GLSL);
-           }else if (key == "MESH_VERTEX_GLSL")  {
-               result.push_back(ShaderDefinesEnum::MESH_VERTEX_GLSL);
+           }else if (key == "MODEL_PC_GLSL")  {
+               result.push_back(ShaderDefinesEnum::MODEL_PC_GLSL);
            }else if (key == "MATERIAL_PBR_GLSL")  {
                result.push_back(ShaderDefinesEnum::MATERIAL_PBR_GLSL);
            }
