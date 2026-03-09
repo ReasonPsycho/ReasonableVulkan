@@ -158,11 +158,11 @@ namespace vks {
         // Load shader programs
         auto pbrShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader");
-        pipelineManager->createGraphicsPipeline("model", pbrShaderProgram);
+        pipelineManager->createGraphicsPipeline("model",pbrShaderProgram);
 
         auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shader");
-        pipelineManager->createGraphicsPipeline("skybox", skyboxShaderProgram);
+        pipelineManager->createGraphicsPipeline("skybox",skyboxShaderProgram);
 
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());

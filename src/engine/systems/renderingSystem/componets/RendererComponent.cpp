@@ -19,7 +19,7 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
         {
             ImGui::OpenPopup("Model List");
         }
-
+        
         if (ImGui::BeginPopup("Model List"))
         {
             for (const auto& assetInfo : scene->engine.assetManagerInterface->getRegisteredAssets(am::AssetType::Model))
@@ -37,6 +37,24 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
             ImGui::EndPopup();
         }
 
+        if (ImGui::Button(typed->shaderUuid.is_nil() ? "Select Shader Program" : boost::uuids::to_string(typed->shaderUuid).c_str()))
+        {
+            ImGui::OpenPopup("Shader Program List");
+        }
+
+        if (ImGui::BeginPopup("Shader Program List"))
+        {
+            for (const auto& assetInfo : scene->engine.assetManagerInterface->getRegisteredAssets(am::AssetType::ShaderProgram))
+            {
+                const std::string idStr = boost::uuids::to_string(assetInfo.get()->id);
+                if (ImGui::MenuItem(idStr.c_str()))
+                {
+                    typed->shaderUuid = assetInfo.get()->id;
+                }
+            }
+            ImGui::EndPopup();
+        }
+
         ImGui::DragVec3("Min bounding box", typed->boundingBoxMin);
         ImGui::DragVec3("Max bounding box", typed->boundingBoxMax);
     }
@@ -45,10 +63,15 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
 
 void RendererComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
-    rapidjson::Value uuidStr;
-    std::string uuidString = boost::uuids::to_string(modelUuid);
-    uuidStr.SetString(uuidString.c_str(), allocator);
-    obj.AddMember("modelUuid", uuidStr, allocator);
+    rapidjson::Value modelUuidStr;
+    std::string modelUuidString = boost::uuids::to_string(modelUuid);
+    modelUuidStr.SetString(modelUuidString.c_str(), allocator);
+    obj.AddMember("modelUuid", modelUuidStr, allocator);
+
+    rapidjson::Value shaderUuidStr;
+    std::string shaderUuidString = boost::uuids::to_string(shaderUuid);
+    shaderUuidStr.SetString(shaderUuidString.c_str(), allocator);
+    obj.AddMember("shaderUuid", shaderUuidStr, allocator);
 }
 
 void RendererComponent::DeserializeFromJson(const rapidjson::Value& obj)
@@ -57,5 +80,10 @@ void RendererComponent::DeserializeFromJson(const rapidjson::Value& obj)
         std::string uuidStr = obj["modelUuid"].GetString();
         boost::uuids::string_generator gen;
         modelUuid = gen(uuidStr);
+    }
+    if (obj.HasMember("shaderUuid") && obj["shaderUuid"].IsString()) {
+        std::string uuidStr = obj["shaderUuid"].GetString();
+        boost::uuids::string_generator gen;
+        shaderUuid = gen(uuidStr);
     }
 }

@@ -14,7 +14,7 @@ namespace am {
         std::shared_ptr<am::AssetInfo> computeShader;
         std::shared_ptr<am::AssetInfo> geometryShader;
         std::shared_ptr<am::AssetInfo> tessellationControlShader;
-        std::shared_ptr<AssetInfo> tessellationEvaluationShader;
+        std::shared_ptr<am::AssetInfo> tessellationEvaluationShader;
     };
 }
 

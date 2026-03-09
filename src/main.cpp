@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity),{1,1,1});
-    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(asset->get()->id));
+    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(asset->get()->id, shader->get()->id));
     scene.get()->GetComponent<TransformComponent>(modelEntity).position = glm::vec3(0,0,0);
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");

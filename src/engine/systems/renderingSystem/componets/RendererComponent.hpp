@@ -18,11 +18,12 @@ namespace engine::ecs
     struct RendererComponent : public Component
     {
         boost::uuids::uuid modelUuid;
+        boost::uuids::uuid shaderUuid;
         glm::vec3 boundingBoxMin;
         glm::vec3 boundingBoxMax;
 
-        RendererComponent() : modelUuid(boost::uuids::nil_uuid()), boundingBoxMin(0.0f), boundingBoxMax(0.0f) {}
-        explicit RendererComponent(boost::uuids::uuid id) : modelUuid(id),boundingBoxMin(0.0f),boundingBoxMax(0.0f) {}
+        RendererComponent() : modelUuid(boost::uuids::nil_uuid()), shaderUuid(boost::uuids::nil_uuid()), boundingBoxMin(0.0f), boundingBoxMax(0.0f) {}
+        explicit RendererComponent(boost::uuids::uuid modelId, boost::uuids::uuid shaderId = boost::uuids::nil_uuid()) : modelUuid(modelId), shaderUuid(shaderId), boundingBoxMin(0.0f), boundingBoxMax(0.0f) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
 

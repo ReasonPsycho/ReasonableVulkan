@@ -25,7 +25,6 @@ namespace am
         ShaderStage stage;
         std::map<std::string, std::string> defines;
         std::string originalSource;
-
     };
 }
 #endif //SHADERDATA_H
