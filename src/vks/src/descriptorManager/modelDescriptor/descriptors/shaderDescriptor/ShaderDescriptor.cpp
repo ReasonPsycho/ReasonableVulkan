@@ -4,8 +4,8 @@
 #include "../../../../base/VulkanDevice.h"
 namespace vks
 {
-    ShaderDescriptor::ShaderDescriptor(am::ShaderData& shaderData,VulkanContext& vulkanContext)
-        : IVulkanDescriptor(vulkanContext) {
+    ShaderDescriptor::ShaderDescriptor(const boost::uuids::uuid& assetId, am::ShaderData& shaderData,VulkanContext& vulkanContext)
+        : IVulkanDescriptor(assetId, vulkanContext) {
 
         // Create shader module from bytecode
         shaderModule = createShaderModule(shaderData.bytecode);

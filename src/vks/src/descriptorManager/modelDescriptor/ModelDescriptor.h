@@ -53,7 +53,7 @@ namespace vks
         std::vector<MaterialDescriptor*> materials;
         bool metallicRoughnessWorkflow = true;
 
-        ModelDescriptor(DescriptorManager* assetHandleManager,am::ModelData modelData,VulkanContext& vulkanContext);
+        ModelDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager,am::ModelData modelData,VulkanContext& vulkanContext);
 
         ~ModelDescriptor();
 

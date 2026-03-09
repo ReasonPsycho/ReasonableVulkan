@@ -39,7 +39,7 @@ namespace vks
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
         uint32_t descriptorBindingFlags;
 
-        MaterialDescriptor(DescriptorManager* assetHandleManager, am::MaterialData& materialData,VulkanContext& vulkanContext);
+        MaterialDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager, am::MaterialData& materialData,VulkanContext& vulkanContext);
 
         ~MaterialDescriptor();
 

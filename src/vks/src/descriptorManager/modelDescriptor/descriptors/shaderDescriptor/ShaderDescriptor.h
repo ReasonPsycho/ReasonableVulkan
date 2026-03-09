@@ -11,7 +11,7 @@ namespace vks
 {
     class ShaderDescriptor : public vks::IVulkanDescriptor {
     public:
-        ShaderDescriptor(am::ShaderData& shaderData, VulkanContext& vulkanContext);
+        ShaderDescriptor(const boost::uuids::uuid& assetId, am::ShaderData& shaderData, VulkanContext& vulkanContext);
         ~ShaderDescriptor();
 
         VkPipelineShaderStageCreateInfo getShaderStage() const { return shaderStage; }

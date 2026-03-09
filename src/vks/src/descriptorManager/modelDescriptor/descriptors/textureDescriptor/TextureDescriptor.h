@@ -33,7 +33,7 @@ namespace vks
         void destroy();
         void cleanup() override {};
         
-        TextureDescriptor(am::TextureData& textureData,VkSampler sampler,VulkanContext& vulkanContext);
+        TextureDescriptor(const boost::uuids::uuid& assetId, am::TextureData& textureData,VkSampler sampler,VulkanContext& vulkanContext);
     };
 }
 

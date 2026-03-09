@@ -12,7 +12,7 @@ namespace vks {
 
     class ShaderProgramDescriptor : public IVulkanDescriptor {
     public:
-        ShaderProgramDescriptor(am::ShaderProgramData& programData, DescriptorManager* descriptorManager, VulkanContext& vulkanContext);
+        ShaderProgramDescriptor(const boost::uuids::uuid& assetId, am::ShaderProgramData& programData, DescriptorManager* descriptorManager, VulkanContext& vulkanContext);
         ~ShaderProgramDescriptor() override;
 
         void cleanup() override;

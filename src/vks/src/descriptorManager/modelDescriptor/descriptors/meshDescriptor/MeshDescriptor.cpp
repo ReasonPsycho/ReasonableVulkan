@@ -12,9 +12,9 @@ namespace vks {
     VkPipelineVertexInputStateCreateInfo MeshDescriptor::pipelineVertexInputStateCreateInfo{};
 }
 
-vks::MeshDescriptor::MeshDescriptor(DescriptorManager* assetHandleManager, am::MeshData& meshData, 
+vks::MeshDescriptor::MeshDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager, am::MeshData& meshData, 
     glm::mat4 matrix, VulkanContext& vulkanContext) 
-    : IVulkanDescriptor(vulkanContext),
+    : IVulkanDescriptor(assetId, vulkanContext),
     firstIndex(0), indexCount(0), firstVertex(0), vertexCount(0)
 {
     this->uniformBlock.matrix = matrix;

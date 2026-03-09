@@ -1,5 +1,6 @@
 
 #pragma once
+#include <boost/uuid/uuid.hpp>
 #include <memory>
 #include <glm/detail/type_mat4x4.hpp>
 #include <vulkan/vulkan_core.h>
@@ -58,5 +59,7 @@ namespace vks {
 #if ENABLE_IMGUI
 		std::unique_ptr<ImguiManager> imguiManager;
 #endif
+		boost::uuids::uuid pbrShaderId;
+		boost::uuids::uuid skyboxShaderId;
 	};
 }

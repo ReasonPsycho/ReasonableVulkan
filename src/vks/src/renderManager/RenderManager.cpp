@@ -28,7 +28,9 @@ RenderManager::~RenderManager() {
     cleanup();
 }
 
-void RenderManager::initialize() {
+void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId) {
+    this->pbrShaderId = pbrShaderId;
+    this->skyboxShaderId = skyboxShaderId;
     createCommandBuffers();
     createSyncObjects();
 }
@@ -78,7 +80,7 @@ void RenderManager::createSyncObjects() {
             // Create a push constant for the transform instead of using uniform buffer
             vkCmdPushConstants(
                 commandBuffer,
-                pipelineManager->getPipelineLayout("model"),
+                pipelineManager->getPipelineLayout(pbrShaderId),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 sizeof(glm::mat4),
@@ -94,7 +96,7 @@ void RenderManager::createSyncObjects() {
             auto materialDescriptorSet = mesh->material->descriptorSet;
             if (materialDescriptorSet != VK_NULL_HANDLE) {
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineManager->getPipelineLayout("model"), 1, 1, &materialDescriptorSet, 0, nullptr);
+                    pipelineManager->getPipelineLayout(pbrShaderId), 1, 1, &materialDescriptorSet, 0, nullptr);
             }
 
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
@@ -316,7 +318,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Bind the model pipeline for model rendering
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline("model"));
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(pbrShaderId));
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -335,7 +337,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     vkCmdBindDescriptorSets(
           commandBuffer,
           VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipelineManager->getPipelineLayout("model"),
+          pipelineManager->getPipelineLayout(pbrShaderId),
           0,                                    // First set index (Set 0)
           1,                                    // Number of sets
           &descriptorManager->sceneUBO.buffer.descriptorSet,
@@ -344,7 +346,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     vkCmdBindDescriptorSets(
           commandBuffer,
           VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipelineManager->getPipelineLayout("model"),
+          pipelineManager->getPipelineLayout(pbrShaderId),
           3,                                    // Set index 3
           1,                                    // Number of sets
           &descriptorManager->directionalLightSSBO.descriptorSet,

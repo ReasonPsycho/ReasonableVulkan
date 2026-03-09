@@ -1,4 +1,5 @@
 #pragma once
+#include <boost/uuid/uuid.hpp>
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
@@ -14,7 +15,7 @@ namespace vks {
         ~RenderPipelineManager();
 
         void createRenderPass();
-        void createGraphicsPipeline(const std::string& pipelineId, ShaderProgramDescriptor* shaderProgramDescriptor);
+        void createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor);
         void createFramebuffers(const std::vector<VkImageView>& swapChainImageViews,
                                VkExtent2D swapChainExtent);
 
@@ -25,15 +26,15 @@ namespace vks {
 
         // Pipeline structure to hold pipeline data
         struct Pipeline {
-            std::string id;
+            boost::uuids::uuid id;
             VkPipeline handle{VK_NULL_HANDLE};
             VkPipelineLayout layout{VK_NULL_HANDLE};
         };
 
         // Getters
         VkRenderPass getRenderPass() const { return renderPass; }
-        VkPipeline getPipeline(const std::string& pipelineId) const;
-        VkPipelineLayout getPipelineLayout(const std::string& pipelineId) const;
+        VkPipeline getPipeline(const boost::uuids::uuid& pipelineId) const;
+        VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t index) const { return framebuffers[index]; }
 
 
@@ -53,6 +54,6 @@ namespace vks {
 
         // Helper methods
         void createPipelineCache();
-        const Pipeline* findPipeline(const std::string& pipelineId) const;
+        const Pipeline* findPipeline(const boost::uuids::uuid& pipelineId) const;
     };
 }
