@@ -1,4 +1,4 @@
-#include "ShaderProgramDescriptor.h"
+#include "../shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include <algorithm>
 #include "../../../DescriptorManager.h"
 
