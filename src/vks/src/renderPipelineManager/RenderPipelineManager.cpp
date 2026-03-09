@@ -229,7 +229,7 @@ namespace vks
         meshPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(combinedLayouts.size());
         meshPipelineLayoutInfo.pSetLayouts = combinedLayouts.data();
 
-        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != combinedDefines.end())
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
         {
             meshPipelineLayoutInfo.pushConstantRangeCount = 1;
 

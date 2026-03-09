@@ -35,9 +35,6 @@ namespace vks {
         VkPipelineLayout getPipelineLayout(const std::string& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t index) const { return framebuffers[index]; }
 
-        // Convenience getter for default model pipeline
-        VkPipeline getModelPipeline() const { return getPipeline("model"); }
-        VkPipelineLayout getMeshPipelineLayout() const { return getPipelineLayout("model"); }
 
         // Add these new members for depth resources
         VkImage depthImage = VK_NULL_HANDLE;

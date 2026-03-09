@@ -160,11 +160,18 @@ namespace vks {
         auto fragmentShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.frag");
 
-
         pipelineManager->createGraphicsPipeline("model",vertexShaderDescriptor, fragmentShaderDescriptor);
+
+        // Load mesh shader stages
+        vertexShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/skybox.vert");
+        fragmentShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/skybox.frag");
+
+        pipelineManager->createGraphicsPipeline("skybox",vertexShaderDescriptor, fragmentShaderDescriptor);
+
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
-
 
         // Initialize render manager
         renderManager->initialize();
