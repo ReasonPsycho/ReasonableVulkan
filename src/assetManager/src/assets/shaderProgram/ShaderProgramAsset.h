@@ -1,0 +1,23 @@
+#ifndef SHADERPROGRAMASSET_H
+#define SHADERPROGRAMASSET_H
+
+#include "../../../include/Asset.hpp"
+#include "assetDatas/ShaderProgramData.h"
+
+namespace am {
+    class ShaderProgramAsset : public Asset {
+    public:
+        explicit ShaderProgramAsset(AssetFactoryData &assetFactoryData);
+
+        size_t calculateContentHash() const override;
+        [[nodiscard]] AssetType getType() const override;
+
+        void* getAssetData() override { return &data; }
+
+    private:
+        ShaderProgramData data;
+        void loadFromJson(const std::string& path);
+    };
+}
+
+#endif // SHADERPROGRAMASSET_H

@@ -38,6 +38,9 @@ int main(int argc, char *argv[]) {
     // 4. Initialize game systems (ECS, scenes, etc.)
     auto scene = engine.CreateScene("Main scene");
 
+    auto shader = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shader");
+    auto shaderData = assetManager.getAsset(shader->get()->id);
+
     auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
     vulkanExample->loadModel(asset->get()->id);
 

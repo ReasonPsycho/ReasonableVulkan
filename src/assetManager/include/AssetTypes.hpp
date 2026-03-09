@@ -10,6 +10,7 @@ namespace am {
         Model,
         Texture,
         Shader,
+        ShaderProgram,
         Animation,
         Material,
         Animator,
@@ -26,6 +27,8 @@ namespace am {
                 return os << "Texture";
             case AssetType::Shader:
                 return os << "Shader";
+            case AssetType::ShaderProgram:
+                return os << "ShaderProgram";
             case AssetType::Animation:
                 return os << "Animation";
             case AssetType::Animator:
@@ -50,6 +53,7 @@ namespace am {
         if (str == "Model") return AssetType::Model;
         if (str == "Texture") return AssetType::Texture;
         if (str == "Shader") return AssetType::Shader;
+        if (str == "ShaderProgram") return AssetType::ShaderProgram;
         if (str == "Animation") return AssetType::Animation;
         if (str == "Material") return AssetType::Material;
         if (str == "Animator") return AssetType::Animator;
@@ -63,6 +67,7 @@ namespace am {
         if (extension == ".spdv")      return AssetType::Shader;
         if (extension == ".frag")      return AssetType::Shader;
         if (extension == ".vert")      return AssetType::Shader;
+        if (extension == ".shader")      return AssetType::ShaderProgram; // Assuming programs are defined in json files
         return AssetType::Other;
     }
 }

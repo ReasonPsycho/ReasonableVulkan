@@ -10,6 +10,7 @@
 #include "assets/ModelAsset.h"
 #include "assets/materialAsset/MaterialAsset.hpp"
 #include "assets/shaderAsset/ShaderAsset.h"
+#include "assets/shaderProgram/ShaderProgramAsset.h"
 #include "assets/textureAsset/TextureAsset.h"
 
 namespace am {
@@ -32,6 +33,12 @@ namespace am {
         registerFactory(AssetType::Shader,
         [](am::AssetFactoryData &factoryData) {
             return std::unique_ptr<ShaderAsset>(new ShaderAsset(factoryData));
+        }
+    );
+
+        registerFactory(AssetType::ShaderProgram,
+        [](am::AssetFactoryData &factoryData) {
+            return std::unique_ptr<ShaderProgramAsset>(new ShaderProgramAsset(factoryData));
         }
     );
 
