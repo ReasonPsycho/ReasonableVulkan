@@ -2,6 +2,8 @@
 #define ASSETTYPES_HPP
 
 #include <ostream>
+#include <string>
+#include <sstream>
 
 
 namespace am {

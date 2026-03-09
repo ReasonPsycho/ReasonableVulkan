@@ -8,7 +8,7 @@
 #include "src/renderManager/renderManager.hpp"
 #include "src/renderPipelineManager/RenderpipelineManager.hpp"
 #include <stdexcept>
-#include "src/descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderDescriptor.h"
+#include "src/descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderProgramDescriptor.h"
 #include <SDL3/SDL_vulkan.h>
 
 #include "src/imguiManager/ImguiManager.hpp"
@@ -16,6 +16,7 @@
 
 namespace vks {
     class ModelDescriptor;
+    class ShaderProgramDescriptor;
 
     VulkanRenderer::VulkanRenderer(am::AssetManagerInterface* assetManagerInterface) : GraphicsEngine() {
         if (assetManagerInterface == nullptr) {
@@ -68,7 +69,7 @@ namespace vks {
     }
 
     void VulkanRenderer::loadShader(boost::uuids::uuid uuid) {
-        descriptorManager->getOrLoadResource<ShaderDescriptor>(uuid);
+        descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(uuid);
     }
 
     void VulkanRenderer::drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) {
@@ -154,21 +155,14 @@ namespace vks {
         // Get descriptor set layouts from descriptor manager
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
-        // Load mesh shader stages
-        auto vertexShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.vert");
-        auto fragmentShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/mesh.frag");
+        // Load shader programs
+        auto pbrShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader");
+        pipelineManager->createGraphicsPipeline("model", pbrShaderProgram);
 
-        pipelineManager->createGraphicsPipeline("model",vertexShaderDescriptor, fragmentShaderDescriptor);
-
-        // Load mesh shader stages
-        vertexShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/skybox.vert");
-        fragmentShaderDescriptor = descriptorManager->getOrLoadResource<ShaderDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/glsl/entry/skybox.frag");
-
-        pipelineManager->createGraphicsPipeline("skybox",vertexShaderDescriptor, fragmentShaderDescriptor);
+        auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shader");
+        pipelineManager->createGraphicsPipeline("skybox", skyboxShaderProgram);
 
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());

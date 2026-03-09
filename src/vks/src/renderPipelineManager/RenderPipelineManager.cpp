@@ -1,8 +1,9 @@
 #include "RenderPipelineManager.hpp"
 #include <stdexcept>
 #include <algorithm>
-
 #include "../descriptorManager/modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
+#include "../descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderProgramDescriptor.h"
+#include "../base/VulkanInitializers.hpp"
 
 namespace vks
 {
@@ -167,7 +168,7 @@ namespace vks
     }
 
 
-    void RenderPipelineManager::createGraphicsPipeline(const std::string& pipelineId, ShaderDescriptor* vertexShaderDescriptor, ShaderDescriptor* fragmentShaderDescriptor)
+    void RenderPipelineManager::createGraphicsPipeline(const std::string& pipelineId, ShaderProgramDescriptor* shaderProgramDescriptor)
     {
         createPipelineCache();
 
@@ -176,13 +177,7 @@ namespace vks
             throw std::runtime_error("Pipeline already exists: " + pipelineId);
         }
 
-        const auto& vertexDefines = vertexShaderDescriptor->getDefines();
-        const auto& fragmentDefines = fragmentShaderDescriptor->getDefines();
-
-        std::vector<ShaderDefinesEnum> combinedDefines = vertexDefines;
-        combinedDefines.insert(combinedDefines.end(), fragmentDefines.begin(), fragmentDefines.end());
-        std::ranges::sort(combinedDefines);
-        combinedDefines.erase(std::ranges::unique(combinedDefines).begin(), combinedDefines.end());
+        const auto& combinedDefines = shaderProgramDescriptor->getCombinedDefines();
 
         // Get layouts for each define - ensuring they are at the correct set index
         // We know the set indices: 0: Scene, 1: Material, 2: Mesh, 3: Lights
@@ -229,12 +224,12 @@ namespace vks
         meshPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(combinedLayouts.size());
         meshPipelineLayoutInfo.pSetLayouts = combinedLayouts.data();
 
+        VkPushConstantRange pushConstantRange{};
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
         {
             meshPipelineLayoutInfo.pushConstantRangeCount = 1;
 
             // Define push constant range for the vertex shader transform matrix
-            VkPushConstantRange pushConstantRange{};
             pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
             pushConstantRange.offset = 0;
             pushConstantRange.size = sizeof(glm::mat4);
@@ -250,44 +245,40 @@ namespace vks
 
         // Common pipeline settings
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
-            vks::base::initializers::pipelineInputAssemblyStateCreateInfo(
+            base::initializers::pipelineInputAssemblyStateCreateInfo(
                 VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 
         VkPipelineViewportStateCreateInfo viewportState =
-            vks::base::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
+            base::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
         VkPipelineMultisampleStateCreateInfo multisampleState =
-            vks::base::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
+            base::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
 
         std::vector<VkDynamicState> dynamicStateEnables = {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR
         };
         VkPipelineDynamicStateCreateInfo dynamicState =
-            vks::base::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
+            base::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
         // Shared blend attachment state
         VkPipelineColorBlendAttachmentState blendAttachmentState =
-            vks::base::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
+            base::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
 
         VkPipelineColorBlendStateCreateInfo colorBlendState =
-            vks::base::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
+            base::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 
         // Load shaders
-        std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
+        const auto& shaderStages = shaderProgramDescriptor->getShaderStages();
 
         // Mesh-specific rasterization state
         VkPipelineRasterizationStateCreateInfo rasterizationState =
-            vks::base::initializers::pipelineRasterizationStateCreateInfo(
+            base::initializers::pipelineRasterizationStateCreateInfo(
                 VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 
         // Mesh-specific depth state
         VkPipelineDepthStencilStateCreateInfo depthStencilState =
-            vks::base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
-
-        // Load mesh shader stages
-        shaderStages[0] = vertexShaderDescriptor->getShaderStage();
-        shaderStages[1] = fragmentShaderDescriptor->getShaderStage();
+            base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
         // Create mesh pipeline
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
@@ -301,7 +292,7 @@ namespace vks
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = vks::MeshDescriptor::getPipelineVertexInputState({
+        pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
             VertexComponent::Position,
             VertexComponent::Normal,
             VertexComponent::UV,

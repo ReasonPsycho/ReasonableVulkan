@@ -15,7 +15,7 @@
 
 namespace vks
 {
-    void vks::ImguiManager::initialize(void* windowHandle)
+    void ImguiManager::initialize(void* windowHandle)
     {
         createDescriptorPool();
         createRenderPass();
@@ -132,7 +132,7 @@ namespace vks
         vkCmdEndRenderPass(commandBuffer);
     }
 
-    void vks::ImguiManager::createPipelineCache()
+    void ImguiManager::createPipelineCache()
     {
         VkPipelineCacheCreateInfo pipelineCacheInfo{};
         pipelineCacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
@@ -151,7 +151,7 @@ namespace vks
     {
     }
 
-    void vks::ImguiManager::createRenderPass()
+    void ImguiManager::createRenderPass()
 {
     std::array<VkAttachmentDescription, 2> attachments = {};
 
@@ -201,7 +201,8 @@ namespace vks
     if (vkCreateRenderPass(context->getDevice(), &renderPassInfo, nullptr, &imguiRenderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create ImGui render pass!");
     }
-}    void vks::ImguiManager::cleanup()
+}
+    void ImguiManager::cleanup()
     {
         if (imguiFramebuffer != VK_NULL_HANDLE) {
             vkDestroyFramebuffer(context->getDevice(), imguiFramebuffer, nullptr);

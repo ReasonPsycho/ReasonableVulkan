@@ -3,15 +3,17 @@
 
 #include <vector>
 #include <memory>
-#include "AssetInfo.hpp"
+#include "AssetTypes.hpp"
 
 namespace am {
+    class AssetInfo;
+
     struct ShaderProgramData {
-        std::shared_ptr<AssetInfo> vertexShader;
-        std::shared_ptr<AssetInfo> fragmentShader;
-        std::shared_ptr<AssetInfo> computeShader;
-        std::shared_ptr<AssetInfo> geometryShader;
-        std::shared_ptr<AssetInfo> tessellationControlShader;
+        std::shared_ptr<am::AssetInfo> vertexShader;
+        std::shared_ptr<am::AssetInfo> fragmentShader;
+        std::shared_ptr<am::AssetInfo> computeShader;
+        std::shared_ptr<am::AssetInfo> geometryShader;
+        std::shared_ptr<am::AssetInfo> tessellationControlShader;
         std::shared_ptr<AssetInfo> tessellationEvaluationShader;
     };
 }

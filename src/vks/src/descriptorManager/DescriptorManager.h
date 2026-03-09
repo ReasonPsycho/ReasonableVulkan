@@ -8,6 +8,7 @@
 #include "modelDescriptor/descriptors/IVulkanDescriptor.h"
 #include "modelDescriptor/ModelDescriptor.h"
 #include "modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
+#include "modelDescriptor/descriptors/shaderDescriptor/ShaderProgramDescriptor.h"
 #include "modelDescriptor/descriptors/ShaderDescriptor/ShaderDescriptor.h"
 #include "../../vks/src/base/VulkanDevice.h"
 #include <glm/glm.hpp>

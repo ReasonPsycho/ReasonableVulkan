@@ -9,6 +9,8 @@
 #include "../descriptorManager/DescriptorManager.h"
 #include "../descriptorManager/buffers/LightBufferData.hpp"
 
+#include <glm/glm.hpp>
+
 namespace vks {
 #ifdef ENABLE_IMGUI
     class ImguiManager;

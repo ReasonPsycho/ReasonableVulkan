@@ -1,20 +1,21 @@
 #pragma once
 #include "DescriptorManager.h"
 
+
 template <typename T>
 T* vks::DescriptorManager::getOrLoadResource(const boost::uuids::uuid& assetId)
 {
     if (isResourceLoaded(assetId))
-        return dynamic_cast<T*>(loadedResources[assetId].get());
+        return (T*)(loadedResources[assetId].get());
 
-    return dynamic_cast<T*>(loadResource(assetId));
+    return (T*)(loadResource(assetId));
 }
 
 template <typename T>
 T* vks::DescriptorManager::getOrLoadResource(std::string path)
 {
     auto assetInfo = assetManager->registerAsset(path);
-    return dynamic_cast<T*>(loadResource(assetInfo->get()->id));
+    return (T*)(loadResource(assetInfo->get()->id));
 }
 
 inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost::uuids::uuid& assetId)
@@ -73,6 +74,15 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
                 auto shader = std::make_unique<ShaderDescriptor>(
                     *assetPtr->getAssetDataAs<am::ShaderData>(),*context);
                 loadedResources[assetId] = std::move(shader);
+                return loadedResources[assetId].get();
+                break;
+            }
+
+        case am::AssetType::ShaderProgram:
+            {
+                auto shaderProgram = std::make_unique<ShaderProgramDescriptor>(
+                    *assetPtr->getAssetDataAs<am::ShaderProgramData>(), this, *context);
+                loadedResources[assetId] = std::move(shaderProgram);
                 return loadedResources[assetId].get();
                 break;
             }
