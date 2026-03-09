@@ -8,7 +8,7 @@
 #include "src/renderManager/renderManager.hpp"
 #include "src/renderPipelineManager/RenderpipelineManager.hpp"
 #include <stdexcept>
-#include "src/descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderProgramDescriptor.h"
+#include "src/descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include <SDL3/SDL_vulkan.h>
 
 #include "src/imguiManager/ImguiManager.hpp"

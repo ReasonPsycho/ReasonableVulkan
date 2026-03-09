@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include "../descriptorManager/modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
-#include "../descriptorManager/modelDescriptor/descriptors/shaderDescriptor/ShaderProgramDescriptor.h"
+#include "../descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include "../base/VulkanInitializers.hpp"
 
 namespace vks
