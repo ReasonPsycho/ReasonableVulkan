@@ -11,7 +11,7 @@
 #include <glm/glm.hpp>
 #include <utility>
 #include "ecs/System.h"
-#include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/transformSystem/componets/Transform.hpp"
 
 namespace plt
@@ -53,7 +53,7 @@ namespace engine::ecs
         Entity GetSelectedEntity() const { return selectedEntity; }
         void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
 
-        Camera camera = Camera();
+        CameraComponent camera = CameraComponent();
         Transform cameraTransform = Transform();
 
         bool inEditMode = true;

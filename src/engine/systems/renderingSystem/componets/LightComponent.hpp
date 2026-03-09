@@ -23,7 +23,7 @@ namespace engine::ecs
         // No extra data needed for directional lights
     };
 
-    struct Light : public Component
+    struct LightComponent : public Component
     {
         enum class Type { Directional, Point, Spot };
 
@@ -32,9 +32,9 @@ namespace engine::ecs
         float intensity;
         std::variant<DirectionalLightData, PointLightData, SpotLightData> data;
 
-        Light() : type(Type::Point), color(1.0f, 1.0f, 1.0f), intensity(1.0f), data(PointLightData{}) {}
+        LightComponent() : type(Type::Point), color(1.0f, 1.0f, 1.0f), intensity(1.0f), data(PointLightData{}) {}
 
-        explicit Light(Type t, glm::vec3 c, float i) : type(t), color(c), intensity(i) {
+        explicit LightComponent(Type t, glm::vec3 c, float i) : type(t), color(c), intensity(i) {
             switch (t) {
             case Type::Point: data = PointLightData{}; break;
             case Type::Spot: data = SpotLightData{}; break;

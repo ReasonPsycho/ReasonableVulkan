@@ -18,7 +18,7 @@
 #include "System.h"
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
-#include "systems/renderingSystem/componets/Camera.hpp"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
 
 namespace engine::ecs
 {
@@ -26,7 +26,7 @@ namespace engine::ecs
 
     struct CameraObject
     {
-        Camera* camera;
+        CameraComponent* camera;
         Transform* transform;
     };
 

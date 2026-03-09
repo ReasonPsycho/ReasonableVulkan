@@ -14,8 +14,8 @@ using namespace engine::ecs;
 
 #include "systems/transformSystem/TransformSystem.h"
 #include "systems/renderingSystem/RenderSystem.h"
-#include "systems/renderingSystem/componets/Camera.hpp"
-#include "systems/renderingSystem/componets/Model.hpp"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "systems/renderingSystem/componets/RendererComponent.hpp"
 
 void Scene::AddComponent(Entity entity, std::type_index typeIdx)
 {
@@ -57,13 +57,13 @@ Scene::Scene(Engine& engine): engine(engine)
 #ifdef EDITOR_ENABLED
     RegisterSystem<EditorSystem>();
     GetSystem<EditorSystem>().get()->RegisterComponentType<Transform>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<Model>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<Camera>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<Light>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<RendererComponent>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<CameraComponent>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<LightComponent>();
 #endif
-    RegisterComponent<Model>(); //For some reason I have to register them in reverse
-    RegisterComponent<Camera>();
-    RegisterComponent<Light>();
+    RegisterComponent<RendererComponent>(); //For some reason I have to register them in reverse
+    RegisterComponent<CameraComponent>();
+    RegisterComponent<LightComponent>();
 
     RegisterIntegralComponent<Transform>();
     RegisterSystem<TransformSystem>();
@@ -431,7 +431,7 @@ void Scene::AddComponent(const std::type_index& type) {
 CameraObject Scene::GetActiveCamera()
     {
         static Transform defaultTransform;
-        static Camera defaultCamera;
+        static CameraComponent defaultCamera;
 
         if (GetSystem<EditorSystem>()->inEditMode)
         {
@@ -439,14 +439,14 @@ CameraObject Scene::GetActiveCamera()
         }
         else
         {
-            auto& cameras = GetComponentArray<Camera>().get()->GetComponents();
+            auto& cameras = GetComponentArray<CameraComponent>().get()->GetComponents();
             auto& transforms = GetIntegralComponentArray<Transform>().get()->GetComponents();
 
             for (int i = 0; i < cameras.size(); i++)
             {
-                if (GetComponentArray<Camera>().get()->IsComponentActive(i))
+                if (GetComponentArray<CameraComponent>().get()->IsComponentActive(i))
                 {
-                    auto cameraEntity = GetComponentArray<Camera>().get()->ComponentIndexToEntity(i);
+                    auto cameraEntity = GetComponentArray<CameraComponent>().get()->ComponentIndexToEntity(i);
                     return {&cameras[cameraEntity], &transforms[cameraEntity]};
                 }
             }

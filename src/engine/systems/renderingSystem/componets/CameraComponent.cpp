@@ -5,12 +5,12 @@
     // Utility functions
 
 #include <imgui.h>
-#include "Camera.hpp"
+#include "CameraComponent.hpp"
 #include "ecs/Scene.h"
 
-    inline void Camera::ShowImGui(Scene* scene,Component* component) const
+    inline void CameraComponent::ShowImGui(Scene* scene,Component* component) const
     {
-auto typed = dynamic_cast<Camera*>(component);
+auto typed = dynamic_cast<CameraComponent*>(component);
 
         if (ImGui::CollapsingHeader("Camera"))
         {
@@ -42,7 +42,7 @@ auto typed = dynamic_cast<Camera*>(component);
         }
     }
 
-void Camera::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void CameraComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     obj.AddMember("fov", fov, allocator);
     obj.AddMember("aspectRatio", aspectRatio, allocator);
@@ -57,7 +57,7 @@ void Camera::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::Allocat
     obj.AddMember("lightPosition", lightPosArray, allocator);
 }
 
-void Camera::DeserializeFromJson(const rapidjson::Value& obj)
+void CameraComponent::DeserializeFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("fov") && obj["fov"].IsFloat()) fov = obj["fov"].GetFloat();
     if (obj.HasMember("aspectRatio") && obj["aspectRatio"].IsFloat()) aspectRatio = obj["aspectRatio"].GetFloat();

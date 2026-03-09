@@ -4,18 +4,18 @@
 //
 
 #include <imgui.h>
-#include "Light.hpp"
+#include "LightComponent.hpp"
 #include "ecs/Scene.h"
 
-void engine::ecs::Light::ShowImGui(Scene* scene, Component* component) const
+void engine::ecs::LightComponent::ShowImGui(Scene* scene, Component* component) const
 {
-    auto typed = dynamic_cast<Light*>(component);
-    if (ImGui::CollapsingHeader("Light"))
+    auto typed = dynamic_cast<LightComponent*>(component);
+    if (ImGui::CollapsingHeader("LightComponent"))
     {
         int typeInt = static_cast<int>(typed->type);
         const char* items[] = {"Directional", "Point", "Spot"};
 
-        if (ImGui::Combo("Light Type", &typeInt, items, IM_ARRAYSIZE(items)))
+        if (ImGui::Combo("LightComponent Type", &typeInt, items, IM_ARRAYSIZE(items)))
         {
             Type newType = static_cast<Type>(typeInt);
             if (newType != typed->type)
@@ -37,8 +37,8 @@ void engine::ecs::Light::ShowImGui(Scene* scene, Component* component) const
             }
         }
 
-        ImGui::ColorEdit3("Light Color", &typed->color[0]);
-        ImGui::SliderFloat("Intensity##Light", &typed->intensity, 0.0f, 10.0f);
+        ImGui::ColorEdit3("LightComponent Color", &typed->color[0]);
+        ImGui::SliderFloat("Intensity##LightComponent", &typed->intensity, 0.0f, 10.0f);
 
         // Show type-specific controls
         switch (typed->type)
@@ -47,7 +47,7 @@ void engine::ecs::Light::ShowImGui(Scene* scene, Component* component) const
             {
                 auto& pointData = std::get<PointLightData>(typed->data);
                 ImGui::Separator();
-                ImGui::Text("Point Light Settings");
+                ImGui::Text("Point LightComponent Settings");
                 ImGui::SliderFloat("Radius##PointLight", &pointData.radius, 0.1f, 100.0f);
                 ImGui::SliderFloat("Falloff##PointLight", &pointData.falloff, 0.0f, 5.0f);
                 break;
@@ -56,7 +56,7 @@ void engine::ecs::Light::ShowImGui(Scene* scene, Component* component) const
             {
                 auto& spotData = std::get<SpotLightData>(typed->data);
                 ImGui::Separator();
-                ImGui::Text("Spot Light Settings");
+                ImGui::Text("Spot LightComponent Settings");
                 ImGui::SliderFloat("Inner Angle##SpotLight", &spotData.innerAngle, 0.0f, 90.0f);
                 ImGui::SliderFloat("Outer Angle##SpotLight", &spotData.outerAngle, 0.0f, 90.0f);
                 ImGui::SliderFloat("Range##SpotLight", &spotData.range, 0.1f, 200.0f);
@@ -69,7 +69,7 @@ void engine::ecs::Light::ShowImGui(Scene* scene, Component* component) const
     }
 }
 
-void engine::ecs::Light::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void engine::ecs::LightComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     obj.AddMember("lightType", static_cast<int>(type), allocator);
 
@@ -105,7 +105,7 @@ void engine::ecs::Light::SerializeToJson(rapidjson::Value& obj, rapidjson::Docum
     }
 }
 
-void engine::ecs::Light::DeserializeFromJson(const rapidjson::Value& obj)
+void engine::ecs::LightComponent::DeserializeFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("lightType") && obj["lightType"].IsInt()) {
         type = static_cast<Type>(obj["lightType"].GetInt());

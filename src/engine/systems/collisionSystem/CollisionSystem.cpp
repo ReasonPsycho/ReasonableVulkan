@@ -1,13 +1,13 @@
 #include "CollisionSystem.hpp"
 
 #include "ecs/Scene.h"
-#include "systems/renderingSystem/componets/Camera.hpp"
-#include "systems/renderingSystem/componets/Model.hpp"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "systems/transformSystem/componets/Transform.hpp"
 
 namespace engine::ecs {
 
-Ray CollisionSystem::ScreenToWorldRay(const Camera& camera,
+Ray CollisionSystem::ScreenToWorldRay(const CameraComponent& camera,
                                       float screenX, float screenY, float windowWidth, float windowHeight) {
     // Convert screen coordinates to normalized device coordinates (-1 to 1)
     float x = (2.0f * screenX) / windowWidth - 1.0f;
@@ -69,7 +69,7 @@ std::optional<RayHit> CollisionSystem::RayCastClosest(const Ray& ray) {
     closestHit.distance = std::numeric_limits<float>::max();
     bool hasHit = false;
 
-    auto modelArray = scene->GetComponentArray<Model>().get();
+    auto modelArray = scene->GetComponentArray<RendererComponent>().get();
     auto& models = modelArray->GetComponents();
     auto& transforms = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
 

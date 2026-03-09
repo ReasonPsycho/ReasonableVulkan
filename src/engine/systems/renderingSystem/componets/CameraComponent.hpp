@@ -7,7 +7,7 @@
 
 namespace engine::ecs
 {
-    struct Camera : public Component
+    struct CameraComponent : public Component
     {
         // Camera parameters
         float fov;
@@ -21,7 +21,7 @@ namespace engine::ecs
         glm::vec4 lightpos;
 
         bool isDirty = true;
-        Camera() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
+        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
 
@@ -30,7 +30,7 @@ namespace engine::ecs
     };
 
 
-inline void updateProjectionMatrix(Camera& camera)
+inline void updateProjectionMatrix(CameraComponent& camera)
     {
         camera.projection = glm::perspective(glm::radians(camera.fov),
                                           camera.aspectRatio,
@@ -39,63 +39,63 @@ inline void updateProjectionMatrix(Camera& camera)
         camera.isDirty = false;
     }
 
-    inline void updateViewMatrix(Camera& camera, const glm::mat4& transformMatrix)
+    inline void updateViewMatrix(CameraComponent& camera, const glm::mat4& transformMatrix)
     {
         camera.view = glm::inverse(transformMatrix);
     }
 
     // Setters
-    inline void setFov(Camera& camera, float fov)
+    inline void setFov(CameraComponent& camera, float fov)
     {
         camera.fov = fov;
         camera.isDirty = true;
     }
 
-    inline void setAspectRatio(Camera& camera, float aspectRatio)
+    inline void setAspectRatio(CameraComponent& camera, float aspectRatio)
     {
         camera.aspectRatio = aspectRatio;
         camera.isDirty = true;
     }
 
-    inline void setNearPlane(Camera& camera, float nearPlane)
+    inline void setNearPlane(CameraComponent& camera, float nearPlane)
     {
         camera.nearPlane = nearPlane;
         camera.isDirty = true;
     }
 
-    inline void setFarPlane(Camera& camera, float farPlane)
+    inline void setFarPlane(CameraComponent& camera, float farPlane)
     {
         camera.farPlane = farPlane;
         camera.isDirty = true;
     }
 
-    inline void setLightPosition(Camera& camera, const glm::vec4& lightPos)
+    inline void setLightPosition(CameraComponent& camera, const glm::vec4& lightPos)
     {
         camera.lightpos = lightPos;
     }
 
     // Getters
-    inline float getFov(const Camera& camera)
+    inline float getFov(const CameraComponent& camera)
     {
         return camera.fov;
     }
 
-    inline float getAspectRatio(const Camera& camera)
+    inline float getAspectRatio(const CameraComponent& camera)
     {
         return camera.aspectRatio;
     }
 
-    inline float getNearPlane(const Camera& camera)
+    inline float getNearPlane(const CameraComponent& camera)
     {
         return camera.nearPlane;
     }
 
-    inline float getFarPlane(const Camera& camera)
+    inline float getFarPlane(const CameraComponent& camera)
     {
         return camera.farPlane;
     }
 
-    inline const glm::mat4& getProjectionMatrix(Camera& camera)
+    inline const glm::mat4& getProjectionMatrix(CameraComponent& camera)
     {
         if (camera.isDirty) {
             updateProjectionMatrix(camera);
@@ -103,17 +103,17 @@ inline void updateProjectionMatrix(Camera& camera)
         return camera.projection;
     }
 
-    inline const glm::mat4& getViewMatrix(const Camera& camera)
+    inline const glm::mat4& getViewMatrix(const CameraComponent& camera)
     {
         return camera.view;
     }
 
-    inline const glm::vec4& getLightPosition(const Camera& camera)
+    inline const glm::vec4& getLightPosition(const CameraComponent& camera)
     {
         return camera.lightpos;
     }
 
-    inline bool isDirty(const Camera& camera)
+    inline bool isDirty(const CameraComponent& camera)
     {
         return camera.isDirty;
     }
