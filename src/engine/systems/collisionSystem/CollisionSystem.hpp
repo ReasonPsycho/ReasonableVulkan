@@ -10,7 +10,7 @@
 
 
 namespace engine::ecs {
-    struct Transform;
+    struct TransformComponent;
     struct CameraComponent;
 
     struct Ray {

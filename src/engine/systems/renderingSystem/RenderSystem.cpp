@@ -7,7 +7,7 @@
 #include "Asset.hpp"
 #include "PlatformInterface.hpp"
 #include "assetDatas/ModelData.h"
-#include "systems/transformSystem/componets/Transform.hpp"
+#include "systems/transformSystem/componets/TransformComponent.hpp"
 #include"componets/CameraComponent.hpp"
 #include "ecs/Scene.h"
 #include "systems/editorSystem/EditorSystem.hpp"
@@ -23,7 +23,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     auto lightArray = scene->GetComponentArray<LightComponent>().get();
     auto& lights = lightArray->GetComponents();
 
-    auto& transforms = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
+    auto& transforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
 
     // Only iterate up to the actual size of used components
     for (ComponentID i = 0; i < modelArray->GetArraySize(); i++)

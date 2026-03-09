@@ -1,12 +1,12 @@
 #include "TransformSystem.h"
-#include "componets/Transform.hpp"
+#include "componets/TransformComponent.hpp"
 #include "ecs/Scene.h"
 
 using namespace engine::ecs;
 
 void TransformSystem::Update(float /*deltaTime*/)
 {
-    auto& transforms = scene->GetIntegralComponentArray<Transform>()->GetComponents();
+    auto& transforms = scene->GetIntegralComponentArray<TransformComponent>()->GetComponents();
 
     for (Entity root : scene->rootEntities)
     {
@@ -14,9 +14,9 @@ void TransformSystem::Update(float /*deltaTime*/)
     }
 }
 
-void TransformSystem::UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<Transform, MAX_ENTITIES>& transforms)
+void TransformSystem::UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<TransformComponent, MAX_ENTITIES>& transforms)
 {
-    Transform& current = transforms[entity];
+    TransformComponent& current = transforms[entity];
     bool isDirty = current.isDirty || (parentMatrix != nullptr);
 
     if (isDirty)

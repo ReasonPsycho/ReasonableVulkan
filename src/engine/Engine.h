@@ -20,7 +20,7 @@ namespace engine {
     namespace ecs
     {
         class SystemBase;
-        struct Transform;
+        struct TransformComponent;
         class Scene;
     }
 

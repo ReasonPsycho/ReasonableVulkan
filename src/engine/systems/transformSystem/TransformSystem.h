@@ -3,7 +3,7 @@
 
 #include <typeindex>
 
-#include "componets/Transform.hpp"
+#include "componets/TransformComponent.hpp"
 #include "../../ecs/System.h"
 
 namespace engine::ecs
@@ -11,7 +11,7 @@ namespace engine::ecs
     struct TransformNode;
     class Scene;
 
-    class TransformSystem :  public System<TransformSystem, Transform>
+    class TransformSystem :  public System<TransformSystem, TransformComponent>
     {
     public:
         explicit TransformSystem(Scene* scene) : System(scene) {}
@@ -22,7 +22,7 @@ namespace engine::ecs
         void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
 
     private:
-        void UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<Transform, MAX_ENTITIES>& transforms);
+        void UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<TransformComponent, MAX_ENTITIES>& transforms);
     };
 }
 

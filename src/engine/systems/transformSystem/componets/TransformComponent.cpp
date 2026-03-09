@@ -3,13 +3,13 @@
 //
 
 #include <imgui.h>
-#include "Transform.hpp"
+#include "TransformComponent.hpp"
 #include "ecs/Scene.h"
 
 
-void Transform::ShowImGui(Scene* scene, Component* component) const
+void TransformComponent::ShowImGui(Scene* scene, Component* component) const
 {
-    auto typed = dynamic_cast<Transform*>(component);
+    auto typed = dynamic_cast<TransformComponent*>(component);
     if (ImGui::CollapsingHeader("Transform"))
     {
         if (ImGui::DragVec3("Position", typed->position, 0.1f))
@@ -38,7 +38,7 @@ void Transform::ShowImGui(Scene* scene, Component* component) const
     }
 }
 
-void Transform::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void TransformComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     // Position
     rapidjson::Value posArray(rapidjson::kArrayType);
@@ -63,7 +63,7 @@ void Transform::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::Allo
     obj.AddMember("scale", scaleArray, allocator);
 }
 
-void Transform::DeserializeFromJson(const rapidjson::Value& obj)
+void TransformComponent::DeserializeFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("position") && obj["position"].IsArray()) {
         const auto& posArray = obj["position"];

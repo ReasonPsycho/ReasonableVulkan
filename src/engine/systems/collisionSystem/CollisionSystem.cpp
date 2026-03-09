@@ -3,7 +3,7 @@
 #include "ecs/Scene.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
-#include "systems/transformSystem/componets/Transform.hpp"
+#include "systems/transformSystem/componets/TransformComponent.hpp"
 
 namespace engine::ecs {
 
@@ -71,7 +71,7 @@ std::optional<RayHit> CollisionSystem::RayCastClosest(const Ray& ray) {
 
     auto modelArray = scene->GetComponentArray<RendererComponent>().get();
     auto& models = modelArray->GetComponents();
-    auto& transforms = scene->GetIntegralComponentArray<Transform>().get()->GetComponents();
+    auto& transforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
 
     // Only iterate up to the actual size of used components
     for (ComponentID i = 0; i < modelArray->GetArraySize(); i++)

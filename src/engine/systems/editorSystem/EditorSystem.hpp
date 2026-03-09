@@ -12,7 +12,7 @@
 #include <utility>
 #include "ecs/System.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
-#include "systems/transformSystem/componets/Transform.hpp"
+#include "systems/transformSystem/componets/TransformComponent.hpp"
 
 namespace plt
 {
@@ -54,7 +54,7 @@ namespace engine::ecs
         void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
 
         CameraComponent camera = CameraComponent();
-        Transform cameraTransform = Transform();
+        TransformComponent cameraTransform = TransformComponent();
 
         bool inEditMode = true;
 

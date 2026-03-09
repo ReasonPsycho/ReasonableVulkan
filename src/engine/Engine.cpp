@@ -22,7 +22,7 @@ namespace engine {
 
         RegisterComponentType<RendererComponent>(); //For some reason I have to register them in reverse
         RegisterComponentType<CameraComponent>();
-        RegisterComponentType<Transform>();
+        RegisterComponentType<TransformComponent>();
         RegisterComponentType<LightComponent>();
 
         RegisterSystemType<TransformSystem>();
