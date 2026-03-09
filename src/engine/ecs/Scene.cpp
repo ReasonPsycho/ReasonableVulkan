@@ -2,7 +2,7 @@
 // Created by redkc on 18/02/2024.
 //
 #include "Types.h"
-#include "../systems/transformSystem/componets/Transform.hpp"
+#include "../systems/transformSystem/componets/TransformComponent.hpp"
 #include "Scene.h"
 
 #include "systems/collisionSystem/CollisionSystem.hpp"
@@ -56,7 +56,7 @@ Scene::Scene(Engine& engine): engine(engine)
 
 #ifdef EDITOR_ENABLED
     RegisterSystem<EditorSystem>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<Transform>();
+    GetSystem<EditorSystem>().get()->RegisterComponentType<TransformComponent>();
     GetSystem<EditorSystem>().get()->RegisterComponentType<RendererComponent>();
     GetSystem<EditorSystem>().get()->RegisterComponentType<CameraComponent>();
     GetSystem<EditorSystem>().get()->RegisterComponentType<LightComponent>();
@@ -65,7 +65,7 @@ Scene::Scene(Engine& engine): engine(engine)
     RegisterComponent<CameraComponent>();
     RegisterComponent<LightComponent>();
 
-    RegisterIntegralComponent<Transform>();
+    RegisterIntegralComponent<TransformComponent>();
     RegisterSystem<TransformSystem>();
     RegisterSystem<CollisionSystem>();
 }
@@ -81,7 +81,7 @@ void Scene::Update(float deltaTime) {
 
 Entity Scene::CreateEntity(Entity parentEntity)
 {
-    return CreateEntity(Transform(),parentEntity);
+    return CreateEntity(TransformComponent(),parentEntity);
 }
 
 const std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> Scene::GetSystems()
@@ -160,7 +160,7 @@ bool Scene::HasParent(Entity entity) const {
 }
 
 
-Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
+Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
     Entity entity;
     if (!freeEntities.empty()) {
         entity = freeEntities.front();
@@ -169,7 +169,7 @@ Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
         entity = maxEntityIndex++;
     }
 
-    AddComponent<Transform>(entity, transform);
+    AddComponent<TransformComponent>(entity, transform);
 
     if (parentEntity == -1)
     {
@@ -181,7 +181,7 @@ Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
     }
 
     auto signature = Signature{};
-    signature.set(GetComponentTypeID<Transform>());
+    signature.set(GetComponentTypeID<TransformComponent>());
     entitySignatures[entity] = signature;
 
     activeEntities.set(entity, true);
@@ -190,10 +190,10 @@ Entity Scene::CreateEntity(Transform transform ,Entity parentEntity ) {
 
 Entity Scene::CreateEntity(std::string entityName, Entity parentEntity)
 {
-    return CreateEntity(entityName,Transform(),parentEntity);
+    return CreateEntity(entityName,TransformComponent(),parentEntity);
 }
 
-Entity Scene::CreateEntity(std::string entityName, Transform transform,  Entity parentEntity)
+Entity Scene::CreateEntity(std::string entityName, TransformComponent transform,  Entity parentEntity)
 {
     auto entity = CreateEntity(transform,parentEntity);
     GetSystem<engine::ecs::EditorSystem>().get()->SetEntityName(entity,entityName);
@@ -430,7 +430,7 @@ void Scene::AddComponent(const std::type_index& type) {
 
 CameraObject Scene::GetActiveCamera()
     {
-        static Transform defaultTransform;
+        static TransformComponent defaultTransform;
         static CameraComponent defaultCamera;
 
         if (GetSystem<EditorSystem>()->inEditMode)
@@ -440,7 +440,7 @@ CameraObject Scene::GetActiveCamera()
         else
         {
             auto& cameras = GetComponentArray<CameraComponent>().get()->GetComponents();
-            auto& transforms = GetIntegralComponentArray<Transform>().get()->GetComponents();
+            auto& transforms = GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
 
             for (int i = 0; i < cameras.size(); i++)
             {

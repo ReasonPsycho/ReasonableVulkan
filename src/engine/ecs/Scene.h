@@ -10,7 +10,7 @@
 #include <typeindex>
 #include <unordered_map>
 
-#include "systems/transformSystem/componets/Transform.hpp"
+#include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "Engine.h"
 #include "componentArrays/IComponentArray.h"
 #include "componentArrays/ComponentArray.h"
@@ -22,12 +22,12 @@
 
 namespace engine::ecs
 {
-    struct Transform;
+    struct TransformComponent;
 
     struct CameraObject
     {
         CameraComponent* camera;
-        Transform* transform;
+        TransformComponent* transform;
     };
 
     class Scene {
@@ -39,9 +39,9 @@ namespace engine::ecs
 
         //Entity
         Entity CreateEntity(Entity parentEntity = -1);
-        Entity CreateEntity(Transform transform,Entity parentEntity = -1);
+        Entity CreateEntity(TransformComponent transform,Entity parentEntity = -1);
         Entity CreateEntity(std::string entityName,Entity parentEntity = -1);
-        Entity CreateEntity(std::string entityName,Transform transform,Entity parentEntity = -1);
+        Entity CreateEntity(std::string entityName,TransformComponent transform,Entity parentEntity = -1);
 
 
         void DestroyEntity(Entity entity);

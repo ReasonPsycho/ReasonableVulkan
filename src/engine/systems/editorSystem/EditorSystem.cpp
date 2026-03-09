@@ -42,7 +42,7 @@ void EditorSystem::ImGuiInspector()
         {
             for (const auto& [typeIndex, info] : registeredComponentTypes)
             {
-                if (info.displayName != boost::core::demangle(typeid(Transform).name()))
+                if (info.displayName != boost::core::demangle(typeid(TransformComponent).name()))
                 {
                     if (ImGui::MenuItem(info.displayName.c_str()))
                     {
@@ -63,7 +63,7 @@ void EditorSystem::ImGuiGizmo()
 {
     if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
     {
-        auto& transform = scene->GetIntegralComponentArray<Transform>().get()->GetComponentFromEntity(selectedEntity);
+        auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(selectedEntity);
 
         static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
         static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
@@ -181,7 +181,7 @@ void EditorSystem::ImGuiGizmo()
             auto it = scene->sceneGraph.find(selectedEntity);
             if (it != scene->sceneGraph.end() && it->second.parent != MAX_ENTITIES)
             {
-                auto& parentTransform = scene->GetIntegralComponentArray<Transform>().get()->GetComponentFromEntity(it->second.parent);
+                auto& parentTransform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(it->second.parent);
                 setLocalMatrixFromGlobal(transform, newGlobalMatrix, parentTransform.globalMatrix);
             }
             else

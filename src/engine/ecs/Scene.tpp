@@ -25,7 +25,7 @@ void Scene::AddComponent(Entity entity, T component)
 {
     ComponentID componentId;
 
-    if constexpr (std::is_same<T, Transform>::value)
+    if constexpr (std::is_same<T, TransformComponent>::value)
     {
        componentId = GetIntegralComponentArray<T>()->AddComponentToEntity(entity, component);
     }
@@ -54,7 +54,7 @@ template <typename T>
 void Scene::RemoveComponent(Entity entity)
 {
     ComponentID componentId;
-    if constexpr (std::is_same<T, Transform>::value)
+    if constexpr (std::is_same<T, TransformComponent>::value)
     {
        componentId=  GetIntegralComponentArray<T>()->RemoveComponentFronEntity(entity);
     }
@@ -81,7 +81,7 @@ void Scene::RemoveComponent(Entity entity)
 template <typename T>
 bool Scene::HasComponent(Entity entity)
 {
-    if constexpr (std::is_same<T, Transform>::value)
+    if constexpr (std::is_same<T, TransformComponent>::value)
     {
     return GetIntegralComponentArray<T>()->HasComponent(entity);
     }
@@ -94,7 +94,7 @@ bool Scene::HasComponent(Entity entity)
 template <typename T>
 void Scene::SetComponentActive(Entity entity,bool active )
 {
-    if constexpr (std::is_same<T, Transform>::value)
+    if constexpr (std::is_same<T, TransformComponent>::value)
     {
         GetIntegralComponentArray<T>()->SetComponentActive(entity,active);
     }
@@ -107,7 +107,7 @@ void Scene::SetComponentActive(Entity entity,bool active )
 template <typename T>
 bool Scene::IsComponentActive(Entity entity)
 {
-    if constexpr (std::is_same<T, Transform>::value)
+    if constexpr (std::is_same<T, TransformComponent>::value)
     {
         return GetIntegralComponentArray<T>()->IsComponentActive(entity);
     }
@@ -120,7 +120,7 @@ bool Scene::IsComponentActive(Entity entity)
 template <typename T>
 auto Scene::GetComponent(Entity entity) -> T&
 {
-    if constexpr (std::is_same<T, Transform>::value)
+    if constexpr (std::is_same<T, TransformComponent>::value)
     {
         return GetIntegralComponentArray<T>()->GetComponentFromEntity(entity);
     }

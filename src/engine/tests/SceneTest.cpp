@@ -123,27 +123,27 @@ BOOST_AUTO_TEST_CASE(TransformSystemMatrixAndDirtyPropagationTest) {
     scene->SetParent(child2, parent);
 
     // Set positions
-    setLocalPosition(scene->GetComponent<Transform>(parent), {10.0f, 0.0f, 0.0f});
-    setLocalPosition(scene->GetComponent<Transform>(child1), {0.0f, 5.0f, 0.0f});
-    setLocalPosition(scene->GetComponent<Transform>(child2), {0.0f, 0.0f, 3.0f});
+    setLocalPosition(scene->GetComponent<TransformComponent>(parent), {10.0f, 0.0f, 0.0f});
+    setLocalPosition(scene->GetComponent<TransformComponent>(child1), {0.0f, 5.0f, 0.0f});
+    setLocalPosition(scene->GetComponent<TransformComponent>(child2), {0.0f, 0.0f, 3.0f});
 
     // Verify all are dirty before update
-    BOOST_REQUIRE(isDirty(scene->GetComponent<Transform>(parent)));
-    BOOST_REQUIRE(isDirty(scene->GetComponent<Transform>(child1)));
-    BOOST_REQUIRE(isDirty(scene->GetComponent<Transform>(child2)));
+    BOOST_REQUIRE(isDirty(scene->GetComponent<TransformComponent>(parent)));
+    BOOST_REQUIRE(isDirty(scene->GetComponent<TransformComponent>(child1)));
+    BOOST_REQUIRE(isDirty(scene->GetComponent<TransformComponent>(child2)));
 
     // Update system
     scene->Update(0.0f);
 
     // Validate dirty flags cleared
-    BOOST_REQUIRE(!isDirty(scene->GetComponent<Transform>(parent)));
-    BOOST_REQUIRE(!isDirty(scene->GetComponent<Transform>(child1)));
-    BOOST_REQUIRE(!isDirty(scene->GetComponent<Transform>(child2)));
+    BOOST_REQUIRE(!isDirty(scene->GetComponent<TransformComponent>(parent)));
+    BOOST_REQUIRE(!isDirty(scene->GetComponent<TransformComponent>(child1)));
+    BOOST_REQUIRE(!isDirty(scene->GetComponent<TransformComponent>(child2)));
 
     // Validate world transforms
-    const glm::vec3 worldPosParent = getGlobalPosition(scene->GetComponent<Transform>(parent));
-    const glm::vec3 worldPosChild1 = getGlobalPosition(scene->GetComponent<Transform>(child1));
-    const glm::vec3 worldPosChild2 = getGlobalPosition(scene->GetComponent<Transform>(child2));
+    const glm::vec3 worldPosParent = getGlobalPosition(scene->GetComponent<TransformComponent>(parent));
+    const glm::vec3 worldPosChild1 = getGlobalPosition(scene->GetComponent<TransformComponent>(child1));
+    const glm::vec3 worldPosChild2 = getGlobalPosition(scene->GetComponent<TransformComponent>(child2));
 
     BOOST_REQUIRE_CLOSE(worldPosParent.x, 10.0f, 0.001f);
     BOOST_REQUIRE_CLOSE(worldPosParent.y, 0.0f, 0.001f);
@@ -158,14 +158,14 @@ BOOST_AUTO_TEST_CASE(TransformSystemMatrixAndDirtyPropagationTest) {
     BOOST_REQUIRE_CLOSE(worldPosChild2.z, 3.0f, 0.001f);
 
     // Now mark only child1 dirty
-    setLocalPosition(scene->GetComponent<Transform>(child1), {0.0f, 10.0f, 0.0f});
-    BOOST_REQUIRE(isDirty(scene->GetComponent<Transform>(child1)));
+    setLocalPosition(scene->GetComponent<TransformComponent>(child1), {0.0f, 10.0f, 0.0f});
+    BOOST_REQUIRE(isDirty(scene->GetComponent<TransformComponent>(child1)));
 
     scene->Update(0.0f);
-    BOOST_REQUIRE(!isDirty(scene->GetComponent<Transform>(child1)));
+    BOOST_REQUIRE(!isDirty(scene->GetComponent<TransformComponent>(child1)));
 
     // Confirm new world position
-    const glm::vec3 newWorldPosChild1 = getGlobalPosition(scene->GetComponent<Transform>(child1));
+    const glm::vec3 newWorldPosChild1 = getGlobalPosition(scene->GetComponent<TransformComponent>(child1));
     BOOST_REQUIRE_CLOSE(newWorldPosChild1.x, 10.0f, 0.001f);
     BOOST_REQUIRE_CLOSE(newWorldPosChild1.y, 10.0f, 0.001f);
     BOOST_REQUIRE_CLOSE(newWorldPosChild1.z, 0.0f, 0.001f);

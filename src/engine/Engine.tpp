@@ -6,7 +6,7 @@ void Engine::RegisterComponentType()
     auto type = std::type_index(typeid(T));
     componentTypes.insert(type);
     componentFactories[type] = []() -> std::shared_ptr<IComponentArray> {
-        if constexpr (std::is_same_v<T, Transform>) {
+        if constexpr (std::is_same_v<T, TransformComponent>) {
             return std::make_shared<IntegralComponentArray<T>>();
         } else {
             return std::make_shared<ComponentArray<T>>();
