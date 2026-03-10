@@ -24,12 +24,12 @@ int main(int argc, char *argv[]) {
     }
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
-    vks::VulkanRenderer *vulkanExample = new vks::VulkanRenderer(&assetManager);
-    engine::Engine engine = engine::Engine(platform,vulkanExample,&assetManager);
+    vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
+    engine::Engine engine = engine::Engine(platform,vulkanRenderer,&assetManager);
     engine.Initialize();
 
 
-    vulkanExample->initialize(platform,1280, 720);
+    vulkanRenderer->initialize(platform,1280, 720);
 
     /*
     // 3. Initialize the graphics abstraction
@@ -39,10 +39,10 @@ int main(int argc, char *argv[]) {
     auto scene = engine.CreateScene("Main scene");
 
     auto shader = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shader");
-    auto shaderData = assetManager.getAsset(shader->get()->id);
+    vulkanRenderer->loadShader(shader->get()->id);
 
     auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
-    vulkanExample->loadModel(asset->get()->id);
+    vulkanRenderer->loadModel(asset->get()->id);
 
     auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity),{1,1,1});

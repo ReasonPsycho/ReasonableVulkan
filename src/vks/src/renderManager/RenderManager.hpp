@@ -22,6 +22,7 @@ namespace vks {
     struct RenderCommand
     {
         boost::uuids::uuid modelId;
+        boost::uuids::uuid renderProgramId;
         glm::mat4 transform;
     };
 
@@ -61,7 +62,7 @@ private:
         void cleanup();
 
         // Core rendering functions
-        void submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 transform);
+        void submitRenderCommand(boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform);
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
