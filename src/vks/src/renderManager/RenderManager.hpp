@@ -26,6 +26,12 @@ namespace vks {
         glm::mat4 transform;
     };
 
+    struct SkyboxRenderCommand
+    {
+        boost::uuids::uuid textureId;
+        boost::uuids::uuid renderProgramId;
+    };
+
     class RenderManager {
 
 private:
@@ -63,6 +69,7 @@ private:
 
         // Core rendering functions
         void submitRenderCommand(boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform);
+        void submitSkyboxRenderCommand(boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId);
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
@@ -89,6 +96,7 @@ private:
 
     private:
         std::vector<RenderCommand> renderQueue;
+        std::vector<SkyboxRenderCommand> skyboxRenderQueue;
         std::vector<DirectionalLightBufferData> directionalLightQueue;
         std::vector<PointLightBufferData> pointLightQueue;
         std::vector<SpotLightBufferData> spotLightQueue;
