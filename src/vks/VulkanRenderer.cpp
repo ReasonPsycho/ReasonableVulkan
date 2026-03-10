@@ -79,6 +79,12 @@ namespace vks {
     renderManager->submitRenderCommand(modelId, shaderId, transform);
 }
 
+    void VulkanRenderer::drawSkybox(boost::uuids::uuid textureId, boost::uuids::uuid shaderId)
+    {
+        renderManager->submitSkyboxRenderCommand(textureId, shaderId);
+    }
+
+
     void VulkanRenderer::drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform)
     {
         renderManager->submitLightCommand(pointLightData, transform);

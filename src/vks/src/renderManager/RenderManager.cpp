@@ -126,7 +126,12 @@ void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, boost::uuids
     renderQueue.push_back(RenderCommand{modelId, renderProgramId, transform});
 }
 
-    void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
+void RenderManager::submitSkyboxRenderCommand(boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId)
+{
+    skyboxRenderQueue.push_back(SkyboxRenderCommand{textureId, renderProgramId});
+}
+
+void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
 {
     DirectionalLightBufferData bufferData{};
     bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
@@ -381,7 +386,34 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
         }
     }
 
+
+    if (!skyboxRenderQueue.empty())
+    {
+        for (auto& cmd : skyboxRenderQueue)
+        {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+
+            vkCmdBindDescriptorSets(
+                  commandBuffer,
+                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                  pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                  0,                                    // First set index (Set 0)
+                  1,                                    // Number of sets
+                  &descriptorManager->sceneUBO.buffer.descriptorSet,
+                  0, nullptr);
+
+
+            // Bind material descriptor set at set index 1
+            auto materialDescriptorSet = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.textureId)->descriptorSet;
+            if (materialDescriptorSet != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptorSet, 0, nullptr);
+            }
+        }
+    }
+
     renderQueue.clear();
+    skyboxRenderQueue.clear();
 
     vkCmdEndRenderPass(commandBuffer);
 

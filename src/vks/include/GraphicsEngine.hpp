@@ -26,6 +26,7 @@ namespace gfx {
 
         virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) = 0;
         virtual void drawModel(boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) = 0;
+        virtual void drawSkybox(boost::uuids::uuid textureId, boost::uuids::uuid shaderId) = 0;
         virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(DirectionalLightData directionalLightData, const glm::mat4& transform) = 0;
