@@ -32,7 +32,7 @@ namespace vks {
 		void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) override;
 		void loadModel(boost::uuids::uuid uuid) override;
 		void loadShader(boost::uuids::uuid uuid) override;
-		void drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) override;
+		void drawModel(boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) override;
 		void drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform) override;

@@ -1,4 +1,5 @@
 #include "RenderManager.hpp"
+#include <algorithm>
 
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_vulkan.h>
@@ -120,9 +121,9 @@ void RenderManager::cleanup() {
     vkDestroyCommandPool(context->getDevice(), context->getGraphicsCommandPool(), nullptr);
 }
 
-void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, glm::mat4 transform)
+void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform)
 {
-    renderQueue.push_back(RenderCommand{modelId, transform});
+    renderQueue.push_back(RenderCommand{modelId, renderProgramId, transform});
 }
 
     void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
@@ -317,9 +318,6 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    // Bind the model pipeline for model rendering
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(pbrShaderId));
-
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -334,27 +332,6 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     scissor.extent = swapChain->getSwapChainExtent();
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdBindDescriptorSets(
-          commandBuffer,
-          VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipelineManager->getPipelineLayout(pbrShaderId),
-          0,                                    // First set index (Set 0)
-          1,                                    // Number of sets
-          &descriptorManager->sceneUBO.buffer.descriptorSet,
-          0, nullptr);
-
-    vkCmdBindDescriptorSets(
-          commandBuffer,
-          VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipelineManager->getPipelineLayout(pbrShaderId),
-          3,                                    // Set index 3
-          1,                                    // Number of sets
-          &descriptorManager->directionalLightSSBO.descriptorSet,
-          0, nullptr);
-
-    //Process lights
-    descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue);
-
     //Process lights
     descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue);
 
@@ -363,11 +340,45 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     spotLightQueue.clear();
 
     // Process render queue
-    for (auto& cmd : renderQueue) {
-        auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
-        if (!modelDescriptor) continue;
+    if (!renderQueue.empty()) {
+        // Sort render queue by renderProgramId to minimize pipeline switching
+        std::sort(renderQueue.begin(), renderQueue.end(), [](const RenderCommand& a, const RenderCommand& b) {
+            return a.renderProgramId < b.renderProgramId;
+        });
 
-        renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
+        boost::uuids::uuid lastProgramId = boost::uuids::nil_uuid();
+
+        for (auto& cmd : renderQueue) {
+            auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
+            if (!modelDescriptor) continue;
+
+            // Bind the pipeline for this specific render command only if it's different from the last one
+            if (cmd.renderProgramId != lastProgramId) {
+                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+
+                vkCmdBindDescriptorSets(
+                      commandBuffer,
+                      VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                      0,                                    // First set index (Set 0)
+                      1,                                    // Number of sets
+                      &descriptorManager->sceneUBO.buffer.descriptorSet,
+                      0, nullptr);
+
+                vkCmdBindDescriptorSets(
+                      commandBuffer,
+                      VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                      3,                                    // Set index 3
+                      1,                                    // Number of sets
+                      &descriptorManager->directionalLightSSBO.descriptorSet,
+                      0, nullptr);
+
+                lastProgramId = cmd.renderProgramId;
+            }
+
+            renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
+        }
     }
 
     renderQueue.clear();

@@ -72,9 +72,12 @@ namespace vks {
         descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(uuid);
     }
 
-    void VulkanRenderer::drawModel(boost::uuids::uuid uuid, const glm::mat4& transform) {
-        renderManager->submitRenderCommand(uuid, transform);
+    void VulkanRenderer::drawModel(boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) {
+    if (shaderId.is_nil()){
+        shaderId = pbrShaderId;
     }
+    renderManager->submitRenderCommand(modelId, shaderId, transform);
+}
 
     void VulkanRenderer::drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform)
     {

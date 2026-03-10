@@ -33,7 +33,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
             Entity entity = modelArray->ComponentIndexToEntity(i);
             if (models[i].modelUuid != boost::uuids::nil_uuid())
             {
-                scene->engine.graphicsEngine->drawModel(models[i].modelUuid, transforms[entity].globalMatrix);
+                scene->engine.graphicsEngine->drawModel(models[i].modelUuid, models[i].shaderUuid, transforms[entity].globalMatrix);
             }
         }
     }
