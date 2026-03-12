@@ -99,6 +99,11 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     updateProjectionMatrix(*cameraObject.camera);
 
     scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view, cameraObject.transform->position);
+
+    if (cameraObject.camera->skyboxTextureId != boost::uuids::nil_uuid()) {
+        scene->engine.graphicsEngine->drawSkybox(cameraObject.camera->skyboxTextureId, boost::uuids::nil_uuid());
+    }
+
     scene->engine.graphicsEngine->renderFrame();
 }
 

@@ -10,12 +10,18 @@
 
 namespace am
 {
+    enum class TextureType {
+        Texture2D,
+        TextureCube
+    };
+
     struct TextureData {
         std::vector<std::uint32_t> pixels;
         uint32_t width{0};
         uint32_t height{0};
         uint32_t channels{0};
         bool hasAlpha{false};
+        TextureType type;
     };
 }
 #endif //TEXTUREDATA_H

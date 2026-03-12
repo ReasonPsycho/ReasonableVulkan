@@ -32,6 +32,7 @@ namespace gfx {
         virtual void drawLight(DirectionalLightData directionalLightData, const glm::mat4& transform) = 0;
         virtual void loadModel(boost::uuids::uuid uuid) = 0;
         virtual void loadShader(boost::uuids::uuid uuid) = 0;
+        virtual void loadTexture(boost::uuids::uuid uuid) = 0;
 
         virtual void beginFrame() = 0;
         virtual void renderFrame() = 0;

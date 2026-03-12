@@ -41,6 +41,9 @@ int main(int argc, char *argv[]) {
     auto shader = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shader");
     vulkanRenderer->loadShader(shader->get()->id);
 
+    auto skybox = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.png");
+    vulkanRenderer->loadTexture(skybox->get()->id);
+
     auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
     vulkanRenderer->loadModel(asset->get()->id);
 
@@ -51,6 +54,7 @@ int main(int argc, char *argv[]) {
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");
     scene.get()->AddComponent<CameraComponent>(cameraEntity);
+    scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxTextureId = skybox->get()->id;
 
     auto lightEntity = scene.get()->CreateEntity("Light");
     scene.get()->AddComponent<LightComponent>(lightEntity);

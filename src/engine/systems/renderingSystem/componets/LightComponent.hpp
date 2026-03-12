@@ -43,8 +43,8 @@ namespace engine::ecs
         }
 
         void ShowImGui(Scene* scene, Component* component) const override;
-        void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
-        void DeserializeFromJson(const rapidjson::Value& obj) override;
+        void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
+        void DeserializeComponentFromJson(const rapidjson::Value& obj) override;
     };
 }
 

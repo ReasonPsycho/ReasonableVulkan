@@ -142,7 +142,7 @@ void ComponentArray<T>::SerializeToJson(rapidjson::Value& obj, rapidjson::Docume
 
         // Add component data
         rapidjson::Value componentData(rapidjson::kObjectType);
-        componentArray[index].SerializeToJson(componentData, allocator);
+        componentArray[index].SerializeComponentToJson(componentData, allocator);
         componentObj.AddMember("data", componentData, allocator);
 
         // Add active state
@@ -179,7 +179,7 @@ void ComponentArray<T>::DeserializeFromJson(const rapidjson::Value& obj) {
 
                 // Create and deserialize component
                 T component;
-                component.DeserializeFromJson(componentObj["data"]);
+                component.DeserializeComponentFromJson(componentObj["data"]);
 
                 // Store component
                 componentArray[index] = component;

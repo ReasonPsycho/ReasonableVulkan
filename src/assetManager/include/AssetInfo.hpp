@@ -56,7 +56,7 @@ namespace am {
 
         // Method to get or load asset
         Asset *getAsset();
-        am::Asset* getAssetWithRelisingScene();
+        am::Asset* GetAssetWithRealisingScene();
 
         bool isAssetLoaded() const;
 
@@ -72,10 +72,10 @@ namespace am {
             other.isLoaded = false;
         }
 
-    void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+    void SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
 
         // Add this static method for deserialization
-    static AssetInfo DeserializeFromJson(const rapidjson::Value& obj);
+    static AssetInfo DeserializeAssetInfoFromJson(const rapidjson::Value& obj);
     };
 }
 

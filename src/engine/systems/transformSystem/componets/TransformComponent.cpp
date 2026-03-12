@@ -38,7 +38,7 @@ void TransformComponent::ShowImGui(Scene* scene, Component* component) const
     }
 }
 
-void TransformComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void TransformComponent::SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     // Position
     rapidjson::Value posArray(rapidjson::kArrayType);
@@ -63,7 +63,7 @@ void TransformComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Docum
     obj.AddMember("scale", scaleArray, allocator);
 }
 
-void TransformComponent::DeserializeFromJson(const rapidjson::Value& obj)
+void TransformComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("position") && obj["position"].IsArray()) {
         const auto& posArray = obj["position"];

@@ -1,0 +1,118 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "metadata": [
+    {
+      "id": "03feadb3-4356-4124-9173-2ec039c4b6f4",
+      "path": "persistent_asset.txt",
+      "type": "Other",
+      "contentHash": 1337,
+      "assetFactoryData": {
+        "path": "persistent_asset.txt",
+        "assetType": "Other",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "60aeacc1-162b-4f41-9475-97674f9a9b52",
+      "path": "a.txt",
+      "type": "Other",
+      "contentHash": 98765,
+      "assetFactoryData": {
+        "path": "a.txt",
+        "assetType": "Other",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "0b1b15a5-c450-47e6-8a9b-798a1c107d17",
+      "path": "test_path.txt",
+      "type": "Other",
+      "contentHash": 12345,
+      "assetFactoryData": {
+        "path": "test_path.txt",
+        "assetType": "Other",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "413fca43-e9a5-4bff-82a6-13b5403ec720",
+      "path": "res/models/my/NonExistent.fbx",
+      "type": "Model",
+      "contentHash": 18368653695892694676,
+      "assetFactoryData": {
+        "path": "res/models/my/NonExistent.fbx",
+        "assetType": "Model",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "1f0766fe-1127-472b-87cb-b6cd556ce50d",
+      "path": "res/models/my/Sphere.fbx",
+      "type": "Mesh",
+      "contentHash": 14574799872376708562,
+      "assetFactoryData": {
+        "path": "res/models/my/Sphere.fbx",
+        "assetType": "Mesh",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "fddbfc85-362e-44f6-8764-599c7024eda8",
+      "path": "unique_persistent_asset.txt",
+      "type": "Other",
+      "contentHash": 13337,
+      "assetFactoryData": {
+        "path": "unique_persistent_asset.txt",
+        "assetType": "Other",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "675b4b8b-1524-4781-a1b5-a4d7fb72949d",
+      "path": "res/models/my/Plane.fbx",
+      "type": "Mesh",
+      "contentHash": 17222296131364895489,
+      "assetFactoryData": {
+        "path": "res/models/my/Plane.fbx",
+        "assetType": "Mesh",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "ab2c4af4-2bd2-4d81-9aa9-54da4c7eb7d5",
+      "path": "res/models/my/Box.fbx",
+      "type": "Material",
+      "contentHash": 14155052398985544291,
+      "assetFactoryData": {
+        "path": "res/models/my/Box.fbx",
+        "assetType": "Material",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "09978da3-254f-4cdb-b6fa-40c733b3b1b4",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Sphere.fbm\\rock-wall-mortar_albedo.png",
+      "type": "Texture",
+      "contentHash": 14155052396331108522,
+      "assetFactoryData": {
+        "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Sphere.fbm\\rock-wall-mortar_albedo.png",
+        "assetType": "Texture",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "7626bef9-a89b-4b69-a4fc-c52832287053",
+      "path": "meta_test_asset.txt",
+      "type": "Other",
+      "contentHash": 42,
+      "assetFactoryData": {
+        "path": "meta_test_asset.txt",
+        "assetType": "Other",
+        "assimpIndex": 0
+      }
+    }
+  ]
+}

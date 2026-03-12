@@ -9,6 +9,7 @@
 #include "src/renderPipelineManager/RenderpipelineManager.hpp"
 #include <stdexcept>
 #include "src/descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
+#include "src/descriptorManager/modelDescriptor/descriptors/textureDescriptor/TextureDescriptor.h"
 #include <SDL3/SDL_vulkan.h>
 
 #include "src/imguiManager/ImguiManager.hpp"
@@ -72,6 +73,10 @@ namespace vks {
         descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(uuid);
     }
 
+    void VulkanRenderer::loadTexture(boost::uuids::uuid uuid) {
+        descriptorManager->getOrLoadResource<TextureDescriptor>(uuid);
+    }
+
     void VulkanRenderer::drawModel(boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) {
     if (shaderId.is_nil()){
         shaderId = pbrShaderId;
@@ -81,6 +86,9 @@ namespace vks {
 
     void VulkanRenderer::drawSkybox(boost::uuids::uuid textureId, boost::uuids::uuid shaderId)
     {
+        if (shaderId.is_nil()){
+            shaderId = skyboxShaderId;
+        }
         renderManager->submitSkyboxRenderCommand(textureId, shaderId);
     }
 

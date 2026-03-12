@@ -103,7 +103,7 @@ void IntegralComponentArray<T>::SerializeToJson(rapidjson::Value& obj, rapidjson
 
             // Store component data
             rapidjson::Value componentData(rapidjson::kObjectType);
-            componentArray[entity].SerializeToJson(componentData, allocator);
+            componentArray[entity].SerializeComponentToJson(componentData, allocator);
             componentObj.AddMember("data", componentData, allocator);
 
             components.PushBack(componentObj, allocator);
@@ -129,7 +129,7 @@ void IntegralComponentArray<T>::DeserializeFromJson(const rapidjson::Value& obj)
 
                 // Create and deserialize component
                 T component;
-                component.DeserializeFromJson(componentObj["data"]);
+                component.DeserializeComponentFromJson(componentObj["data"]);
 
                 // Store component and mark as active
                 componentArray[entity] = component;

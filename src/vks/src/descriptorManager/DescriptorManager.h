@@ -85,6 +85,13 @@ namespace vks {
         VkImageView defaultImageView = VK_NULL_HANDLE;
         VkDeviceMemory defaultImageMemory = VK_NULL_HANDLE;
 
+        //Cube sampler
+        VkSampler cubeSampler = VK_NULL_HANDLE;
+        VkDescriptorImageInfo cubeImageInfo = {};
+        VkImage cubeImage = VK_NULL_HANDLE;
+        VkImageView cubeImageView = VK_NULL_HANDLE;
+        VkDeviceMemory cubeImageMemory = VK_NULL_HANDLE;
+
         // Resource cache
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<IVulkanDescriptor>> loadedResources;
         SceneUBO sceneUBO;

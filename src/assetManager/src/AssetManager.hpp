@@ -1,6 +1,7 @@
 #ifndef ASSETMANAGER_HPP
 #define ASSETMANAGER_HPP
 
+#include <typeindex>
 #include "stb_image.h"
 
 #include <boost/uuid/uuid.hpp>
@@ -29,6 +30,8 @@
 namespace am {
     class AssetManager : public AssetManagerInterface {
         using AssetFactory = std::function<std::unique_ptr<am::Asset>(am::AssetFactoryData &)>;
+        using MetadataLoader = std::function<void(am::Asset&, rapidjson::Document&)>;
+        using MetadataSaver  = std::function<void(am::Asset&, rapidjson::Document&)>;
 
     public:
         AssetManager(const AssetManager&) = delete;
@@ -39,7 +42,12 @@ namespace am {
 
         //Factories
         AssetFactory getFactory(AssetType type) const;
-        void registerFactory(AssetType type, AssetFactory factory);
+        AssetFactory getFactory(std::type_index type) const;
+
+        template<typename T>
+        AssetFactory getFactory() const {
+            return getFactory(std::type_index(typeid(T)));
+        }
 
         //Assets
         std::optional<std::shared_ptr<AssetInfo>> registerAsset(std::string path) override;
@@ -55,12 +63,15 @@ namespace am {
         //UUIDS
         template <typename T>
         std::shared_ptr<T> getByUUID(const boost::uuids::uuid &id);
+
+        template <typename T>
+        void RegisterAssetType();
+
         [[nodiscard]] std::vector<boost::uuids::uuid> getUUIDsByPath(const std::string &path) const;
 
         //Json
-        bool saveMetadataToFile(const std::string& filename) const;
-        bool loadMetadataFromFile(const std::string& filename);
-
+        bool saveRegistryMetadataToFile(const std::string& filename) const;
+        bool loadRegistryMetadataFromFile(const std::string& filename);
 
     private:
         AssetManager();
@@ -69,7 +80,9 @@ namespace am {
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, std::vector<boost::uuids::uuid>> pathToUUIDs;
-        std::unordered_map<AssetType, AssetFactory> factories;
+        std::unordered_map<std::type_index, AssetFactory> factories;
+        std::unordered_map<std::type_index, MetadataSaver> savers;
+        std::unordered_map<std::type_index, MetadataLoader> loaders;
 
     #ifdef AM_ENABLE_TESTS
         friend struct AssetManagerTestFixture;

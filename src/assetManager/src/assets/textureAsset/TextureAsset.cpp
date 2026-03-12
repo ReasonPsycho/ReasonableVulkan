@@ -38,6 +38,8 @@ namespace am
         // Free the stb_image data
         stbi_image_free(fileData);
 
+        data.type = TextureType::Texture2D;
+
         spdlog::info("Loaded texture: {} ({}x{}, {} channels)",
                      path, width, height, channels);
     }
@@ -71,5 +73,34 @@ namespace am
     AssetType TextureAsset::getType() const
     {
         return AssetType::Texture;
+    }
+
+    void TextureAsset::SaveAssetMetadata(rapidjson::Document& document)
+    {
+        auto& allocator = document.GetAllocator();
+
+        std::string typeStr;
+        switch (data.type) {
+        case TextureType::Texture2D: typeStr = "Texture2D"; break;
+        case TextureType::TextureCube: typeStr = "TextureCube"; break;
+        }
+
+        document.AddMember(
+            rapidjson::Value("type", allocator),
+            rapidjson::Value(typeStr.c_str(), allocator),
+            allocator
+        );
+    }
+
+    void TextureAsset::LoadAssetMetadata(rapidjson::Document& document)
+    {
+        if (document.HasMember("type") && document["type"].IsString()) {
+            std::string typeStr = document["type"].GetString();
+            if (typeStr == "Texture2D") {
+                data.type = TextureType::Texture2D;
+            } else if (typeStr == "TextureCube") {
+                data.type = TextureType::TextureCube;
+            }
+        }
     }
 }
