@@ -203,19 +203,19 @@ namespace vks
         // Fill them based on define
         for (auto def : combinedDefines) {
             switch (def) {
-                case ShaderDefinesEnum::SCENE_UBO_GLSL: combinedLayouts[0] = descriptorManager->getSceneLayout(); break;
-                case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getMaterialLayout(); break;
-                case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
-                case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
+            case ShaderDefinesEnum::SCENE_UBO_GLSL: combinedLayouts[0] = descriptorManager->getSceneLayout(); break;
+            case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getMaterialLayout(); break;
+            case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
+            case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
             }
         }
-        
+
         // Check for any null layouts in the sequence (up to maxSet)
         for (int i = 0; i <= maxSet; ++i) {
             if (combinedLayouts[i] == VK_NULL_HANDLE) {
                 // If a shader skips a set, we still need a valid (but possibly empty) layout if it's not the last one
                 // However, our current shaders use sets 0, 1, 2, 3 in order.
-                // For now, let's log or use a dummy if needed. 
+                // For now, let's log or use a dummy if needed.
                 // Given the issue, we just need to make sure Material is at index 1.
             }
         }
@@ -294,15 +294,20 @@ namespace vks
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
-            VertexComponent::Position,
-            VertexComponent::Normal,
-            VertexComponent::UV,
-            VertexComponent::Color,
-            VertexComponent::Tangent,
-            VertexComponent::Bitangent
-        });
 
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
+        {
+            pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
+                VertexComponent::Position,
+                VertexComponent::Normal,
+                VertexComponent::UV,
+                VertexComponent::Color,
+                VertexComponent::Tangent,
+                VertexComponent::Bitangent
+            });
+        }else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
+        {
+        }
         VkPipeline pipelineHandle = VK_NULL_HANDLE;
         if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelineHandle)
             != VK_SUCCESS)

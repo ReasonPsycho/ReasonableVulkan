@@ -35,7 +35,8 @@ namespace vks {
 
 
         // Get descriptor set layouts
-        VkDescriptorSetLayout materialLayout{VK_NULL_HANDLE};
+        VkDescriptorSetLayout pbrMaterialLayout{VK_NULL_HANDLE};
+        VkDescriptorSetLayout skyboxMaterialLayout{VK_NULL_HANDLE};
         VkDescriptorSetLayout meshUniformLayout{VK_NULL_HANDLE};
         VkDescriptorSetLayout sceneLayout{VK_NULL_HANDLE};
         VkDescriptorSetLayout lightsLayout{VK_NULL_HANDLE};
@@ -72,7 +73,7 @@ namespace vks {
         VkDescriptorPool skyboxPool{VK_NULL_HANDLE};
 
         // Descriptor set layouts
-        VkDescriptorSetLayout getMaterialLayout() const { return materialLayout; }
+        VkDescriptorSetLayout getMaterialLayout() const { return pbrMaterialLayout; }
         VkDescriptorSetLayout getMeshUniformLayout() const { return meshUniformLayout; }
         VkDescriptorSetLayout getSceneLayout() const { return sceneLayout; }
         VkDescriptorSetLayout getLightsLayout() const { return lightsLayout; }

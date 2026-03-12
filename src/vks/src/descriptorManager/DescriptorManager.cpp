@@ -84,9 +84,9 @@ namespace vks
         loadedResources.clear();
 
         // Destroy descriptor sets layouts
-        if (materialLayout != VK_NULL_HANDLE)
+        if (pbrMaterialLayout != VK_NULL_HANDLE)
         {
-            vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+            vkDestroyDescriptorSetLayout(device, pbrMaterialLayout, nullptr);
         }
         if (meshUniformLayout != VK_NULL_HANDLE)
         {
@@ -366,7 +366,7 @@ namespace vks
                 throw std::runtime_error("failed to create scene descriptor set layout!");
             }
 
-            // Set 1: Material descriptors (sampler + images)
+            // Set 1: pbr Material descriptors (sampler + images)
             std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
                 {
                     .binding = 0,
@@ -396,10 +396,39 @@ namespace vks
             materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
             materialLayoutInfo.pBindings = materialBindings.data();
 
-            if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &materialLayout) !=
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &pbrMaterialLayout) !=
                 VK_SUCCESS)
             {
                 throw std::runtime_error("failed to create material descriptor set layout!");
+            }
+
+            // Set idk: skybox descriptors (sampler + images)
+            std::vector<VkDescriptorSetLayoutBinding> skyboxMaterialBindings = {
+                    {
+                        .binding = 0,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                        .pImmutableSamplers = nullptr
+                    },
+                    {
+                        .binding = 1,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                        .pImmutableSamplers = nullptr
+                    },
+            };
+
+            VkDescriptorSetLayoutCreateInfo skyboxMaterialLayoutInfo{};
+            skyboxMaterialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            skyboxMaterialLayoutInfo.bindingCount = static_cast<uint32_t>(skyboxMaterialBindings.size());
+            skyboxMaterialLayoutInfo.pBindings = skyboxMaterialBindings.data();
+
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &skyboxMaterialLayoutInfo, nullptr, &skyboxMaterialLayout) !=
+                VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create skyboxMaterial descriptor set layout!");
             }
 
             // Set 2: Mesh/Vertex shader uniforms
@@ -466,7 +495,7 @@ namespace vks
 
     std::vector<VkDescriptorSetLayout> DescriptorManager::getAllLayouts() const
     {
-        return {sceneLayout, materialLayout, meshUniformLayout, lightsLayout};  // Order: 0, 1, 2, 3
+        return {sceneLayout, pbrMaterialLayout, meshUniformLayout, lightsLayout};  // Order: 0, 1, 2, 3
     }
 
     bool DescriptorManager::isResourceLoaded(const boost::uuids::uuid& assetId)
@@ -712,7 +741,10 @@ namespace vks
                 layouts.push_back(meshUniformLayout);
                 break;
             case MATERIAL_PBR_GLSL:
-                layouts.push_back(materialLayout);
+                layouts.push_back(pbrMaterialLayout);
+                break;
+            case MATERIAL_SKYBOX_GLSL:
+                layouts.push_back(skyboxMaterialLayout);
                 break;
             }
         }
