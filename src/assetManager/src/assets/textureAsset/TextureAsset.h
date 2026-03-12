@@ -38,6 +38,9 @@ namespace am {
             return data.pixels.size() ;
         }
 
+        void SaveAssetMetadata(rapidjson::Document& document) override;
+        void LoadAssetMetadata(rapidjson::Document& document) override;
+
         void* getAssetData() override { return &data; }
     private:
         TextureData data;

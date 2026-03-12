@@ -3,6 +3,7 @@
 #define CAMERA_H
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <boost/uuid/nil_generator.hpp>
 #include "ecs/Component.hpp"
 
 namespace engine::ecs
@@ -18,15 +19,15 @@ namespace engine::ecs
         // Cached matrices
         glm::mat4 projection;
         glm::mat4 view;
-        glm::vec4 lightpos;
+        boost::uuids::uuid skyboxTextureId;
 
         bool isDirty = true;
-        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f),lightpos(0.0f) {}
+        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f), skyboxTextureId(boost::uuids::nil_uuid()) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
 
-        void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
-        void DeserializeFromJson(const rapidjson::Value& obj) override;
+        void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
+        void DeserializeComponentFromJson(const rapidjson::Value& obj) override;
     };
 
 
@@ -69,11 +70,6 @@ inline void updateProjectionMatrix(CameraComponent& camera)
         camera.isDirty = true;
     }
 
-    inline void setLightPosition(CameraComponent& camera, const glm::vec4& lightPos)
-    {
-        camera.lightpos = lightPos;
-    }
-
     // Getters
     inline float getFov(const CameraComponent& camera)
     {
@@ -108,9 +104,14 @@ inline void updateProjectionMatrix(CameraComponent& camera)
         return camera.view;
     }
 
-    inline const glm::vec4& getLightPosition(const CameraComponent& camera)
+    inline void setSkyboxTextureId(CameraComponent& camera, const boost::uuids::uuid& textureId)
     {
-        return camera.lightpos;
+        camera.skyboxTextureId = textureId;
+    }
+
+    inline const boost::uuids::uuid& getSkyboxTextureId(const CameraComponent& camera)
+    {
+        return camera.skyboxTextureId;
     }
 
     inline bool isDirty(const CameraComponent& camera)

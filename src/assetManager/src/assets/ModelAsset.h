@@ -41,6 +41,8 @@ namespace am {
         [[nodiscard]] AssetType getType() const override;
 
         [[nodiscard]] size_t calculateContentHash() const override;
+        void SaveAssetMetadata(rapidjson::Document& document) override {}
+        void LoadAssetMetadata(rapidjson::Document& document) override {}
 
         void* getAssetData() override { return &data; }
     private:

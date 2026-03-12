@@ -23,6 +23,9 @@ namespace am {
             return static_cast<T*>(getAssetData());
         }
 
+        virtual void SaveAssetMetadata(rapidjson::Document& document) = 0;
+        virtual void LoadAssetMetadata(rapidjson::Document& document) = 0;
+
     protected:
         std::string path;
         boost::uuids::uuid id;

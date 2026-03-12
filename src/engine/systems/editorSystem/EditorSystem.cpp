@@ -293,8 +293,9 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 
 void EditorSystem::Initialize()
 {
-        SetUpCameraControls(scene->engine.platform);
-
+    SetUpCameraControls(scene->engine.platform);;
+    camera.skyboxTextureId = scene->engine.assetManagerInterface->registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.png").value().get()->id;
+    scene->engine.graphicsEngine->loadTexture(camera.skyboxTextureId);
 }
 
 

@@ -46,6 +46,9 @@ namespace am {
 
         [[nodiscard]] ShaderStage getStage() const;
 
+        void SaveAssetMetadata(rapidjson::Document& document) override {}
+        void LoadAssetMetadata(rapidjson::Document& document) override {}
+
         void* getAssetData() override { return &data; }
     private:
         ShaderData data;

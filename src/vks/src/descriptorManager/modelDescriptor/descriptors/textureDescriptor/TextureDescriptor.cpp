@@ -7,7 +7,6 @@
 
 
 void vks::TextureDescriptor::updateDescriptor() {
-	descriptor.sampler = sampler;
 	descriptor.imageView = view;
 	descriptor.imageLayout = imageLayout;
 }
@@ -17,10 +16,8 @@ void vks::TextureDescriptor::destroy() {
 		vkDestroyImageView(device, view, nullptr);
 		vkDestroyImage(device, image, nullptr);
 		vkFreeMemory(device, deviceMemory, nullptr);
-		vkDestroySampler(device, sampler, nullptr);
 	}
 }
-// Modified `fromglTfImage` function
 
 vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am::TextureData& textureData,VkSampler sampler, VulkanContext& vulkanContext)
     : IVulkanDescriptor(assetId, vulkanContext) {
@@ -140,23 +137,6 @@ vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am:
     // Clean up staging resources
     vkDestroyBuffer(vulkanContext.getDevice(), stagingBuffer, nullptr);
     vkFreeMemory(vulkanContext.getDevice(), stagingMemory, nullptr);
-
-    /*
-    // Create sampler
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.maxLod = static_cast<float>(mipLevels);
-    samplerInfo.maxAnisotropy = 8.0f;
-    samplerInfo.anisotropyEnable = VK_TRUE;
-
-    VK_CHECK_RESULT(vkCreateSampler(vulkanContext.getDevice(), &samplerInfo, nullptr, &sampler));
-    */
 
     // Create image view
     VkImageViewCreateInfo viewInfo{};

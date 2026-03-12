@@ -24,7 +24,7 @@ am::Asset *am::AssetInfo::getAsset() {
     return AssetManager::getInstance().getAsset(id).value();
 }
 
-am::Asset *am::AssetInfo::getAssetWithRelisingScene() {
+am::Asset *am::AssetInfo::GetAssetWithRealisingScene() {
     auto* asset = AssetManager::getInstance().getAsset(id).value();
     AssetManager& assetManager = AssetManager::getInstance();
     Assimp::Importer& importer = assetManager.importer;
@@ -36,7 +36,7 @@ bool am::AssetInfo::isAssetLoaded() const {
     return isLoaded;
 }
 
-void am::AssetInfo::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void am::AssetInfo::SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     // Convert UUID to string
     std::string uuidStr = boost::uuids::to_string(id);
@@ -55,7 +55,7 @@ void am::AssetInfo::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::
     obj.AddMember("assetFactoryData", factoryDataObj, allocator);
 }
 
-am::AssetInfo am::AssetInfo::DeserializeFromJson(const rapidjson::Value& obj)
+am::AssetInfo am::AssetInfo::DeserializeAssetInfoFromJson(const rapidjson::Value& obj)
 {
     boost::uuids::string_generator gen;
     boost::uuids::uuid id = gen(obj["id"].GetString());

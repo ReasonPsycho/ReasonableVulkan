@@ -69,7 +69,7 @@ void engine::ecs::LightComponent::ShowImGui(Scene* scene, Component* component) 
     }
 }
 
-void engine::ecs::LightComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void engine::ecs::LightComponent::SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     obj.AddMember("lightType", static_cast<int>(type), allocator);
 
@@ -105,7 +105,7 @@ void engine::ecs::LightComponent::SerializeToJson(rapidjson::Value& obj, rapidjs
     }
 }
 
-void engine::ecs::LightComponent::DeserializeFromJson(const rapidjson::Value& obj)
+void engine::ecs::LightComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("lightType") && obj["lightType"].IsInt()) {
         type = static_cast<Type>(obj["lightType"].GetInt());

@@ -17,52 +17,23 @@ namespace am {
 
     AssetManager::AssetManager()
     {
-        // Register all known asset types
-        registerFactory(AssetType::Material,
-            [](am::AssetFactoryData &factoryData) {
-                return std::unique_ptr<MaterialAsset>(new MaterialAsset(factoryData));
-            }
-        );
+        RegisterAssetType<MaterialAsset>();
+        RegisterAssetType<TextureAsset>();
+        RegisterAssetType<ShaderAsset>();
+        RegisterAssetType<ShaderProgramAsset>();
+        RegisterAssetType<ModelAsset>();
+        RegisterAssetType<MeshAsset>();
 
-        registerFactory(AssetType::Texture,
-          [](am::AssetFactoryData &factoryData) {
-              return std::unique_ptr<TextureAsset>(new TextureAsset(factoryData));
-          }
-      );
-
-        registerFactory(AssetType::Shader,
-        [](am::AssetFactoryData &factoryData) {
-            return std::unique_ptr<ShaderAsset>(new ShaderAsset(factoryData));
-        }
-    );
-
-        registerFactory(AssetType::ShaderProgram,
-        [](am::AssetFactoryData &factoryData) {
-            return std::unique_ptr<ShaderProgramAsset>(new ShaderProgramAsset(factoryData));
-        }
-    );
-
-        registerFactory(AssetType::Model,
-          [](am::AssetFactoryData &factoryData) {
-              return std::unique_ptr<ModelAsset>(new ModelAsset(factoryData));
-          }
-      );
-        registerFactory(AssetType::Mesh,
-          [](am::AssetFactoryData &factoryData) {
-              return std::unique_ptr<MeshAsset>(new MeshAsset(factoryData));
-          }
-      );
-
-        loadMetadataFromFile("metadatas.json");
+        loadRegistryMetadataFromFile("metadatas.json");
     }
 
     AssetManager::~AssetManager() {
-        saveMetadataToFile("metadatas.json");
+        saveRegistryMetadataToFile("metadatas.json");
     }
 
 
 
-bool AssetManager::saveMetadataToFile(const std::string& filename) const {
+bool AssetManager::saveRegistryMetadataToFile(const std::string& filename) const {
     try {
         rapidjson::Document document;
         document.SetObject();
@@ -79,7 +50,7 @@ bool AssetManager::saveMetadataToFile(const std::string& filename) const {
 
         for (const auto& [uuid, info] : metadata) {
             rapidjson::Value assetInfoObj(rapidjson::kObjectType);
-            info->SerializeToJson(assetInfoObj, allocator);
+            info->SerializeAssetInfoToJson(assetInfoObj, allocator);
             metadataArray.PushBack(assetInfoObj, allocator);
         }
 
@@ -113,7 +84,7 @@ bool AssetManager::saveMetadataToFile(const std::string& filename) const {
     }
 }
 
-bool AssetManager::loadMetadataFromFile(const std::string& filename) {
+bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
     try {
         std::ifstream ifs(filename, std::ios::binary);
         if (!ifs.is_open()) {
@@ -150,7 +121,7 @@ bool AssetManager::loadMetadataFromFile(const std::string& filename) {
         // Load metadata
         const auto& metadataArray = document["metadata"].GetArray();
         for (const auto& assetInfoValue : metadataArray) {
-            auto assetInfo = AssetInfo::DeserializeFromJson(assetInfoValue);
+            auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(assetInfoValue);
             auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
             metadata[infoPtr->id] = infoPtr;
             pathToUUIDs[infoPtr->path].push_back(infoPtr->id);
@@ -177,13 +148,13 @@ bool AssetManager::loadMetadataFromFile(const std::string& filename) {
             }
 
             // Create and load the asset to calculate its hash
-            auto factoryIt = factories.find(factoryContext->assetType);
-            if (factoryIt == factories.end()) {
+            auto factory = getFactory(factoryContext->assetType);
+            if (!factory) {
                 spdlog::error("No factory registered for asset type");
                 throw std::runtime_error("No factory registered for asset type");
             }
 
-            std::unique_ptr<Asset> newAsset = factoryIt->second(*factoryContext);
+            std::unique_ptr<Asset> newAsset = factory(*factoryContext);
             size_t contentHash = newAsset->calculateContentHash();
 
             // Check if we have an asset with the same content hash
@@ -228,10 +199,6 @@ bool AssetManager::loadMetadataFromFile(const std::string& filename) {
     }
 
 
-    void AssetManager::registerFactory(AssetType type, AssetFactory factory) {
-        factories[type] = std::move(factory);
-    }
-
     AssetManager &AssetManager::getInstance() {
         static AssetManager instance;
         return instance;
@@ -259,16 +226,82 @@ bool AssetManager::loadMetadataFromFile(const std::string& filename) {
         auto assetInfo = metadata.find(id);
         if (assetInfo == metadata.end()) return std::nullopt;
 
-        auto factory = getFactory(assetInfo->second.get()->type);
+        auto factory = getFactory(assetInfo->second->type);
         if (factory) {
-            auto loadResult = factory(assetInfo->second.get()->assetFactoryData);
-            if (!loadResult) {
-                spdlog::error("Failed to load asset: {}", assetInfo->second.get()->path);
-                throw std::runtime_error("Failed to load asset: " +  assetInfo->second.get()->path);
+            auto assetPtr = factory(assetInfo->second->assetFactoryData);
+            if (!assetPtr)
+            {
+                spdlog::error("Failed to load asset: {}", assetInfo->second->path);
+                throw std::runtime_error("Failed to load asset: " +  assetInfo->second->path);
             }
-            assets[id] = std::move(loadResult);
-            assetInfo->second.get()->loadedAsset = assets[id].get();
-            assetInfo->second.get()->isLoaded = true;
+
+            std::string filename = assetInfo->second->path;
+
+            size_t lastDot = filename.find_last_of('.');
+            if (lastDot != std::string::npos)
+                filename = filename.substr(0, lastDot) + ".meta";
+            else
+                filename += ".meta"; // fallback if no extension
+
+            std::ifstream ifs(filename, std::ios::binary);
+            if (!ifs.is_open()) {
+                spdlog::info("Unable to read metadata for file: {}, creating new.", filename);
+
+                rapidjson::Document document;
+                document.SetObject();
+                auto& allocator = document.GetAllocator();
+
+                // Add encoding information
+                rapidjson::Value encodingInfo(rapidjson::kObjectType);
+                encodingInfo.AddMember("encoding", "UTF-8", allocator);
+                encodingInfo.AddMember("version", "1.0", allocator);
+                document.AddMember("_meta", encodingInfo, allocator);
+
+                assetPtr->SaveAssetMetadata(document);
+
+                // Convert to string with pretty printing
+                rapidjson::StringBuffer buffer;
+                rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+                writer.SetIndent(' ', 2);
+                document.Accept(writer);
+
+                // Save to file
+                std::ofstream ofs(filename, std::ios::out | std::ios::binary);
+                if (!ofs.is_open()) {
+                    spdlog::error("Failed to open file for writing: {}", filename);
+                    return std::nullopt;
+                }
+
+                // Write UTF-8 BOM
+                const char bom[3] = { static_cast<char>(0xEF), static_cast<char>(0xBB), static_cast<char>(0xBF) };
+                ofs.write(bom, 3);
+
+                // Write the JSON content
+                ofs.write(buffer.GetString(), buffer.GetSize());
+                ofs.close();
+            } else {
+                // Skip UTF-8 BOM if present
+                char bom[3];
+                ifs.read(bom, 3);
+                if (!(bom[0] == static_cast<char>(0xEF) &&
+                      bom[1] == static_cast<char>(0xBB) &&
+                      bom[2] == static_cast<char>(0xBF))) {
+                    ifs.seekg(0);
+                }
+
+                std::string json_content((std::istreambuf_iterator<char>(ifs)),
+                                       std::istreambuf_iterator<char>());
+
+                rapidjson::Document document;
+                document.Parse(json_content.c_str());
+
+                assetPtr->LoadAssetMetadata(document);
+            }
+            
+            assets[id] = std::move(assetPtr);
+
+            assetInfo->second->loadedAsset = assets[id].get();
+            assetInfo->second->isLoaded = true;
         }
 
         return assets[id].get();
@@ -296,6 +329,27 @@ bool AssetManager::loadMetadataFromFile(const std::string& filename) {
 
     AssetManager::AssetFactory AssetManager::getFactory(AssetType type) const
     {
+        switch (type) {
+            case AssetType::Mesh:
+                return getFactory(std::type_index(typeid(MeshAsset)));
+            case AssetType::Model:
+                return getFactory(std::type_index(typeid(ModelAsset)));
+            case AssetType::Texture:
+                return getFactory(std::type_index(typeid(TextureAsset)));
+            case AssetType::Shader:
+                return getFactory(std::type_index(typeid(ShaderAsset)));
+            case AssetType::ShaderProgram:
+                return getFactory(std::type_index(typeid(ShaderProgramAsset)));
+            case AssetType::Material:
+                return getFactory(std::type_index(typeid(MaterialAsset)));
+            default:
+                spdlog::error("Failed to get asset factory for AssetType: {}", (int)type);
+                throw std::runtime_error("Failed to get asset factory for AssetType!");
+        }
+    }
+
+    AssetManager::AssetFactory AssetManager::getFactory(std::type_index type) const
+    {
         auto it = factories.find(type);
         if(it != factories.end())
         {
@@ -303,6 +357,5 @@ bool AssetManager::loadMetadataFromFile(const std::string& filename) {
         }
         spdlog::error("Failed to get asset factory!");
         throw std::runtime_error("Failed to get asset factory!");
-
     }
 }

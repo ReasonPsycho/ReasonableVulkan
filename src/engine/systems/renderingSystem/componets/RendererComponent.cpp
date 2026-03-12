@@ -61,7 +61,7 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
 
 }
 
-void RendererComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void RendererComponent::SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     rapidjson::Value modelUuidStr;
     std::string modelUuidString = boost::uuids::to_string(modelUuid);
@@ -74,7 +74,7 @@ void RendererComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Docume
     obj.AddMember("shaderUuid", shaderUuidStr, allocator);
 }
 
-void RendererComponent::DeserializeFromJson(const rapidjson::Value& obj)
+void RendererComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("modelUuid") && obj["modelUuid"].IsString()) {
         std::string uuidStr = obj["modelUuid"].GetString();

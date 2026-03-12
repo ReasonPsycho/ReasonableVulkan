@@ -5,6 +5,8 @@
     // Utility functions
 
 #include <imgui.h>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/string_generator.hpp>
 #include "CameraComponent.hpp"
 #include "ecs/Scene.h"
 
@@ -19,6 +21,14 @@ auto typed = dynamic_cast<CameraComponent*>(component);
             changed |= ImGui::DragFloat("Aspect Ratio", &typed->aspectRatio, 0.01f, 0.1f, 10.0f);
             changed |= ImGui::DragFloat("Near Plane", &typed->nearPlane, 0.01f, 0.001f, typed->farPlane);
             changed |= ImGui::DragFloat("Far Plane", &typed->farPlane, 1.0f, typed->nearPlane, 10000.0f);
+            
+            std::string skyboxIdStr = boost::uuids::to_string(typed->skyboxTextureId);
+            if (ImGui::InputText("Skybox Texture UUID", &skyboxIdStr[0], skyboxIdStr.size() + 1)) {
+                try {
+                    typed->skyboxTextureId = boost::uuids::string_generator()(skyboxIdStr);
+                    changed = true;
+                } catch (...) {}
+            }
 
             if (changed) {
                 typed->isDirty = true;
@@ -42,37 +52,33 @@ auto typed = dynamic_cast<CameraComponent*>(component);
         }
     }
 
-void CameraComponent::SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
+void CameraComponent::SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
     obj.AddMember("fov", fov, allocator);
     obj.AddMember("aspectRatio", aspectRatio, allocator);
     obj.AddMember("nearPlane", nearPlane, allocator);
     obj.AddMember("farPlane", farPlane, allocator);
 
-    rapidjson::Value lightPosArray(rapidjson::kArrayType);
-    lightPosArray.PushBack(lightpos.x, allocator);
-    lightPosArray.PushBack(lightpos.y, allocator);
-    lightPosArray.PushBack(lightpos.z, allocator);
-    lightPosArray.PushBack(lightpos.w, allocator);
-    obj.AddMember("lightPosition", lightPosArray, allocator);
+    std::string skyboxIdStr = boost::uuids::to_string(skyboxTextureId);
+    rapidjson::Value skyboxIdVal;
+    skyboxIdVal.SetString(skyboxIdStr.c_str(), allocator);
+    obj.AddMember("skyboxTextureId", skyboxIdVal, allocator);
 }
 
-void CameraComponent::DeserializeFromJson(const rapidjson::Value& obj)
+void CameraComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("fov") && obj["fov"].IsFloat()) fov = obj["fov"].GetFloat();
     if (obj.HasMember("aspectRatio") && obj["aspectRatio"].IsFloat()) aspectRatio = obj["aspectRatio"].GetFloat();
     if (obj.HasMember("nearPlane") && obj["nearPlane"].IsFloat()) nearPlane = obj["nearPlane"].GetFloat();
     if (obj.HasMember("farPlane") && obj["farPlane"].IsFloat()) farPlane = obj["farPlane"].GetFloat();
 
-    if (obj.HasMember("lightPosition") && obj["lightPosition"].IsArray()) {
-        const auto& lightPosArray = obj["lightPosition"];
-        if (lightPosArray.Size() == 4) {
-            lightpos = glm::vec4(
-                lightPosArray[0].GetFloat(),
-                lightPosArray[1].GetFloat(),
-                lightPosArray[2].GetFloat(),
-                lightPosArray[3].GetFloat()
-            );
+
+
+    if (obj.HasMember("skyboxTextureId") && obj["skyboxTextureId"].IsString()) {
+        try {
+            skyboxTextureId = boost::uuids::string_generator()(obj["skyboxTextureId"].GetString());
+        } catch (...) {
+            skyboxTextureId = boost::uuids::nil_uuid();
         }
     }
     isDirty = true;

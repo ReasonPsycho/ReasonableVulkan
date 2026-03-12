@@ -23,16 +23,12 @@ namespace vks
         VkDeviceMemory deviceMemory;
         VkImageView view;
         uint32_t mipLevels;
-        uint32_t layerCount;
-        uint32_t index;
         VkDescriptorImageInfo descriptor;
-        VkSampler sampler;
 
         void updateDescriptor();
 
         void destroy();
         void cleanup() override {};
-        
         TextureDescriptor(const boost::uuids::uuid& assetId, am::TextureData& textureData,VkSampler sampler,VulkanContext& vulkanContext);
     };
 }
