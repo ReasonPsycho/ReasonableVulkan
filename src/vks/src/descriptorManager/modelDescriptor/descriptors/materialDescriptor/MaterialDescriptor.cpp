@@ -41,7 +41,7 @@ vks::MaterialDescriptor::MaterialDescriptor(const boost::uuids::uuid& assetId, D
     }
 
     // Setup descriptors - ALWAYS create descriptor set, even if no textures
-    setUpDescriptorSet(assetHandleManager->materialLayout, assetHandleManager->materialPool, assetHandleManager->defaultImageInfo);
+    setUpDescriptorSet(assetHandleManager->pbrMaterialLayout, assetHandleManager->materialPool, assetHandleManager->defaultImageInfo);
 }
 vks::MaterialDescriptor::~MaterialDescriptor() {
     delete baseColorTexture;
