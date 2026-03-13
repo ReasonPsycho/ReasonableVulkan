@@ -53,7 +53,7 @@ inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost:
         case am::AssetType::Texture:
             {
                 auto texture = std::make_unique<TextureDescriptor>(
-                    assetId, *assetPtr->getAssetDataAs<am::TextureData>(),defaultSampler,*context);
+                  assetId, this, *assetPtr->getAssetDataAs<am::TextureData>(),*context);
                 loadedResources[assetId] = std::move(texture);
                 return loadedResources[assetId].get();
                 break;

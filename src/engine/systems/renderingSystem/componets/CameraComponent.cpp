@@ -22,10 +22,10 @@ auto typed = dynamic_cast<CameraComponent*>(component);
             changed |= ImGui::DragFloat("Near Plane", &typed->nearPlane, 0.01f, 0.001f, typed->farPlane);
             changed |= ImGui::DragFloat("Far Plane", &typed->farPlane, 1.0f, typed->nearPlane, 10000.0f);
             
-            std::string skyboxIdStr = boost::uuids::to_string(typed->skyboxTextureId);
+            std::string skyboxIdStr = boost::uuids::to_string(typed->skyboxMaterialId);
             if (ImGui::InputText("Skybox Texture UUID", &skyboxIdStr[0], skyboxIdStr.size() + 1)) {
                 try {
-                    typed->skyboxTextureId = boost::uuids::string_generator()(skyboxIdStr);
+                    typed->skyboxMaterialId = boost::uuids::string_generator()(skyboxIdStr);
                     changed = true;
                 } catch (...) {}
             }
@@ -59,7 +59,7 @@ void CameraComponent::SerializeComponentToJson(rapidjson::Value& obj, rapidjson:
     obj.AddMember("nearPlane", nearPlane, allocator);
     obj.AddMember("farPlane", farPlane, allocator);
 
-    std::string skyboxIdStr = boost::uuids::to_string(skyboxTextureId);
+    std::string skyboxIdStr = boost::uuids::to_string(skyboxMaterialId);
     rapidjson::Value skyboxIdVal;
     skyboxIdVal.SetString(skyboxIdStr.c_str(), allocator);
     obj.AddMember("skyboxTextureId", skyboxIdVal, allocator);
@@ -76,9 +76,9 @@ void CameraComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
 
     if (obj.HasMember("skyboxTextureId") && obj["skyboxTextureId"].IsString()) {
         try {
-            skyboxTextureId = boost::uuids::string_generator()(obj["skyboxTextureId"].GetString());
+            skyboxMaterialId = boost::uuids::string_generator()(obj["skyboxTextureId"].GetString());
         } catch (...) {
-            skyboxTextureId = boost::uuids::nil_uuid();
+            skyboxMaterialId = boost::uuids::nil_uuid();
         }
     }
     isDirty = true;

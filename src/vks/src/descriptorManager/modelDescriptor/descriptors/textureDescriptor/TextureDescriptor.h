@@ -12,6 +12,8 @@
 
 namespace vks
 {
+    class DescriptorManager;
+
     struct TextureDescriptor : IVulkanDescriptor {
 
         uint32_t width{0};
@@ -29,7 +31,7 @@ namespace vks
 
         void destroy();
         void cleanup() override {};
-        TextureDescriptor(const boost::uuids::uuid& assetId, am::TextureData& textureData,VkSampler sampler,VulkanContext& vulkanContext);
+        TextureDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager, am::TextureData& textureData,VulkanContext& vulkanContext);
     };
 }
 

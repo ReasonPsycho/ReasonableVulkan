@@ -3,7 +3,8 @@
 //
 
 #include "TextureDescriptor.h"
-
+#include <spdlog/spdlog.h>
+#include "../../../DescriptorManager.h"
 
 
 void vks::TextureDescriptor::updateDescriptor() {
@@ -19,7 +20,7 @@ void vks::TextureDescriptor::destroy() {
 	}
 }
 
-vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am::TextureData& textureData,VkSampler sampler, VulkanContext& vulkanContext)
+vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager, am::TextureData& textureData,VulkanContext& vulkanContext)
     : IVulkanDescriptor(assetId, vulkanContext) {
     this->width = textureData.width;
     this->height = textureData.height;
@@ -29,7 +30,21 @@ vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am:
     // Set format based on channels
     VkFormat format = (channels == 4) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8_UNORM;
 
-    mipLevels = static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1.0);
+    uint32_t imageWidth = width;
+    uint32_t imageHeight = height;
+
+    if (textureData.type == am::TextureType::TextureCube) {
+        if (width != height) {
+            // Assume 4x3 grid if not square
+            imageWidth = width / 4;
+            imageHeight = height / 3;
+            if (imageWidth != imageHeight) {
+                spdlog::warn("Cube map face dimensions are not square: {}x{}", imageWidth, imageHeight);
+            }
+        }
+    }
+
+    mipLevels = static_cast<uint32_t>(floor(log2(std::max(imageWidth, imageHeight))) + 1.0);
 
     // Verify format support
     VkFormatProperties formatProperties;
@@ -60,9 +75,14 @@ vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am:
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
     imageCreateInfo.format = format;
-    imageCreateInfo.extent = {width, height, 1};
+    imageCreateInfo.extent = {imageWidth, imageHeight, 1};
     imageCreateInfo.mipLevels = mipLevels;
-    imageCreateInfo.arrayLayers = 1;
+    if (textureData.type == am::TextureType::TextureCube) {
+        imageCreateInfo.arrayLayers = 6;
+        imageCreateInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    } else {
+        imageCreateInfo.arrayLayers = 1;
+    }
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -99,7 +119,11 @@ vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am:
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    if (textureData.type == am::TextureType::TextureCube) {
+        barrier.subresourceRange.layerCount = 6;
+    } else {
+        barrier.subresourceRange.layerCount = 1;
+    }
     barrier.srcAccessMask = 0;
     barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
@@ -110,15 +134,55 @@ vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am:
         1, &barrier);
 
     // Copy buffer to image
-    VkBufferImageCopy copyRegion{};
-    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    copyRegion.imageSubresource.mipLevel = 0;
-    copyRegion.imageSubresource.baseArrayLayer = 0;
-    copyRegion.imageSubresource.layerCount = 1;
-    copyRegion.imageExtent = {width, height, 1};
+    if (textureData.type == am::TextureType::TextureCube && width != height) {
+        std::vector<VkBufferImageCopy> copyRegions;
+        // Standard 4x3 layout:
+        //     [+Y]
+        // [-X][+Z][+X][-Z]
+        //     [-Y]
+        // Map to Vulkan faces: 0:+X, 1:-X, 2:+Y, 3:-Y, 4:+Z, 5:-Z
 
-    vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer, image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        struct FacePos { int row; int col; };
+        FacePos facePositions[6] = {
+            {1, 2}, // +X
+            {1, 0}, // -X
+            {0, 1}, // +Y
+            {2, 1}, // -Y
+            {1, 1}, // +Z
+            {1, 3}  // -Z
+        };
+
+        for (uint32_t i = 0; i < 6; i++) {
+            VkBufferImageCopy region{};
+            region.bufferOffset = (facePositions[i].row * imageHeight * width + facePositions[i].col * imageWidth) * 4;
+            region.bufferRowLength = width; // Crucial: row length is the full width of the source grid
+            region.bufferImageHeight = height;
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.mipLevel = 0;
+            region.imageSubresource.baseArrayLayer = i;
+            region.imageSubresource.layerCount = 1;
+            region.imageOffset = {0, 0, 0};
+            region.imageExtent = {imageWidth, imageHeight, 1};
+            copyRegions.push_back(region);
+        }
+
+        vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer, image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32_t>(copyRegions.size()), copyRegions.data());
+    } else {
+        VkBufferImageCopy copyRegion{};
+        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.baseArrayLayer = 0;
+        if (textureData.type == am::TextureType::TextureCube) {
+            copyRegion.imageSubresource.layerCount = 6;
+        } else {
+            copyRegion.imageSubresource.layerCount = 1;
+        }
+        copyRegion.imageExtent = {imageWidth, imageHeight, 1};
+
+        vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer, image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    }
 
     // Transition to shader read layout
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -142,17 +206,32 @@ vks::TextureDescriptor::TextureDescriptor(const boost::uuids::uuid& assetId, am:
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    if (textureData.type == am::TextureType::TextureCube) {
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+    } else {
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    }
     viewInfo.format = format;
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = mipLevels;
-    viewInfo.subresourceRange.layerCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    if (textureData.type == am::TextureType::TextureCube) {
+        viewInfo.subresourceRange.layerCount = 6;
+    } else {
+        viewInfo.subresourceRange.layerCount = 1;
+    }
 
     VK_CHECK_RESULT(vkCreateImageView(vulkanContext.getDevice(), &viewInfo, nullptr, &view));
 
+    if (textureData.type == am::TextureType::Texture2D)
+    {
+        descriptor.sampler = assetHandleManager->defaultSampler;
+    }else
+    {
+        descriptor.sampler = assetHandleManager->cubeSampler;
+    }
     // Update descriptor
-    descriptor.sampler = sampler;  // Use the provided sampler
     descriptor.imageView = view;
     descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 }

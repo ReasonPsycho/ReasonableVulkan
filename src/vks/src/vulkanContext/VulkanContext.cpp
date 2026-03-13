@@ -575,6 +575,9 @@ void vks::VulkanContext::endSingleTimeCommands(VkCommandBuffer commandBuffer, Qu
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue);
 
+    // Wait for the device to be idle as well to ensure validation layers don't complain about command buffer in use
+    vkDeviceWaitIdle(device);
+
     vkFreeCommandBuffers(device, getCommandPool(queueType), 1, &commandBuffer);
 }
 

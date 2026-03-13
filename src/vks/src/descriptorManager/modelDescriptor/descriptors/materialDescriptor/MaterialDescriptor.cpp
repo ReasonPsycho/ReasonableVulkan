@@ -12,6 +12,7 @@
 
 vks::MaterialDescriptor::MaterialDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager, am::MaterialData& materialData,VulkanContext& vulkanContext) : IVulkanDescriptor(assetId, vulkanContext)
 {
+    this->assetHandleManager = assetHandleManager;
     // Initialize numeric fields
     alphaCutoff = materialData.alphaCutoff;
     metallicFactor = materialData.metallicFactor;
@@ -41,7 +42,7 @@ vks::MaterialDescriptor::MaterialDescriptor(const boost::uuids::uuid& assetId, D
     }
 
     // Setup descriptors - ALWAYS create descriptor set, even if no textures
-    setUpDescriptorSet(assetHandleManager->pbrMaterialLayout, assetHandleManager->materialPool, assetHandleManager->defaultImageInfo);
+    setUpDescriptorSet(assetHandleManager->pbrMaterialLayout, assetHandleManager->pbrMaterialPool, assetHandleManager->defaultImageInfo, assetHandleManager->cubeImageInfo);
 }
 vks::MaterialDescriptor::~MaterialDescriptor() {
     delete baseColorTexture;
@@ -51,7 +52,7 @@ vks::MaterialDescriptor::~MaterialDescriptor() {
     delete emissiveTexture;
 }
 
-void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialLayout, VkDescriptorPool materialDescriptorPool, VkDescriptorImageInfo defaultImageInfo) {
+void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialLayout, VkDescriptorPool materialDescriptorPool, VkDescriptorImageInfo defaultImageInfo, VkDescriptorImageInfo defaultCubeImageInfo) {
     VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
     descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     descriptorSetAllocInfo.descriptorPool = materialDescriptorPool;
@@ -61,11 +62,16 @@ void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialL
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets{};
 
-    // Binding 0: Default Sampler (ONLY sampler, no image!)
+    // Binding 0: Sampler
     VkDescriptorImageInfo samplerInfo{};
-    samplerInfo.sampler = defaultImageInfo.sampler;
     samplerInfo.imageView = VK_NULL_HANDLE;
-    // DO NOT set imageLayout for samplers!
+
+    // Use cube sampler if we have a cube texture in base color
+    if (baseColorTexture && baseColorTexture->descriptor.sampler == assetHandleManager->cubeSampler) {
+        samplerInfo.sampler = defaultCubeImageInfo.sampler;
+    } else {
+        samplerInfo.sampler = defaultImageInfo.sampler;
+    }
 
     VkWriteDescriptorSet samplerWrite{};
     samplerWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -76,7 +82,7 @@ void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialL
     samplerWrite.pImageInfo = &samplerInfo;
     writeDescriptorSets.push_back(samplerWrite);
 
-    // Binding 1: Base Color Image
+    // Binding 1: Base Color Image (Sampled Image)
     VkDescriptorImageInfo baseColorImageInfo{};
     baseColorImageInfo.sampler = VK_NULL_HANDLE;  // No sampler for SAMPLED_IMAGE!
     baseColorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -84,7 +90,12 @@ void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialL
     if (baseColorTexture) {
         baseColorImageInfo.imageView = baseColorTexture->descriptor.imageView;
     } else {
-        baseColorImageInfo.imageView = defaultImageInfo.imageView;
+        // If it's a skybox material layout, use cube default
+        if (materialLayout == assetHandleManager->skyboxMaterialLayout) {
+             baseColorImageInfo.imageView = defaultCubeImageInfo.imageView;
+        } else {
+             baseColorImageInfo.imageView = defaultImageInfo.imageView;
+        }
     }
 
     VkWriteDescriptorSet baseColorWrite{};
