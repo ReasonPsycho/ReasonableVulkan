@@ -392,7 +392,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 
     if (!skyboxRenderQueue.empty())
     {
-        auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx");
+        auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
         if (skyboxModel && !skyboxModel->meshes.empty()) {
             auto skyboxMesh = skyboxModel->meshes[0];
             
@@ -411,24 +411,19 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 
 
                 // Bind material descriptor set at set index 1
-                auto textureDescriptor = descriptorManager->getOrLoadResource<TextureDescriptor>(cmd.textureId);
-                if (textureDescriptor) {
-                    // Create a temporary material descriptor or just bind the texture
-                    // Based on existing code, materials are set up in ModelDescriptor.
-                    // If we want to use a specific texture as skybox, we might need a way to bind just the texture.
-                    // However, the shader expects set 1 to be a material.
-                    // For now, let's assume we can bind the texture's descriptor set if it has one, 
-                    // or we might need to create a material for the skybox.
-                    // Looking at MaterialDescriptor, it has a descriptorSet.
-                    // A better way would be if the shader had a specific layout for skybox.
-                    // But skybox.shader seems to use pbr-like layout.
-                    
-                    // IF the texture is actually a MaterialDescriptor, we can use it.
-                    auto materialDescriptor = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.textureId);
-                    if (materialDescriptor && materialDescriptor->descriptorSet != VK_NULL_HANDLE) {
-                         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
-                    }
+                auto materialDescriptor = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.textureId);
+                if (materialDescriptor) {
+                     // Check if it has a descriptor set, if not or if it's using the wrong pool/layout, recreate it
+                     // Actually MaterialDescriptor constructor uses pbrMaterialLayout by default.
+                     // For skybox we need to ensure it uses skyboxMaterialLayout.
+                     if (materialDescriptor->descriptorSet == VK_NULL_HANDLE) {
+                          materialDescriptor->setUpDescriptorSet(descriptorManager->skyboxMaterialLayout, descriptorManager->skyboxMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
+                     }
+                     // If it was already set up with pbr layout, we might have a problem.
+                     // For now let's assume if it's in the skyboxRenderQueue, it should use skybox layout.
+                     // Re-binding to set 1.
+                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
                 }
                 
                 VkBuffer vertexBuffers[] = { skyboxMesh->vertices.buffer.buffer };

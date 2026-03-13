@@ -19,10 +19,10 @@ namespace engine::ecs
         // Cached matrices
         glm::mat4 projection;
         glm::mat4 view;
-        boost::uuids::uuid skyboxTextureId;
+        boost::uuids::uuid skyboxMaterialId;
 
         bool isDirty = true;
-        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f), skyboxTextureId(boost::uuids::nil_uuid()) {}
+        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f), skyboxMaterialId(boost::uuids::nil_uuid()) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
 
@@ -106,12 +106,12 @@ inline void updateProjectionMatrix(CameraComponent& camera)
 
     inline void setSkyboxTextureId(CameraComponent& camera, const boost::uuids::uuid& textureId)
     {
-        camera.skyboxTextureId = textureId;
+        camera.skyboxMaterialId = textureId;
     }
 
     inline const boost::uuids::uuid& getSkyboxTextureId(const CameraComponent& camera)
     {
-        return camera.skyboxTextureId;
+        return camera.skyboxMaterialId;
     }
 
     inline bool isDirty(const CameraComponent& camera)

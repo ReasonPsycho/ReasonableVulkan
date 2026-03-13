@@ -194,6 +194,7 @@ namespace vks
         for (auto def : combinedDefines) {
             if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
             else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) maxSet = std::max(maxSet, 1);
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
             else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL) maxSet = std::max(maxSet, 3);
         }
@@ -204,7 +205,8 @@ namespace vks
         for (auto def : combinedDefines) {
             switch (def) {
             case ShaderDefinesEnum::SCENE_UBO_GLSL: combinedLayouts[0] = descriptorManager->getSceneLayout(); break;
-            case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getMaterialLayout(); break;
+            case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getPbrMaterialLayout(); break;
+            case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL: combinedLayouts[1] = descriptorManager->getSkyboxMaterialLayout(); break;
             case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
             case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
             }
@@ -214,9 +216,14 @@ namespace vks
         for (int i = 0; i <= maxSet; ++i) {
             if (combinedLayouts[i] == VK_NULL_HANDLE) {
                 // If a shader skips a set, we still need a valid (but possibly empty) layout if it's not the last one
-                // However, our current shaders use sets 0, 1, 2, 3 in order.
-                // For now, let's log or use a dummy if needed.
-                // Given the issue, we just need to make sure Material is at index 1.
+                // Use the lights layout as a fallback if it's empty, or better, the mesh layout if it's just a UBO.
+                // Actually, DescriptorManager should provide an empty layout.
+                // For now, let's use scene layout as it's a simple UBO layout, 
+                // but ideally we should have a truly empty layout.
+                // However, most of our layouts are not empty.
+                // Let's see if we have any other option. 
+                // Actually, let's use the scene layout as a placeholder if it exists.
+                combinedLayouts[i] = descriptorManager->getSceneLayout();
             }
         }
 
@@ -307,6 +314,14 @@ namespace vks
             });
         }else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
         {
+            pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
+               VertexComponent::Position,
+               VertexComponent::Normal,
+               VertexComponent::UV,
+               VertexComponent::Color,
+               VertexComponent::Tangent,
+               VertexComponent::Bitangent
+           });
         }
         VkPipeline pipelineHandle = VK_NULL_HANDLE;
         if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelineHandle)

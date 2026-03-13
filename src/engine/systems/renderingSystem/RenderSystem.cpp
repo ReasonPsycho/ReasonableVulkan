@@ -100,8 +100,8 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
     scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view, cameraObject.transform->position);
 
-    if (cameraObject.camera->skyboxTextureId != boost::uuids::nil_uuid()) {
-        scene->engine.graphicsEngine->drawSkybox(cameraObject.camera->skyboxTextureId, boost::uuids::nil_uuid());
+    if (cameraObject.camera->skyboxMaterialId != boost::uuids::nil_uuid()) {
+        scene->engine.graphicsEngine->drawSkybox(cameraObject.camera->skyboxMaterialId, boost::uuids::nil_uuid());
     }
 
     scene->engine.graphicsEngine->renderFrame();

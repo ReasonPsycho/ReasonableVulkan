@@ -67,13 +67,14 @@ namespace vks {
         VulkanContext* context;
 
         // Descriptor pools
-        VkDescriptorPool materialPool{VK_NULL_HANDLE};
+        VkDescriptorPool pbrMaterialPool{VK_NULL_HANDLE};
+        VkDescriptorPool skyboxMaterialPool{VK_NULL_HANDLE};
         VkDescriptorPool meshPool{VK_NULL_HANDLE};
         VkDescriptorPool scenePool{VK_NULL_HANDLE};
-        VkDescriptorPool skyboxPool{VK_NULL_HANDLE};
 
         // Descriptor set layouts
-        VkDescriptorSetLayout getMaterialLayout() const { return pbrMaterialLayout; }
+        VkDescriptorSetLayout getPbrMaterialLayout() const { return pbrMaterialLayout; }
+        VkDescriptorSetLayout getSkyboxMaterialLayout() const { return skyboxMaterialLayout; }
         VkDescriptorSetLayout getMeshUniformLayout() const { return meshUniformLayout; }
         VkDescriptorSetLayout getSceneLayout() const { return sceneLayout; }
         VkDescriptorSetLayout getLightsLayout() const { return lightsLayout; }
@@ -107,6 +108,7 @@ namespace vks {
 
         void createDescriptorPools();
         void createDefaultTexture();
+        void createDefaultCubeTexture();
         void createDescriptorSetLayouts();
         IVulkanDescriptor* loadResource(const boost::uuids::uuid& assetId);
 

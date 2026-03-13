@@ -81,6 +81,8 @@ namespace vks
                result.push_back(ShaderDefinesEnum::MODEL_PC_GLSL);
            }else if (key == "MATERIAL_PBR_GLSL")  {
                result.push_back(ShaderDefinesEnum::MATERIAL_PBR_GLSL);
+           }else if (key == "MATERIAL_SKYBOX_GLSL")  {
+               result.push_back(ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL);
            }
        }
         return result;

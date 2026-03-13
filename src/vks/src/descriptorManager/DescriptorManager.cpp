@@ -102,9 +102,9 @@ namespace vks
         }
 
         // Destroy descriptor pools
-        if (materialPool != VK_NULL_HANDLE)
+        if (pbrMaterialPool != VK_NULL_HANDLE)
         {
-            vkDestroyDescriptorPool(device, materialPool, nullptr);
+            vkDestroyDescriptorPool(device, pbrMaterialPool, nullptr);
         }
         if (meshPool != VK_NULL_HANDLE)
         {
@@ -113,10 +113,6 @@ namespace vks
         if (scenePool != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorPool(device, scenePool, nullptr);
-        }
-        if (skyboxPool != VK_NULL_HANDLE)
-        {
-            vkDestroyDescriptorPool(device, skyboxPool, nullptr);
         }
     }
 
@@ -134,7 +130,7 @@ namespace vks
         materialPoolInfo.pPoolSizes = materialPoolSizes.data();
         materialPoolInfo.maxSets = 100;
 
-        if (vkCreateDescriptorPool(context->getDevice(), &materialPoolInfo, nullptr, &materialPool) != VK_SUCCESS)
+        if (vkCreateDescriptorPool(context->getDevice(), &materialPoolInfo, nullptr, &pbrMaterialPool) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create material descriptor pool!");
         }
@@ -166,23 +162,6 @@ namespace vks
         if (vkCreateDescriptorPool(context->getDevice(), &scenePoolInfo, nullptr, &scenePool) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create scene descriptor pool!");
-        }
-
-        // Skybox pool
-        std::vector<VkDescriptorPoolSize> skyboxPoolSizes = {
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5},
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5}
-        };
-
-        VkDescriptorPoolCreateInfo skyboxPoolInfo{};
-        skyboxPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        skyboxPoolInfo.poolSizeCount = static_cast<uint32_t>(skyboxPoolSizes.size());
-        skyboxPoolInfo.pPoolSizes = skyboxPoolSizes.data();
-        skyboxPoolInfo.maxSets = 5;
-
-        if (vkCreateDescriptorPool(context->getDevice(), &skyboxPoolInfo, nullptr, &skyboxPool) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create skybox descriptor pool!");
         }
     }
 
@@ -340,12 +319,163 @@ namespace vks
 
         VK_CHECK_RESULT(vkCreateSampler(context->getDevice(), &samplerInfo, nullptr, &defaultSampler));
 
+        // Create a cube sampler as well
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        VK_CHECK_RESULT(vkCreateSampler(context->getDevice(), &samplerInfo, nullptr, &cubeSampler));
+
         createDefaultTexture();
+        createDefaultCubeTexture();
 
         // Setup default image info
         defaultImageInfo.sampler = defaultSampler;
         defaultImageInfo.imageView = defaultImageView;
         defaultImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        cubeImageInfo.sampler = cubeSampler;
+        cubeImageInfo.imageView = cubeImageView;
+        cubeImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+
+
+    void DescriptorManager::createDefaultCubeTexture()
+    {
+        auto device = context->getDevice();
+
+        // Create a 1x1x6 white cube map texture
+        uint32_t whitePixels[6] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
+
+        // Create staging buffer
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingMemory;
+
+        context->createBuffer(
+            sizeof(whitePixels),
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            stagingBuffer,
+            stagingMemory);
+
+        // Copy white pixels data to staging buffer
+        void* data;
+        VK_CHECK_RESULT(vkMapMemory(device, stagingMemory, 0, sizeof(whitePixels), 0, &data));
+        memcpy(data, whitePixels, sizeof(whitePixels));
+        vkUnmapMemory(device, stagingMemory);
+
+        // Create image
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent = { 1, 1, 1 };
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 6;
+        imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+        VK_CHECK_RESULT(vkCreateImage(device, &imageInfo, nullptr, &cubeImage));
+
+        // Allocate memory
+        VkMemoryRequirements memReqs;
+        vkGetImageMemoryRequirements(device, cubeImage, &memReqs);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memReqs.size;
+        allocInfo.memoryTypeIndex = context->findMemoryType(
+            memReqs.memoryTypeBits,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VK_CHECK_RESULT(vkAllocateMemory(device, &allocInfo, nullptr, &cubeImageMemory));
+        VK_CHECK_RESULT(vkBindImageMemory(device, cubeImage, cubeImageMemory, 0));
+
+        // Transition image layout and copy data using GRAPHICS queue
+        VkCommandBuffer cmdBuffer = context->beginSingleTimeCommands(QueueType::Graphics);
+
+        // Transition to transfer destination optimal
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = cubeImage;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 6;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            cmdBuffer,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        // Copy buffer to image
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 6;
+        region.imageOffset = { 0, 0, 0 };
+        region.imageExtent = { 1, 1, 1 };
+
+        vkCmdCopyBufferToImage(
+            cmdBuffer,
+            stagingBuffer,
+            cubeImage,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &region);
+
+        // Transition to shader read optimal
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            cmdBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        context->endSingleTimeCommands(cmdBuffer, QueueType::Graphics);
+
+        // Cleanup staging buffer
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingMemory, nullptr);
+
+        // Create image view
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = cubeImage;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+        viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 6;
+
+        VK_CHECK_RESULT(vkCreateImageView(device, &viewInfo, nullptr, &cubeImageView));
     }
 
 
@@ -367,7 +497,7 @@ namespace vks
             }
 
             // Set 1: pbr Material descriptors (sampler + images)
-            std::vector<VkDescriptorSetLayoutBinding> materialBindings = {
+            std::vector<VkDescriptorSetLayoutBinding> pbrMaterialBindings = {
                 {
                     .binding = 0,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
@@ -391,45 +521,51 @@ namespace vks
                 }
             };
 
-            VkDescriptorSetLayoutCreateInfo materialLayoutInfo{};
-            materialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            materialLayoutInfo.bindingCount = static_cast<uint32_t>(materialBindings.size());
-            materialLayoutInfo.pBindings = materialBindings.data();
+            VkDescriptorSetLayoutCreateInfo pbrMaterialLayoutInfo{};
+            pbrMaterialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            pbrMaterialLayoutInfo.bindingCount = static_cast<uint32_t>(pbrMaterialBindings.size());
+            pbrMaterialLayoutInfo.pBindings = pbrMaterialBindings.data();
 
-            if (vkCreateDescriptorSetLayout(context->getDevice(), &materialLayoutInfo, nullptr, &pbrMaterialLayout) !=
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &pbrMaterialLayoutInfo, nullptr, &pbrMaterialLayout) !=
                 VK_SUCCESS)
             {
                 throw std::runtime_error("failed to create material descriptor set layout!");
             }
 
-            // Set idk: skybox descriptors (sampler + images)
-            std::vector<VkDescriptorSetLayoutBinding> skyboxMaterialBindings = {
-                    {
-                        .binding = 0,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-                        .descriptorCount = 1,
-                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                        .pImmutableSamplers = nullptr
-                    },
-                    {
-                        .binding = 1,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                        .descriptorCount = 1,
-                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                        .pImmutableSamplers = nullptr
-                    },
-            };
+        // Set pbr: pbr Material descriptors (sampler + images)
+        std::vector<VkDescriptorSetLayoutBinding> skyboxMaterialBindings = {
+                {
+                    .binding = 0,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },{
+                    .binding = 2,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                }
+        };
 
-            VkDescriptorSetLayoutCreateInfo skyboxMaterialLayoutInfo{};
-            skyboxMaterialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            skyboxMaterialLayoutInfo.bindingCount = static_cast<uint32_t>(skyboxMaterialBindings.size());
-            skyboxMaterialLayoutInfo.pBindings = skyboxMaterialBindings.data();
+        VkDescriptorSetLayoutCreateInfo skyboxMaterialLayoutInfo{};
+        skyboxMaterialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        skyboxMaterialLayoutInfo.bindingCount = static_cast<uint32_t>(skyboxMaterialBindings.size());
+        skyboxMaterialLayoutInfo.pBindings = skyboxMaterialBindings.data();
 
-            if (vkCreateDescriptorSetLayout(context->getDevice(), &skyboxMaterialLayoutInfo, nullptr, &skyboxMaterialLayout) !=
-                VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create skyboxMaterial descriptor set layout!");
-            }
+        if (vkCreateDescriptorSetLayout(context->getDevice(), &skyboxMaterialLayoutInfo, nullptr, &skyboxMaterialLayout) !=
+            VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create material descriptor set layout!");
+        }
 
             // Set 2: Mesh/Vertex shader uniforms
             VkDescriptorSetLayoutBinding meshBinding{};

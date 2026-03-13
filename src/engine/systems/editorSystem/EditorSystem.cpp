@@ -10,8 +10,11 @@
 #include <imgui_internal.h>
 #include <SDL3/SDL_mouse.h>
 
+#include "Asset.hpp"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "PlatformInterface.hpp"
+#include "assetDatas/MeshData.h"
+#include "assetDatas/ModelData.h"
 #include "systems/collisionSystem/CollisionSystem.hpp"
 
 void EditorSystem::ImGuiInspector()
@@ -294,10 +297,10 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 void EditorSystem::Initialize()
 {
     SetUpCameraControls(scene->engine.platform);;
-    camera.skyboxTextureId = scene->engine.assetManagerInterface->registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.png").value().get()->id;
-    scene->engine.graphicsEngine->loadTexture(camera.skyboxTextureId);
+    auto skybox = scene->engine.assetManagerInterface->registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
+    scene->engine.graphicsEngine->loadModel(skybox->get()->id);
+    camera.skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
 }
-
 
 void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
 {

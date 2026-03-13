@@ -4,6 +4,10 @@
 #include <cstdlib>
 #include <glm/ext/matrix_transform.hpp>
 #include <SDL3/SDL.h>
+
+#include "Asset.hpp"
+#include "assetDatas/MeshData.h"
+#include "assetDatas/ModelData.h"
 #include "platform/src/Platform.hpp"
 #include "platform/include/PlatformInterface.hpp"
 #include "assetManager/src/AssetManager.hpp"
@@ -41,8 +45,8 @@ int main(int argc, char *argv[]) {
     auto shader = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shader");
     vulkanRenderer->loadShader(shader->get()->id);
 
-    auto skybox = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.png");
-    vulkanRenderer->loadTexture(skybox->get()->id);
+    auto skybox = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
+    vulkanRenderer->loadModel(skybox->get()->id);
 
     auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
     vulkanRenderer->loadModel(asset->get()->id);
@@ -54,7 +58,7 @@ int main(int argc, char *argv[]) {
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");
     scene.get()->AddComponent<CameraComponent>(cameraEntity);
-    scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxTextureId = skybox->get()->id;
+    scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
 
     auto lightEntity = scene.get()->CreateEntity("Light");
     scene.get()->AddComponent<LightComponent>(lightEntity);
