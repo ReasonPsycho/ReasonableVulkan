@@ -289,6 +289,11 @@ namespace vks
         VkPipelineDepthStencilStateCreateInfo depthStencilState =
             base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != combinedDefines.end())
+        {
+            rasterizationState.cullMode = VK_CULL_MODE_NONE;
+        }
+
         // Create mesh pipeline
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
             meshPipelineLayout, renderPass, 0);
@@ -312,16 +317,6 @@ namespace vks
                 VertexComponent::Tangent,
                 VertexComponent::Bitangent
             });
-        }else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
-        {
-            pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
-               VertexComponent::Position,
-               VertexComponent::Normal,
-               VertexComponent::UV,
-               VertexComponent::Color,
-               VertexComponent::Tangent,
-               VertexComponent::Bitangent
-           });
         }
         VkPipeline pipelineHandle = VK_NULL_HANDLE;
         if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelineHandle)
