@@ -17,5 +17,5 @@ void main()
     // However, the intent is usually to strip translation.
     viewMat[3] = vec4(0.0, 0.0, 0.0, 1.0); 
 
-    gl_Position = sceneUbo.projection * viewMat * push.model * vec4(inPos, 1.0);
+    gl_Position = (sceneUbo.projection * viewMat * push.model * vec4(inPos, 1.0)).xyww;
 }

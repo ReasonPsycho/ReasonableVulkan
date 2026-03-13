@@ -347,49 +347,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
     pointLightQueue.clear();
     spotLightQueue.clear();
 
-    // Process render queue
-    if (!renderQueue.empty()) {
-        // Sort render queue by renderProgramId to minimize pipeline switching
-        std::sort(renderQueue.begin(), renderQueue.end(), [](const RenderCommand& a, const RenderCommand& b) {
-            return a.renderProgramId < b.renderProgramId;
-        });
-
-        boost::uuids::uuid lastProgramId = boost::uuids::nil_uuid();
-
-        for (auto& cmd : renderQueue) {
-            auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
-            if (!modelDescriptor) continue;
-
-            // Bind the pipeline for this specific render command only if it's different from the last one
-            if (cmd.renderProgramId != lastProgramId) {
-                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
-
-                vkCmdBindDescriptorSets(
-                      commandBuffer,
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                      0,                                    // First set index (Set 0)
-                      1,                                    // Number of sets
-                      &descriptorManager->sceneUBO.buffer.descriptorSet,
-                      0, nullptr);
-
-                vkCmdBindDescriptorSets(
-                      commandBuffer,
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                      3,                                    // Set index 3
-                      1,                                    // Number of sets
-                      &descriptorManager->directionalLightSSBO.descriptorSet,
-                      0, nullptr);
-
-                lastProgramId = cmd.renderProgramId;
-            }
-
-            renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
-        }
-    }
-
-
+    // Process skybox render queue
     if (!skyboxRenderQueue.empty())
     {
         auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
@@ -447,8 +405,51 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
         }
     }
 
-    renderQueue.clear();
+    // Process render queue
+    if (!renderQueue.empty()) {
+        // Sort render queue by renderProgramId to minimize pipeline switching
+        std::sort(renderQueue.begin(), renderQueue.end(), [](const RenderCommand& a, const RenderCommand& b) {
+            return a.renderProgramId < b.renderProgramId;
+        });
+
+        boost::uuids::uuid lastProgramId = boost::uuids::nil_uuid();
+
+        for (auto& cmd : renderQueue) {
+            auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
+            if (!modelDescriptor) continue;
+
+            // Bind the pipeline for this specific render command only if it's different from the last one
+            if (cmd.renderProgramId != lastProgramId) {
+                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+
+                vkCmdBindDescriptorSets(
+                      commandBuffer,
+                      VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                      0,                                    // First set index (Set 0)
+                      1,                                    // Number of sets
+                      &descriptorManager->sceneUBO.buffer.descriptorSet,
+                      0, nullptr);
+
+                vkCmdBindDescriptorSets(
+                      commandBuffer,
+                      VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                      3,                                    // Set index 3
+                      1,                                    // Number of sets
+                      &descriptorManager->directionalLightSSBO.descriptorSet,
+                      0, nullptr);
+
+                lastProgramId = cmd.renderProgramId;
+            }
+
+            renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
+        }
+    }
+
+
     skyboxRenderQueue.clear();
+    renderQueue.clear();
 
     vkCmdEndRenderPass(commandBuffer);
 
