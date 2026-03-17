@@ -5,6 +5,7 @@
 #include "../descriptorManager/modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
 #include "../descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include "../base/VulkanInitializers.hpp"
+#include "../base/VulkanTools.h"
 
 namespace vks
 {
@@ -45,8 +46,6 @@ namespace vks
 
     void RenderPipelineManager::cleanup()
     {
-        cleanupOffscreenResources();
-
         for (auto framebuffer : framebuffers)
         {
             vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
@@ -169,91 +168,6 @@ namespace vks
             }
         }
     }
-
-
-    void RenderPipelineManager::createOffscreenResources(VkExtent2D extent)
-    {
-        cleanupOffscreenResources();
-
-        VkImageCreateInfo imageInfo = base::initializers::imageCreateInfo();
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width = extent.width;
-        imageInfo.extent.height = extent.height;
-        imageInfo.extent.depth = 1;
-        imageInfo.mipLevels = 1;
-        imageInfo.arrayLayers = 1;
-        imageInfo.format = VK_FORMAT_B8G8R8A8_SRGB;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateImage(context->getDevice(), &imageInfo, nullptr, &offscreenImage) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create offscreen image!");
-        }
-
-        VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(context->getDevice(), offscreenImage, &memRequirements);
-
-        VkMemoryAllocateInfo allocInfo = base::initializers::memoryAllocateInfo();
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = context->findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        if (vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &offscreenImageMemory) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to allocate offscreen image memory!");
-        }
-
-        vkBindImageMemory(context->getDevice(), offscreenImage, offscreenImageMemory, 0);
-
-        VkImageViewCreateInfo viewInfo = base::initializers::imageViewCreateInfo();
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = offscreenImage;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = VK_FORMAT_B8G8R8A8_SRGB;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &offscreenImageView) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create offscreen image view!");
-        }
-
-        // Create the framebuffer
-        std::array<VkImageView, 2> attachments = {
-            offscreenImageView,
-            depthImageView
-        };
-    }
-
-    void RenderPipelineManager::cleanupOffscreenResources()
-    {
-        if (offscreenImageView != VK_NULL_HANDLE)
-        {
-            vkDestroyImageView(context->getDevice(), offscreenImageView, nullptr);
-            offscreenImageView = VK_NULL_HANDLE;
-        }
-
-        if (offscreenImage != VK_NULL_HANDLE)
-        {
-            vkDestroyImage(context->getDevice(), offscreenImage, nullptr);
-            offscreenImage = VK_NULL_HANDLE;
-        }
-
-        if (offscreenImageMemory != VK_NULL_HANDLE)
-        {
-            vkFreeMemory(context->getDevice(), offscreenImageMemory, nullptr);
-            offscreenImageMemory = VK_NULL_HANDLE;
-        }
-    }
-
 
     void RenderPipelineManager::createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
     {
