@@ -15,7 +15,7 @@
 
 namespace vks
 {
-    void ImguiManager::initialize(void* windowHandle)
+    void ImguiManager::initialize(void* windowHandle, std::vector<VkImageView> swapChainImagesViews)
     {
         createDescriptorPool();
         createRenderPass();
@@ -77,7 +77,8 @@ namespace vks
 
         ImGuizmo::SetImGuiContext(ctx);
 
-        imguiTextureDescriptorSet = addTexture(pipelineManager->getOffscreenImageView(), descriptorManager->defaultSampler);
+
+        createDescriptorSets(swapChainImagesViews);
     }
 
     void ImguiManager::createDescriptorPool()
@@ -105,7 +106,7 @@ namespace vks
 
     VkDescriptorSet ImguiManager::getTexture()
     {
-        return imguiTextureDescriptorSet;
+        return swapChainImguiTextureIDs[swapChain->getCurrentImageIndex()];
     }
 
     void ImguiManager::imguiBeginFrame()
@@ -142,6 +143,14 @@ namespace vks
 
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
         vkCmdEndRenderPass(commandBuffer);
+    }
+
+    void ImguiManager::createDescriptorSets(std::vector<VkImageView> swapChainImagesViews)
+    {
+        for (int i = 0; i < swapChainImagesViews.size(); i++)
+        {
+            swapChainImguiTextureIDs.push_back(addTexture(swapChainImagesViews[i], descriptorManager->defaultSampler));
+        }
     }
 
     void ImguiManager::createPipelineCache()

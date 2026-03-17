@@ -184,14 +184,13 @@ namespace vks {
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
 
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
-        pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
 
         // Initialize render manager
         renderManager->initialize(pbrShaderId, skyboxShaderId);
 
 #if ENABLE_IMGUI
-        imguiManager.get()->initialize(windowHandle);
+        imguiManager.get()->initialize(windowHandle, swapChain->getImageViews());
 #endif
     }
 
@@ -241,16 +240,17 @@ namespace vks {
         // Recreate depth resources with new dimensions
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
 
-        // Recreate offscreen resources
-        pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
-
         // Recreate framebuffers
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
 
-#if ENABLE_IMGUI
-        // Update ImGui display size
-        ImGuiIO& io = ImGui::GetIO();
-        io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
-#endif
+    #if ENABLE_IMGUI
+            imguiManager.get()->createDescriptorSets(swapChain->getImageViews());
+    #endif
+
+    #if ENABLE_IMGUI
+            // Update ImGui display size
+            ImGuiIO& io = ImGui::GetIO();
+            io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
+    #endif
     }
 } // namespace vks

@@ -4,6 +4,7 @@
 
 #ifndef REASONABLEVULKAN_IMGUIMANAGER_HPP
 #define REASONABLEVULKAN_IMGUIMANAGER_HPP
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace vks
@@ -31,15 +32,16 @@ namespace vks
         void createRenderPass();
         void cleanup();
         void createPipelineCache();
-        void initialize(void* windowHandle);
+        void initialize(void* windowHandle, std::vector<VkImageView> swapChainImagesViews);
         void createDescriptorPool();
         void imguiBeginFrame();
         void imguiEndFrame();
         void imguiRenderFrame(VkCommandBuffer commandBuffer,uint32_t imageIndex);
 
+        void createDescriptorSets(std::vector<VkImageView> swapChainImagesViews);
         VkDescriptorSet addTexture(VkImageView imageView, VkSampler sampler);
         VkDescriptorSet getTexture();
-        VkDescriptorSet imguiTextureDescriptorSet{VK_NULL_HANDLE};
+        std::vector<VkDescriptorSet> swapChainImguiTextureIDs{VK_NULL_HANDLE};
 
         VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
         VkCommandBuffer imguiCommandBuffer{VK_NULL_HANDLE};
