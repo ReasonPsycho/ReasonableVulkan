@@ -36,11 +36,17 @@ namespace vks
         void imguiBeginFrame();
         void imguiEndFrame();
         void imguiRenderFrame(VkCommandBuffer commandBuffer,uint32_t imageIndex);
+
+        VkDescriptorSet addTexture(VkImageView imageView, VkSampler sampler);
+        VkDescriptorSet getTexture();
+        VkDescriptorSet imguiTextureDescriptorSet{VK_NULL_HANDLE};
+
         VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
         VkCommandBuffer imguiCommandBuffer{VK_NULL_HANDLE};
         VkPipelineCache imguiPipelineCache{VK_NULL_HANDLE};
         VkRenderPass imguiRenderPass{VK_NULL_HANDLE};
         VkFramebuffer imguiFramebuffer{VK_NULL_HANDLE};
+
     };
 }
 #endif //REASONABLEVULKAN_IMGUIMANAGER_HPP

@@ -44,6 +44,10 @@ namespace vks {
 		void endFrame() override;
 
 		void initialize(plt::PlatformInterface* platform, uint32_t width, uint32_t height) override;
+		void resize(uint32_t width, uint32_t height) override;
+		glm::uvec2 getExtent() override;
+
+		void* getViewportTexturePointer() override;
 
 		void cleanup();
 		void waitIdle();

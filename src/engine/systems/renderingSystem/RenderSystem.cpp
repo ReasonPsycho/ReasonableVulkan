@@ -91,7 +91,13 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     CameraObject cameraObject = scene->GetActiveCamera();
 
     int width, height;
+#ifdef ENABLE_IMGUI
+    glm::uvec2 extent = scene->engine.graphicsEngine->getExtent();
+    width = extent.x;
+    height = extent.y;
+#else
     scene->engine.platform->GetWindowSize(width, height);
+#endif
     float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
 
     updateViewMatrix(*cameraObject.camera, cameraObject.transform->globalMatrix);

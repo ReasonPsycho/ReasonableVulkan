@@ -17,6 +17,7 @@ namespace vks {
         VkFormat getSwapChainImageFormat() const { return swapChainImageFormat; }
         VkExtent2D getSwapChainExtent() const { return swapChainExtent; }
         const std::vector<VkImageView>& getImageViews() const { return swapChainImageViews; }
+        std::vector<VkImage> getImages() const { return swapChainImages; }
         VkSwapchainKHR getSwapChain() const { return swapChain; }
 
         VkResult acquireNextImage(VkSemaphore imageAvailableSemaphore);

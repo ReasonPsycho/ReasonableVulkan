@@ -453,8 +453,6 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 
     vkCmdEndRenderPass(commandBuffer);
 
-
-
 #ifdef ENABLE_IMGUI
     imguiManager->imguiRenderFrame(commandBuffer,imageIndex);
 #endif

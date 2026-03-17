@@ -76,24 +76,36 @@ namespace vks
         context->endSingleTimeCommands(command_buffer);
 
         ImGuizmo::SetImGuiContext(ctx);
+
+        imguiTextureDescriptorSet = addTexture(pipelineManager->getOffscreenImageView(), descriptorManager->defaultSampler);
     }
 
     void ImguiManager::createDescriptorPool()
     {
         VkDescriptorPoolSize pool_sizes[] =
         {
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
         };
         VkDescriptorPoolCreateInfo pool_info = {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        pool_info.maxSets = 0;
+        pool_info.maxSets = 100;
         for (VkDescriptorPoolSize& pool_size : pool_sizes)
             pool_info.maxSets += pool_size.descriptorCount;
         pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
         pool_info.pPoolSizes = pool_sizes;
         if (vkCreateDescriptorPool(context->getDevice(), &pool_info, nullptr, &imguiDescriptorPool) != VK_SUCCESS)
             throw std::runtime_error("failed to create descriptor pool!");
+    }
+
+    VkDescriptorSet ImguiManager::addTexture(VkImageView imageView, VkSampler sampler)
+    {
+        return ImGui_ImplVulkan_AddTexture(sampler, imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+
+    VkDescriptorSet ImguiManager::getTexture()
+    {
+        return imguiTextureDescriptorSet;
     }
 
     void ImguiManager::imguiBeginFrame()

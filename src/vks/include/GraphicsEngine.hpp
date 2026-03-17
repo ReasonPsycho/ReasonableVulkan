@@ -23,6 +23,9 @@ namespace gfx {
         virtual ~GraphicsEngine() = default;
 
         virtual void initialize(plt::PlatformInterface* platform, uint32_t width, uint32_t height) = 0;
+        virtual void resize(uint32_t width, uint32_t height) {}
+        virtual glm::uvec2 getExtent() { return glm::uvec2(0, 0); }
+        virtual void* getViewportTexturePointer() = 0;
 
         virtual void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) = 0;
         virtual void drawModel(boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) = 0;

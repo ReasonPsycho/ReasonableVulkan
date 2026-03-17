@@ -184,6 +184,7 @@ namespace vks {
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
 
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
+        pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
 
         // Initialize render manager
@@ -194,6 +195,24 @@ namespace vks {
 #endif
     }
 
+
+    void VulkanRenderer::resize(uint32_t width, uint32_t height) {
+        handleWindowResize(width, height);
+    }
+
+    glm::uvec2 VulkanRenderer::getExtent() {
+        VkExtent2D extent = swapChain->getSwapChainExtent();
+        return glm::uvec2(extent.width, extent.height);
+    }
+
+    void* VulkanRenderer::getViewportTexturePointer()
+    {
+#if ENABLE_IMGUI
+        return (void*)imguiManager.get()->getTexture();
+#else
+        return nullptr;
+#endif
+    }
 
     void VulkanRenderer::cleanup() {
         waitIdle();
@@ -221,6 +240,9 @@ namespace vks {
 
         // Recreate depth resources with new dimensions
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
+
+        // Recreate offscreen resources
+        pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
 
         // Recreate framebuffers
         pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
