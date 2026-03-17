@@ -270,6 +270,29 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
 
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
+    ImGui::Begin("Viewport");
+    ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+    ImVec2 viewportPos = ImGui::GetWindowPos();
+    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+    viewportPos.x += contentMin.x;
+    viewportPos.y += contentMin.y;
+
+    /*
+    static ImVec2 lastViewportSize = { 0, 0 };
+    if (viewportPanelSize.x != lastViewportSize.x || viewportPanelSize.y != lastViewportSize.y)
+    {
+        lastViewportSize = viewportPanelSize;
+        if (viewportPanelSize.x > 0 && viewportPanelSize.y > 0) {
+            scene->engine.graphicsEngine->resize((uint32_t)viewportPanelSize.x, (uint32_t)viewportPanelSize.y);
+        }
+    }
+    */
+    void* textureId = scene->engine.graphicsEngine->getViewportTexturePointer();
+    if (textureId) {
+        ImGui::Image((ImTextureID)textureId, viewportPanelSize);
+    }
+    ImGui::End();
+
     ImguiToolbar();
     ImguiMenu();
     ImGuiSceneGraph();
@@ -317,11 +340,16 @@ void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
             if (!ImGui::GetIO().WantCaptureMouse) {
                 auto* collisionSystem = scene->GetSystem<CollisionSystem>().get();
                 if (collisionSystem) {
-                    int windowWidth, windowHeight;
-                    scene->engine.platform->GetWindowSize(windowWidth, windowHeight);
+                    ImGui::Begin("Viewport");
+                    ImVec2 viewportPos = ImGui::GetWindowPos();
+                    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+                    viewportPos.x += contentMin.x;
+                    viewportPos.y += contentMin.y;
+                    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+                    ImGui::End();
 
-                    Ray ray = collisionSystem->ScreenToWorldRay(camera, mouseEvent.x,
-                                                                mouseEvent.y, windowWidth, windowHeight);
+                    Ray ray = collisionSystem->ScreenToWorldRay(camera, mouseEvent.x - viewportPos.x,
+                                                                mouseEvent.y - viewportPos.y, viewportSize.x, viewportSize.y);
 
                     auto hit = collisionSystem->RayCastClosest(ray);
                     if (hit.has_value()) {

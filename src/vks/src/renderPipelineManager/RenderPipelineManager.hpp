@@ -19,6 +19,9 @@ namespace vks {
         void createFramebuffers(const std::vector<VkImageView>& swapChainImageViews,
                                VkExtent2D swapChainExtent);
 
+        void createOffscreenResources(VkExtent2D extent);
+        void cleanupOffscreenResources();
+
         void createDepthResources(VkExtent2D swapChainExtent);
         void cleanupDepthResources();
 
@@ -36,7 +39,8 @@ namespace vks {
         VkPipeline getPipeline(const boost::uuids::uuid& pipelineId) const;
         VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t index) const { return framebuffers[index]; }
-
+        VkImage getOffscreenImage() const { return offscreenImage; }
+        VkImageView getOffscreenImageView() const { return offscreenImageView; }
 
         // Add these new members for depth resources
         VkImage depthImage = VK_NULL_HANDLE;
@@ -50,6 +54,11 @@ namespace vks {
         VkRenderPass renderPass{VK_NULL_HANDLE};
         VkPipelineCache pipelineCache{VK_NULL_HANDLE};
         std::vector<VkFramebuffer> framebuffers;
+
+        VkImage offscreenImage = VK_NULL_HANDLE;
+        VkDeviceMemory offscreenImageMemory = VK_NULL_HANDLE;
+        VkImageView offscreenImageView = VK_NULL_HANDLE;
+
         std::vector<Pipeline> pipelines;
 
         // Helper methods
