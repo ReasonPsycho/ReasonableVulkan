@@ -241,6 +241,10 @@ void RenderManager::renderFrame() {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
 
+#ifdef ENABLE_IMGUI
+    imguiManager->imguiRenderPlatformWindows();
+#endif
+
     VkResult result = swapChain->queuePresent(context->getGraphicsQueue(),
                                            currentImageIndex,
                                            renderFinishedSemaphores[currentFrame]);

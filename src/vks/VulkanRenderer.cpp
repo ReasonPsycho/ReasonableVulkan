@@ -118,15 +118,13 @@ namespace vks {
     }
 
     void VulkanRenderer::renderFrame() {
-        if (!minimized)
-        {
-            renderManager->renderFrame();
-        }
+        // This is now empty because it should be part of endFrame.
     }
 
     void VulkanRenderer::endFrame() {
         if (!minimized)
         {
+            renderManager->renderFrame();
             renderManager->endFrame();
         }
     }

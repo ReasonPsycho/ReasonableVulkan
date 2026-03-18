@@ -118,8 +118,12 @@ namespace vks
 
     void ImguiManager::imguiEndFrame()
     {
-        ImGuiIO& io = ImGui::GetIO();
         ImGui::Render();
+    }
+
+    void ImguiManager::imguiRenderPlatformWindows()
+    {
+        ImGuiIO& io = ImGui::GetIO();
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable){
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();

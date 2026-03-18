@@ -109,8 +109,6 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     if (cameraObject.camera->skyboxMaterialId != boost::uuids::nil_uuid()) {
         scene->engine.graphicsEngine->drawSkybox(cameraObject.camera->skyboxMaterialId, boost::uuids::nil_uuid());
     }
-
-    scene->engine.graphicsEngine->renderFrame();
 }
 
 void RenderSystem::OnComponentAdded(ComponentID componentID, std::type_index type)
