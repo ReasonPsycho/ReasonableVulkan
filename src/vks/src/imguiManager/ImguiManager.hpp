@@ -40,14 +40,14 @@ namespace vks
 
         void createDescriptorSets(std::vector<VkImageView> swapChainImagesViews);
         VkDescriptorSet addTexture(VkImageView imageView, VkSampler sampler);
-        VkDescriptorSet getTexture();
-        std::vector<VkDescriptorSet> swapChainImguiTextureIDs{VK_NULL_HANDLE};
+        VkDescriptorSet getTexture(uint32_t imageIndex);
+        std::vector<VkDescriptorSet> swapChainImguiTextureIDs;
 
         VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
         VkCommandBuffer imguiCommandBuffer{VK_NULL_HANDLE};
         VkPipelineCache imguiPipelineCache{VK_NULL_HANDLE};
         VkRenderPass imguiRenderPass{VK_NULL_HANDLE};
-        VkFramebuffer imguiFramebuffer{VK_NULL_HANDLE};
+        std::vector<VkFramebuffer> imguiFramebuffers;
 
     };
 }

@@ -21,6 +21,24 @@ namespace vks
         createRenderPass();
         createPipelineCache();
 
+        // Create framebuffers for ImGui
+        imguiFramebuffers.resize(swapChainImagesViews.size());
+        for (size_t i = 0; i < swapChainImagesViews.size(); i++) {
+            VkImageView attachments[] = { swapChainImagesViews[i] };
+            VkFramebufferCreateInfo framebufferInfo{};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = imguiRenderPass;
+            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.width = swapChain->getSwapChainExtent().width;
+            framebufferInfo.height = swapChain->getSwapChainExtent().height;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(context->getDevice(), &framebufferInfo, nullptr, &imguiFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create ImGui framebuffer!");
+            }
+        }
+
         // Initialize ImGui
         IMGUI_CHECKVERSION();
         auto ctx = ImGui::CreateContext();
@@ -104,9 +122,9 @@ namespace vks
         return ImGui_ImplVulkan_AddTexture(sampler, imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
-    VkDescriptorSet ImguiManager::getTexture()
+    VkDescriptorSet ImguiManager::getTexture(uint32_t imageIndex)
     {
-        return swapChainImguiTextureIDs[swapChain->getCurrentImageIndex()];
+        return swapChainImguiTextureIDs[imageIndex];
     }
 
     void ImguiManager::imguiBeginFrame()
@@ -133,11 +151,12 @@ namespace vks
         VkRenderPassBeginInfo imguiRenderPassInfo{};
         imguiRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         imguiRenderPassInfo.renderPass = imguiRenderPass;
-        imguiRenderPassInfo.framebuffer = pipelineManager->getFramebuffer(imageIndex);
+        imguiRenderPassInfo.framebuffer = imguiFramebuffers[imageIndex];
         imguiRenderPassInfo.renderArea.offset = {0, 0};
         imguiRenderPassInfo.renderArea.extent = swapChain->getSwapChainExtent();
-        imguiRenderPassInfo.clearValueCount = 0;
-        imguiRenderPassInfo.pClearValues = nullptr;
+        VkClearValue clearValue = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+        imguiRenderPassInfo.clearValueCount = 1;
+        imguiRenderPassInfo.pClearValues = &clearValue;
 
         vkCmdBeginRenderPass(commandBuffer, &imguiRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -147,9 +166,10 @@ namespace vks
 
     void ImguiManager::createDescriptorSets(std::vector<VkImageView> swapChainImagesViews)
     {
-        for (int i = 0; i < swapChainImagesViews.size(); i++)
+        swapChainImguiTextureIDs.clear();
+        for (int i = 0; i < pipelineManager->offscreenTargets.size(); i++)
         {
-            swapChainImguiTextureIDs.push_back(addTexture(swapChainImagesViews[i], descriptorManager->defaultSampler));
+            swapChainImguiTextureIDs.push_back(addTexture(pipelineManager->offscreenTargets[i].view, descriptorManager->defaultSampler));
         }
     }
 
@@ -174,43 +194,28 @@ namespace vks
 
     void ImguiManager::createRenderPass()
 {
-    std::array<VkAttachmentDescription, 2> attachments = {};
+    std::array<VkAttachmentDescription, 1> attachments = {};
 
-    // Color attachment
+    // Color attachment (Swapchain)
     attachments[0].format = swapChain->getSwapChainImageFormat();
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;  // Load existing content
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;  // Clear the swapchain image to remove "mirages"
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // Initial layout matches the previous pass's final layout
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // We are clearing it, so UNDEFINED is better
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    // Depth attachment
-    attachments[1].format = VK_FORMAT_D32_SFLOAT;
-    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;  // Load existing depth
-    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference colorAttachmentRef = {};
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkAttachmentReference depthAttachmentRef = {};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-    // Subpass dependencies for layout transitions (matched with RenderPipelineManager)
+    // Subpass dependencies for layout transitions
     std::array<VkSubpassDependency, 2> dependencies;
 
     dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -244,9 +249,13 @@ namespace vks
 }
     void ImguiManager::cleanup()
     {
-        if (imguiFramebuffer != VK_NULL_HANDLE) {
-            vkDestroyFramebuffer(context->getDevice(), imguiFramebuffer, nullptr);
+        for (auto framebuffer : imguiFramebuffers)
+        {
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
         }
+        imguiFramebuffers.clear();
+
         if (imguiRenderPass != VK_NULL_HANDLE) {
             vkDestroyRenderPass(context->getDevice(), imguiRenderPass, nullptr);
         }
