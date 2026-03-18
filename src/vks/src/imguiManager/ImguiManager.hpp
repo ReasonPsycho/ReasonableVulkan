@@ -36,6 +36,7 @@ namespace vks
         void createDescriptorPool();
         void imguiBeginFrame();
         void imguiEndFrame();
+        void imguiRenderPlatformWindows();
         void imguiRenderFrame(VkCommandBuffer commandBuffer,uint32_t imageIndex);
 
         void createDescriptorSets(std::vector<VkImageView> swapChainImagesViews);
