@@ -86,6 +86,7 @@ namespace engine::ecs
         glm::vec3 cameraTarget = glm::vec3(0.0f);
 
         void UpdateCameraPosition();
+        ImVec2 lastViewportSize = { 0, 0 };
     };
 }
 

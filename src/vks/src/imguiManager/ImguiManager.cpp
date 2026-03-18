@@ -21,23 +21,7 @@ namespace vks
         createRenderPass();
         createPipelineCache();
 
-        // Create framebuffers for ImGui
-        imguiFramebuffers.resize(swapChainImagesViews.size());
-        for (size_t i = 0; i < swapChainImagesViews.size(); i++) {
-            VkImageView attachments[] = { swapChainImagesViews[i] };
-            VkFramebufferCreateInfo framebufferInfo{};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = imguiRenderPass;
-            framebufferInfo.attachmentCount = 1;
-            framebufferInfo.pAttachments = attachments;
-            framebufferInfo.width = swapChain->getSwapChainExtent().width;
-            framebufferInfo.height = swapChain->getSwapChainExtent().height;
-            framebufferInfo.layers = 1;
-
-            if (vkCreateFramebuffer(context->getDevice(), &framebufferInfo, nullptr, &imguiFramebuffers[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create ImGui framebuffer!");
-            }
-        }
+        createFramebuffers(swapChainImagesViews);
 
         // Initialize ImGui
         IMGUI_CHECKVERSION();
@@ -170,6 +154,33 @@ namespace vks
         for (int i = 0; i < pipelineManager->offscreenTargets.size(); i++)
         {
             swapChainImguiTextureIDs.push_back(addTexture(pipelineManager->offscreenTargets[i].view, descriptorManager->defaultSampler));
+        }
+    }
+
+    void ImguiManager::createFramebuffers(std::vector<VkImageView> swapChainImagesViews)
+    {
+        for (auto framebuffer : imguiFramebuffers)
+        {
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+        }
+        imguiFramebuffers.clear();
+
+        imguiFramebuffers.resize(swapChainImagesViews.size());
+        for (size_t i = 0; i < swapChainImagesViews.size(); i++) {
+            VkImageView attachments[] = { swapChainImagesViews[i] };
+            VkFramebufferCreateInfo framebufferInfo{};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = imguiRenderPass;
+            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.width = swapChain->getSwapChainExtent().width;
+            framebufferInfo.height = swapChain->getSwapChainExtent().height;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(context->getDevice(), &framebufferInfo, nullptr, &imguiFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create ImGui framebuffer!");
+            }
         }
     }
 

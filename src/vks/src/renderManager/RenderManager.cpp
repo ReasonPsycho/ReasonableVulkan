@@ -48,9 +48,9 @@ void RenderManager::initializeImgui(ImguiManager* manager)
 
 void RenderManager::createSyncObjects() {
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-
-    // Create sync objects for each swapchain image
-    imageSync.resize(swapChain->getImageViews().size());
+    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    imagesInFlight.assign(swapChain->getImageViews().size(), VK_NULL_HANDLE);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -59,18 +59,11 @@ void RenderManager::createSyncObjects() {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    // Create image available semaphores
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create image available semaphore!");
-        }
-    }
-
-    // Create per-image synchronization objects
-    for (auto& sync : imageSync) {
-        if (vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &sync.renderFinishedSemaphore) != VK_SUCCESS ||
-            vkCreateFence(context->getDevice(), &fenceInfo, nullptr, &sync.inFlightFence) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create image sync objects!");
+        if (vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(context->getDevice(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create synchronization objects for a frame!");
         }
     }
 }
@@ -112,15 +105,12 @@ void RenderManager::createSyncObjects() {
 void RenderManager::cleanup() {
     vkDeviceWaitIdle(context->getDevice());
 
-    for (auto& semaphore : imageAvailableSemaphores) {
-        vkDestroySemaphore(context->getDevice(), semaphore, nullptr);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (i < renderFinishedSemaphores.size()) vkDestroySemaphore(context->getDevice(), renderFinishedSemaphores[i], nullptr);
+        if (i < imageAvailableSemaphores.size()) vkDestroySemaphore(context->getDevice(), imageAvailableSemaphores[i], nullptr);
+        if (i < inFlightFences.size()) vkDestroyFence(context->getDevice(), inFlightFences[i], nullptr);
     }
-
-    for (auto& sync : imageSync) {
-        vkDestroySemaphore(context->getDevice(), sync.renderFinishedSemaphore, nullptr);
-        vkDestroyFence(context->getDevice(), sync.inFlightFence, nullptr);
-    }
-
+    
     vkDestroyCommandPool(context->getDevice(), context->getGraphicsCommandPool(), nullptr);
 }
 
@@ -197,51 +187,39 @@ void RenderManager::createCommandBuffers() {
     }
 }
 
-    void RenderManager::beginFrame() {
-
-
-    // First wait for the previous frame to complete
-    if (currentImageIndex != UINT32_MAX) {
-        vkWaitForFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence, VK_TRUE, UINT64_MAX);
-    }
+void RenderManager::beginFrame() {
+    vkWaitForFences(context->getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     VkResult result = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        return; // Just return without throwing when swapchain is invalid/out of date
+        return; 
     } else if (result != VK_SUCCESS) {
         throw std::runtime_error("Failed to acquire swap chain image!");
     }
-
 
 #ifdef ENABLE_IMGUI
     imguiManager->imguiBeginFrame();
 #endif
 
-
-
-    // Get the newly acquired image index from the swap chain manager
     currentImageIndex = swapChain->getCurrentImageIndex();
 
-    // Reset fence only after we've acquired a new image and know which fence we'll use
-    vkResetFences(context->getDevice(), 1, &imageSync[currentImageIndex].inFlightFence);
+    if (imagesInFlight[currentImageIndex] != VK_NULL_HANDLE) {
+        vkWaitForFences(context->getDevice(), 1, &imagesInFlight[currentImageIndex], VK_TRUE, UINT64_MAX);
+    }
+    imagesInFlight[currentImageIndex] = inFlightFences[currentFrame];
 
-    // Mark the image as acquired and update its last used frame
-    imageSync[currentImageIndex].imageAcquired = true;
-    imageSync[currentImageIndex].frameLastUsed = currentFrame;
+    vkResetFences(context->getDevice(), 1, &inFlightFences[currentFrame]);
 }
 
 void RenderManager::renderFrame() {
-    // Update uniform buffers and record command buffer
     updateUniformBuffers(currentFrame);
     vkResetCommandBuffer(frameResources[currentFrame].commandBuffer, 0);
 
-    #ifdef ENABLE_IMGUI
-        imguiManager->imguiEndFrame();
-    #endif
+#ifdef ENABLE_IMGUI
+    imguiManager->imguiEndFrame();
+#endif
 
     recordCommandBuffer(frameResources[currentFrame].commandBuffer, currentImageIndex);
-
-
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -255,18 +233,17 @@ void RenderManager::renderFrame() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &frameResources[currentFrame].commandBuffer;
 
-    VkSemaphore signalSemaphores[] = {imageSync[currentImageIndex].renderFinishedSemaphore};
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(context->getGraphicsQueue(), 1, &submitInfo,
-                      imageSync[currentImageIndex].inFlightFence) != VK_SUCCESS) {
+    if (vkQueueSubmit(context->getGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
 
     VkResult result = swapChain->queuePresent(context->getGraphicsQueue(),
                                            currentImageIndex,
-                                           imageSync[currentImageIndex].renderFinishedSemaphore);
+                                           renderFinishedSemaphores[currentFrame]);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         // Handle swapchain recreation
@@ -275,7 +252,6 @@ void RenderManager::renderFrame() {
     }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-
 }
 
 void RenderManager::endFrame() {
