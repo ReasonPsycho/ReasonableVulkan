@@ -34,6 +34,7 @@ namespace vks {
         );
         pipelineManager = std::make_unique<RenderPipelineManager>(
             context.get(),
+            swapChain.get(),
             descriptorManager.get()
         );
         renderManager = std::make_unique<RenderManager>(
@@ -184,7 +185,8 @@ namespace vks {
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
 
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
-        pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
+        pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
+        pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
         // Initialize render manager
         renderManager->initialize(pbrShaderId, skyboxShaderId);
@@ -207,7 +209,7 @@ namespace vks {
     void* VulkanRenderer::getViewportTexturePointer()
     {
 #if ENABLE_IMGUI
-        return (void*)imguiManager.get()->getTexture();
+        return (void*)imguiManager.get()->getTexture(swapChain->getCurrentImageIndex());
 #else
         return nullptr;
 #endif
@@ -239,9 +241,10 @@ namespace vks {
 
         // Recreate depth resources with new dimensions
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
+        pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
 
         // Recreate framebuffers
-        pipelineManager->createFramebuffers(swapChain->getImageViews(), swapChain->getSwapChainExtent());
+        pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
     #if ENABLE_IMGUI
             imguiManager.get()->createDescriptorSets(swapChain->getImageViews());

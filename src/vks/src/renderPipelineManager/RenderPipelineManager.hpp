@@ -8,19 +8,22 @@
 
 namespace vks {
     class ShaderProgramDescriptor;
+    class SwapChainManager;
 
     class RenderPipelineManager {
     public:
-        RenderPipelineManager(VulkanContext* context, DescriptorManager* descriptorManager);
+        RenderPipelineManager(VulkanContext* context, SwapChainManager* swapChain, DescriptorManager* descriptorManager);
         ~RenderPipelineManager();
 
         void createRenderPass();
         void createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor);
-        void createFramebuffers(const std::vector<VkImageView>& swapChainImageViews,
-                               VkExtent2D swapChainExtent);
+        void createFramebuffers(VkExtent2D swapChainExtent);
 
         void createDepthResources(VkExtent2D swapChainExtent);
         void cleanupDepthResources();
+
+        void createOffscreenResources(VkExtent2D extent);
+        void cleanupOffscreenResources();
 
         void cleanup();
 
@@ -37,6 +40,15 @@ namespace vks {
         VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t index) const { return framebuffers[index]; }
 
+        // Offscreen resources
+        struct OffscreenTarget {
+            VkImage image = VK_NULL_HANDLE;
+            VkDeviceMemory memory = VK_NULL_HANDLE;
+            VkImageView view = VK_NULL_HANDLE;
+        };
+        std::vector<OffscreenTarget> offscreenTargets;
+        VkFormat offscreenFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
         // Add these new members for depth resources
         VkImage depthImage = VK_NULL_HANDLE;
         VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
@@ -44,6 +56,7 @@ namespace vks {
 
     private:
         VulkanContext* context;
+        SwapChainManager* swapChain;
         DescriptorManager* descriptorManager;
 
         VkRenderPass renderPass{VK_NULL_HANDLE};

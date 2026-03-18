@@ -1,5 +1,6 @@
 #include <boost/uuid/uuid_io.hpp>
 #include "RenderPipelineManager.hpp"
+#include "../swapChainManager/SwapChainManager.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include "../descriptorManager/modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
@@ -9,8 +10,8 @@
 
 namespace vks
 {
-    RenderPipelineManager::RenderPipelineManager(VulkanContext* context, DescriptorManager* descriptorManager)
-        : context(context), descriptorManager(descriptorManager)
+    RenderPipelineManager::RenderPipelineManager(VulkanContext* context, SwapChainManager* swapChain, DescriptorManager* descriptorManager)
+        : context(context), swapChain(swapChain), descriptorManager(descriptorManager)
     {
     }
 
@@ -48,10 +49,13 @@ namespace vks
     {
         for (auto framebuffer : framebuffers)
         {
-            vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
         }
+        framebuffers.clear();
 
         cleanupDepthResources();
+        cleanupOffscreenResources();
 
         // Cleanup all pipelines and layouts
         for (const auto& pipeline : pipelines)
@@ -83,15 +87,15 @@ namespace vks
         // Create attachment descriptions for color and depth
         std::array<VkAttachmentDescription, 2> attachments = {};
 
-        // Color attachment
-        attachments[0].format = VK_FORMAT_B8G8R8A8_SRGB; // Should match swapchain format
+        // Color attachment (Offscreen scene target)
+        attachments[0].format = offscreenFormat;
         attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
         attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // Final layout for sampling in ImGui
 
         // Depth attachment
         attachments[1].format = VK_FORMAT_D32_SFLOAT; // Should match depth format
@@ -159,23 +163,23 @@ namespace vks
     }
 
 
-    void RenderPipelineManager::createFramebuffers(const std::vector<VkImageView>& swapChainImageViews,
-                                                   VkExtent2D swapChainExtent)
+    void RenderPipelineManager::createFramebuffers(VkExtent2D swapChainExtent)
     {
         // Clean up old framebuffers if they exist
         for (auto framebuffer : framebuffers)
         {
-            vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
         }
 
-        // Resize framebuffers vector to match number of swap chain images
-        framebuffers.resize(swapChainImageViews.size());
+        // Resize framebuffers vector to match number of offscreen targets (usually matches swapchain)
+        framebuffers.resize(offscreenTargets.size());
 
-        // Create a framebuffer for each swap chain image view
-        for (size_t i = 0; i < swapChainImageViews.size(); i++)
+        // Create a framebuffer for each offscreen target
+        for (size_t i = 0; i < offscreenTargets.size(); i++)
         {
             std::array<VkImageView, 2> attachments = {
-                swapChainImageViews[i], // Color attachment
+                offscreenTargets[i].view, // Color attachment (offscreen)
                 depthImageView // Depth attachment
             };
 
@@ -190,9 +194,77 @@ namespace vks
 
             if (vkCreateFramebuffer(context->getDevice(), &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
             {
-                throw std::runtime_error("Failed to create framebuffer!");
+                throw std::runtime_error("Failed to create offscreen framebuffer!");
             }
         }
+    }
+
+    void RenderPipelineManager::createOffscreenResources(VkExtent2D extent)
+    {
+        cleanupOffscreenResources();
+        
+        uint32_t imageCount = static_cast<uint32_t>(swapChain->getImageViews().size());
+        offscreenTargets.resize(imageCount);
+
+        for (uint32_t i = 0; i < imageCount; i++) {
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.extent.width = extent.width;
+            imageInfo.extent.height = extent.height;
+            imageInfo.extent.depth = 1;
+            imageInfo.mipLevels = 1;
+            imageInfo.arrayLayers = 1;
+            imageInfo.format = offscreenFormat;
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            if (vkCreateImage(context->getDevice(), &imageInfo, nullptr, &offscreenTargets[i].image) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create offscreen image!");
+            }
+
+            VkMemoryRequirements memRequirements;
+            vkGetImageMemoryRequirements(context->getDevice(), offscreenTargets[i].image, &memRequirements);
+
+            VkMemoryAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            allocInfo.allocationSize = memRequirements.size;
+            allocInfo.memoryTypeIndex = context->findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+            if (vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &offscreenTargets[i].memory) != VK_SUCCESS) {
+                throw std::runtime_error("failed to allocate offscreen image memory!");
+            }
+
+            vkBindImageMemory(context->getDevice(), offscreenTargets[i].image, offscreenTargets[i].memory, 0);
+
+            VkImageViewCreateInfo viewInfo{};
+            viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewInfo.image = offscreenTargets[i].image;
+            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.format = offscreenFormat;
+            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            viewInfo.subresourceRange.baseMipLevel = 0;
+            viewInfo.subresourceRange.levelCount = 1;
+            viewInfo.subresourceRange.baseArrayLayer = 0;
+            viewInfo.subresourceRange.layerCount = 1;
+
+            if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &offscreenTargets[i].view) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create offscreen image view!");
+            }
+        }
+    }
+
+    void RenderPipelineManager::cleanupOffscreenResources()
+    {
+        for (auto& target : offscreenTargets) {
+            if (target.view != VK_NULL_HANDLE) vkDestroyImageView(context->getDevice(), target.view, nullptr);
+            if (target.image != VK_NULL_HANDLE) vkDestroyImage(context->getDevice(), target.image, nullptr);
+            if (target.memory != VK_NULL_HANDLE) vkFreeMemory(context->getDevice(), target.memory, nullptr);
+        }
+        offscreenTargets.clear();
     }
 
     void RenderPipelineManager::createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
