@@ -277,8 +277,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
     viewportPos.x += contentMin.x;
     viewportPos.y += contentMin.y;
 
-    /*
-    static ImVec2 lastViewportSize = { 0, 0 };
+
     if (viewportPanelSize.x != lastViewportSize.x || viewportPanelSize.y != lastViewportSize.y)
     {
         lastViewportSize = viewportPanelSize;
@@ -286,7 +285,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
             scene->engine.graphicsEngine->resize((uint32_t)viewportPanelSize.x, (uint32_t)viewportPanelSize.y);
         }
     }
-    */
+
     void* textureId = scene->engine.graphicsEngine->getViewportTexturePointer();
     if (textureId) {
         ImGui::Image((ImTextureID)textureId, viewportPanelSize);

@@ -47,7 +47,7 @@ namespace vks {
             VkImageView view = VK_NULL_HANDLE;
         };
         std::vector<OffscreenTarget> offscreenTargets;
-        VkFormat offscreenFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        VkFormat offscreenFormat = VK_FORMAT_B8G8R8A8_SRGB;
 
         // Add these new members for depth resources
         VkImage depthImage = VK_NULL_HANDLE;

@@ -234,6 +234,11 @@ namespace vks {
             throw std::invalid_argument("Window dimensions cannot be zero");
         }
 
+        VkExtent2D currentExtent = swapChain->getSwapChainExtent();
+        if (currentExtent.width == width && currentExtent.height == height) {
+            return;
+        }
+
         waitIdle();
 
         // Recreate swap chain
@@ -247,6 +252,7 @@ namespace vks {
         pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
     #if ENABLE_IMGUI
+            imguiManager.get()->createFramebuffers(swapChain->getImageViews());
             imguiManager.get()->createDescriptorSets(swapChain->getImageViews());
     #endif
 
