@@ -30,11 +30,8 @@ namespace vks
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
-            ImGui::GetStyle().WindowRounding = 0.0f;
-            ImGui::GetStyle().Colors[ImGuiCol_WindowBg].w = 1.0f;
-        }
+        //ImGui::StyleColorsLight();
+        ImGui::StyleColorsDark();
 
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
