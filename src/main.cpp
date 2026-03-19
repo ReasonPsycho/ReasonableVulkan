@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
     auto cameraEntity = scene.get()->CreateEntity("Camera");
     scene.get()->AddComponent<CameraComponent>(cameraEntity);
     scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
+    scene.get()->GetComponent<CameraComponent>(cameraEntity).active = true;
 
     auto lightEntity = scene.get()->CreateEntity("Light");
     scene.get()->AddComponent<LightComponent>(lightEntity);

@@ -105,6 +105,11 @@ namespace vks
         return ImGui_ImplVulkan_AddTexture(sampler, imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
+    VkDescriptorSet ImguiManager::getTexture(uint32_t cameraIndex, uint32_t imageIndex)
+    {
+        return cameraImguiTextureIDs[cameraIndex][imageIndex];
+    }
+
     VkDescriptorSet ImguiManager::getTexture(uint32_t imageIndex)
     {
         return swapChainImguiTextureIDs[imageIndex];
@@ -153,13 +158,22 @@ namespace vks
 
     void ImguiManager::createDescriptorSets(std::vector<VkImageView> swapChainImagesViews)
     {
+        cameraImguiTextureIDs.clear();
         swapChainImguiTextureIDs.clear();
         if (pipelineManager->cameraResources.empty()) return;
 
-        // Use the offscreen targets of the first camera for ImGui display by default
-        for (int i = 0; i < pipelineManager->cameraResources[0].offscreenTargets.size(); i++)
-        {
-            swapChainImguiTextureIDs.push_back(addTexture(pipelineManager->cameraResources[0].offscreenTargets[i].view, descriptorManager->defaultSampler));
+        cameraImguiTextureIDs.resize(pipelineManager->cameraResources.size());
+        for (uint32_t cameraIndex = 0; cameraIndex < pipelineManager->cameraResources.size(); ++cameraIndex) {
+            for (int i = 0; i < pipelineManager->cameraResources[cameraIndex].offscreenTargets.size(); i++) {
+                cameraImguiTextureIDs[cameraIndex].push_back(
+                    addTexture(pipelineManager->cameraResources[cameraIndex].offscreenTargets[i].view,
+                               descriptorManager->defaultSampler));
+            }
+        }
+
+        // Keep swapChainImguiTextureIDs for backward compatibility, mapping to camera 0
+        if (!cameraImguiTextureIDs.empty()) {
+            swapChainImguiTextureIDs = cameraImguiTextureIDs[0];
         }
     }
 

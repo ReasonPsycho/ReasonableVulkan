@@ -77,6 +77,7 @@ private:
         void endFrame();
         void waitIdle();
 
+        size_t getCurrentFrame() const { return currentFrame; }
         void setActiveCameraCount(uint32_t count) { activeCameraCount = count; }
 
 

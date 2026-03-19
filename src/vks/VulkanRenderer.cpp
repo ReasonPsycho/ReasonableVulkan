@@ -209,7 +209,17 @@ namespace vks {
         return glm::uvec2(extent.width, extent.height);
     }
 
-    void* VulkanRenderer::getViewportTexturePointer()
+   	void* VulkanRenderer::getViewportTexturePointer(uint32_t cameraIndex)
+   	{
+   #if ENABLE_IMGUI
+   		if (imguiManager) {
+   			return (void*)imguiManager->getTexture(cameraIndex, renderManager->getCurrentFrame());
+   		}
+   #endif
+   		return nullptr;
+   	}
+
+   	void* VulkanRenderer::getViewportTexturePointer()
     {
 #if ENABLE_IMGUI
         return (void*)imguiManager.get()->getTexture(swapChain->getCurrentImageIndex());

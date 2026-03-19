@@ -26,6 +26,7 @@ namespace gfx {
         virtual void resize(uint32_t width, uint32_t height) {}
         virtual glm::uvec2 getExtent() { return glm::uvec2(0, 0); }
         virtual void* getViewportTexturePointer() = 0;
+        virtual void* getViewportTexturePointer(uint32_t cameraIndex) = 0;
 
         virtual void setCameraData(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) = 0;
         virtual void setActiveCameraCount(uint32_t count) = 0;
