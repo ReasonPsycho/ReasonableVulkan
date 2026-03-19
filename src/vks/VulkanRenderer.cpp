@@ -66,6 +66,11 @@ namespace vks {
         descriptorManager->updateSceneUBO(cameraIndex, proj, view, cameraPos);
     }
 
+    void VulkanRenderer::setActiveCameraCount(uint32_t count)
+    {
+        renderManager->setActiveCameraCount(count);
+    }
+
     void VulkanRenderer::loadModel(boost::uuids::uuid uuid) {
         descriptorManager->getOrLoadResource<ModelDescriptor>(uuid);
     }
@@ -78,19 +83,19 @@ namespace vks {
         descriptorManager->getOrLoadResource<TextureDescriptor>(uuid);
     }
 
-    void VulkanRenderer::drawModel(boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) {
+    void VulkanRenderer::drawModel(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) {
     if (shaderId.is_nil()){
         shaderId = pbrShaderId;
     }
-    renderManager->submitRenderCommand(modelId, shaderId, transform);
+    renderManager->submitRenderCommand(cameraIndex, modelId, shaderId, transform);
 }
 
-    void VulkanRenderer::drawSkybox(boost::uuids::uuid textureId, boost::uuids::uuid shaderId)
+    void VulkanRenderer::drawSkybox(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid shaderId)
     {
         if (shaderId.is_nil()){
             shaderId = skyboxShaderId;
         }
-        renderManager->submitSkyboxRenderCommand(textureId, shaderId);
+        renderManager->submitSkyboxRenderCommand(cameraIndex, textureId, shaderId);
     }
 
 

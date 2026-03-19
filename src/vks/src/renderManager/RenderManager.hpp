@@ -21,6 +21,7 @@ namespace vks {
 
     struct RenderCommand
     {
+        uint32_t cameraIndex;
         boost::uuids::uuid modelId;
         boost::uuids::uuid renderProgramId;
         glm::mat4 transform;
@@ -28,6 +29,7 @@ namespace vks {
 
     struct SkyboxRenderCommand
     {
+        uint32_t cameraIndex;
         boost::uuids::uuid textureId;
         boost::uuids::uuid renderProgramId;
     };
@@ -64,8 +66,8 @@ private:
         void cleanup();
 
         // Core rendering functions
-        void submitRenderCommand(boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform);
-        void submitSkyboxRenderCommand(boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId);
+        void submitRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform);
+        void submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId);
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
@@ -74,6 +76,8 @@ private:
         void renderFrame();
         void endFrame();
         void waitIdle();
+
+        void setActiveCameraCount(uint32_t count) { activeCameraCount = count; }
 
 
         // Command buffer management
@@ -102,6 +106,8 @@ private:
         SwapChainManager* swapChain;
         RenderPipelineManager* pipelineManager;
         DescriptorManager* descriptorManager;
+
+        uint32_t activeCameraCount = 1;
 
 #ifdef ENABLE_IMGUI
         ImguiManager* imguiManager = nullptr;

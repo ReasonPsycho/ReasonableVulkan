@@ -45,14 +45,25 @@ namespace vks
         return pipeline->layout;
     }
 
+    VkFramebuffer RenderPipelineManager::getFramebuffer(uint32_t cameraIndex, uint32_t imageIndex) const
+    {
+        if (cameraIndex < cameraResources.size() && imageIndex < cameraResources[cameraIndex].framebuffers.size())
+        {
+            return cameraResources[cameraIndex].framebuffers[imageIndex];
+        }
+        return VK_NULL_HANDLE;
+    }
+
     void RenderPipelineManager::cleanup()
     {
-        for (auto framebuffer : framebuffers)
-        {
-            if (framebuffer != VK_NULL_HANDLE)
-                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+        for (auto& resources : cameraResources) {
+            for (auto framebuffer : resources.framebuffers)
+            {
+                if (framebuffer != VK_NULL_HANDLE)
+                    vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+            }
+            resources.framebuffers.clear();
         }
-        framebuffers.clear();
 
         cleanupDepthResources();
         cleanupOffscreenResources();
@@ -165,36 +176,45 @@ namespace vks
 
     void RenderPipelineManager::createFramebuffers(VkExtent2D swapChainExtent)
     {
-        // Clean up old framebuffers if they exist
-        for (auto framebuffer : framebuffers)
-        {
-            if (framebuffer != VK_NULL_HANDLE)
-                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+        uint32_t maxCameras = 4;
+        if (cameraResources.size() < maxCameras) {
+            cameraResources.resize(maxCameras);
         }
 
-        // Resize framebuffers vector to match number of offscreen targets (usually matches swapchain)
-        framebuffers.resize(offscreenTargets.size());
+        for (uint32_t camIdx = 0; camIdx < maxCameras; camIdx++) {
+            auto& resources = cameraResources[camIdx];
 
-        // Create a framebuffer for each offscreen target
-        for (size_t i = 0; i < offscreenTargets.size(); i++)
-        {
-            std::array<VkImageView, 2> attachments = {
-                offscreenTargets[i].view, // Color attachment (offscreen)
-                depthImageView // Depth attachment
-            };
-
-            VkFramebufferCreateInfo framebufferInfo{};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = renderPass;
-            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-            framebufferInfo.pAttachments = attachments.data();
-            framebufferInfo.width = swapChainExtent.width;
-            framebufferInfo.height = swapChainExtent.height;
-            framebufferInfo.layers = 1;
-
-            if (vkCreateFramebuffer(context->getDevice(), &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
+            // Clean up old framebuffers if they exist
+            for (auto framebuffer : resources.framebuffers)
             {
-                throw std::runtime_error("Failed to create offscreen framebuffer!");
+                if (framebuffer != VK_NULL_HANDLE)
+                    vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+            }
+
+            // Resize framebuffers vector to match number of offscreen targets (usually matches swapchain)
+            resources.framebuffers.resize(resources.offscreenTargets.size());
+
+            // Create a framebuffer for each offscreen target
+            for (size_t i = 0; i < resources.offscreenTargets.size(); i++)
+            {
+                std::array<VkImageView, 2> attachments = {
+                    resources.offscreenTargets[i].view, // Color attachment (offscreen)
+                    resources.depthImageView // Depth attachment
+                };
+
+                VkFramebufferCreateInfo framebufferInfo{};
+                framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+                framebufferInfo.renderPass = renderPass;
+                framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+                framebufferInfo.pAttachments = attachments.data();
+                framebufferInfo.width = swapChainExtent.width;
+                framebufferInfo.height = swapChainExtent.height;
+                framebufferInfo.layers = 1;
+
+                if (vkCreateFramebuffer(context->getDevice(), &framebufferInfo, nullptr, &resources.framebuffers[i]) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("Failed to create offscreen framebuffer!");
+                }
             }
         }
     }
@@ -202,97 +222,106 @@ namespace vks
     void RenderPipelineManager::createOffscreenResources(VkExtent2D extent)
     {
         cleanupOffscreenResources();
-        
+
+        uint32_t maxCameras = 4;
+        cameraResources.resize(maxCameras);
+
         uint32_t imageCount = static_cast<uint32_t>(swapChain->getImageViews().size());
-        offscreenTargets.resize(imageCount);
 
-        for (uint32_t i = 0; i < imageCount; i++) {
-            VkImageCreateInfo imageInfo{};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.extent.width = extent.width;
-            imageInfo.extent.height = extent.height;
-            imageInfo.extent.depth = 1;
-            imageInfo.mipLevels = 1;
-            imageInfo.arrayLayers = 1;
-            imageInfo.format = offscreenFormat;
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        for (uint32_t camIdx = 0; camIdx < maxCameras; camIdx++) {
+            auto& resources = cameraResources[camIdx];
+            resources.offscreenTargets.resize(imageCount);
 
-            if (vkCreateImage(context->getDevice(), &imageInfo, nullptr, &offscreenTargets[i].image) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create offscreen image!");
+            for (uint32_t i = 0; i < imageCount; i++) {
+                VkImageCreateInfo imageInfo{};
+                imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+                imageInfo.imageType = VK_IMAGE_TYPE_2D;
+                imageInfo.extent.width = extent.width;
+                imageInfo.extent.height = extent.height;
+                imageInfo.extent.depth = 1;
+                imageInfo.mipLevels = 1;
+                imageInfo.arrayLayers = 1;
+                imageInfo.format = offscreenFormat;
+                imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+                imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+                imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+                imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+                if (vkCreateImage(context->getDevice(), &imageInfo, nullptr, &resources.offscreenTargets[i].image) != VK_SUCCESS) {
+                    throw std::runtime_error("failed to create offscreen image!");
+                }
+
+                VkMemoryRequirements memRequirements;
+                vkGetImageMemoryRequirements(context->getDevice(), resources.offscreenTargets[i].image, &memRequirements);
+
+                VkMemoryAllocateInfo allocInfo{};
+                allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                allocInfo.allocationSize = memRequirements.size;
+                allocInfo.memoryTypeIndex = context->findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+                if (vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &resources.offscreenTargets[i].memory) != VK_SUCCESS) {
+                    throw std::runtime_error("failed to allocate offscreen image memory!");
+                }
+
+                vkBindImageMemory(context->getDevice(), resources.offscreenTargets[i].image, resources.offscreenTargets[i].memory, 0);
+
+                VkImageViewCreateInfo viewInfo{};
+                viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+                viewInfo.image = resources.offscreenTargets[i].image;
+                viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+                viewInfo.format = offscreenFormat;
+                viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                viewInfo.subresourceRange.baseMipLevel = 0;
+                viewInfo.subresourceRange.levelCount = 1;
+                viewInfo.subresourceRange.baseArrayLayer = 0;
+                viewInfo.subresourceRange.layerCount = 1;
+
+                if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &resources.offscreenTargets[i].view) != VK_SUCCESS) {
+                    throw std::runtime_error("failed to create offscreen image view!");
+                }
+
+                // Explicitly transition to SHADER_READ_ONLY_OPTIMAL for the first use
+                VkCommandBuffer cmdBuffer = context->beginSingleTimeCommands(QueueType::Graphics);
+                VkImageMemoryBarrier barrier{};
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.image = resources.offscreenTargets[i].image;
+                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                barrier.subresourceRange.baseMipLevel = 0;
+                barrier.subresourceRange.levelCount = 1;
+                barrier.subresourceRange.baseArrayLayer = 0;
+                barrier.subresourceRange.layerCount = 1;
+                barrier.srcAccessMask = 0;
+                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+                vkCmdPipelineBarrier(
+                    cmdBuffer,
+                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    0,
+                    0, nullptr,
+                    0, nullptr,
+                    1, &barrier);
+
+                context->endSingleTimeCommands(cmdBuffer, QueueType::Graphics);
             }
-
-            VkMemoryRequirements memRequirements;
-            vkGetImageMemoryRequirements(context->getDevice(), offscreenTargets[i].image, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = context->findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            if (vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &offscreenTargets[i].memory) != VK_SUCCESS) {
-                throw std::runtime_error("failed to allocate offscreen image memory!");
-            }
-
-            vkBindImageMemory(context->getDevice(), offscreenTargets[i].image, offscreenTargets[i].memory, 0);
-
-            VkImageViewCreateInfo viewInfo{};
-            viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            viewInfo.image = offscreenTargets[i].image;
-            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            viewInfo.format = offscreenFormat;
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            viewInfo.subresourceRange.baseMipLevel = 0;
-            viewInfo.subresourceRange.levelCount = 1;
-            viewInfo.subresourceRange.baseArrayLayer = 0;
-            viewInfo.subresourceRange.layerCount = 1;
-
-            if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &offscreenTargets[i].view) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create offscreen image view!");
-            }
-
-            // Explicitly transition to SHADER_READ_ONLY_OPTIMAL for the first use
-            VkCommandBuffer cmdBuffer = context->beginSingleTimeCommands(QueueType::Graphics);
-            VkImageMemoryBarrier barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.image = offscreenTargets[i].image;
-            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            barrier.subresourceRange.baseMipLevel = 0;
-            barrier.subresourceRange.levelCount = 1;
-            barrier.subresourceRange.baseArrayLayer = 0;
-            barrier.subresourceRange.layerCount = 1;
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            vkCmdPipelineBarrier(
-                cmdBuffer,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                0,
-                0, nullptr,
-                0, nullptr,
-                1, &barrier);
-
-            context->endSingleTimeCommands(cmdBuffer, QueueType::Graphics);
         }
     }
 
     void RenderPipelineManager::cleanupOffscreenResources()
     {
-        for (auto& target : offscreenTargets) {
-            if (target.view != VK_NULL_HANDLE) vkDestroyImageView(context->getDevice(), target.view, nullptr);
-            if (target.image != VK_NULL_HANDLE) vkDestroyImage(context->getDevice(), target.image, nullptr);
-            if (target.memory != VK_NULL_HANDLE) vkFreeMemory(context->getDevice(), target.memory, nullptr);
+        for (auto& resources : cameraResources) {
+            for (auto& target : resources.offscreenTargets) {
+                if (target.view != VK_NULL_HANDLE) vkDestroyImageView(context->getDevice(), target.view, nullptr);
+                if (target.image != VK_NULL_HANDLE) vkDestroyImage(context->getDevice(), target.image, nullptr);
+                if (target.memory != VK_NULL_HANDLE) vkFreeMemory(context->getDevice(), target.memory, nullptr);
+            }
+            resources.offscreenTargets.clear();
         }
-        offscreenTargets.clear();
     }
 
     void RenderPipelineManager::createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
@@ -476,106 +505,117 @@ namespace vks
     {
         VkFormat depthFormat = VK_FORMAT_D32_SFLOAT; // Should match the format in createRenderPass
 
-        // Create depth image
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width = swapChainExtent.width;
-        imageInfo.extent.height = swapChainExtent.height;
-        imageInfo.extent.depth = 1;
-        imageInfo.mipLevels = 1;
-        imageInfo.arrayLayers = 1;
-        imageInfo.format = depthFormat;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateImage(context->getDevice(), &imageInfo, nullptr, &depthImage) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create depth image!");
+        uint32_t maxCameras = 4;
+        if (cameraResources.size() < maxCameras) {
+            cameraResources.resize(maxCameras);
         }
 
-        // Get memory requirements and allocate
-        VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(context->getDevice(), depthImage, &memRequirements);
+        for (uint32_t camIdx = 0; camIdx < maxCameras; camIdx++) {
+            auto& resources = cameraResources[camIdx];
 
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = context->findMemoryType(memRequirements.memoryTypeBits,
-                                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            // Create depth image
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.extent.width = swapChainExtent.width;
+            imageInfo.extent.height = swapChainExtent.height;
+            imageInfo.extent.depth = 1;
+            imageInfo.mipLevels = 1;
+            imageInfo.arrayLayers = 1;
+            imageInfo.format = depthFormat;
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if (vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &depthImageMemory) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to allocate depth image memory!");
+            if (vkCreateImage(context->getDevice(), &imageInfo, nullptr, &resources.depthImage) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create depth image!");
+            }
+
+            // Get memory requirements and allocate
+            VkMemoryRequirements memRequirements;
+            vkGetImageMemoryRequirements(context->getDevice(), resources.depthImage, &memRequirements);
+
+            VkMemoryAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            allocInfo.allocationSize = memRequirements.size;
+            allocInfo.memoryTypeIndex = context->findMemoryType(memRequirements.memoryTypeBits,
+                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+            if (vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &resources.depthImageMemory) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to allocate depth image memory!");
+            }
+
+            vkBindImageMemory(context->getDevice(), resources.depthImage, resources.depthImageMemory, 0);
+
+            // Create image view
+            VkImageViewCreateInfo viewInfo{};
+            viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewInfo.image = resources.depthImage;
+            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.format = depthFormat;
+            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            viewInfo.subresourceRange.baseMipLevel = 0;
+            viewInfo.subresourceRange.levelCount = 1;
+            viewInfo.subresourceRange.baseArrayLayer = 0;
+            viewInfo.subresourceRange.layerCount = 1;
+
+            if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &resources.depthImageView) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create depth image view!");
+            }
+
+            // Explicitly transition to DEPTH_STENCIL_ATTACHMENT_OPTIMAL for the first use
+            VkCommandBuffer cmdBuffer = context->beginSingleTimeCommands(QueueType::Graphics);
+            VkImageMemoryBarrier barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.image = resources.depthImage;
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            barrier.subresourceRange.baseMipLevel = 0;
+            barrier.subresourceRange.levelCount = 1;
+            barrier.subresourceRange.baseArrayLayer = 0;
+            barrier.subresourceRange.layerCount = 1;
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            vkCmdPipelineBarrier(
+                cmdBuffer,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
+
+            context->endSingleTimeCommands(cmdBuffer, QueueType::Graphics);
         }
-
-        vkBindImageMemory(context->getDevice(), depthImage, depthImageMemory, 0);
-
-        // Create image view
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = depthImage;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = depthFormat;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &depthImageView) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create depth image view!");
-        }
-
-        // Explicitly transition to DEPTH_STENCIL_ATTACHMENT_OPTIMAL for the first use
-        VkCommandBuffer cmdBuffer = context->beginSingleTimeCommands(QueueType::Graphics);
-        VkImageMemoryBarrier barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = depthImage;
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-        vkCmdPipelineBarrier(
-            cmdBuffer,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-            0,
-            0, nullptr,
-            0, nullptr,
-            1, &barrier);
-
-        context->endSingleTimeCommands(cmdBuffer, QueueType::Graphics);
     }
 
     void RenderPipelineManager::cleanupDepthResources()
     {
-        if (depthImageView != VK_NULL_HANDLE)
-        {
-            vkDestroyImageView(context->getDevice(), depthImageView, nullptr);
-            depthImageView = VK_NULL_HANDLE;
-        }
-        if (depthImage != VK_NULL_HANDLE)
-        {
-            vkDestroyImage(context->getDevice(), depthImage, nullptr);
-            depthImage = VK_NULL_HANDLE;
-        }
-        if (depthImageMemory != VK_NULL_HANDLE)
-        {
-            vkFreeMemory(context->getDevice(), depthImageMemory, nullptr);
-            depthImageMemory = VK_NULL_HANDLE;
+        for (auto& resources : cameraResources) {
+            if (resources.depthImageView != VK_NULL_HANDLE)
+            {
+                vkDestroyImageView(context->getDevice(), resources.depthImageView, nullptr);
+                resources.depthImageView = VK_NULL_HANDLE;
+            }
+            if (resources.depthImage != VK_NULL_HANDLE)
+            {
+                vkDestroyImage(context->getDevice(), resources.depthImage, nullptr);
+                resources.depthImage = VK_NULL_HANDLE;
+            }
+            if (resources.depthImageMemory != VK_NULL_HANDLE)
+            {
+                vkFreeMemory(context->getDevice(), resources.depthImageMemory, nullptr);
+                resources.depthImageMemory = VK_NULL_HANDLE;
+            }
         }
     }
 } // namespace vks

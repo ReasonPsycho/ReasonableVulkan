@@ -30,11 +30,12 @@ namespace vks {
 		~VulkanRenderer() override;
 
   void setCameraData(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) override;
+  void setActiveCameraCount(uint32_t count) override;
 		void loadModel(boost::uuids::uuid uuid) override;
 		void loadShader(boost::uuids::uuid uuid) override;
 		void loadTexture(boost::uuids::uuid uuid) override;
-		void drawModel(boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) override;
-		void drawSkybox(boost::uuids::uuid textureId, boost::uuids::uuid shaderId) override;
+		void drawModel(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) override;
+		void drawSkybox(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid shaderId) override;
 		void drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform) override;
