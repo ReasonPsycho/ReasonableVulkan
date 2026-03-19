@@ -262,34 +262,38 @@ void RenderManager::endFrame() {
 
 }
 
-void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to begin recording command buffer!");
-    }
+        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to begin recording command buffer!");
+        }
 
-    // Add memory barrier for UBO before using it
-    VkBufferMemoryBarrier bufferBarrier{};
-    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    bufferBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;  // Direct from host write
-    bufferBarrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    bufferBarrier.buffer = descriptorManager->sceneUBO.buffer.buffer;
-    bufferBarrier.offset = 0;
-    bufferBarrier.size = sizeof(SceneUBO::UniformBlock);
+        // Add memory barrier for UBOs before using them
+        std::vector<VkBufferMemoryBarrier> bufferBarriers;
+        for (auto& sceneUBO : descriptorManager->sceneUBOs) {
+            VkBufferMemoryBarrier bufferBarrier{};
+            bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            bufferBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;  // Direct from host write
+            bufferBarrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+            bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bufferBarrier.buffer = sceneUBO.buffer.buffer;
+            bufferBarrier.offset = 0;
+            bufferBarrier.size = sizeof(SceneUBO::UniformBlock);
+            bufferBarriers.push_back(bufferBarrier);
+        }
 
-    vkCmdPipelineBarrier(
-        commandBuffer,
-        VK_PIPELINE_STAGE_HOST_BIT,              // Direct from host
-        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,     // To vertex shader
-        0,
-        0, nullptr,
-        1, &bufferBarrier,
-        0, nullptr
-    );
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_HOST_BIT,              // Direct from host
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,     // To vertex shader
+            0,
+            0, nullptr,
+            static_cast<uint32_t>(bufferBarriers.size()), bufferBarriers.data(),
+            0, nullptr
+        );
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -347,7 +351,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
                       pipelineManager->getPipelineLayout(cmd.renderProgramId),
                       0,                                    // First set index (Set 0)
                       1,                                    // Number of sets
-                      &descriptorManager->sceneUBO.buffer.descriptorSet,
+                      &descriptorManager->sceneUBOs[0].buffer.descriptorSet,
                       0, nullptr);
 
 
@@ -411,7 +415,7 @@ void RenderManager::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
                       pipelineManager->getPipelineLayout(cmd.renderProgramId),
                       0,                                    // First set index (Set 0)
                       1,                                    // Number of sets
-                      &descriptorManager->sceneUBO.buffer.descriptorSet,
+                      &descriptorManager->sceneUBOs[0].buffer.descriptorSet,
                       0, nullptr);
 
                 vkCmdBindDescriptorSets(

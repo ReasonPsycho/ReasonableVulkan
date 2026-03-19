@@ -104,7 +104,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     cameraObject.camera->aspectRatio = aspectRatio;
     updateProjectionMatrix(*cameraObject.camera);
 
-    scene->engine.graphicsEngine->setCameraData(cameraObject.camera->projection, cameraObject.camera->view, cameraObject.transform->position);
+    scene->engine.graphicsEngine->setCameraData(0, cameraObject.camera->projection, cameraObject.camera->view, cameraObject.transform->position);
 
     if (cameraObject.camera->skyboxMaterialId != boost::uuids::nil_uuid()) {
         scene->engine.graphicsEngine->drawSkybox(cameraObject.camera->skyboxMaterialId, boost::uuids::nil_uuid());

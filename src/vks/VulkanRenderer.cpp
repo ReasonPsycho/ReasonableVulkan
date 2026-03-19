@@ -58,12 +58,12 @@ namespace vks {
         cleanup();
     }
 
-    void VulkanRenderer::setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos)
+    void VulkanRenderer::setCameraData(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos)
     {
         glm::mat4 proj = projection; //Vulkan has inverted Y in clip space compared to OpenGL
         proj[1][1] *= -1.0f;
 
-        descriptorManager->updateSceneUBO(proj, view, cameraPos);
+        descriptorManager->updateSceneUBO(cameraIndex, proj, view, cameraPos);
     }
 
     void VulkanRenderer::loadModel(boost::uuids::uuid uuid) {

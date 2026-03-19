@@ -86,9 +86,9 @@ void EditorSystem::ImGuiGizmo()
 
         // Tool Overlay Window in Top Right
         {
-            const float PADDING = 10.0f;
-            const ImGuiViewport* viewport = ImGui::GetMainViewport();
-            ImVec2 window_pos = ImVec2(viewport->Pos.x + viewport->Size.x - PADDING, viewport->Pos.y + PADDING);
+            const float PADDING = 1.0f;
+
+            ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportPos.x - PADDING, lastViewportPos.y + PADDING);
             ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
             ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
             ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background

@@ -50,7 +50,7 @@ namespace vks {
         bool isResourceLoaded(const boost::uuids::uuid& assetId);
 
         void createSceneUBO();
-        void updateSceneUBO(const glm::mat4& projection, const glm::mat4& view, glm::vec3 cameraPos);
+        void updateSceneUBO(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, glm::vec3 cameraPos);
 
         void createLightsData();
         void updateLightsData(
@@ -96,7 +96,7 @@ namespace vks {
 
         // Resource cache
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<IVulkanDescriptor>> loadedResources;
-        SceneUBO sceneUBO;
+        std::vector<SceneUBO> sceneUBOs;
         LightsInfoUBO lightInfoUBO;
         LightSSBO directionalLightSSBO;
         LightSSBO pointLightSSBO;

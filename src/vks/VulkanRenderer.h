@@ -29,7 +29,7 @@ namespace vks {
 		explicit VulkanRenderer(am::AssetManagerInterface* assetManagerInterface);
 		~VulkanRenderer() override;
 
-		void setCameraData(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) override;
+  void setCameraData(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) override;
 		void loadModel(boost::uuids::uuid uuid) override;
 		void loadShader(boost::uuids::uuid uuid) override;
 		void loadTexture(boost::uuids::uuid uuid) override;
