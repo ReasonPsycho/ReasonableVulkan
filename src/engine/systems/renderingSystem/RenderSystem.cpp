@@ -33,7 +33,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
             Entity entity = modelArray->ComponentIndexToEntity(i);
             if (models[i].modelUuid != boost::uuids::nil_uuid())
             {
-                scene->engine.graphicsEngine->drawModel(models[i].modelUuid, models[i].shaderUuid, transforms[entity].globalMatrix);
+                scene->engine.graphicsEngine->drawModel(0, models[i].modelUuid, models[i].shaderUuid, transforms[entity].globalMatrix);
             }
         }
     }
@@ -104,10 +104,11 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     cameraObject.camera->aspectRatio = aspectRatio;
     updateProjectionMatrix(*cameraObject.camera);
 
+    scene->engine.graphicsEngine->setActiveCameraCount(1);
     scene->engine.graphicsEngine->setCameraData(0, cameraObject.camera->projection, cameraObject.camera->view, cameraObject.transform->position);
 
     if (cameraObject.camera->skyboxMaterialId != boost::uuids::nil_uuid()) {
-        scene->engine.graphicsEngine->drawSkybox(cameraObject.camera->skyboxMaterialId, boost::uuids::nil_uuid());
+        scene->engine.graphicsEngine->drawSkybox(0, cameraObject.camera->skyboxMaterialId, boost::uuids::nil_uuid());
     }
 }
 

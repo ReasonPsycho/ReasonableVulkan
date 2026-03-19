@@ -114,14 +114,14 @@ void RenderManager::cleanup() {
     vkDestroyCommandPool(context->getDevice(), context->getGraphicsCommandPool(), nullptr);
 }
 
-void RenderManager::submitRenderCommand(boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform)
+void RenderManager::submitRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform)
 {
-    renderQueue.push_back(RenderCommand{modelId, renderProgramId, transform});
+    renderQueue.push_back(RenderCommand{cameraIndex, modelId, renderProgramId, transform});
 }
 
-void RenderManager::submitSkyboxRenderCommand(boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId)
+void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId)
 {
-    skyboxRenderQueue.push_back(SkyboxRenderCommand{textureId, renderProgramId});
+    skyboxRenderQueue.push_back(SkyboxRenderCommand{cameraIndex, textureId, renderProgramId});
 }
 
 void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
@@ -295,159 +295,149 @@ void RenderManager::endFrame() {
             0, nullptr
         );
 
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = pipelineManager->getRenderPass();
-    renderPassInfo.framebuffer = pipelineManager->getFramebuffer(imageIndex);
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapChain->getSwapChainExtent();
+        // Process lights data once per frame
+        descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue);
+        directionalLightQueue.clear();
+        pointLightQueue.clear();
+        spotLightQueue.clear();
 
-    std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // Color clear value
-    clearValues[1].depthStencil = {1.0f, 0}; // Depth clear value
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
-
-    // Use offscreen framebuffer
-    renderPassInfo.framebuffer = pipelineManager->getFramebuffer(imageIndex);
-
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(swapChain->getSwapChainExtent().width);
-    viewport.height = static_cast<float>(swapChain->getSwapChainExtent().height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = swapChain->getSwapChainExtent();
-    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-    //Process lights
-    descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue);
-
-    directionalLightQueue.clear();
-    pointLightQueue.clear();
-    spotLightQueue.clear();
-
-    // Process skybox render queue
-    if (!skyboxRenderQueue.empty())
-    {
-        auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
-        if (skyboxModel && !skyboxModel->meshes.empty()) {
-            auto skyboxMesh = skyboxModel->meshes[0];
-            
-            for (auto& cmd : skyboxRenderQueue)
-            {
-                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
-
-                vkCmdBindDescriptorSets(
-                      commandBuffer,
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                      0,                                    // First set index (Set 0)
-                      1,                                    // Number of sets
-                      &descriptorManager->sceneUBOs[0].buffer.descriptorSet,
-                      0, nullptr);
-
-
-                // Bind material descriptor set at set index 1
-                auto materialDescriptor = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.textureId);
-                if (materialDescriptor) {
-                     // Check if it has a descriptor set, if not or if it's using the wrong pool/layout, recreate it
-                     // Actually MaterialDescriptor constructor uses pbrMaterialLayout by default.
-                     // For skybox we need to ensure it uses skyboxMaterialLayout.
-                     if (materialDescriptor->descriptorSet == VK_NULL_HANDLE) {
-                          materialDescriptor->setUpDescriptorSet(descriptorManager->skyboxMaterialLayout, descriptorManager->skyboxMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
-                     }
-                     // If it was already set up with pbr layout, we might have a problem.
-                     // For now let's assume if it's in the skyboxRenderQueue, it should use skybox layout.
-                     // Re-binding to set 1.
-                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
-                }
-                
-                VkBuffer vertexBuffers[] = { skyboxMesh->vertices.buffer.buffer };
-                VkDeviceSize offsets[] = { 0 };
-                vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-                vkCmdBindIndexBuffer(commandBuffer, skyboxMesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-                
-                // Set model matrix to identity for skybox
-                glm::mat4 identity = glm::mat4(1.0f);
-                vkCmdPushConstants(
-                    commandBuffer,
-                    pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                    VK_SHADER_STAGE_VERTEX_BIT,
-                    0,
-                    sizeof(glm::mat4),
-                    &identity
-                );
-
-                vkCmdDrawIndexed(commandBuffer, skyboxMesh->indices.count, 1, 0, 0, 0);
-            }
-        }
-    }
-
-    // Process render queue
-    if (!renderQueue.empty()) {
-        // Sort render queue by renderProgramId to minimize pipeline switching
+        // Sort render queue by renderProgramId to minimize pipeline switching (optional, could be per camera)
         std::sort(renderQueue.begin(), renderQueue.end(), [](const RenderCommand& a, const RenderCommand& b) {
+            if (a.cameraIndex != b.cameraIndex) return a.cameraIndex < b.cameraIndex;
             return a.renderProgramId < b.renderProgramId;
         });
 
-        boost::uuids::uuid lastProgramId = boost::uuids::nil_uuid();
+        // Loop through all active cameras
+        for (uint32_t i = 0; i < activeCameraCount; ++i) {
+            VkRenderPassBeginInfo renderPassInfo{};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            renderPassInfo.renderPass = pipelineManager->getRenderPass();
+            renderPassInfo.framebuffer = pipelineManager->getFramebuffer(i, imageIndex);
+            renderPassInfo.renderArea.offset = {0, 0};
+            renderPassInfo.renderArea.extent = swapChain->getSwapChainExtent();
 
-        for (auto& cmd : renderQueue) {
-            auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
-            if (!modelDescriptor) continue;
+            std::array<VkClearValue, 2> clearValues{};
+            clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // Color clear value
+            clearValues[1].depthStencil = {1.0f, 0}; // Depth clear value
+            renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+            renderPassInfo.pClearValues = clearValues.data();
 
-            // Bind the pipeline for this specific render command only if it's different from the last one
-            if (cmd.renderProgramId != lastProgramId) {
-                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+            vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-                vkCmdBindDescriptorSets(
-                      commandBuffer,
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                      0,                                    // First set index (Set 0)
-                      1,                                    // Number of sets
-                      &descriptorManager->sceneUBOs[0].buffer.descriptorSet,
-                      0, nullptr);
+            VkViewport viewport{};
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = static_cast<float>(swapChain->getSwapChainExtent().width);
+            viewport.height = static_cast<float>(swapChain->getSwapChainExtent().height);
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-                vkCmdBindDescriptorSets(
-                      commandBuffer,
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                      3,                                    // Set index 3
-                      1,                                    // Number of sets
-                      &descriptorManager->directionalLightSSBO.descriptorSet,
-                      0, nullptr);
+            VkRect2D scissor{};
+            scissor.offset = {0, 0};
+            scissor.extent = swapChain->getSwapChainExtent();
+            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-                lastProgramId = cmd.renderProgramId;
+            // Process skybox for this camera
+            if (!skyboxRenderQueue.empty()) {
+                auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
+                if (skyboxModel && !skyboxModel->meshes.empty()) {
+                    auto skyboxMesh = skyboxModel->meshes[0];
+
+                    for (auto& cmd : skyboxRenderQueue) {
+                        if (cmd.cameraIndex != i) continue;
+
+                        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+
+                        vkCmdBindDescriptorSets(
+                              commandBuffer,
+                              VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                              0,                                    // First set index (Set 0)
+                              1,                                    // Number of sets
+                              &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
+                              0, nullptr);
+
+
+                        // Bind material descriptor set at set index 1
+                        auto materialDescriptor = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.textureId);
+                        if (materialDescriptor) {
+                             if (materialDescriptor->descriptorSet == VK_NULL_HANDLE) {
+                                  materialDescriptor->setUpDescriptorSet(descriptorManager->skyboxMaterialLayout, descriptorManager->skyboxMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
+                             }
+                             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
+                        }
+
+                        VkBuffer vertexBuffers[] = { skyboxMesh->vertices.buffer.buffer };
+                        VkDeviceSize offsets[] = { 0 };
+                        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+                        vkCmdBindIndexBuffer(commandBuffer, skyboxMesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+                        glm::mat4 identity = glm::mat4(1.0f);
+                        vkCmdPushConstants(
+                            commandBuffer,
+                            pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                            VK_SHADER_STAGE_VERTEX_BIT,
+                            0,
+                            sizeof(glm::mat4),
+                            &identity
+                        );
+
+                        vkCmdDrawIndexed(commandBuffer, skyboxMesh->indices.count, 1, 0, 0, 0);
+                    }
+                }
             }
 
-            renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
+            // Process model render queue for this camera
+            boost::uuids::uuid lastProgramId = boost::uuids::nil_uuid();
+            for (auto& cmd : renderQueue) {
+                if (cmd.cameraIndex != i) continue;
+
+                auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
+                if (!modelDescriptor) continue;
+
+                if (cmd.renderProgramId != lastProgramId) {
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+
+                    vkCmdBindDescriptorSets(
+                          commandBuffer,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                          0,                                    // First set index (Set 0)
+                          1,                                    // Number of sets
+                          &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
+                          0, nullptr);
+
+                    vkCmdBindDescriptorSets(
+                          commandBuffer,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                          3,                                    // Set index 3
+                          1,                                    // Number of sets
+                          &descriptorManager->directionalLightSSBO.descriptorSet,
+                          0, nullptr);
+
+                    lastProgramId = cmd.renderProgramId;
+                }
+
+                renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
+            }
+
+            vkCmdEndRenderPass(commandBuffer);
         }
-    }
 
-
-    skyboxRenderQueue.clear();
-    renderQueue.clear();
-
-    vkCmdEndRenderPass(commandBuffer);
+        skyboxRenderQueue.clear();
+        renderQueue.clear();
 
 #ifdef ENABLE_IMGUI
-    imguiManager->imguiRenderFrame(commandBuffer,imageIndex);
+        imguiManager->imguiRenderFrame(commandBuffer, imageIndex);
 #endif
 
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to record command buffer!");
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to record command buffer!");
+        }
     }
-}
 
 void RenderManager::updateUniformBuffers(uint32_t currentImage) {
 

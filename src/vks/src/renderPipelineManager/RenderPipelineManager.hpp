@@ -38,7 +38,7 @@ namespace vks {
         VkRenderPass getRenderPass() const { return renderPass; }
         VkPipeline getPipeline(const boost::uuids::uuid& pipelineId) const;
         VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
-        VkFramebuffer getFramebuffer(uint32_t index) const { return framebuffers[index]; }
+        VkFramebuffer getFramebuffer(uint32_t cameraIndex, uint32_t imageIndex) const;
 
         // Offscreen resources
         struct OffscreenTarget {
@@ -46,13 +46,17 @@ namespace vks {
             VkDeviceMemory memory = VK_NULL_HANDLE;
             VkImageView view = VK_NULL_HANDLE;
         };
-        std::vector<OffscreenTarget> offscreenTargets;
-        VkFormat offscreenFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-        // Add these new members for depth resources
-        VkImage depthImage = VK_NULL_HANDLE;
-        VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
-        VkImageView depthImageView = VK_NULL_HANDLE;
+        struct CameraResources {
+            std::vector<OffscreenTarget> offscreenTargets;
+            std::vector<VkFramebuffer> framebuffers;
+            VkImage depthImage = VK_NULL_HANDLE;
+            VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+            VkImageView depthImageView = VK_NULL_HANDLE;
+        };
+        std::vector<CameraResources> cameraResources;
+
+        VkFormat offscreenFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
     private:
         VulkanContext* context;
@@ -61,7 +65,6 @@ namespace vks {
 
         VkRenderPass renderPass{VK_NULL_HANDLE};
         VkPipelineCache pipelineCache{VK_NULL_HANDLE};
-        std::vector<VkFramebuffer> framebuffers;
 
         std::vector<Pipeline> pipelines;
 

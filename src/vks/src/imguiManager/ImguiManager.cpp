@@ -154,9 +154,12 @@ namespace vks
     void ImguiManager::createDescriptorSets(std::vector<VkImageView> swapChainImagesViews)
     {
         swapChainImguiTextureIDs.clear();
-        for (int i = 0; i < pipelineManager->offscreenTargets.size(); i++)
+        if (pipelineManager->cameraResources.empty()) return;
+
+        // Use the offscreen targets of the first camera for ImGui display by default
+        for (int i = 0; i < pipelineManager->cameraResources[0].offscreenTargets.size(); i++)
         {
-            swapChainImguiTextureIDs.push_back(addTexture(pipelineManager->offscreenTargets[i].view, descriptorManager->defaultSampler));
+            swapChainImguiTextureIDs.push_back(addTexture(pipelineManager->cameraResources[0].offscreenTargets[i].view, descriptorManager->defaultSampler));
         }
     }
 
