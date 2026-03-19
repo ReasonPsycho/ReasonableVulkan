@@ -48,16 +48,17 @@ void SwapChainManager::createSurface(void* windowHandle) {
 
 
 void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
-    windowHeight = height;
-    windowWidth = width;
+    windowHeight = static_cast<float>(height);
+    windowWidth = static_cast<float>(width);
 
     auto device = context->getDevice();
     vkDeviceWaitIdle(device);
 
-    // Cleanup old swap chain resources
-    for (auto imageView : swapChainImageViews) {
-        vkDestroyImageView(device, imageView, nullptr);
-    }
+    // Reset current image index as it's no longer valid
+    currentImageIndex = UINT32_MAX;
+
+    // Save old swapchain to destroy it later
+    VkSwapchainKHR oldSwapChain = swapChain;
 
     // Create new swap chain
     VkSurfaceCapabilitiesKHR capabilities;
@@ -79,6 +80,9 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface;
     createInfo.minImageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 && createInfo.minImageCount > capabilities.maxImageCount) {
+        createInfo.minImageCount = capabilities.maxImageCount;
+    }
     createInfo.imageFormat = swapChainImageFormat;
     createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     createInfo.imageExtent = extent;
@@ -89,14 +93,22 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = swapChain;
+    createInfo.oldSwapchain = oldSwapChain;
 
-    VkSwapchainKHR newSwapChain;
-    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &newSwapChain) != VK_SUCCESS) {
+    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create swap chain!");
     }
 
-    swapChain = newSwapChain;
+    // Now we can cleanup old swapchain resources
+    for (auto imageView : swapChainImageViews) {
+        vkDestroyImageView(device, imageView, nullptr);
+    }
+    swapChainImageViews.clear();
+    
+    if (oldSwapChain != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(device, oldSwapChain, nullptr);
+    }
+
     swapChainExtent = extent;
 
     // Get the new swap chain images
@@ -146,6 +158,7 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
 
     VkExtent2D extent = chooseSwapExtent(capabilities, width, height);
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(availableFormats);
+    swapChainImageFormat = surfaceFormat.format;
     VkPresentModeKHR presentMode = chooseSwapPresentMode(availablePresentModes);
 
     uint32_t imageCount = capabilities.minImageCount + 1;
@@ -157,7 +170,7 @@ void SwapChainManager::recreateSwapChain(uint32_t width, uint32_t height) {
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface;
     createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = swapChainImageFormat = surfaceFormat.format;
+    createInfo.imageFormat = swapChainImageFormat;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = swapChainExtent = extent;
     createInfo.imageArrayLayers = 1;
