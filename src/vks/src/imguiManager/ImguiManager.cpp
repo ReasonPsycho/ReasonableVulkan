@@ -35,6 +35,8 @@ namespace vks
 
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
+        io.ConfigWindowsMoveFromTitleBarOnly = true; // Disable draging from the insiade of the window
+
         // Create command buffer for ImGui rendering
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;

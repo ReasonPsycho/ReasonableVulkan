@@ -87,6 +87,7 @@ namespace engine::ecs
 
         void UpdateCameraPosition();
         ImVec2 lastViewportSize = { 0, 0 };
+        ImVec2 lastViewportPos = { 0, 0 };
     };
 }
 
