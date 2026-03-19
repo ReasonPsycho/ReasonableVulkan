@@ -413,6 +413,15 @@ void RenderManager::endFrame() {
                           commandBuffer,
                           VK_PIPELINE_BIND_POINT_GRAPHICS,
                           pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                          2,                                    // Set index 2
+                          1,                                    // Number of sets
+                          &descriptorManager->lightInfoUBO.buffer.descriptorSet,
+                          0, nullptr);
+
+                    vkCmdBindDescriptorSets(
+                          commandBuffer,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipelineManager->getPipelineLayout(cmd.renderProgramId),
                           3,                                    // Set index 3
                           1,                                    // Number of sets
                           &descriptorManager->directionalLightSSBO.descriptorSet,

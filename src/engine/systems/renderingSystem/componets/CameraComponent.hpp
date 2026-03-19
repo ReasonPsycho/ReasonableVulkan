@@ -22,7 +22,8 @@ namespace engine::ecs
         boost::uuids::uuid skyboxMaterialId;
 
         bool isDirty = true;
-        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f), skyboxMaterialId(boost::uuids::nil_uuid()) {}
+        bool active = false;
+        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f), skyboxMaterialId(boost::uuids::nil_uuid()), active(false) {}
 
         void ShowImGui(Scene* scene,Component* component) const override;
 

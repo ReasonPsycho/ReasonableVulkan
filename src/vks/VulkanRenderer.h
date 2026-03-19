@@ -49,6 +49,7 @@ namespace vks {
 		glm::uvec2 getExtent() override;
 
 		void* getViewportTexturePointer() override;
+		void* getViewportTexturePointer(uint32_t cameraIndex) override;
 
 		void cleanup();
 		void waitIdle();

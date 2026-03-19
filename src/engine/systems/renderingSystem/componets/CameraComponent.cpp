@@ -17,6 +17,7 @@ auto typed = dynamic_cast<CameraComponent*>(component);
         if (ImGui::CollapsingHeader("Camera"))
         {
             bool changed = false;
+            changed |= ImGui::Checkbox("Active", &typed->active);
             changed |= ImGui::SliderFloat("FOV",&typed->fov, 1.0f, 120.0f);
             changed |= ImGui::DragFloat("Aspect Ratio", &typed->aspectRatio, 0.01f, 0.1f, 10.0f);
             changed |= ImGui::DragFloat("Near Plane", &typed->nearPlane, 0.01f, 0.001f, typed->farPlane);
@@ -58,6 +59,7 @@ void CameraComponent::SerializeComponentToJson(rapidjson::Value& obj, rapidjson:
     obj.AddMember("aspectRatio", aspectRatio, allocator);
     obj.AddMember("nearPlane", nearPlane, allocator);
     obj.AddMember("farPlane", farPlane, allocator);
+    obj.AddMember("active", active, allocator);
 
     std::string skyboxIdStr = boost::uuids::to_string(skyboxMaterialId);
     rapidjson::Value skyboxIdVal;
@@ -71,6 +73,7 @@ void CameraComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
     if (obj.HasMember("aspectRatio") && obj["aspectRatio"].IsFloat()) aspectRatio = obj["aspectRatio"].GetFloat();
     if (obj.HasMember("nearPlane") && obj["nearPlane"].IsFloat()) nearPlane = obj["nearPlane"].GetFloat();
     if (obj.HasMember("farPlane") && obj["farPlane"].IsFloat()) farPlane = obj["farPlane"].GetFloat();
+    if (obj.HasMember("active") && obj["active"].IsBool()) active = obj["active"].GetBool();
 
 
 

@@ -264,7 +264,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
 
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-    ImGui::Begin("Viewport");
+    ImGui::Begin("Editor");
     ImGuizmo::SetDrawlist();
     ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
     ImVec2 viewportPos = ImGui::GetWindowPos();
@@ -282,11 +282,30 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
         }
     }
 
-    void* textureId = scene->engine.graphicsEngine->getViewportTexturePointer();
+    void* textureId = scene->engine.graphicsEngine->getViewportTexturePointer(0);
     if (textureId) {
         ImGui::Image((ImTextureID)textureId, viewportPanelSize);
     }
     ImGui::End();
+
+    auto& cameras = scene->GetComponentArray<CameraComponent>().get()->GetComponents();
+    bool foundActive = false;
+    for (int i = 0; i < scene->GetComponentArray<CameraComponent>().get()->GetArraySize(); i++) {
+        if (scene->GetComponentArray<CameraComponent>().get()->IsComponentActive(i) && cameras[i].active) {
+            foundActive = true;
+            break;
+        }
+    }
+
+    if (foundActive) {
+        ImGui::Begin("Game");
+        ImVec2 gameViewportPanelSize = ImGui::GetContentRegionAvail();
+        void* gameTextureId = scene->engine.graphicsEngine->getViewportTexturePointer(1);
+        if (gameTextureId) {
+            ImGui::Image((ImTextureID)gameTextureId, gameViewportPanelSize);
+        }
+        ImGui::End();
+    }
 
     ImguiToolbar();
     ImguiMenu();
@@ -335,7 +354,7 @@ void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
             if (!ImGui::GetIO().WantCaptureMouse) {
                 auto* collisionSystem = scene->GetSystem<CollisionSystem>().get();
                 if (collisionSystem) {
-                    ImGui::Begin("Viewport");
+                    ImGui::Begin("Editor");
                     ImVec2 viewportPos = ImGui::GetWindowPos();
                     ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
                     viewportPos.x += contentMin.x;
