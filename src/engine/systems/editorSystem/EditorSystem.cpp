@@ -147,15 +147,9 @@ void EditorSystem::ImGuiGizmo()
         else if (currentGizmoOperation == ImGuizmo::SCALE)
             snap = glm::vec3(0.1f); // Snap every 0.1 units for scale
 
-        int windowPos[2];
-        int windowSize[2];
-
-        scene->engine.platform->GetWindowPosition(windowPos[0],windowPos[1]);
-        scene->engine.platform->GetWindowSize(windowSize[0],windowSize[1]);
-
         // Get the viewport bounds for ImGuizmo
         ImGuiIO& io = ImGui::GetIO();
-        ImGuizmo::SetRect(windowPos[0], windowPos[1], windowSize[0], windowSize[1]);
+        ImGuizmo::SetRect(lastViewportPos.x, lastViewportPos.y, lastViewportSize.x, lastViewportSize.y);
 
         // Convert glm matrices to float arrays for ImGuizmo
         float viewMatrix[16], projMatrix[16], modelMatrix[16];
@@ -271,11 +265,13 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
     ImGui::Begin("Viewport");
+    ImGuizmo::SetDrawlist();
     ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
     ImVec2 viewportPos = ImGui::GetWindowPos();
     ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
     viewportPos.x += contentMin.x;
     viewportPos.y += contentMin.y;
+    lastViewportPos = viewportPos;
 
 
     if (viewportPanelSize.x != lastViewportSize.x || viewportPanelSize.y != lastViewportSize.y)
