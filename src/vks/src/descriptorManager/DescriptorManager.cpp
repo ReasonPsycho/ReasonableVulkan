@@ -30,15 +30,18 @@ namespace vks
     {
         auto device = context->getDevice();
 
-        if (sceneUBO.buffer.buffer != VK_NULL_HANDLE)
-        {
-            if (sceneUBO.buffer.mapped)
+        for (auto& sceneUBO : sceneUBOs) {
+            if (sceneUBO.buffer.buffer != VK_NULL_HANDLE)
             {
-                vkUnmapMemory(device, sceneUBO.buffer.memory);
+                if (sceneUBO.buffer.mapped)
+                {
+                    vkUnmapMemory(device, sceneUBO.buffer.memory);
+                }
+                vkDestroyBuffer(device, sceneUBO.buffer.buffer, nullptr);
+                vkFreeMemory(device, sceneUBO.buffer.memory, nullptr);
             }
-            vkDestroyBuffer(device, sceneUBO.buffer.buffer, nullptr);
-            vkFreeMemory(device, sceneUBO.buffer.memory, nullptr);
         }
+        sceneUBOs.clear();
 
         if (lightInfoUBO.buffer.buffer != VK_NULL_HANDLE)
         {
@@ -642,56 +645,65 @@ namespace vks
 
     void DescriptorManager::createSceneUBO()
     {
-        VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
+        uint32_t maxCameras = 4; // Scale up to 4 cameras for now
+        sceneUBOs.resize(maxCameras);
 
-        // Create the buffer
-        context->createBuffer(
-            bufferSize,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            sceneUBO.buffer.buffer,
-            sceneUBO.buffer.memory);
+        for (uint32_t i = 0; i < maxCameras; i++) {
+            VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
 
-        // Setup descriptor buffer info
-        sceneUBO.buffer.descriptor.buffer = sceneUBO.buffer.buffer;
-        sceneUBO.buffer.descriptor.offset = 0;
-        sceneUBO.buffer.descriptor.range = bufferSize;
+            // Create the buffer
+            context->createBuffer(
+                bufferSize,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                sceneUBOs[i].buffer.buffer,
+                sceneUBOs[i].buffer.memory);
 
-        // Map the memory
-        VK_CHECK_RESULT(vkMapMemory(context->getDevice(), sceneUBO.buffer.memory,
-            0, bufferSize, 0, &sceneUBO.buffer.mapped));
+            // Setup descriptor buffer info
+            sceneUBOs[i].buffer.descriptor.buffer = sceneUBOs[i].buffer.buffer;
+            sceneUBOs[i].buffer.descriptor.offset = 0;
+            sceneUBOs[i].buffer.descriptor.range = bufferSize;
 
-        // Allocate descriptor set
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = scenePool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &sceneLayout;
+            // Map the memory
+            VK_CHECK_RESULT(vkMapMemory(context->getDevice(), sceneUBOs[i].buffer.memory,
+                0, bufferSize, 0, &sceneUBOs[i].buffer.mapped));
 
-        VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &sceneUBO.buffer.descriptorSet));
+            // Allocate descriptor set
+            VkDescriptorSetAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = scenePool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = &sceneLayout;
 
-        // Write the UBO buffer info to the descriptor set
-        VkWriteDescriptorSet writeDescriptorSet{};
-        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.dstSet = sceneUBO.buffer.descriptorSet;
-        writeDescriptorSet.dstBinding = 0;  // Binding 0 in Set 0
-        writeDescriptorSet.pBufferInfo = &sceneUBO.buffer.descriptor;
+            VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &sceneUBOs[i].buffer.descriptorSet));
 
-        vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
+            // Write the UBO buffer info to the descriptor set
+            VkWriteDescriptorSet writeDescriptorSet{};
+            writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            writeDescriptorSet.descriptorCount = 1;
+            writeDescriptorSet.dstSet = sceneUBOs[i].buffer.descriptorSet;
+            writeDescriptorSet.dstBinding = 0;  // Binding 0 in Set 0
+            writeDescriptorSet.pBufferInfo = &sceneUBOs[i].buffer.descriptor;
+
+            vkUpdateDescriptorSets(context->getDevice(), 1, &writeDescriptorSet, 0, nullptr);
+        }
     }
 
-    void DescriptorManager::updateSceneUBO(const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos)
+    void DescriptorManager::updateSceneUBO(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos)
     {
-        sceneUBO.uniformBlock.projection = projection;
-        sceneUBO.uniformBlock.view = view;
-        sceneUBO.uniformBlock.viewProj = projection * view;
-        sceneUBO.uniformBlock.cameraPos = cameraPos;
+        if (cameraIndex >= sceneUBOs.size()) {
+            return;
+        }
+
+        sceneUBOs[cameraIndex].uniformBlock.projection = projection;
+        sceneUBOs[cameraIndex].uniformBlock.view = view;
+        sceneUBOs[cameraIndex].uniformBlock.viewProj = projection * view;
+        sceneUBOs[cameraIndex].uniformBlock.cameraPos = cameraPos;
 
         VkDeviceSize bufferSize = sizeof(SceneUBO::UniformBlock);
 
-        memcpy(sceneUBO.buffer.mapped, &sceneUBO.uniformBlock, bufferSize);
+        memcpy(sceneUBOs[cameraIndex].buffer.mapped, &sceneUBOs[cameraIndex].uniformBlock, bufferSize);
     }
 
 
