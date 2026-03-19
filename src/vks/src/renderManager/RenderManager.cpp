@@ -89,6 +89,12 @@ void RenderManager::createSyncObjects() {
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
+            // Bind mesh descriptor set at set index 2
+            if (mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineManager->getPipelineLayout(pbrShaderId), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
+            }
+
             // Bind material descriptor set at set index 1
             auto materialDescriptorSet = mesh->material->descriptorSet;
             if (materialDescriptorSet != VK_NULL_HANDLE) {
@@ -241,9 +247,9 @@ void RenderManager::renderFrame() {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
 
-#ifdef ENABLE_IMGUI
-    imguiManager->imguiRenderPlatformWindows();
-#endif
+    #ifdef ENABLE_IMGUI
+        imguiManager->imguiRenderPlatformWindows();
+    #endif
 
     VkResult result = swapChain->queuePresent(context->getGraphicsQueue(),
                                            currentImageIndex,
@@ -407,15 +413,6 @@ void RenderManager::endFrame() {
                           0,                                    // First set index (Set 0)
                           1,                                    // Number of sets
                           &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
-                          0, nullptr);
-
-                    vkCmdBindDescriptorSets(
-                          commandBuffer,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                          2,                                    // Set index 2
-                          1,                                    // Number of sets
-                          &descriptorManager->lightInfoUBO.buffer.descriptorSet,
                           0, nullptr);
 
                     vkCmdBindDescriptorSets(
