@@ -88,7 +88,7 @@ void EditorSystem::ImGuiGizmo()
         {
             const float PADDING = 1.0f;
 
-            ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportPos.x - PADDING, lastViewportPos.y + PADDING);
+            ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportSize.x - PADDING, lastViewportPos.y + PADDING);
             ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
             ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
             ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
