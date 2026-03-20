@@ -5,11 +5,11 @@
 #include "src/vulkanContext/Vulkancontext.hpp"
 #include "src/swapChainManager/SwapChainManager.hpp"
 #include "src/descriptorManager/DescriptorManager.h"
-#include "src/renderManager/renderManager.hpp"
-#include "src/renderPipelineManager/RenderpipelineManager.hpp"
-#include <stdexcept>
+#include "src/renderManager/RenderManager.hpp"
+#include "src/renderPipelineManager/RenderPipelineManager.hpp"
 #include "src/descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include "src/descriptorManager/modelDescriptor/descriptors/textureDescriptor/TextureDescriptor.h"
+#include <stdexcept>
 #include <SDL3/SDL_vulkan.h>
 
 #include "src/imguiManager/ImguiManager.hpp"
@@ -213,7 +213,8 @@ namespace vks {
    	{
    #if ENABLE_IMGUI
    		if (imguiManager) {
-   			return (void*)imguiManager->getTexture(cameraIndex, renderManager->getCurrentFrame());
+   			uint32_t lastFrame = (renderManager->getCurrentFrame() + RenderManager::MAX_FRAMES_IN_FLIGHT - 1) % RenderManager::MAX_FRAMES_IN_FLIGHT;
+   			return (void*)imguiManager->getTexture(cameraIndex, lastFrame);
    		}
    #endif
    		return nullptr;
