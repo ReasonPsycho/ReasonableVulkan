@@ -13,7 +13,7 @@ namespace vks {
                 if (shaderDesc) {
                     shaderStages.push_back(shaderDesc->getShaderStage());
                     auto stageDefines = shaderDesc->getDefines();
-                    combinedDefines.insert(combinedDefines.end(), stageDefines.begin(), stageDefines.end());
+                    defines.insert(defines.end(), stageDefines.begin(), stageDefines.end());
                 }
             }
         };
@@ -26,9 +26,9 @@ namespace vks {
         processStage(programData.tessellationEvaluationShader);
 
         // Deduplicate defines
-        std::ranges::sort(combinedDefines);
-        auto [first, last] = std::ranges::unique(combinedDefines);
-        combinedDefines.erase(first, last);
+        std::ranges::sort(defines);
+        auto [first, last] = std::ranges::unique(defines);
+        defines.erase(first, last);
     }
 
     ShaderProgramDescriptor::~ShaderProgramDescriptor() {
@@ -38,7 +38,7 @@ namespace vks {
     void ShaderProgramDescriptor::cleanup() {
         // Individual ShaderDescriptors are managed by DescriptorManager
         shaderStages.clear();
-        combinedDefines.clear();
+        defines.clear();
     }
 
 } // namespace vks

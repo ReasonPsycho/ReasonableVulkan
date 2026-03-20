@@ -69,20 +69,30 @@ void RenderManager::createSyncObjects() {
 }
 
 
-    void vks::RenderManager::renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix)
+    void vks::RenderManager::renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId)
 {
+    auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(renderProgramId);
+    if (!shaderProgramDescriptor) return;
+    const auto& defines = shaderProgramDescriptor->getDefines();
+
+    bool hasMaterial = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_PBR_GLSL) != defines.end();
+    bool hasMeshUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != defines.end();
+    bool hasPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
+
     for (const auto& node : mainNode->children) {
         glm::mat4 nodeWorldTransform = matrix * node->matrix;
         for (const auto& mesh : node->meshes) {
             // Create a push constant for the transform instead of using uniform buffer
-            vkCmdPushConstants(
-                commandBuffer,
-                pipelineManager->getPipelineLayout(pbrShaderId),
-                VK_SHADER_STAGE_VERTEX_BIT,
-                0,
-                sizeof(glm::mat4),
-                &nodeWorldTransform
-            );
+            if (hasPushConstants) {
+                vkCmdPushConstants(
+                    commandBuffer,
+                    pipelineManager->getPipelineLayout(renderProgramId),
+                    VK_SHADER_STAGE_VERTEX_BIT,
+                    0,
+                    sizeof(glm::mat4),
+                    &nodeWorldTransform
+                );
+            }
 
             VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
             VkDeviceSize offsets[] = { 0 };
@@ -90,21 +100,23 @@ void RenderManager::createSyncObjects() {
             vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
             // Bind mesh descriptor set at set index 2
-            if (mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
+            if (hasMeshUBO && mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineManager->getPipelineLayout(pbrShaderId), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
+                    pipelineManager->getPipelineLayout(renderProgramId), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
             }
 
             // Bind material descriptor set at set index 1
-            auto materialDescriptorSet = mesh->material->descriptorSet;
-            if (materialDescriptorSet != VK_NULL_HANDLE) {
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineManager->getPipelineLayout(pbrShaderId), 1, 1, &materialDescriptorSet, 0, nullptr);
+            if (hasMaterial) {
+                auto materialDescriptorSet = mesh->material->descriptorSet;
+                if (materialDescriptorSet != VK_NULL_HANDLE) {
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        pipelineManager->getPipelineLayout(renderProgramId), 1, 1, &materialDescriptorSet, 0, nullptr);
+                }
             }
 
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
         }
-        renderNode(node, commandBuffer, matrix);
+        renderNode(node, commandBuffer, matrix, renderProgramId);
     }
 }
 
@@ -371,8 +383,15 @@ void RenderManager::endFrame() {
                              if (materialDescriptor->descriptorSet == VK_NULL_HANDLE) {
                                   materialDescriptor->setUpDescriptorSet(descriptorManager->skyboxMaterialLayout, descriptorManager->skyboxMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
                              }
-                             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
+
+                             auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cmd.renderProgramId);
+                             if (shaderProgramDescriptor) {
+                                 const auto& defines = shaderProgramDescriptor->getDefines();
+                                 if (std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != defines.end()) {
+                                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                        pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
+                                 }
+                             }
                         }
 
                         VkBuffer vertexBuffers[] = { skyboxMesh->vertices.buffer.buffer };
@@ -406,28 +425,39 @@ void RenderManager::endFrame() {
                 if (cmd.renderProgramId != lastProgramId) {
                     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
 
-                    vkCmdBindDescriptorSets(
-                          commandBuffer,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                          0,                                    // First set index (Set 0)
-                          1,                                    // Number of sets
-                          &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
-                          0, nullptr);
+                    auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cmd.renderProgramId);
+                    if (shaderProgramDescriptor) {
+                        const auto& defines = shaderProgramDescriptor->getDefines();
+                        bool hasSceneUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::SCENE_UBO_GLSL) != defines.end();
+                        bool hasLighting = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != defines.end();
 
-                    vkCmdBindDescriptorSets(
-                          commandBuffer,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                          3,                                    // Set index 3
-                          1,                                    // Number of sets
-                          &descriptorManager->directionalLightSSBO.descriptorSet,
-                          0, nullptr);
+                        if (hasSceneUBO) {
+                            vkCmdBindDescriptorSets(
+                                  commandBuffer,
+                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                                  0,                                    // First set index (Set 0)
+                                  1,                                    // Number of sets
+                                  &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
+                                  0, nullptr);
+                        }
+
+                        if (hasLighting) {
+                            vkCmdBindDescriptorSets(
+                                  commandBuffer,
+                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                                  3,                                    // Set index 3
+                                  1,                                    // Number of sets
+                                  &descriptorManager->directionalLightSSBO.descriptorSet,
+                                  0, nullptr);
+                        }
+                    }
 
                     lastProgramId = cmd.renderProgramId;
                 }
 
-                renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform);
+                renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform, cmd.renderProgramId);
             }
 
             vkCmdEndRenderPass(commandBuffer);

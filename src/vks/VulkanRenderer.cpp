@@ -187,6 +187,14 @@ namespace vks {
         skyboxShaderId = skyboxShaderProgram->getAssetId();
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
 
+        auto wiremeshShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shader");
+        pipelineManager->createGraphicsPipeline(wiremeshShaderProgram);
+
+        auto texturedWiremeshShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shader");
+        pipelineManager->createGraphicsPipeline(texturedWiremeshShaderProgram);
+
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());

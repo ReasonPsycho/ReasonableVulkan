@@ -18,14 +18,11 @@ namespace vks {
         void cleanup() override;
 
         const std::vector<VkPipelineShaderStageCreateInfo>& getShaderStages() const { return shaderStages; }
-        const std::vector<ShaderDefinesEnum>& getCombinedDefines() const { return combinedDefines; }
+        const std::vector<ShaderDefinesEnum>& getDefines() const { return defines; }
 
     private:
         std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-        std::vector<ShaderDefinesEnum> combinedDefines;
-        
-        // We don't own the individual ShaderDescriptors, the DescriptorManager does.
-        // But we need to make sure they are loaded.
+        std::vector<ShaderDefinesEnum> defines;
     };
 }
 
