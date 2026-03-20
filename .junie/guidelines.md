@@ -69,6 +69,7 @@ The following README files provide detailed documentation for different parts of
 - `src/assetManager/README.md`: Detailed documentation for the Asset Manager module.
 - `src/engine/README.md`: Overview of the Engine module and its ECS architecture.
 - `src/vks/README.md`: Documentation for the Vulkan Support module (currently empty).
+- `res/shaders/README.md`: Documentation for the shader creation process.
 
 ### Internal Tracking
 - **Notes File**: Use `.junie/notes.md` to keep track of progress, technical decisions, and observations throughout the development process. This file serves as a persistent scratchpad for Junie.
