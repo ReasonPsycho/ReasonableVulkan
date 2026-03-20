@@ -33,7 +33,9 @@ namespace engine::ecs
             std::function<void(Scene* scene, Component* component)> showImGuiComponent;
          };
 
+
         // Register component type with a display name and ImGui renderer
+
         template<typename T>
         void RegisterComponentType() {
             ComponentInfo info;
@@ -60,6 +62,16 @@ namespace engine::ecs
 
         void Initialize();
 
+        enum class ShaderOverrideMode {
+            Default,
+            Wiremesh,
+            TexturedWiremesh
+        };
+
+        ShaderOverrideMode currentShaderOverride = ShaderOverrideMode::Default;
+        boost::uuids::uuid wiremeshShaderId = boost::uuids::nil_uuid();
+        boost::uuids::uuid wiremeshTexturedShaderId = boost::uuids::nil_uuid();
+
         void SetUpCameraControls(plt::PlatformInterface* platfrom);
 
     protected:
@@ -68,12 +80,14 @@ namespace engine::ecs
 
     private:
         std::unordered_map<Entity, std::string> named_entities;
-        Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();;
+        Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();
+        ;
         std::unordered_map<std::type_index,ComponentInfo> registeredComponentTypes;
         void ImGuiSceneGraph();
         void ImGuiGraphEntity(Entity entity);
         void ImGuiInspector();
         void ImGuiGizmo();
+        void ImguiShaderOverrideWindow();
         void ImguiToolbar();
         void ImguiMenu();
 

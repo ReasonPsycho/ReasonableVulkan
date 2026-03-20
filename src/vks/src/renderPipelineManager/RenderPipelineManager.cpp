@@ -334,7 +334,7 @@ namespace vks
             throw std::runtime_error("Pipeline already exists: " + boost::uuids::to_string(pipelineId));
         }
 
-        const auto& combinedDefines = shaderProgramDescriptor->getCombinedDefines();
+        const auto& combinedDefines = shaderProgramDescriptor->getDefines();
 
         // Get layouts for each define - ensuring they are at the correct set index
         // We know the set indices: 0: Scene, 1: Material, 2: Mesh, 3: Lights
@@ -447,6 +447,12 @@ namespace vks
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != combinedDefines.end())
         {
             rasterizationState.cullMode = VK_CULL_MODE_NONE;
+        }
+
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::WIREMESH_GLSL) != combinedDefines.end())
+        {
+            rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+            rasterizationState.lineWidth = 1.0f;
         }
 
         // Create mesh pipeline

@@ -97,7 +97,16 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
             if (models[i].modelUuid != boost::uuids::nil_uuid())
             {
                 for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
-                    scene->engine.graphicsEngine->drawModel(camIdx, models[i].modelUuid, models[i].shaderUuid,
+                    boost::uuids::uuid currentShader = models[i].shaderUuid;
+                    if (inEditMode && camIdx == 0) { // Only override for the editor camera
+                        if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
+                            currentShader = editorSystem->wiremeshShaderId;
+                        } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
+                            currentShader = editorSystem->wiremeshTexturedShaderId;
+                        }
+                    }
+
+                    scene->engine.graphicsEngine->drawModel(camIdx, models[i].modelUuid, currentShader,
                                                             transforms[entity].globalMatrix);
                 }
             }

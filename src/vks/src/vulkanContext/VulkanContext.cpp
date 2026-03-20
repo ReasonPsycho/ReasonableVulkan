@@ -110,7 +110,8 @@ bool VulkanContext::isDeviceSuitable(VkPhysicalDevice device) {
 
     // Check for required features
     bool requiredFeatures = deviceFeatures.samplerAnisotropy &&  // Required for high-quality texture sampling
-                          deviceFeatures.geometryShader;         // If you need geometry shaders
+                          deviceFeatures.geometryShader &&       // If you need geometry shaders
+                          deviceFeatures.fillModeNonSolid;       // Required for wireframe mode
 
     // Check for required extensions
     uint32_t extensionCount;
@@ -177,6 +178,7 @@ int VulkanContext::rateDeviceSuitability(VkPhysicalDevice device) {
     VkPhysicalDeviceFeatures enabledFeatures{};
     enabledFeatures.samplerAnisotropy = VK_TRUE;
     enabledFeatures.geometryShader = VK_TRUE;
+    enabledFeatures.fillModeNonSolid = VK_TRUE;
 
     // Required extensions
     std::vector<const char*> enabledExtensions = {

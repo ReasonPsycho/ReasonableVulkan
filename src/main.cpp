@@ -42,18 +42,18 @@ int main(int argc, char *argv[]) {
     // 4. Initialize game systems (ECS, scenes, etc.)
     auto scene = engine.CreateScene("Main scene");
 
-    auto shader = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shader");
-    vulkanRenderer->loadShader(shader->get()->id);
+    auto pbrShader = assetManager.registerAsset("res/shaders/jsons/pbr.shader");
+    vulkanRenderer->loadShader(pbrShader->get()->id);
 
-    auto skybox = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
+    auto skybox = assetManager.registerAsset("res/models/my/Skybox/Skybox.fbx");
     vulkanRenderer->loadModel(skybox->get()->id);
 
-    auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
+    auto asset = assetManager.registerAsset("res/models/my/Plane.fbx");
     vulkanRenderer->loadModel(asset->get()->id);
 
     auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity),{1,1,1});
-    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(asset->get()->id, shader->get()->id));
+    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(asset->get()->id, pbrShader->get()->id));
     scene.get()->GetComponent<TransformComponent>(modelEntity).position = glm::vec3(0,0,0);
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");

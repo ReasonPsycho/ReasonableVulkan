@@ -88,7 +88,7 @@ void EditorSystem::ImGuiGizmo()
         {
             const float PADDING = 1.0f;
 
-            ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportSize.x - PADDING, lastViewportPos.y + PADDING);
+            ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportSize.x - PADDING, lastViewportPos.y + PADDING + 37);
             ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
             ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
             ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
@@ -212,6 +212,25 @@ EditorSystem::EditorSystem(Scene* scene): System(scene)
     Initialize();
 }
 
+void EditorSystem::ImguiShaderOverrideWindow()
+{
+    const float PADDING = 1.0f;
+
+    ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportSize.x - PADDING, lastViewportPos.y + PADDING );
+    ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
+    ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+    ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+
+    ImGui::Begin("Shader Override", nullptr, window_flags);
+    const char* items[] = { "Default", "Wiremesh", "Textured Wiremesh" };
+    int current = (int)currentShaderOverride;
+    if (ImGui::Combo("Mode", &current, items, IM_ARRAYSIZE(items))) {
+        currentShaderOverride = (ShaderOverrideMode)current;
+    }
+    ImGui::End();
+}
+
 void engine::ecs::EditorSystem::Update(float deltaTime)
 {
     if (scene->engine.minimized)
@@ -312,6 +331,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
     ImGuiSceneGraph();
     ImGuiInspector();
     ImGuiGizmo();
+    ImguiShaderOverrideWindow();
 
     ImGui::End();
 }
@@ -334,9 +354,21 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 void EditorSystem::Initialize()
 {
     SetUpCameraControls(scene->engine.platform);;
-    auto skybox = scene->engine.assetManagerInterface->registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
+    auto skybox = scene->engine.assetManagerInterface->registerAsset("res/models/my/Skybox/Skybox.fbx");
     scene->engine.graphicsEngine->loadModel(skybox->get()->id);
     camera.skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
+
+    auto wiremesh = scene->engine.assetManagerInterface->registerAsset("res/shaders/jsons/wiremesh.shader");
+    if (wiremesh) {
+        wiremeshShaderId = wiremesh->get()->id;
+        scene->engine.graphicsEngine->loadShader(wiremeshShaderId);
+    }
+
+    auto wiremeshTextured = scene->engine.assetManagerInterface->registerAsset("res/shaders/jsons/wiremesh_textured.shader");
+    if (wiremeshTextured) {
+        wiremeshTexturedShaderId = wiremeshTextured->get()->id;
+        scene->engine.graphicsEngine->loadShader(wiremeshTexturedShaderId);
+    }
 }
 
 void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
