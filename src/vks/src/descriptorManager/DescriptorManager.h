@@ -16,6 +16,7 @@
 #include "ShaderDefinesEnum.hpp"
 #include "buffers/LightBufferData.hpp"
 #include "buffers/LightSSBO.hpp"
+#include "buffers/ShadowMapArray.hpp"
 #include "buffers/SceneUBO.hpp"
 
 namespace vks {
@@ -56,7 +57,8 @@ namespace vks {
         void updateLightsData(
                  const std::vector<DirectionalLightBufferData>& directionalLights,
                  const std::vector<PointLightBufferData>& pointLights,
-                 const std::vector<SpotLightBufferData>& spotLights);
+                 const std::vector<SpotLightBufferData>& spotLights,
+                 float farPlane);
 
         // Resource management
         template <typename T>
@@ -101,6 +103,8 @@ namespace vks {
         LightSSBO directionalLightSSBO;
         LightSSBO pointLightSSBO;
         LightSSBO spotLightSSBO;
+        ShadowMapArray shadowMapArray;
+        ShadowMapArray cubeMapShadowMapArray;
 
         int maxDirectionalLights = 4;
         int maxPointLights = 124;

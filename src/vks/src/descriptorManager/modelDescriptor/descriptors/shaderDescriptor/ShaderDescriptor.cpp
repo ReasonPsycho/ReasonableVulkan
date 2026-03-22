@@ -85,6 +85,10 @@ namespace vks
                result.push_back(ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL);
            }else if (key == "WIREMESH_GLSL")  {
                result.push_back(ShaderDefinesEnum::WIREMESH_GLSL);
+           }else if (key == "LIGHTSPACEMATRIX_PC")  {
+               result.push_back(ShaderDefinesEnum::LIGHTSPACEMATRIX_PC);
+           }else if (key == "CUBELIGHTSPACEMATRIX_PC")  {
+               result.push_back(ShaderDefinesEnum::CUBELIGHTSPACEMATRIX_PC);
            }
        }
         return result;

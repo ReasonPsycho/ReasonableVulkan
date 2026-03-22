@@ -77,6 +77,22 @@ namespace vks
             vkFreeMemory(device, spotLightSSBO.buffer.memory, nullptr);
         }
 
+        if (shadowMapArray.buffer.buffer != VK_NULL_HANDLE) {
+            if (shadowMapArray.buffer.mapped) {
+                vkUnmapMemory(device, shadowMapArray.buffer.memory);
+            }
+            vkDestroyBuffer(device, shadowMapArray.buffer.buffer, nullptr);
+            vkFreeMemory(device, shadowMapArray.buffer.memory, nullptr);
+        }
+
+        if (cubeMapShadowMapArray.buffer.buffer != VK_NULL_HANDLE) {
+            if (cubeMapShadowMapArray.buffer.mapped) {
+                vkUnmapMemory(device, cubeMapShadowMapArray.buffer.memory);
+            }
+            vkDestroyBuffer(device, cubeMapShadowMapArray.buffer.buffer, nullptr);
+            vkFreeMemory(device, cubeMapShadowMapArray.buffer.memory, nullptr);
+        }
+
         if (defaultSampler != VK_NULL_HANDLE)
         {
             vkDestroySampler(device, defaultSampler, nullptr);
@@ -588,7 +604,7 @@ namespace vks
                 throw std::runtime_error("failed to create mesh descriptor set layout!");
             }
 
-            // Set 3: Lights descriptors (All light types as storage buffers)
+            // Set 3: Lights descriptors (All light types as storage buffers + Shadow Maps)
             std::vector<VkDescriptorSetLayoutBinding> lightsBindings = {
                 {
                     .binding = 0,
@@ -615,6 +631,27 @@ namespace vks
                     .binding = 3,
                     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                     .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 4,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = 1, // Single sampler2DArray for directional shadows
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 5,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = 1, // Single samplerCubeArray for point shadows
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 6,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = 1, // Single sampler2DArray for spot shadows
                     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 }
@@ -799,7 +836,7 @@ namespace vks
         VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &lightsDescriptorSet));
 
         // Write all three light buffers to the single lights descriptor set
-        std::array<VkWriteDescriptorSet, 4> lightWrites{};
+        std::array<VkWriteDescriptorSet, 6> lightWrites{};
 
         lightWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         lightWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -829,21 +866,38 @@ namespace vks
         lightWrites[3].dstBinding = 3;  // Spot lights at binding 3
         lightWrites[3].pBufferInfo = &spotLightSSBO.buffer.descriptor;
 
-        vkUpdateDescriptorSets(context->getDevice(), 4, lightWrites.data(), 0, nullptr);
+        lightWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        lightWrites[4].descriptorCount = 1;
+        lightWrites[4].dstSet = lightsDescriptorSet;
+        lightWrites[4].dstBinding = 4;  // (dir and spot) Shadowmap Array at binding 4
+        lightWrites[4].pImageInfo = &defaultImageInfo;
+
+        lightWrites[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[5].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        lightWrites[5].descriptorCount = 1;
+        lightWrites[5].dstSet = lightsDescriptorSet;
+        lightWrites[5].dstBinding = 5;  // Point (Cube) Shadowmap Array at binding 5
+        lightWrites[5].pImageInfo = &cubeImageInfo;
+
+
+        vkUpdateDescriptorSets(context->getDevice(), 6, lightWrites.data(), 0, nullptr);
         // Store the descriptor set in each SSBO (optional, for convenience)
         directionalLightSSBO.descriptorSet = lightsDescriptorSet;
         pointLightSSBO.descriptorSet = lightsDescriptorSet;
         spotLightSSBO.descriptorSet = lightsDescriptorSet;
+        shadowMapArray.descriptorSet = lightsDescriptorSet;
+        cubeMapShadowMapArray.descriptorSet = lightsDescriptorSet;
     }
 
     void DescriptorManager::updateLightsData(const std::vector<DirectionalLightBufferData>& directionalLights,
-        const std::vector<PointLightBufferData>& pointLights, const std::vector<SpotLightBufferData>& spotLights)
+        const std::vector<PointLightBufferData>& pointLights, const std::vector<SpotLightBufferData>& spotLights, float farPlane)
     {
 
         lightInfoUBO.uniformBlock.directionalLightCount = directionalLights.size();
         lightInfoUBO.uniformBlock.pointLightCount = pointLights.size();
         lightInfoUBO.uniformBlock.spotLightCount = spotLights.size();
-        lightInfoUBO.uniformBlock.padding = 0;
+        lightInfoUBO.uniformBlock.far_plane = farPlane;
 
         VkDeviceSize bufferSize = sizeof(LightsInfoUBO::UniformBlock);
         memcpy(lightInfoUBO.buffer.mapped, &lightInfoUBO.uniformBlock, bufferSize);
