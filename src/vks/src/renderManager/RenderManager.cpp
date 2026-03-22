@@ -145,10 +145,10 @@ void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids
 void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
 {
     DirectionalLightBufferData bufferData{};
+    bufferData.castShadows = data.castShadows;
     bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
     bufferData.intensity = data.intensity;
     bufferData.color = data.color;
-    bufferData.padding = 0.0f;
 
     directionalLightQueue.push_back(bufferData);
 }
@@ -156,6 +156,7 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     void RenderManager::submitLightCommand(gfx::PointLightData data, glm::mat4 transform)
 {
     PointLightBufferData bufferData{};
+    bufferData.castShadows = data.castShadows;
     bufferData.position = glm::vec3(transform[3]);  // Extract position from transform
     bufferData.intensity = data.intensity;
     bufferData.color = data.color;
@@ -163,7 +164,6 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     bufferData.falloff = data.falloff;
     bufferData.padding[0] = 0.0f;
     bufferData.padding[1] = 0.0f;
-    bufferData.padding[2] = 0.0f;
 
     pointLightQueue.push_back(bufferData);
 }
@@ -171,6 +171,7 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     void RenderManager::submitLightCommand(gfx::SpotLightData data, glm::mat4 transform)
 {
     SpotLightBufferData bufferData{};
+    bufferData.castShadows = data.castShadows;
     bufferData.position = glm::vec3(transform[3]);  // Extract position from transform
     bufferData.intensity = data.intensity;
     bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
@@ -180,7 +181,6 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     bufferData.range = data.range;
     bufferData.padding[0] = 0.0f;
     bufferData.padding[1] = 0.0f;
-    bufferData.padding[2] = 0.0f;
 
     spotLightQueue.push_back(bufferData);
 }
@@ -314,7 +314,7 @@ void RenderManager::endFrame() {
         );
 
         // Process lights data once per frame
-        descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue);
+        descriptorManager->updateLightsData(directionalLightQueue, pointLightQueue, spotLightQueue, 25.0f); // TODO: Hardcoded far plane? Or from config?
         directionalLightQueue.clear();
         pointLightQueue.clear();
         spotLightQueue.clear();

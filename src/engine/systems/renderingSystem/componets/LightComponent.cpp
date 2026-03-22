@@ -39,6 +39,7 @@ void engine::ecs::LightComponent::ShowImGui(Scene* scene, Component* component) 
 
         ImGui::ColorEdit3("LightComponent Color", &typed->color[0]);
         ImGui::SliderFloat("Intensity##LightComponent", &typed->intensity, 0.0f, 10.0f);
+        ImGui::Checkbox("Has Shadow##LightComponent", &typed->hasShadow);
 
         // Show type-specific controls
         switch (typed->type)
@@ -80,6 +81,7 @@ void engine::ecs::LightComponent::SerializeComponentToJson(rapidjson::Value& obj
     obj.AddMember("color", colorArray, allocator);
 
     obj.AddMember("intensity", intensity, allocator);
+    obj.AddMember("hasShadow", hasShadow, allocator);
 
     // Serialize type-specific data
     switch (type)
@@ -136,6 +138,10 @@ void engine::ecs::LightComponent::DeserializeComponentFromJson(const rapidjson::
 
     if (obj.HasMember("intensity") && obj["intensity"].IsNumber()) {
         intensity = obj["intensity"].GetFloat();
+    }
+
+    if (obj.HasMember("hasShadow") && obj["hasShadow"].IsBool()) {
+        hasShadow = obj["hasShadow"].GetBool();
     }
 
     // Deserialize type-specific data

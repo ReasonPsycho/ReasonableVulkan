@@ -17,6 +17,7 @@ namespace vks {
 
         void createRenderPass();
         void createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor);
+        void createShadowPipeline(ShaderProgramDescriptor* shaderProgramDescriptor);
         void createFramebuffers(VkExtent2D swapChainExtent);
 
         void createDepthResources(VkExtent2D swapChainExtent);

@@ -14,6 +14,7 @@ namespace gfx
     // Directional light rendering data
     struct DirectionalLightData
     {
+        bool castShadows;
         float intensity;
         glm::vec3 color;
     };
@@ -21,6 +22,7 @@ namespace gfx
     // Point light rendering data
     struct PointLightData
     {
+        bool castShadows;
         float intensity;
         glm::vec3 color;
         float radius;             // Light influence radius
@@ -30,6 +32,7 @@ namespace gfx
     // Spot light rendering data
     struct SpotLightData
     {
+        bool castShadows;
         float intensity;
         float innerAngle;         // Inner cone angle (in degrees)
         glm::vec3 color;

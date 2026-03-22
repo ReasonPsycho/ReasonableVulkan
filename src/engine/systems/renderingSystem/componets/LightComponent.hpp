@@ -30,11 +30,12 @@ namespace engine::ecs
         Type type;
         glm::vec3 color;
         float intensity;
+        bool hasShadow;
         std::variant<DirectionalLightData, PointLightData, SpotLightData> data;
 
-        LightComponent() : type(Type::Point), color(1.0f, 1.0f, 1.0f), intensity(1.0f), data(PointLightData{}) {}
+        LightComponent() : type(Type::Point), color(1.0f, 1.0f, 1.0f), intensity(1.0f), hasShadow(false), data(PointLightData{}) {}
 
-        explicit LightComponent(Type t, glm::vec3 c, float i) : type(t), color(c), intensity(i) {
+        explicit LightComponent(Type t, glm::vec3 c, float i, bool hS = false) : type(t), color(c), intensity(i), hasShadow(hS) {
             switch (t) {
             case Type::Point: data = PointLightData{}; break;
             case Type::Spot: data = SpotLightData{}; break;

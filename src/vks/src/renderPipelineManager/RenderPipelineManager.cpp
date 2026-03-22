@@ -7,6 +7,8 @@
 #include "../descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include "../base/VulkanInitializers.hpp"
 #include "../base/VulkanTools.h"
+#include "../descriptorManager/buffers/LightSpaceMatrixPC.hpp"
+#include "../descriptorManager/buffers/CubeLightSpaceMatrixPC.hpp"
 
 namespace vks
 {
@@ -324,7 +326,97 @@ namespace vks
         }
     }
 
-    void RenderPipelineManager::createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
+    void RenderPipelineManager::createShadowPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
+    {
+        boost::uuids::uuid pipelineId = shaderProgramDescriptor->getAssetId();
+        createPipelineCache();
+
+        if (findPipeline(pipelineId)) {
+            throw std::runtime_error("Pipeline already exists: " + boost::uuids::to_string(pipelineId));
+        }
+
+        const auto& combinedDefines = shaderProgramDescriptor->getDefines();
+        
+        bool isCube = std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::CUBELIGHTSPACEMATRIX_PC) != combinedDefines.end();
+
+        // Get descriptor set layouts. Set index 3: Lights (needed for far_plane)
+        std::vector<VkDescriptorSetLayout> combinedLayouts = descriptorManager->getLayoutsFromEnums(combinedDefines);
+
+        VkPipelineLayout shadowPipelineLayout = VK_NULL_HANDLE;
+        VkPipelineLayoutCreateInfo shadowPipelineLayoutInfo{};
+        shadowPipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        shadowPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(combinedLayouts.size());
+        shadowPipelineLayoutInfo.pSetLayouts = combinedLayouts.data();
+
+        std::vector<VkPushConstantRange> pushConstantRanges;
+        
+        // Model matrix (always needed)
+        VkPushConstantRange modelPCRange{};
+        modelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        modelPCRange.offset = 0;
+        modelPCRange.size = sizeof(glm::mat4);
+        pushConstantRanges.push_back(modelPCRange);
+
+        // Light space matrix push constant
+        VkPushConstantRange lsmPCRange{};
+        if (isCube) {
+            lsmPCRange.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            lsmPCRange.offset = sizeof(glm::mat4);
+            lsmPCRange.size = sizeof(CubeLightSpaceMatrixPC);
+        } else {
+            lsmPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            lsmPCRange.offset = sizeof(glm::mat4);
+            lsmPCRange.size = sizeof(LightSpaceMatrixPC);
+        }
+        pushConstantRanges.push_back(lsmPCRange);
+
+        shadowPipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
+        shadowPipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
+
+        if (vkCreatePipelineLayout(context->getDevice(), &shadowPipelineLayoutInfo, nullptr, &shadowPipelineLayout) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create shadow pipeline layout!");
+        }
+
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = base::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+        VkPipelineViewportStateCreateInfo viewportState = base::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
+        VkPipelineMultisampleStateCreateInfo multisampleState = base::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
+        std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_BIAS };
+        VkPipelineDynamicStateCreateInfo dynamicState = base::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
+        
+        VkPipelineColorBlendStateCreateInfo colorBlendState = base::initializers::pipelineColorBlendStateCreateInfo(0, nullptr);
+
+        const auto& shaderStages = shaderProgramDescriptor->getShaderStages();
+
+        VkPipelineRasterizationStateCreateInfo rasterizationState = base::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+        rasterizationState.depthBiasEnable = VK_TRUE;
+
+        VkPipelineDepthStencilStateCreateInfo depthStencilState = base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+        VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(shadowPipelineLayout, renderPass, 0);
+        pipelineCI.pInputAssemblyState = &inputAssemblyState;
+        pipelineCI.pViewportState = &viewportState;
+        pipelineCI.pRasterizationState = &rasterizationState;
+        pipelineCI.pMultisampleState = &multisampleState;
+        pipelineCI.pDepthStencilState = &depthStencilState;
+        pipelineCI.pColorBlendState = &colorBlendState;
+        pipelineCI.pDynamicState = &dynamicState;
+        pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
+        pipelineCI.pStages = shaderStages.data();
+
+        pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({ VertexComponent::Position });
+
+        VkPipeline pipelineHandle = VK_NULL_HANDLE;
+        if (vkCreateGraphicsPipelines(context->getDevice(), pipelineCache, 1, &pipelineCI, nullptr, &pipelineHandle) != VK_SUCCESS)
+        {
+            vkDestroyPipelineLayout(context->getDevice(), shadowPipelineLayout, nullptr);
+            throw std::runtime_error("failed to create shadow graphics pipeline!");
+        }
+
+        pipelines.push_back(Pipeline{pipelineId, pipelineHandle, shadowPipelineLayout});
+    }
+
+     void RenderPipelineManager::createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
     {
         boost::uuids::uuid pipelineId = shaderProgramDescriptor->getAssetId();
         createPipelineCache();
@@ -340,10 +432,10 @@ namespace vks
         // We know the set indices: 0: Scene, 1: Material, 2: Mesh, 3: Lights
         // DescriptorManager::getLayoutsFromEnums should ideally return them in the correct order,
         // but it doesn't guarantee the size or empty slots.
-        
+
         // Let's get them one by one or filter.
         std::vector<VkDescriptorSetLayout> combinedLayouts;
-        
+
         // Find max define index to determine layout count
         int maxSet = 0;
         for (auto def : combinedDefines) {
@@ -353,9 +445,9 @@ namespace vks
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
             else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL) maxSet = std::max(maxSet, 3);
         }
-        
+
         combinedLayouts.resize(maxSet + 1, VK_NULL_HANDLE);
-        
+
         // Fill them based on define
         for (auto def : combinedDefines) {
             switch (def) {
@@ -370,14 +462,6 @@ namespace vks
         // Check for any null layouts in the sequence (up to maxSet)
         for (int i = 0; i <= maxSet; ++i) {
             if (combinedLayouts[i] == VK_NULL_HANDLE) {
-                // If a shader skips a set, we still need a valid (but possibly empty) layout if it's not the last one
-                // Use the lights layout as a fallback if it's empty, or better, the mesh layout if it's just a UBO.
-                // Actually, DescriptorManager should provide an empty layout.
-                // For now, let's use scene layout as it's a simple UBO layout, 
-                // but ideally we should have a truly empty layout.
-                // However, most of our layouts are not empty.
-                // Let's see if we have any other option. 
-                // Actually, let's use the scene layout as a placeholder if it exists.
                 combinedLayouts[i] = descriptorManager->getSceneLayout();
             }
         }
@@ -447,12 +531,6 @@ namespace vks
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != combinedDefines.end())
         {
             rasterizationState.cullMode = VK_CULL_MODE_NONE;
-        }
-
-        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::WIREMESH_GLSL) != combinedDefines.end())
-        {
-            rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-            rasterizationState.lineWidth = 1.0f;
         }
 
         // Create mesh pipeline
