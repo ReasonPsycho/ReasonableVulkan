@@ -957,6 +957,52 @@ namespace vks
         }
     }
 
+    void DescriptorManager::updateShadowDescriptorSet(VkImageView directionalView, VkImageView pointView, VkImageView spotView)
+    {
+        std::array<VkWriteDescriptorSet, 3> writeDescriptorSets;
+
+        VkDescriptorImageInfo directionalImageInfo = {};
+        directionalImageInfo.sampler = defaultSampler;
+        directionalImageInfo.imageView = directionalView;
+        directionalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        writeDescriptorSets[0] = {};
+        writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[0].dstSet = lightInfoUBO.buffer.descriptorSet;
+        writeDescriptorSets[0].descriptorCount = 1;
+        writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[0].pImageInfo = &directionalImageInfo;
+        writeDescriptorSets[0].dstBinding = 4;
+
+        VkDescriptorImageInfo pointImageInfo = {};
+        pointImageInfo.sampler = cubeSampler;
+        pointImageInfo.imageView = pointView;
+        pointImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        writeDescriptorSets[1] = {};
+        writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[1].dstSet = lightInfoUBO.buffer.descriptorSet;
+        writeDescriptorSets[1].descriptorCount = 1;
+        writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[1].pImageInfo = &pointImageInfo;
+        writeDescriptorSets[1].dstBinding = 5;
+
+        VkDescriptorImageInfo spotImageInfo = {};
+        spotImageInfo.sampler = defaultSampler;
+        spotImageInfo.imageView = spotView;
+        spotImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        writeDescriptorSets[2] = {};
+        writeDescriptorSets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[2].dstSet = lightInfoUBO.buffer.descriptorSet;
+        writeDescriptorSets[2].descriptorCount = 1;
+        writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[2].pImageInfo = &spotImageInfo;
+        writeDescriptorSets[2].dstBinding = 6;
+
+        vkUpdateDescriptorSets(context->getDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+    }
+
     std::vector<VkDescriptorSetLayout> DescriptorManager::getLayoutsFromEnums(std::vector<ShaderDefinesEnum> definitions)
     {
         std::vector<VkDescriptorSetLayout> layouts;

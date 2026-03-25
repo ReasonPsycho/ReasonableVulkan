@@ -110,6 +110,8 @@ namespace vks {
         int maxPointLights = 124;
         int maxSpotLights = 124;
 
+        void updateShadowDescriptorSet(VkImageView directionalView, VkImageView pointView, VkImageView spotView);
+
         void createDescriptorPools();
         void createDefaultTexture();
         void createDefaultCubeTexture();
