@@ -68,9 +68,9 @@ void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialL
 
     // Use cube sampler if we have a cube texture in base color
     if (baseColorTexture && baseColorTexture->descriptor.sampler == assetHandleManager->cubeSampler) {
-        samplerInfo.sampler = defaultCubeImageInfo.sampler;
+        samplerInfo.sampler = assetHandleManager->cubeSampler;
     } else {
-        samplerInfo.sampler = defaultImageInfo.sampler;
+        samplerInfo.sampler = assetHandleManager->defaultSampler;
     }
 
     VkWriteDescriptorSet samplerWrite{};

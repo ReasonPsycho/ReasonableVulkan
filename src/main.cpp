@@ -42,13 +42,13 @@ int main(int argc, char *argv[]) {
     // 4. Initialize game systems (ECS, scenes, etc.)
     auto scene = engine.CreateScene("Main scene");
 
-    auto pbrShader = assetManager.registerAsset("res/shaders/jsons/pbr.shader");
+    auto pbrShader = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader");
     vulkanRenderer->loadShader(pbrShader->get()->id);
 
-    auto skybox = assetManager.registerAsset("res/models/my/Skybox/Skybox.fbx");
+    auto skybox = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Skybox/Skybox.fbx");
     vulkanRenderer->loadModel(skybox->get()->id);
 
-    auto asset = assetManager.registerAsset("res/models/my/Plane.fbx");
+    auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
     vulkanRenderer->loadModel(asset->get()->id);
 
     auto modelEntity = scene.get()->CreateEntity("Model");

@@ -179,6 +179,7 @@ int VulkanContext::rateDeviceSuitability(VkPhysicalDevice device) {
     enabledFeatures.samplerAnisotropy = VK_TRUE;
     enabledFeatures.geometryShader = VK_TRUE;
     enabledFeatures.fillModeNonSolid = VK_TRUE;
+    enabledFeatures.imageCubeArray = VK_TRUE;
 
     // Required extensions
     std::vector<const char*> enabledExtensions = {

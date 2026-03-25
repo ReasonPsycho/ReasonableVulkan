@@ -40,6 +40,7 @@ namespace vks {
         VkPipeline getPipeline(const boost::uuids::uuid& pipelineId) const;
         VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t cameraIndex, uint32_t imageIndex) const;
+        bool hasPipeline(const boost::uuids::uuid& pipelineId) const { return findPipeline(pipelineId) != nullptr; }
 
         // Offscreen resources
         struct OffscreenTarget {

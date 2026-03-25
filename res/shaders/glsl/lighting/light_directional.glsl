@@ -9,6 +9,11 @@ struct DirectionalLight {
     vec3 direction;
     float intensity;
     vec3 color;
+    float shadowBias;
+    mat4x4 lightSpaceMatrix;
+    int shadowMapIndex;
+    bool castShadows;
+    float shadowStrength;
     float padding;
 };
 
@@ -29,7 +34,13 @@ vec3 CalculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 fragPos
     float spec = pow(max(dot(normal, halfDir), 0.0), SHININESS);
     vec3 specular = light.color * spec * light.intensity * 0.5;
 
-    return diffuse + specular;
+    float shadow = 0.0;
+    if (light.castShadows) {
+        vec4 fragPosLightSpace = light.lightSpaceMatrix * vec4(fragPos, 1.0);
+        shadow = CalculateDirectionalShadow(fragPosLightSpace, light.shadowMapIndex, light.shadowBias, light.shadowStrength);
+    }
+
+    return (1.0 - shadow) * (diffuse + specular);
 }
 
 vec3 AccumulateDirectionalLights(

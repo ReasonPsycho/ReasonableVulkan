@@ -610,28 +610,28 @@ namespace vks
                     .binding = 0,
                     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 },
                 {
                     .binding = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                     .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 },
                 {
                     .binding = 2,
                     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                     .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 },
                 {
                     .binding = 3,
                     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                     .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 },
                 {
@@ -652,6 +652,13 @@ namespace vks
                     .binding = 6,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                     .descriptorCount = 1, // Single sampler2DArray for spot shadows
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 7,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+                    .descriptorCount = 1, // Sampler for shadows
                     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 }
@@ -835,9 +842,10 @@ namespace vks
         VkDescriptorSet lightsDescriptorSet;
         VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &lightsDescriptorSet));
 
-        // Write all three light buffers to the single lights descriptor set
-        std::array<VkWriteDescriptorSet, 6> lightWrites{};
+        // Write lights buffers + shadow textures and sampler to the single lights descriptor set
+        std::array<VkWriteDescriptorSet, 8> lightWrites{};
 
+        // Light info UBO
         lightWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         lightWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         lightWrites[0].descriptorCount = 1;
@@ -845,6 +853,7 @@ namespace vks
         lightWrites[0].dstBinding = 0;  // Light info UBO at binding 0
         lightWrites[0].pBufferInfo = &lightInfoUBO.buffer.descriptor;
 
+        // Directional lights SSBO
         lightWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         lightWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         lightWrites[1].descriptorCount = 1;
@@ -852,6 +861,7 @@ namespace vks
         lightWrites[1].dstBinding = 1;  // Directional lights at binding 1
         lightWrites[1].pBufferInfo = &directionalLightSSBO.buffer.descriptor;
 
+        // Point lights SSBO
         lightWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         lightWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         lightWrites[2].descriptorCount = 1;
@@ -859,6 +869,7 @@ namespace vks
         lightWrites[2].dstBinding = 2;  // Point lights at binding 2
         lightWrites[2].pBufferInfo = &pointLightSSBO.buffer.descriptor;
 
+        // Spot lights SSBO
         lightWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         lightWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         lightWrites[3].descriptorCount = 1;
@@ -866,22 +877,41 @@ namespace vks
         lightWrites[3].dstBinding = 3;  // Spot lights at binding 3
         lightWrites[3].pBufferInfo = &spotLightSSBO.buffer.descriptor;
 
+        // Directional shadow 2D array (binding 4)
         lightWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         lightWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         lightWrites[4].descriptorCount = 1;
         lightWrites[4].dstSet = lightsDescriptorSet;
-        lightWrites[4].dstBinding = 4;  // (dir and spot) Shadowmap Array at binding 4
-        lightWrites[4].pImageInfo = &defaultImageInfo;
+        lightWrites[4].dstBinding = 4;
+        lightWrites[4].pImageInfo = &defaultImageInfo; // imageView/layout of 2D array
 
+        // Point shadow cube array (binding 5)
         lightWrites[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         lightWrites[5].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         lightWrites[5].descriptorCount = 1;
         lightWrites[5].dstSet = lightsDescriptorSet;
-        lightWrites[5].dstBinding = 5;  // Point (Cube) Shadowmap Array at binding 5
-        lightWrites[5].pImageInfo = &cubeImageInfo;
+        lightWrites[5].dstBinding = 5;
+        lightWrites[5].pImageInfo = &cubeImageInfo; // cube image view + layout
 
+        // Spot shadow 2D array (binding 6)
+        lightWrites[6].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[6].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        lightWrites[6].descriptorCount = 1;
+        lightWrites[6].dstSet = lightsDescriptorSet;
+        lightWrites[6].dstBinding = 6;
+        lightWrites[6].pImageInfo = &defaultImageInfo;
 
-        vkUpdateDescriptorSets(context->getDevice(), 6, lightWrites.data(), 0, nullptr);
+        // Shadow sampler (binding 7)
+        VkDescriptorImageInfo shadowSamplerInfo{};
+        shadowSamplerInfo.sampler = defaultSampler; // use manager's sampler
+        lightWrites[7].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        lightWrites[7].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+        lightWrites[7].descriptorCount = 1;
+        lightWrites[7].dstSet = lightsDescriptorSet;
+        lightWrites[7].dstBinding = 7;
+        lightWrites[7].pImageInfo = &shadowSamplerInfo;
+
+        vkUpdateDescriptorSets(context->getDevice(), static_cast<uint32_t>(lightWrites.size()), lightWrites.data(), 0, nullptr);
         // Store the descriptor set in each SSBO (optional, for convenience)
         directionalLightSSBO.descriptorSet = lightsDescriptorSet;
         pointLightSSBO.descriptorSet = lightsDescriptorSet;

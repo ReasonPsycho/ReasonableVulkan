@@ -149,6 +149,9 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
     bufferData.intensity = data.intensity;
     bufferData.color = data.color;
+    bufferData.shadowBias = data.shadowBias;
+    bufferData.shadowStrength = data.shadowStrength;
+    bufferData.shadowMapIndex = -1; // Assigned during rendering
 
     directionalLightQueue.push_back(bufferData);
 }
@@ -162,8 +165,9 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     bufferData.color = data.color;
     bufferData.radius = data.radius;
     bufferData.falloff = data.falloff;
-    bufferData.padding[0] = 0.0f;
-    bufferData.padding[1] = 0.0f;
+    bufferData.shadowBias = data.shadowBias;
+    bufferData.shadowStrength = data.shadowStrength;
+    bufferData.shadowMapIndex = -1; // Assigned during rendering
 
     pointLightQueue.push_back(bufferData);
 }
@@ -179,8 +183,9 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     bufferData.color = data.color;
     bufferData.outerAngle = data.outerAngle;
     bufferData.range = data.range;
-    bufferData.padding[0] = 0.0f;
-    bufferData.padding[1] = 0.0f;
+    bufferData.shadowBias = data.shadowBias;
+    bufferData.shadowStrength = data.shadowStrength;
+    bufferData.shadowMapIndex = -1; // Assigned during rendering
 
     spotLightQueue.push_back(bufferData);
 }
@@ -286,6 +291,48 @@ void RenderManager::endFrame() {
 
         if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
             throw std::runtime_error("Failed to begin recording command buffer!");
+        }
+
+        // --- Shadow Pass (Preliminary implementation) ---
+        // TODO: This should ideally use a separate render pass and framebuffers for shadows.
+        // For now, we update the light space matrices and shadow map indices.
+
+        float farPlane = 25.0f; // TODO: From config
+        int directionalShadowCount = 0;
+        int pointShadowCount = 0;
+        int spotShadowCount = 0;
+
+        for (auto& light : directionalLightQueue) {
+            if (light.castShadows) {
+                // Simplified light space matrix calculation
+                glm::vec3 lightDir = light.direction;
+                glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, farPlane);
+                glm::mat4 lightView = glm::lookAt(-lightDir * 10.0f, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+                light.lightSpaceMatrix = lightProjection * lightView;
+                light.shadowMapIndex = directionalShadowCount++;
+            }
+        }
+
+        for (auto& light : pointLightQueue) {
+            if (light.castShadows) {
+                light.shadowMapIndex = pointShadowCount++;
+                glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, farPlane);
+                light.lightSpaceMatrices[0] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3( 1.0,  0.0,  0.0), glm::vec3(0.0, -1.0,  0.0));
+                light.lightSpaceMatrices[1] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3(-1.0,  0.0,  0.0), glm::vec3(0.0, -1.0,  0.0));
+                light.lightSpaceMatrices[2] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3( 0.0,  1.0,  0.0), glm::vec3(0.0,  0.0,  1.0));
+                light.lightSpaceMatrices[3] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3( 0.0, -1.0,  0.0), glm::vec3(0.0,  0.0, -1.0));
+                light.lightSpaceMatrices[4] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3( 0.0,  0.0,  1.0), glm::vec3(0.0, -1.0,  0.0));
+                light.lightSpaceMatrices[5] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3( 0.0,  0.0, -1.0), glm::vec3(0.0, -1.0,  0.0));
+            }
+        }
+
+        for (auto& light : spotLightQueue) {
+            if (light.castShadows) {
+                glm::mat4 shadowProj = glm::perspective(glm::radians(light.outerAngle * 2.0f), 1.0f, 0.1f, light.range);
+                glm::mat4 shadowView = glm::lookAt(light.position, light.position + light.direction, glm::vec3(0.0, 1.0, 0.0));
+                light.lightSpaceMatrix = shadowProj * shadowView;
+                light.shadowMapIndex = spotShadowCount++;
+            }
         }
 
         // Add memory barrier for UBOs before using them

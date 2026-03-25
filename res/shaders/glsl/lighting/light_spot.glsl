@@ -7,13 +7,18 @@
 
 struct SpotLight {
     vec3 position;
-    float intensity;
     vec3 direction;
     float innerAngle;
-    vec3 color;
     float outerAngle;
     float range;
-    float padding[3];
+    float intensity;
+    vec3 color;
+    float shadowBias;
+    mat4 lightSpaceMatrix;
+    int shadowMapIndex;
+    bool castShadows;
+    float shadowStrength;
+    float padding;
 };
 
 layout(binding = 3, set = 3) readonly buffer SpotLightSSBO {
@@ -49,7 +54,13 @@ vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir
     float spec = pow(max(dot(normal, halfDir), 0.0), SHININESS);
     vec3 specular = light.color * spec * light.intensity * attenuation * 0.5;
 
-    return diffuse + specular;
+    float shadow = 0.0;
+    if (light.castShadows) {
+        vec4 fragPosLightSpace = light.lightSpaceMatrix * vec4(fragPos, 1.0);
+        shadow = CalculateSpotShadow(fragPosLightSpace, light.shadowMapIndex, light.shadowBias, light.shadowStrength);
+    }
+
+    return (1.0 - shadow) * (diffuse + specular);
 }
 
 vec3 AccumulateSpotLights(

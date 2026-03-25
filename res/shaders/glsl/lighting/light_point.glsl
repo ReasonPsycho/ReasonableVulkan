@@ -11,7 +11,12 @@ struct PointLight {
     vec3 color;
     float radius;
     float falloff;
-    float padding[3];
+    float shadowBias;
+    bool castShadows;
+    int shadowMapIndex;
+    float shadowStrength;
+    mat4 lightSpaceMatrices[6];
+    float padding[2];
 };
 
 layout(binding = 2, set = 3) readonly buffer PointLightSSBO {
@@ -37,7 +42,12 @@ vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewD
     float spec = pow(max(dot(normal, halfDir), 0.0), SHININESS);
     vec3 specular = light.color * spec * light.intensity * attenuation * 0.5;
 
-    return diffuse + specular;
+    float shadow = 0.0;
+    if (light.castShadows) {
+        shadow = CalculateCubeShadow(fragPos, light.position, light.shadowMapIndex, light.shadowBias, light.shadowStrength);
+    }
+
+    return (1.0 - shadow) * (diffuse + specular);
 }
 
 vec3 AccumulatePointLights(
