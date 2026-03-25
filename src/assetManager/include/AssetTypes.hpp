@@ -69,6 +69,7 @@ namespace am {
         if (extension == ".spdv")      return AssetType::Shader;
         if (extension == ".frag")      return AssetType::Shader;
         if (extension == ".vert")      return AssetType::Shader;
+        if (extension == ".geom")      return AssetType::Shader;
         if (extension == ".shader")      return AssetType::ShaderProgram; // Assuming programs are defined in json files
         return AssetType::Other;
     }

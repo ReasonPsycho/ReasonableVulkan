@@ -1,5 +1,5 @@
 {
-  "vertex": "../glsl/entry/shadowMap.vert",
+  "vertex": "../glsl/entry/shadowCubeMap.vert",
   "geometry": "../glsl/geometry/cubeMap.geom",
-  "fragment": "../glsl/entry/cubeMap.frag"
+  "fragment": "../glsl/entry/shadowCubeMap.frag"
 }

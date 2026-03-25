@@ -30,36 +30,49 @@ namespace vks
     // Directional light rendering data
     struct DirectionalLightBufferData
     {
-        bool castShadows;
         glm::vec3 direction;      // World-space direction vector
         float intensity;
         glm::vec3 color;
+        float shadowBias;         // Bias for shadow mapping
+        glm::mat4 lightSpaceMatrix;
+        int32_t shadowMapIndex;   // Index into the shadow map array
+        bool castShadows;         // Whether to cast shadows
+        float shadowStrength;     // Strength/intensity of the shadow
+        float padding;            // Alignment padding for GPU buffers
     };
 
     // Point light rendering data
     struct PointLightBufferData
     {
-        bool castShadows;
         glm::vec3 position;       // World-space position
         float intensity;
         glm::vec3 color;
         float radius;             // Light influence radius
         float falloff;            // Falloff/attenuation factor
+        float shadowBias;         // Bias for shadow mapping
+        bool castShadows;
+        int32_t shadowMapIndex;   // Index into the cube shadow map array
+        float shadowStrength;     // Strength/intensity of the shadow
+        glm::mat4 lightSpaceMatrices[6];
         float padding[2];         // Alignment padding for GPU buffers
     };
 
     // Spot light rendering data
     struct SpotLightBufferData
     {
-        bool castShadows;
         glm::vec3 position;       // World-space position
-        float intensity;
         glm::vec3 direction;      // World-space direction vector
         float innerAngle;         // Inner cone angle (in degrees)
-        glm::vec3 color;
         float outerAngle;         // Outer cone angle (in degrees)
         float range;              // Maximum light range
-        float padding[2];         // Alignment padding for GPU buffers
+        float intensity;
+        glm::vec3 color;
+        float shadowBias;         // Bias for shadow mapping
+        glm::mat4 lightSpaceMatrix;
+        int32_t shadowMapIndex;   // Index into the shadow map array
+        bool castShadows;         // Whether to cast shadows
+        float shadowStrength;     // Strength/intensity of the shadow
+        float padding;            // Alignment padding for GPU buffers
     };
 }
 

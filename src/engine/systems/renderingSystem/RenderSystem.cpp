@@ -127,10 +127,13 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                 {
                     const auto& pointData = std::get<PointLightData>(lightComponent.data);
                     gfx::PointLightData lightData{
+                            lightComponent.hasShadow,
                             lightComponent.intensity,
                             lightComponent.color,
                             pointData.radius,
-                            pointData.falloff
+                            pointData.falloff,
+                            pointData.shadowBias,
+                            pointData.shadowStrength
                     };
                     scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
                     break;
@@ -139,20 +142,27 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                 {
                     const auto& spotData = std::get<SpotLightData>(lightComponent.data);
                     gfx::SpotLightData lightData{
+                            lightComponent.hasShadow,
                             lightComponent.intensity,
                             spotData.innerAngle,
                             lightComponent.color,
                             spotData.outerAngle,
-                            spotData.range
+                            spotData.range,
+                            spotData.shadowBias,
+                            spotData.shadowStrength
                     };
                     scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
                     break;
                 }
                 case LightComponent::Type::Directional:
                 {
+                    const auto& dirData = std::get<DirectionalLightData>(lightComponent.data);
                     gfx::DirectionalLightData lightData{
+                            lightComponent.hasShadow,
                             lightComponent.intensity,
                             lightComponent.color,
+                            dirData.shadowBias,
+                            dirData.shadowStrength
                     };
                     scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
                     break;

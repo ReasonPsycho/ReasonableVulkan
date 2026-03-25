@@ -11,16 +11,21 @@ namespace engine::ecs
     struct PointLightData {
         float radius = 10.0f;
         float falloff = 1.0f;
+        float shadowBias = 0.005f;
+        float shadowStrength = 1.0f;
     };
 
     struct SpotLightData {
         float innerAngle = 25.0f;
         float outerAngle = 45.0f;
         float range = 50.0f;
+        float shadowBias = 0.005f;
+        float shadowStrength = 1.0f;
     };
 
     struct DirectionalLightData {
-        // No extra data needed for directional lights
+        float shadowBias = 0.005f;
+        float shadowStrength = 1.0f;
     };
 
     struct LightComponent : public Component

@@ -17,6 +17,8 @@ namespace gfx
         bool castShadows;
         float intensity;
         glm::vec3 color;
+        float shadowBias;
+        float shadowStrength;
     };
 
     // Point light rendering data
@@ -27,6 +29,8 @@ namespace gfx
         glm::vec3 color;
         float radius;             // Light influence radius
         float falloff;            // Falloff/attenuation factor
+        float shadowBias;
+        float shadowStrength;
     };
 
     // Spot light rendering data
@@ -38,6 +42,8 @@ namespace gfx
         glm::vec3 color;
         float outerAngle;         // Outer cone angle (in degrees)
         float range;              // Maximum light range
+        float shadowBias;
+        float shadowStrength;
     };
 }
 

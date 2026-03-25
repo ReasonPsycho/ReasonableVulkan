@@ -1,7 +1,7 @@
 
 #include "VulkanRenderer.h"
-
 #include <imgui.h>
+#include "PlatformInterface.hpp"
 #include "src/vulkanContext/Vulkancontext.hpp"
 #include "src/swapChainManager/SwapChainManager.hpp"
 #include "src/descriptorManager/DescriptorManager.h"
@@ -182,18 +182,26 @@ namespace vks {
         pbrShaderId = pbrShaderProgram->getAssetId();
         pipelineManager->createGraphicsPipeline(pbrShaderProgram);
 
+        auto wiremesh = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shader");
+        pipelineManager->createGraphicsPipeline(wiremesh);
+
+        auto wiremesh_textured = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shader");
+        pipelineManager->createGraphicsPipeline(wiremesh_textured);
+
         auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shader");
         skyboxShaderId = skyboxShaderProgram->getAssetId();
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
 
-        auto wiremeshShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shader");
-        pipelineManager->createGraphicsPipeline(wiremeshShaderProgram);
+        auto shadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shader");
+        pipelineManager->createShadowPipeline(shadowMapPipline);
 
-        auto texturedWiremeshShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shader");
-        pipelineManager->createGraphicsPipeline(texturedWiremeshShaderProgram);
+        auto cubeShadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
+            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader");
+        pipelineManager->createShadowPipeline(cubeShadowMapPipline);
 
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());

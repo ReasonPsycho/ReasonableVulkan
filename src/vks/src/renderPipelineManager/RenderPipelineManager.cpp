@@ -6,9 +6,7 @@
 #include "../descriptorManager/modelDescriptor/descriptors/meshDescriptor/MeshDescriptor.h"
 #include "../descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include "../base/VulkanInitializers.hpp"
-#include "../base/VulkanTools.h"
-#include "../descriptorManager/buffers/LightSpaceMatrixPC.hpp"
-#include "../descriptorManager/buffers/CubeLightSpaceMatrixPC.hpp"
+#include "../descriptorManager/buffers/LightModelPushConstant.hpp"
 
 namespace vks
 {
@@ -336,11 +334,44 @@ namespace vks
         }
 
         const auto& combinedDefines = shaderProgramDescriptor->getDefines();
-        
-        bool isCube = std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::CUBELIGHTSPACEMATRIX_PC) != combinedDefines.end();
 
-        // Get descriptor set layouts. Set index 3: Lights (needed for far_plane)
-        std::vector<VkDescriptorSetLayout> combinedLayouts = descriptorManager->getLayoutsFromEnums(combinedDefines);
+        // Get layouts for each define - ensuring they are at the correct set index
+        // We know the set indices: 0: Scene, 1: Material, 2: Mesh, 3: Lights
+        std::vector<VkDescriptorSetLayout> combinedLayouts;
+
+        // Find max define index to determine layout count
+        int maxSet = 0;
+        for (auto def : combinedDefines) {
+            if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
+            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
+            else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL) maxSet = std::max(maxSet, 3);
+            else if (def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
+        }
+
+        combinedLayouts.resize(maxSet + 1, VK_NULL_HANDLE);
+
+        // Fill them based on define
+        for (auto def : combinedDefines) {
+            switch (def) {
+            case ShaderDefinesEnum::SCENE_UBO_GLSL: combinedLayouts[0] = descriptorManager->getSceneLayout(); break;
+            case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getPbrMaterialLayout(); break;
+            case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL: combinedLayouts[1] = descriptorManager->getSkyboxMaterialLayout(); break;
+            case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
+            case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
+            case ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
+            }
+        }
+
+        // Check for any null layouts in the sequence (up to maxSet)
+        // If a shader uses Set N, it must have valid layouts for 0..N-1
+        for (int i = 0; i <= maxSet; ++i) {
+            if (combinedLayouts[i] == VK_NULL_HANDLE) {
+                // Use scene layout as a placeholder for missing sets
+                combinedLayouts[i] = descriptorManager->getSceneLayout();
+            }
+        }
 
         VkPipelineLayout shadowPipelineLayout = VK_NULL_HANDLE;
         VkPipelineLayoutCreateInfo shadowPipelineLayoutInfo{};
@@ -350,25 +381,22 @@ namespace vks
 
         std::vector<VkPushConstantRange> pushConstantRanges;
         
-        // Model matrix (always needed)
-        VkPushConstantRange modelPCRange{};
-        modelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        modelPCRange.offset = 0;
-        modelPCRange.size = sizeof(glm::mat4);
-        pushConstantRanges.push_back(modelPCRange);
-
-        // Light space matrix push constant
-        VkPushConstantRange lsmPCRange{};
-        if (isCube) {
-            lsmPCRange.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-            lsmPCRange.offset = sizeof(glm::mat4);
-            lsmPCRange.size = sizeof(CubeLightSpaceMatrixPC);
-        } else {
-            lsmPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-            lsmPCRange.offset = sizeof(glm::mat4);
-            lsmPCRange.size = sizeof(LightSpaceMatrixPC);
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
+        {
+            VkPushConstantRange modelPCRange{};
+            modelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+            modelPCRange.offset = 0;
+            modelPCRange.size = sizeof(glm::mat4);
+            pushConstantRanges.push_back(modelPCRange);
         }
-        pushConstantRanges.push_back(lsmPCRange);
+        else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
+        {
+            VkPushConstantRange lightModelPCRange{};
+            lightModelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            lightModelPCRange.offset = 0;
+            lightModelPCRange.size = sizeof(LightModelPushConstant);
+            pushConstantRanges.push_back(lightModelPCRange);
+        }
 
         shadowPipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
         shadowPipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
@@ -384,7 +412,8 @@ namespace vks
         std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_BIAS };
         VkPipelineDynamicStateCreateInfo dynamicState = base::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
         
-        VkPipelineColorBlendStateCreateInfo colorBlendState = base::initializers::pipelineColorBlendStateCreateInfo(0, nullptr);
+        VkPipelineColorBlendAttachmentState blendAttachmentState = base::initializers::pipelineColorBlendAttachmentState(0, VK_FALSE);
+        VkPipelineColorBlendStateCreateInfo colorBlendState = base::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 
         const auto& shaderStages = shaderProgramDescriptor->getShaderStages();
 
@@ -444,6 +473,7 @@ namespace vks
             else if (def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) maxSet = std::max(maxSet, 1);
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
             else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL) maxSet = std::max(maxSet, 3);
+            else if (def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
         }
 
         combinedLayouts.resize(maxSet + 1, VK_NULL_HANDLE);
@@ -456,6 +486,7 @@ namespace vks
             case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL: combinedLayouts[1] = descriptorManager->getSkyboxMaterialLayout(); break;
             case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
             case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
+            case ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
             }
         }
 
@@ -481,6 +512,17 @@ namespace vks
             pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
             pushConstantRange.offset = 0;
             pushConstantRange.size = sizeof(glm::mat4);
+
+            meshPipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        }
+        else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
+        {
+            meshPipelineLayoutInfo.pushConstantRangeCount = 1;
+
+            // Define push constant range for the light shadow model push constant
+            pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            pushConstantRange.offset = 0;
+            pushConstantRange.size = sizeof(LightModelPushConstant);
 
             meshPipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
         }
@@ -546,7 +588,8 @@ namespace vks
         pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineCI.pStages = shaderStages.data();
 
-        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end() ||
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
         {
             pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
                 VertexComponent::Position,

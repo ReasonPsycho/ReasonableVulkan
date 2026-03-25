@@ -1,7 +1,8 @@
 #version 450
 #extension GL_ARB_shading_language_include : enable
 
-#include "../common/cubeLightSpaceMatrix_pc.glsl"
+#include "../common/light_model_pc.glsl"
+#include "../lighting/light_point.glsl"
 
 layout (triangles) in;
 layout (triangle_strip, max_vertices=18) out;
@@ -16,7 +17,7 @@ void main()
         for(int i = 0; i < 3; ++i) // for each triangle vertex
         {
             outFragPos = gl_in[i].gl_Position;
-            gl_Position = push_clsm.lightSpaceMatrices[face] * outFragPos;
+            gl_Position = pointLightSSBO.pointLights[push_lm.lightIndex].lightSpaceMatrices[face] * outFragPos;
             EmitVertex();
         }
         EndPrimitive();
