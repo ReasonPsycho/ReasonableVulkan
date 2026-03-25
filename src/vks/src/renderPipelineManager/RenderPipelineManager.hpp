@@ -16,9 +16,12 @@ namespace vks {
         ~RenderPipelineManager();
 
         void createRenderPass();
+        void createShadowRenderPass();
         void createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor);
         void createShadowPipeline(ShaderProgramDescriptor* shaderProgramDescriptor);
         void createFramebuffers(VkExtent2D swapChainExtent);
+        void createShadowFramebuffers();
+        void createShadowResources();
 
         void createDepthResources(VkExtent2D swapChainExtent);
         void cleanupDepthResources();
@@ -37,9 +40,13 @@ namespace vks {
 
         // Getters
         VkRenderPass getRenderPass() const { return renderPass; }
+        VkRenderPass getShadowRenderPass() const { return shadowRenderPass; }
         VkPipeline getPipeline(const boost::uuids::uuid& pipelineId) const;
         VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t cameraIndex, uint32_t imageIndex) const;
+        VkFramebuffer getDirectionalShadowFramebuffer(uint32_t index) const { return directionalShadowFramebuffers[index]; }
+        VkFramebuffer getPointShadowFramebuffer(uint32_t index) const { return pointShadowFramebuffers[index]; }
+        VkFramebuffer getSpotShadowFramebuffer(uint32_t index) const { return spotShadowFramebuffers[index]; }
         bool hasPipeline(const boost::uuids::uuid& pipelineId) const { return findPipeline(pipelineId) != nullptr; }
 
         // Offscreen resources
@@ -58,7 +65,25 @@ namespace vks {
         };
         std::vector<CameraResources> cameraResources;
 
+        OffscreenTarget directionalShadows;
+        OffscreenTarget pointShadows;
+        OffscreenTarget spotShadows;
+
+        std::vector<VkFramebuffer> directionalShadowFramebuffers;
+        std::vector<VkFramebuffer> pointShadowFramebuffers;
+        std::vector<VkFramebuffer> spotShadowFramebuffers;
+
+        std::vector<VkImageView> directionalShadowLayerViews;
+        std::vector<VkImageView> pointShadowLayerViews;
+        std::vector<VkImageView> spotShadowLayerViews;
+
         VkFormat offscreenFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        VkFormat shadowFormat = VK_FORMAT_D32_SFLOAT;
+
+        const uint32_t SHADOWMAP_DIM = 2048;
+        const uint32_t MAX_DIRECTIONAL_SHADOWS = 4;
+        const uint32_t MAX_POINT_SHADOWS = 4;
+        const uint32_t MAX_SPOT_SHADOWS = 4;
 
     private:
         VulkanContext* context;
@@ -66,6 +91,7 @@ namespace vks {
         DescriptorManager* descriptorManager;
 
         VkRenderPass renderPass{VK_NULL_HANDLE};
+        VkRenderPass shadowRenderPass{VK_NULL_HANDLE};
         VkPipelineCache pipelineCache{VK_NULL_HANDLE};
 
         std::vector<Pipeline> pipelines;

@@ -65,6 +65,63 @@ namespace vks
             resources.framebuffers.clear();
         }
 
+        for (auto framebuffer : directionalShadowFramebuffers) {
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+        }
+        directionalShadowFramebuffers.clear();
+
+        for (auto view : directionalShadowLayerViews) {
+            if (view != VK_NULL_HANDLE)
+                vkDestroyImageView(context->getDevice(), view, nullptr);
+        }
+        directionalShadowLayerViews.clear();
+
+        for (auto framebuffer : pointShadowFramebuffers) {
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+        }
+        pointShadowFramebuffers.clear();
+
+        for (auto view : pointShadowLayerViews) {
+            if (view != VK_NULL_HANDLE)
+                vkDestroyImageView(context->getDevice(), view, nullptr);
+        }
+        pointShadowLayerViews.clear();
+
+        for (auto framebuffer : spotShadowFramebuffers) {
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(context->getDevice(), framebuffer, nullptr);
+        }
+        spotShadowFramebuffers.clear();
+
+        for (auto view : spotShadowLayerViews) {
+            if (view != VK_NULL_HANDLE)
+                vkDestroyImageView(context->getDevice(), view, nullptr);
+        }
+        spotShadowLayerViews.clear();
+
+        if (directionalShadows.view != VK_NULL_HANDLE) {
+            vkDestroyImageView(context->getDevice(), directionalShadows.view, nullptr);
+            vkDestroyImage(context->getDevice(), directionalShadows.image, nullptr);
+            vkFreeMemory(context->getDevice(), directionalShadows.memory, nullptr);
+            directionalShadows = {};
+        }
+
+        if (pointShadows.view != VK_NULL_HANDLE) {
+            vkDestroyImageView(context->getDevice(), pointShadows.view, nullptr);
+            vkDestroyImage(context->getDevice(), pointShadows.image, nullptr);
+            vkFreeMemory(context->getDevice(), pointShadows.memory, nullptr);
+            pointShadows = {};
+        }
+
+        if (spotShadows.view != VK_NULL_HANDLE) {
+            vkDestroyImageView(context->getDevice(), spotShadows.view, nullptr);
+            vkDestroyImage(context->getDevice(), spotShadows.image, nullptr);
+            vkFreeMemory(context->getDevice(), spotShadows.memory, nullptr);
+            spotShadows = {};
+        }
+
         cleanupDepthResources();
         cleanupOffscreenResources();
 
@@ -85,6 +142,11 @@ namespace vks
         if (renderPass != VK_NULL_HANDLE)
         {
             vkDestroyRenderPass(context->getDevice(), renderPass, nullptr);
+        }
+
+        if (shadowRenderPass != VK_NULL_HANDLE)
+        {
+            vkDestroyRenderPass(context->getDevice(), shadowRenderPass, nullptr);
         }
 
         if (pipelineCache != VK_NULL_HANDLE)
@@ -170,6 +232,261 @@ namespace vks
         if (vkCreateRenderPass(context->getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create render pass!");
+        }
+    }
+
+    void RenderPipelineManager::createShadowRenderPass()
+    {
+        VkAttachmentDescription attachmentDescription{};
+        attachmentDescription.format = shadowFormat;
+        attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkAttachmentReference depthReference = {};
+        depthReference.attachment = 0;
+        depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpassDescription = {};
+        subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpassDescription.colorAttachmentCount = 0;
+        subpassDescription.pColorAttachments = nullptr;
+        subpassDescription.pDepthStencilAttachment = &depthReference;
+
+        // Use subpass dependencies for layout transitions
+        std::array<VkSubpassDependency, 2> dependencies;
+
+        dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependencies[0].dstSubpass = 0;
+        dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+        dependencies[1].srcSubpass = 0;
+        dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+        dependencies[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dependencies[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+        VkRenderPassCreateInfo renderPassInfo = {};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &attachmentDescription;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpassDescription;
+        renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+        renderPassInfo.pDependencies = dependencies.data();
+
+        if (vkCreateRenderPass(context->getDevice(), &renderPassInfo, nullptr, &shadowRenderPass) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create shadow render pass!");
+        }
+    }
+
+    void RenderPipelineManager::createShadowResources()
+    {
+        // Directional Shadows (2D Array)
+        {
+            VkImageCreateInfo imageCI = base::initializers::imageCreateInfo();
+            imageCI.imageType = VK_IMAGE_TYPE_2D;
+            imageCI.extent = {SHADOWMAP_DIM, SHADOWMAP_DIM, 1};
+            imageCI.mipLevels = 1;
+            imageCI.arrayLayers = MAX_DIRECTIONAL_SHADOWS;
+            imageCI.format = shadowFormat;
+            imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            if (vkCreateImage(context->getDevice(), &imageCI, nullptr, &directionalShadows.image) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create directional shadow image!");
+            }
+
+            VkMemoryRequirements memReqs;
+            vkGetImageMemoryRequirements(context->getDevice(), directionalShadows.image, &memReqs);
+            VkMemoryAllocateInfo memAlloc = base::initializers::memoryAllocateInfo();
+            memAlloc.allocationSize = memReqs.size;
+            memAlloc.memoryTypeIndex = context->findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (vkAllocateMemory(context->getDevice(), &memAlloc, nullptr, &directionalShadows.memory) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to allocate directional shadow memory!");
+            }
+            vkBindImageMemory(context->getDevice(), directionalShadows.image, directionalShadows.memory, 0);
+
+            VkImageViewCreateInfo viewCI = base::initializers::imageViewCreateInfo();
+            viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            viewCI.format = shadowFormat;
+            viewCI.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, MAX_DIRECTIONAL_SHADOWS};
+            viewCI.image = directionalShadows.image;
+            if (vkCreateImageView(context->getDevice(), &viewCI, nullptr, &directionalShadows.view) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create directional shadow view!");
+            }
+        }
+
+        // Point Shadows (Cube Array)
+        {
+            VkImageCreateInfo imageCI = base::initializers::imageCreateInfo();
+            imageCI.imageType = VK_IMAGE_TYPE_2D;
+            imageCI.extent = {SHADOWMAP_DIM, SHADOWMAP_DIM, 1};
+            imageCI.mipLevels = 1;
+            imageCI.arrayLayers = MAX_POINT_SHADOWS * 6;
+            imageCI.format = shadowFormat;
+            imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            imageCI.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+            if (vkCreateImage(context->getDevice(), &imageCI, nullptr, &pointShadows.image) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create point shadow image!");
+            }
+
+            VkMemoryRequirements memReqs;
+            vkGetImageMemoryRequirements(context->getDevice(), pointShadows.image, &memReqs);
+            VkMemoryAllocateInfo memAlloc = base::initializers::memoryAllocateInfo();
+            memAlloc.allocationSize = memReqs.size;
+            memAlloc.memoryTypeIndex = context->findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (vkAllocateMemory(context->getDevice(), &memAlloc, nullptr, &pointShadows.memory) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to allocate point shadow memory!");
+            }
+            vkBindImageMemory(context->getDevice(), pointShadows.image, pointShadows.memory, 0);
+
+            VkImageViewCreateInfo viewCI = base::initializers::imageViewCreateInfo();
+            viewCI.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+            viewCI.format = shadowFormat;
+            viewCI.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, MAX_POINT_SHADOWS * 6};
+            viewCI.image = pointShadows.image;
+            if (vkCreateImageView(context->getDevice(), &viewCI, nullptr, &pointShadows.view) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create point shadow view!");
+            }
+        }
+
+        // Spot Shadows (2D Array)
+        {
+            VkImageCreateInfo imageCI = base::initializers::imageCreateInfo();
+            imageCI.imageType = VK_IMAGE_TYPE_2D;
+            imageCI.extent = {SHADOWMAP_DIM, SHADOWMAP_DIM, 1};
+            imageCI.mipLevels = 1;
+            imageCI.arrayLayers = MAX_SPOT_SHADOWS;
+            imageCI.format = shadowFormat;
+            imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            if (vkCreateImage(context->getDevice(), &imageCI, nullptr, &spotShadows.image) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create spot shadow image!");
+            }
+
+            VkMemoryRequirements memReqs;
+            vkGetImageMemoryRequirements(context->getDevice(), spotShadows.image, &memReqs);
+            VkMemoryAllocateInfo memAlloc = base::initializers::memoryAllocateInfo();
+            memAlloc.allocationSize = memReqs.size;
+            memAlloc.memoryTypeIndex = context->findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (vkAllocateMemory(context->getDevice(), &memAlloc, nullptr, &spotShadows.memory) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to allocate spot shadow memory!");
+            }
+            vkBindImageMemory(context->getDevice(), spotShadows.image, spotShadows.memory, 0);
+
+            VkImageViewCreateInfo viewCI = base::initializers::imageViewCreateInfo();
+            viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            viewCI.format = shadowFormat;
+            viewCI.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, MAX_SPOT_SHADOWS};
+            viewCI.image = spotShadows.image;
+            if (vkCreateImageView(context->getDevice(), &viewCI, nullptr, &spotShadows.view) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create spot shadow view!");
+            }
+        }
+    }
+
+    void RenderPipelineManager::createShadowFramebuffers()
+    {
+        // Directional Shadow Framebuffers
+        directionalShadowFramebuffers.resize(MAX_DIRECTIONAL_SHADOWS);
+        directionalShadowLayerViews.resize(MAX_DIRECTIONAL_SHADOWS);
+        for (uint32_t i = 0; i < MAX_DIRECTIONAL_SHADOWS; i++) {
+            VkImageViewCreateInfo viewCI = base::initializers::imageViewCreateInfo();
+            viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewCI.format = shadowFormat;
+            viewCI.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, i, 1};
+            viewCI.image = directionalShadows.image;
+            if (vkCreateImageView(context->getDevice(), &viewCI, nullptr, &directionalShadowLayerViews[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create directional shadow layer view!");
+            }
+
+            VkFramebufferCreateInfo framebufferCI = base::initializers::framebufferCreateInfo();
+            framebufferCI.renderPass = shadowRenderPass;
+            framebufferCI.attachmentCount = 1;
+            framebufferCI.pAttachments = &directionalShadowLayerViews[i];
+            framebufferCI.width = SHADOWMAP_DIM;
+            framebufferCI.height = SHADOWMAP_DIM;
+            framebufferCI.layers = 1;
+
+            if (vkCreateFramebuffer(context->getDevice(), &framebufferCI, nullptr, &directionalShadowFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create directional shadow framebuffer!");
+            }
+        }
+
+        // Point Shadow Framebuffers
+        pointShadowFramebuffers.resize(MAX_POINT_SHADOWS);
+        pointShadowLayerViews.resize(MAX_POINT_SHADOWS);
+        for (uint32_t i = 0; i < MAX_POINT_SHADOWS; i++) {
+            VkImageViewCreateInfo viewCI = base::initializers::imageViewCreateInfo();
+            viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewCI.format = shadowFormat;
+            viewCI.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, i * 6, 6};
+            viewCI.image = pointShadows.image;
+            if (vkCreateImageView(context->getDevice(), &viewCI, nullptr, &pointShadowLayerViews[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create point shadow layer view!");
+            }
+
+            VkFramebufferCreateInfo framebufferCI = base::initializers::framebufferCreateInfo();
+            framebufferCI.renderPass = shadowRenderPass;
+            framebufferCI.attachmentCount = 1;
+            framebufferCI.pAttachments = &pointShadowLayerViews[i];
+            framebufferCI.width = SHADOWMAP_DIM;
+            framebufferCI.height = SHADOWMAP_DIM;
+            framebufferCI.layers = 6;
+
+            if (vkCreateFramebuffer(context->getDevice(), &framebufferCI, nullptr, &pointShadowFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create point shadow framebuffer!");
+            }
+        }
+
+        // Spot Shadow Framebuffers
+        spotShadowFramebuffers.resize(MAX_SPOT_SHADOWS);
+        spotShadowLayerViews.resize(MAX_SPOT_SHADOWS);
+        for (uint32_t i = 0; i < MAX_SPOT_SHADOWS; i++) {
+            VkImageViewCreateInfo viewCI = base::initializers::imageViewCreateInfo();
+            viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewCI.format = shadowFormat;
+            viewCI.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, i, 1};
+            viewCI.image = spotShadows.image;
+            if (vkCreateImageView(context->getDevice(), &viewCI, nullptr, &spotShadowLayerViews[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create spot shadow layer view!");
+            }
+
+            VkFramebufferCreateInfo framebufferCI = base::initializers::framebufferCreateInfo();
+            framebufferCI.renderPass = shadowRenderPass;
+            framebufferCI.attachmentCount = 1;
+            framebufferCI.pAttachments = &spotShadowLayerViews[i];
+            framebufferCI.width = SHADOWMAP_DIM;
+            framebufferCI.height = SHADOWMAP_DIM;
+            framebufferCI.layers = 1;
+
+            if (vkCreateFramebuffer(context->getDevice(), &framebufferCI, nullptr, &spotShadowFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create spot shadow framebuffer!");
+            }
         }
     }
 
@@ -422,7 +739,7 @@ namespace vks
 
         VkPipelineDepthStencilStateCreateInfo depthStencilState = base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
-        VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(shadowPipelineLayout, renderPass, 0);
+        VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(shadowPipelineLayout, shadowRenderPass, 0);
         pipelineCI.pInputAssemblyState = &inputAssemblyState;
         pipelineCI.pViewportState = &viewportState;
         pipelineCI.pRasterizationState = &rasterizationState;

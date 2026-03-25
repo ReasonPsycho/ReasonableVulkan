@@ -56,6 +56,11 @@ int main(int argc, char *argv[]) {
     scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(asset->get()->id, pbrShader->get()->id));
     scene.get()->GetComponent<TransformComponent>(modelEntity).position = glm::vec3(0,0,0);
 
+    auto modelEntity2 = scene.get()->CreateEntity("Model");
+    setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity2),{1,-1,1});
+    scene.get()->AddComponent<RendererComponent>(modelEntity2,RendererComponent(asset->get()->id, pbrShader->get()->id));
+    scene.get()->GetComponent<TransformComponent>(modelEntity2).position = glm::vec3(0,0,0);
+
     auto cameraEntity = scene.get()->CreateEntity("Camera");
     scene.get()->AddComponent<CameraComponent>(cameraEntity);
     scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
@@ -63,7 +68,7 @@ int main(int argc, char *argv[]) {
 
     auto lightEntity = scene.get()->CreateEntity("Light");
     scene.get()->AddComponent<LightComponent>(lightEntity);
-
+    scene.get()->GetComponent<LightComponent>(lightEntity).hasShadow = true;
     scene.get()->CreateEntity(); //Empty
 
 

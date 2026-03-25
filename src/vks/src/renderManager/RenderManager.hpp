@@ -59,7 +59,7 @@ private:
                      DescriptorManager* descriptorManager);
         ~RenderManager();
 
-        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId);
+        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId);
         #ifdef ENABLE_IMGUI
         void initializeImgui(ImguiManager* manager);
         #endif
@@ -94,6 +94,8 @@ private:
 
         boost::uuids::uuid pbrShaderId;
         boost::uuids::uuid skyboxShaderId;
+        boost::uuids::uuid shadowShaderId;
+        boost::uuids::uuid cubeShadowShaderId;
 
     private:
         std::vector<RenderCommand> renderQueue;

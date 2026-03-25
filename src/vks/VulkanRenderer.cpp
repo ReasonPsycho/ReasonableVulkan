@@ -171,6 +171,9 @@ namespace vks {
 
         // Create render pass and pipeline
         pipelineManager->createRenderPass();
+        pipelineManager->createShadowRenderPass();
+        pipelineManager->createShadowResources();
+        pipelineManager->createShadowFramebuffers();
         descriptorManager->initialize();
 
         // Get descriptor set layouts from descriptor manager
@@ -203,12 +206,20 @@ namespace vks {
             "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader");
         pipelineManager->createShadowPipeline(cubeShadowMapPipline);
 
+        descriptorManager->updateShadowDescriptorSet(
+            pipelineManager->directionalShadows.view,
+            pipelineManager->pointShadows.view,
+            pipelineManager->spotShadows.view
+        );
+
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
         pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
         // Initialize render manager
-        renderManager->initialize(pbrShaderId, skyboxShaderId);
+        auto shadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shader");
+        auto cubeShadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader");
+        renderManager->initialize(pbrShaderId, skyboxShaderId, shadowMapShader->getAssetId(), cubeShadowMapShader->getAssetId());
 
 #if ENABLE_IMGUI
         imguiManager.get()->initialize(windowHandle, swapChain->getImageViews());
