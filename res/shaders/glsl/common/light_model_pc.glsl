@@ -5,6 +5,7 @@ layout(push_constant) uniform LightModelPushConstant {
     mat4 model;
     int lightIndex;
     int lightType; // 0: Directional, 1: Point, 2: Spot
+    vec2 padding;
 } push_lm;
 
 #endif

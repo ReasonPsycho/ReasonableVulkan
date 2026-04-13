@@ -3,6 +3,7 @@
 
 #define USE_POINT_LIGHTS 1
 #define USE_DIR_LIGHTS   1
+#define USE_SPOT_LIGHTS  1
 
 #include "../common/scene_ubo.glsl"
 #include "../common/vertex_io.glsl"
@@ -15,6 +16,10 @@
 
 #if USE_POINT_LIGHTS
 #include "../lighting/light_point.glsl"
+#endif
+
+#if USE_SPOT_LIGHTS
+#include "../lighting/light_spot.glsl"
 #endif
 
 layout(location = 0) in vec2 inUV;
@@ -39,6 +44,10 @@ void main()
 
     #if USE_POINT_LIGHTS
     color += AccumulatePointLights(normal, inWorldPos, viewDir);
+    #endif
+
+    #if USE_SPOT_LIGHTS
+    color += AccumulateSpotLights(normal, inWorldPos, viewDir);
     #endif
 
     color *= inColor;

@@ -624,7 +624,7 @@ namespace vks
                     .binding = 2,
                     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                     .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 },
                 {
@@ -772,14 +772,6 @@ namespace vks
         VK_CHECK_RESULT(vkMapMemory(context->getDevice(), lightInfoUBO.buffer.memory,
             0, bufferSize, 0, &lightInfoUBO.buffer.mapped));
 
-        // Allocate descriptor set
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = scenePool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &sceneLayout;
-
-        VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &lightInfoUBO.buffer.descriptorSet));
 
 
         bufferSize = maxDirectionalLights * sizeof(DirectionalLightBufferData);
@@ -833,7 +825,7 @@ namespace vks
             0, bufferSize, 0, &spotLightSSBO.buffer.mapped));
 
         // Allocate a single descriptor set for all lights from the lights layout
-        allocInfo = {};
+        VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = scenePool;
         allocInfo.descriptorSetCount = 1;
@@ -841,6 +833,9 @@ namespace vks
 
         VkDescriptorSet lightsDescriptorSet;
         VK_CHECK_RESULT(vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &lightsDescriptorSet));
+
+        // Update the lightInfoUBO's stored descriptor set
+        lightInfoUBO.buffer.descriptorSet = lightsDescriptorSet;
 
         // Write lights buffers + shadow textures and sampler to the single lights descriptor set
         std::array<VkWriteDescriptorSet, 8> lightWrites{};
@@ -970,7 +965,7 @@ namespace vks
         writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSets[0].dstSet = lightInfoUBO.buffer.descriptorSet;
         writeDescriptorSets[0].descriptorCount = 1;
-        writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         writeDescriptorSets[0].pImageInfo = &directionalImageInfo;
         writeDescriptorSets[0].dstBinding = 4;
 
@@ -983,7 +978,7 @@ namespace vks
         writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSets[1].dstSet = lightInfoUBO.buffer.descriptorSet;
         writeDescriptorSets[1].descriptorCount = 1;
-        writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         writeDescriptorSets[1].pImageInfo = &pointImageInfo;
         writeDescriptorSets[1].dstBinding = 5;
 
@@ -996,7 +991,7 @@ namespace vks
         writeDescriptorSets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSets[2].dstSet = lightInfoUBO.buffer.descriptorSet;
         writeDescriptorSets[2].descriptorCount = 1;
-        writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         writeDescriptorSets[2].pImageInfo = &spotImageInfo;
         writeDescriptorSets[2].dstBinding = 6;
 

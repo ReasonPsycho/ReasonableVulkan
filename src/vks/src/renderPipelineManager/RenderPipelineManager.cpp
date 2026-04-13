@@ -7,6 +7,7 @@
 #include "../descriptorManager/modelDescriptor/descriptors/shaderProgramDescriptor/ShaderProgramDescriptor.h"
 #include "../base/VulkanInitializers.hpp"
 #include "../descriptorManager/buffers/LightModelPushConstant.hpp"
+#include "../descriptorManager/buffers/ModelPushConstant.hpp"
 
 namespace vks
 {
@@ -149,6 +150,11 @@ namespace vks
             vkDestroyRenderPass(context->getDevice(), shadowRenderPass, nullptr);
         }
 
+        if (shadowRenderPassMultiview != VK_NULL_HANDLE)
+        {
+            vkDestroyRenderPass(context->getDevice(), shadowRenderPassMultiview, nullptr);
+        }
+
         if (pipelineCache != VK_NULL_HANDLE)
         {
             vkDestroyPipelineCache(context->getDevice(), pipelineCache, nullptr);
@@ -278,6 +284,7 @@ namespace vks
 
         VkRenderPassCreateInfo renderPassInfo = {};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+
         renderPassInfo.attachmentCount = 1;
         renderPassInfo.pAttachments = &attachmentDescription;
         renderPassInfo.subpassCount = 1;
@@ -288,6 +295,24 @@ namespace vks
         if (vkCreateRenderPass(context->getDevice(), &renderPassInfo, nullptr, &shadowRenderPass) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create shadow render pass!");
+        }
+
+        // Create multiview shadow render pass
+        uint32_t viewMask = 0b00111111; // 6 bits for 6 cube faces
+        uint32_t correlationMask = 0b00111111;
+
+        VkRenderPassMultiviewCreateInfo multiviewCI{};
+        multiviewCI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO;
+        multiviewCI.subpassCount = 1;
+        multiviewCI.pViewMasks = &viewMask;
+        multiviewCI.correlationMaskCount = 1;
+        multiviewCI.pCorrelationMasks = &correlationMask;
+
+        renderPassInfo.pNext = &multiviewCI;
+
+        if (vkCreateRenderPass(context->getDevice(), &renderPassInfo, nullptr, &shadowRenderPassMultiview) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create multiview shadow render pass!");
         }
     }
 
@@ -303,7 +328,7 @@ namespace vks
             imageCI.format = shadowFormat;
             imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
             imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
             imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
@@ -341,7 +366,7 @@ namespace vks
             imageCI.format = shadowFormat;
             imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
             imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
             imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             imageCI.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
@@ -380,7 +405,7 @@ namespace vks
             imageCI.format = shadowFormat;
             imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
             imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
             imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
@@ -406,6 +431,69 @@ namespace vks
             if (vkCreateImageView(context->getDevice(), &viewCI, nullptr, &spotShadows.view) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create spot shadow view!");
             }
+        }
+
+        // Ensure all shadow images have a valid layout and are cleared before first use via descriptors
+        {
+            VkCommandBuffer cmdBuffer = context->beginSingleTimeCommands(QueueType::Graphics);
+
+            VkImageMemoryBarrier barriers[3]{};
+
+            // Transition to TRANSFER_DST_OPTIMAL to clear
+            for (int i = 0; i < 3; i++) {
+                barriers[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                barriers[i].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                barriers[i].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                barriers[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[i].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+                barriers[i].subresourceRange.baseMipLevel = 0;
+                barriers[i].subresourceRange.levelCount = 1;
+                barriers[i].subresourceRange.baseArrayLayer = 0;
+                barriers[i].srcAccessMask = 0;
+                barriers[i].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            }
+
+            barriers[0].image = directionalShadows.image;
+            barriers[0].subresourceRange.layerCount = MAX_DIRECTIONAL_SHADOWS;
+            barriers[1].image = pointShadows.image;
+            barriers[1].subresourceRange.layerCount = MAX_POINT_SHADOWS * 6;
+            barriers[2].image = spotShadows.image;
+            barriers[2].subresourceRange.layerCount = MAX_SPOT_SHADOWS;
+
+            vkCmdPipelineBarrier(
+                cmdBuffer,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                3, barriers);
+
+            VkClearDepthStencilValue clearValue = {1.0f, 0};
+
+            vkCmdClearDepthStencilImage(cmdBuffer, directionalShadows.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValue, 1, &barriers[0].subresourceRange);
+            vkCmdClearDepthStencilImage(cmdBuffer, pointShadows.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValue, 1, &barriers[1].subresourceRange);
+            vkCmdClearDepthStencilImage(cmdBuffer, spotShadows.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValue, 1, &barriers[2].subresourceRange);
+
+            // Transition to SHADER_READ_ONLY_OPTIMAL
+            for (int i = 0; i < 3; i++) {
+                barriers[i].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                barriers[i].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                barriers[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                barriers[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            }
+
+            vkCmdPipelineBarrier(
+                cmdBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                3, barriers);
+
+            context->endSingleTimeCommands(cmdBuffer, QueueType::Graphics);
         }
     }
 
@@ -442,7 +530,7 @@ namespace vks
         pointShadowLayerViews.resize(MAX_POINT_SHADOWS);
         for (uint32_t i = 0; i < MAX_POINT_SHADOWS; i++) {
             VkImageViewCreateInfo viewCI = base::initializers::imageViewCreateInfo();
-            viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
             viewCI.format = shadowFormat;
             viewCI.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, i * 6, 6};
             viewCI.image = pointShadows.image;
@@ -451,12 +539,12 @@ namespace vks
             }
 
             VkFramebufferCreateInfo framebufferCI = base::initializers::framebufferCreateInfo();
-            framebufferCI.renderPass = shadowRenderPass;
+            framebufferCI.renderPass = shadowRenderPassMultiview;
             framebufferCI.attachmentCount = 1;
             framebufferCI.pAttachments = &pointShadowLayerViews[i];
             framebufferCI.width = SHADOWMAP_DIM;
             framebufferCI.height = SHADOWMAP_DIM;
-            framebufferCI.layers = 6;
+            framebufferCI.layers = 1;
 
             if (vkCreateFramebuffer(context->getDevice(), &framebufferCI, nullptr, &pointShadowFramebuffers[i]) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create point shadow framebuffer!");
@@ -703,13 +791,14 @@ namespace vks
             VkPushConstantRange modelPCRange{};
             modelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
             modelPCRange.offset = 0;
-            modelPCRange.size = sizeof(glm::mat4);
+            modelPCRange.size = sizeof(ModelPushConstant);
             pushConstantRanges.push_back(modelPCRange);
         }
-        else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
+        
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
         {
             VkPushConstantRange lightModelPCRange{};
-            lightModelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            lightModelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
             lightModelPCRange.offset = 0;
             lightModelPCRange.size = sizeof(LightModelPushConstant);
             pushConstantRanges.push_back(lightModelPCRange);
@@ -740,6 +829,15 @@ namespace vks
         VkPipelineDepthStencilStateCreateInfo depthStencilState = base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(shadowPipelineLayout, shadowRenderPass, 0);
+        
+        // Use multiview render pass for point shadow shaders (which use multiple views)
+        bool isMultiview = std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != combinedDefines.end() ||
+                           std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end();
+        
+        if (isMultiview) {
+            pipelineCI.renderPass = shadowRenderPassMultiview;
+        }
+
         pipelineCI.pInputAssemblyState = &inputAssemblyState;
         pipelineCI.pViewportState = &viewportState;
         pipelineCI.pRasterizationState = &rasterizationState;
@@ -820,28 +918,31 @@ namespace vks
         meshPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(combinedLayouts.size());
         meshPipelineLayoutInfo.pSetLayouts = combinedLayouts.data();
 
-        VkPushConstantRange pushConstantRange{};
+        VkPushConstantRange modelPCRange{};
+        VkPushConstantRange lightModelPCRange{};
+        std::vector<VkPushConstantRange> pushConstantRanges;
+
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
         {
-            meshPipelineLayoutInfo.pushConstantRangeCount = 1;
-
             // Define push constant range for the vertex shader transform matrix
-            pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-            pushConstantRange.offset = 0;
-            pushConstantRange.size = sizeof(glm::mat4);
-
-            meshPipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+            modelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+            modelPCRange.offset = 0;
+            modelPCRange.size = sizeof(ModelPushConstant);
+            pushConstantRanges.push_back(modelPCRange);
         }
-        else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
+        
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
         {
-            meshPipelineLayoutInfo.pushConstantRangeCount = 1;
-
             // Define push constant range for the light shadow model push constant
-            pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-            pushConstantRange.offset = 0;
-            pushConstantRange.size = sizeof(LightModelPushConstant);
+            lightModelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            lightModelPCRange.offset = 0;
+            lightModelPCRange.size = sizeof(LightModelPushConstant);
+            pushConstantRanges.push_back(lightModelPCRange);
+        }
 
-            meshPipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        if (!pushConstantRanges.empty()) {
+            meshPipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
+            meshPipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
         }
 
         if (vkCreatePipelineLayout(context->getDevice(), &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) !=
@@ -969,7 +1070,7 @@ namespace vks
             imageInfo.format = depthFormat;
             imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
             imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 

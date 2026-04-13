@@ -92,6 +92,10 @@ private:
         // Command recording
         void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
+    private:
+        void bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines);
+        void bindMeshDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines);
+
         boost::uuids::uuid pbrShaderId;
         boost::uuids::uuid skyboxShaderId;
         boost::uuids::uuid shadowShaderId;
@@ -124,6 +128,7 @@ private:
 
         //Render helper functions
         void renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId);
+        void renderLightNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId, int lightIndex, int lightType);
     };
 
 } // namespace vks

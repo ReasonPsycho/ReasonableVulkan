@@ -10,10 +10,10 @@ struct DirectionalLight {
     float intensity;
     vec3 color;
     float shadowBias;
-    mat4x4 lightSpaceMatrix;
+    mat4 lightSpaceMatrix;
+    float shadowStrength;
     int shadowMapIndex;
     bool castShadows;
-    float shadowStrength;
     float padding;
 };
 

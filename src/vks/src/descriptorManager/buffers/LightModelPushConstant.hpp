@@ -4,10 +4,11 @@
 #include <glm/glm.hpp>
 
 namespace vks {
-    struct LightModelPushConstant {
+    struct alignas(16) LightModelPushConstant {
         glm::mat4 model;
         int lightIndex;
         int lightType; // 0: Directional, 1: Point, 2: Spot
+        float padding[2];
     };
 }
 

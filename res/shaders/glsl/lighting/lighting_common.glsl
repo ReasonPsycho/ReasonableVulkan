@@ -31,13 +31,13 @@ float CalculateDirectionalShadow(vec4 fragPosLightSpace, int shadowMapIndex, flo
     projCoords.xy = projCoords.xy * 0.5 + 0.5;
     
     // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-    float currentDepth = length(fragPosLightSpace.xyz) / lights.far_plane;
+    float currentDepth = projCoords.z;
 
-    if (projCoords.z > 1.0)
+    if (projCoords.z > 1.0 || projCoords.z < 0.0)
         return 0.0;
     
     float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(sampler2DArray(directionalShadowMaps, shadowSampler), 0).xy;
+    vec2 texelSize = 1.0 / vec2(textureSize(sampler2DArray(directionalShadowMaps, shadowSampler), 0).xy);
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)
@@ -57,13 +57,13 @@ float CalculateSpotShadow(vec4 fragPosLightSpace, int shadowMapIndex, float bias
     // transform to [0,1] range
     projCoords.xy = projCoords.xy * 0.5 + 0.5;
 
-    float currentDepth = length(fragPosLightSpace.xyz) / lights.far_plane;
+    float currentDepth = projCoords.z;
 
-    if (projCoords.z > 1.0)
+    if (projCoords.z > 1.0 || projCoords.z < 0.0)
         return 0.0;
 
     float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(sampler2DArray(spotShadowMaps, shadowSampler), 0).xy;
+    vec2 texelSize = 1.0 / vec2(textureSize(sampler2DArray(spotShadowMaps, shadowSampler), 0).xy);
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)

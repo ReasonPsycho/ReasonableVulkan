@@ -12,11 +12,11 @@ struct PointLight {
     float radius;
     float falloff;
     float shadowBias;
-    bool castShadows;
-    int shadowMapIndex;
     float shadowStrength;
+    int shadowMapIndex;
+    bool castShadows;
     mat4 lightSpaceMatrices[6];
-    float padding[2];
+    float padding;
 };
 
 layout(binding = 2, set = 3) readonly buffer PointLightSSBO {

@@ -1,17 +1,15 @@
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "RenderManager.hpp"
 #include <algorithm>
-
-#include <imgui_impl_sdl3.h>
-#include <imgui_impl_vulkan.h>
 #include <stdexcept>
-
 #include "../descriptorManager/modelDescriptor/ModelDescriptor.h"
-
 
 #ifdef ENABLE_IMGUI
 #include "../imguiManager/ImguiManager.hpp"
 #endif
+
 #include "../descriptorManager/buffers/LightModelPushConstant.hpp"
+#include "../descriptorManager/buffers/ModelPushConstant.hpp"
 
 namespace vks {
 
@@ -78,48 +76,64 @@ void RenderManager::createSyncObjects() {
     if (!shaderProgramDescriptor) return;
     const auto& defines = shaderProgramDescriptor->getDefines();
 
-    bool hasMaterial = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_PBR_GLSL) != defines.end();
-    bool hasMeshUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != defines.end();
-    bool hasPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
+   bool hasModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
 
     for (const auto& node : mainNode->children) {
         glm::mat4 nodeWorldTransform = matrix * node->matrix;
+        
+        if (hasModelPushConstants) {
+            ModelPushConstant push_m;
+            push_m.model = nodeWorldTransform;
+            vkCmdPushConstants(
+                commandBuffer,
+                pipelineManager->getPipelineLayout(renderProgramId),
+                VK_SHADER_STAGE_VERTEX_BIT,
+                0,
+                sizeof(ModelPushConstant),
+                &push_m
+            );
+        }
+
         for (const auto& mesh : node->meshes) {
-            // Create a push constant for the transform instead of using uniform buffer
-            if (hasPushConstants) {
-                vkCmdPushConstants(
-                    commandBuffer,
-                    pipelineManager->getPipelineLayout(renderProgramId),
-                    VK_SHADER_STAGE_VERTEX_BIT,
-                    0,
-                    sizeof(glm::mat4),
-                    &nodeWorldTransform
-                );
-            }
-
-            VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
-            VkDeviceSize offsets[] = { 0 };
-            vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-            // Bind mesh descriptor set at set index 2
-            if (hasMeshUBO && mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineManager->getPipelineLayout(renderProgramId), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
-            }
-
-            // Bind material descriptor set at set index 1
-            if (hasMaterial) {
-                auto materialDescriptorSet = mesh->material->descriptorSet;
-                if (materialDescriptorSet != VK_NULL_HANDLE) {
-                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        pipelineManager->getPipelineLayout(renderProgramId), 1, 1, &materialDescriptorSet, 0, nullptr);
-                }
-            }
-
+            bindMeshDescriptors(commandBuffer, renderProgramId, mesh, defines);
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
         }
         renderNode(node, commandBuffer, matrix, renderProgramId);
+    }
+}
+
+void vks::RenderManager::renderLightNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId, int lightIndex, int lightType)
+{
+    auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(renderProgramId);
+    if (!shaderProgramDescriptor) return;
+    const auto& defines = shaderProgramDescriptor->getDefines();
+
+    bool hasLightModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+
+    for (const auto& node : mainNode->children) {
+        glm::mat4 nodeWorldTransform = matrix * node->matrix;
+
+        if (hasLightModelPushConstants) {
+            LightModelPushConstant push_lm;
+            push_lm.model = nodeWorldTransform;
+            push_lm.lightIndex = lightIndex;
+            push_lm.lightType = lightType;
+
+            vkCmdPushConstants(
+                commandBuffer,
+                pipelineManager->getPipelineLayout(renderProgramId),
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                0,
+                sizeof(LightModelPushConstant),
+                &push_lm
+            );
+        }
+
+        for (const auto& mesh : node->meshes) {
+            bindMeshDescriptors(commandBuffer, renderProgramId, mesh, defines);
+            vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
+        }
+        renderLightNode(node, commandBuffer, matrix, renderProgramId, lightIndex, lightType);
     }
 }
 
@@ -148,13 +162,13 @@ void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids
 void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
 {
     DirectionalLightBufferData bufferData{};
-    bufferData.castShadows = data.castShadows;
     bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
     bufferData.intensity = data.intensity;
     bufferData.color = data.color;
     bufferData.shadowBias = data.shadowBias;
     bufferData.shadowStrength = data.shadowStrength;
     bufferData.shadowMapIndex = -1; // Assigned during rendering
+    bufferData.castShadows = data.castShadows;
 
     directionalLightQueue.push_back(bufferData);
 }
@@ -162,7 +176,6 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     void RenderManager::submitLightCommand(gfx::PointLightData data, glm::mat4 transform)
 {
     PointLightBufferData bufferData{};
-    bufferData.castShadows = data.castShadows;
     bufferData.position = glm::vec3(transform[3]);  // Extract position from transform
     bufferData.intensity = data.intensity;
     bufferData.color = data.color;
@@ -171,6 +184,7 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     bufferData.shadowBias = data.shadowBias;
     bufferData.shadowStrength = data.shadowStrength;
     bufferData.shadowMapIndex = -1; // Assigned during rendering
+    bufferData.castShadows = data.castShadows;
 
     pointLightQueue.push_back(bufferData);
 }
@@ -178,17 +192,17 @@ void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4
     void RenderManager::submitLightCommand(gfx::SpotLightData data, glm::mat4 transform)
 {
     SpotLightBufferData bufferData{};
-    bufferData.castShadows = data.castShadows;
     bufferData.position = glm::vec3(transform[3]);  // Extract position from transform
-    bufferData.intensity = data.intensity;
-    bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
     bufferData.innerAngle = data.innerAngle;
-    bufferData.color = data.color;
+    bufferData.direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
     bufferData.outerAngle = data.outerAngle;
+    bufferData.color = data.color;
     bufferData.range = data.range;
+    bufferData.intensity = data.intensity;
     bufferData.shadowBias = data.shadowBias;
     bufferData.shadowStrength = data.shadowStrength;
     bufferData.shadowMapIndex = -1; // Assigned during rendering
+    bufferData.castShadows = data.castShadows;
 
     spotLightQueue.push_back(bufferData);
 }
@@ -307,7 +321,12 @@ void RenderManager::endFrame() {
                 if (light.castShadows && directionalShadowCount < pipelineManager->MAX_DIRECTIONAL_SHADOWS) {
                     glm::vec3 lightDir = light.direction;
                     glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, farPlane);
-                    glm::mat4 lightView = glm::lookAt(-lightDir * 10.0f, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+                    lightProjection[1][1] *= -1.0f;
+                    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+                    if (glm::abs(glm::dot(lightDir, up)) > 0.999f) {
+                        up = glm::vec3(0.0f, 0.0f, 1.0f);
+                    }
+                    glm::mat4 lightView = glm::lookAt(-lightDir * 10.0f, glm::vec3(0.0f), up);
                     light.lightSpaceMatrix = lightProjection * lightView;
                     light.shadowMapIndex = directionalShadowCount++;
 
@@ -331,22 +350,19 @@ void RenderManager::endFrame() {
                     VkRect2D scissor = base::initializers::rect2D(pipelineManager->SHADOWMAP_DIM, pipelineManager->SHADOWMAP_DIM, 0, 0);
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+                    vkCmdSetDepthBias(commandBuffer, 1.25f, 0.0f, 1.75f);
+
                     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(shadowShaderId));
+
+                    auto shadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(shadowShaderId);
+                    if (shadowShaderDescriptor) {
+                        bindPipelineDescriptors(commandBuffer, shadowShaderId, imageIndex, shadowShaderDescriptor->getDefines());
+                    }
 
                     for (auto& command : renderQueue) {
                         auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(command.modelId);
                         if (modelDescriptor) {
-                            LightModelPushConstant push_lm;
-                            push_lm.model = command.transform;
-                            push_lm.lightIndex = light.shadowMapIndex;
-                            push_lm.lightType = 0; // Directional
-
-                            vkCmdPushConstants(commandBuffer, pipelineManager->getPipelineLayout(shadowShaderId), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightModelPushConstant), &push_lm);
-                            for (auto node : modelDescriptor->nodes) {
-                                if (node->parent == nullptr) {
-                                    renderNode(node, commandBuffer, glm::mat4(1.0f), shadowShaderId);
-                                }
-                            }
+                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, shadowShaderId, light.shadowMapIndex, 0);
                         }
                     }
 
@@ -357,7 +373,14 @@ void RenderManager::endFrame() {
             for (auto& light : pointLightQueue) {
                 if (light.castShadows && pointShadowCount < pipelineManager->MAX_POINT_SHADOWS) {
                     light.shadowMapIndex = pointShadowCount++;
-                    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, farPlane);
+                    glm::mat4 shadowProj = glm::perspective(
+                        glm::radians(90.0f),
+                        1.0f,
+                        0.1f,
+                        farPlane
+                    );
+
+
                     light.lightSpaceMatrices[0] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
                     light.lightSpaceMatrices[1] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0));
                     light.lightSpaceMatrices[2] = shadowProj * glm::lookAt(light.position, light.position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
@@ -368,7 +391,7 @@ void RenderManager::endFrame() {
                     // Render to shadow cube map
                     VkRenderPassBeginInfo renderPassInfo = {};
                     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                    renderPassInfo.renderPass = pipelineManager->getShadowRenderPass();
+                    renderPassInfo.renderPass = pipelineManager->getShadowRenderPassMultiview();
                     renderPassInfo.framebuffer = pipelineManager->getPointShadowFramebuffer(light.shadowMapIndex);
                     renderPassInfo.renderArea.offset = {0, 0};
                     renderPassInfo.renderArea.extent = {pipelineManager->SHADOWMAP_DIM, pipelineManager->SHADOWMAP_DIM};
@@ -385,22 +408,19 @@ void RenderManager::endFrame() {
                     VkRect2D scissor = base::initializers::rect2D(pipelineManager->SHADOWMAP_DIM, pipelineManager->SHADOWMAP_DIM, 0, 0);
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+                    vkCmdSetDepthBias(commandBuffer, 1.25f, 0.0f, 1.75f);
+
                     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cubeShadowShaderId));
+
+                    auto cubeShadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cubeShadowShaderId);
+                    if (cubeShadowShaderDescriptor) {
+                        bindPipelineDescriptors(commandBuffer, cubeShadowShaderId, imageIndex, cubeShadowShaderDescriptor->getDefines());
+                    }
 
                     for (auto& command : renderQueue) {
                         auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(command.modelId);
                         if (modelDescriptor) {
-                            LightModelPushConstant push_lm;
-                            push_lm.model = command.transform;
-                            push_lm.lightIndex = light.shadowMapIndex;
-                            push_lm.lightType = 1; // Point
-
-                            vkCmdPushConstants(commandBuffer, pipelineManager->getPipelineLayout(cubeShadowShaderId), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightModelPushConstant), &push_lm);
-                            for (auto node : modelDescriptor->nodes) {
-                                if (node->parent == nullptr) {
-                                    renderNode(node, commandBuffer, glm::mat4(1.0f), cubeShadowShaderId);
-                                }
-                            }
+                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, cubeShadowShaderId, light.shadowMapIndex, 1);
                         }
                     }
 
@@ -411,7 +431,11 @@ void RenderManager::endFrame() {
             for (auto& light : spotLightQueue) {
                 if (light.castShadows && spotShadowCount < pipelineManager->MAX_SPOT_SHADOWS) {
                     glm::mat4 shadowProj = glm::perspective(glm::radians(light.outerAngle * 2.0f), 1.0f, 0.1f, light.range);
-                    glm::mat4 shadowView = glm::lookAt(light.position, light.position + light.direction, glm::vec3(0.0, 1.0, 0.0));
+                    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+                    if (glm::abs(glm::dot(light.direction, up)) > 0.999f) {
+                        up = glm::vec3(0.0f, 0.0f, 1.0f);
+                    }
+                    glm::mat4 shadowView = glm::lookAt(light.position, light.position + light.direction, up);
                     light.lightSpaceMatrix = shadowProj * shadowView;
                     light.shadowMapIndex = spotShadowCount++;
 
@@ -435,22 +459,19 @@ void RenderManager::endFrame() {
                     VkRect2D scissor = base::initializers::rect2D(pipelineManager->SHADOWMAP_DIM, pipelineManager->SHADOWMAP_DIM, 0, 0);
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+                    vkCmdSetDepthBias(commandBuffer, 1.25f, 0.0f, 1.75f);
+
                     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(shadowShaderId));
+
+                    auto spotShadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(shadowShaderId);
+                    if (spotShadowShaderDescriptor) {
+                        bindPipelineDescriptors(commandBuffer, shadowShaderId, imageIndex, spotShadowShaderDescriptor->getDefines());
+                    }
 
                     for (auto& command : renderQueue) {
                         auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(command.modelId);
                         if (modelDescriptor) {
-                            LightModelPushConstant push_lm;
-                            push_lm.model = command.transform;
-                            push_lm.lightIndex = light.shadowMapIndex;
-                            push_lm.lightType = 2; // Spot
-
-                            vkCmdPushConstants(commandBuffer, pipelineManager->getPipelineLayout(shadowShaderId), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightModelPushConstant), &push_lm);
-                            for (auto node : modelDescriptor->nodes) {
-                                if (node->parent == nullptr) {
-                                    renderNode(node, commandBuffer, glm::mat4(1.0f), shadowShaderId);
-                                }
-                            }
+                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, shadowShaderId, light.shadowMapIndex, 2);
                         }
                     }
 
@@ -570,14 +591,15 @@ void RenderManager::endFrame() {
                         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
                         vkCmdBindIndexBuffer(commandBuffer, skyboxMesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-                        glm::mat4 identity = glm::mat4(1.0f);
+                        ModelPushConstant push_m;
+                        push_m.model = glm::mat4(1.0f);
                         vkCmdPushConstants(
                             commandBuffer,
                             pipelineManager->getPipelineLayout(cmd.renderProgramId),
                             VK_SHADER_STAGE_VERTEX_BIT,
                             0,
-                            sizeof(glm::mat4),
-                            &identity
+                            sizeof(ModelPushConstant),
+                            &push_m
                         );
 
                         vkCmdDrawIndexed(commandBuffer, skyboxMesh->indices.count, 1, 0, 0, 0);
@@ -598,31 +620,7 @@ void RenderManager::endFrame() {
 
                     auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cmd.renderProgramId);
                     if (shaderProgramDescriptor) {
-                        const auto& defines = shaderProgramDescriptor->getDefines();
-                        bool hasSceneUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::SCENE_UBO_GLSL) != defines.end();
-                        bool hasLighting = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != defines.end();
-
-                        if (hasSceneUBO) {
-                            vkCmdBindDescriptorSets(
-                                  commandBuffer,
-                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                  pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                                  0,                                    // First set index (Set 0)
-                                  1,                                    // Number of sets
-                                  &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
-                                  0, nullptr);
-                        }
-
-                        if (hasLighting) {
-                            vkCmdBindDescriptorSets(
-                                  commandBuffer,
-                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                  pipelineManager->getPipelineLayout(cmd.renderProgramId),
-                                  3,                                    // Set index 3
-                                  1,                                    // Number of sets
-                                  &descriptorManager->directionalLightSSBO.descriptorSet,
-                                  0, nullptr);
-                        }
+                        bindPipelineDescriptors(commandBuffer, cmd.renderProgramId, i, shaderProgramDescriptor->getDefines());
                     }
 
                     lastProgramId = cmd.renderProgramId;
@@ -685,6 +683,59 @@ void RenderManager::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 
 void RenderManager::waitIdle() {
     vkDeviceWaitIdle(context->getDevice());
+}
+
+void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines) {
+    bool hasSceneUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::SCENE_UBO_GLSL) != defines.end();
+    bool hasLighting = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != defines.end() ||
+                       std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+
+    if (hasSceneUBO) {
+        vkCmdBindDescriptorSets(
+              commandBuffer,
+              VK_PIPELINE_BIND_POINT_GRAPHICS,
+              pipelineManager->getPipelineLayout(renderProgramId),
+              0,                                    // First set index (Set 0)
+              1,                                    // Number of sets
+              &descriptorManager->sceneUBOs[imageIndex].buffer.descriptorSet,
+              0, nullptr);
+    }
+
+    if (hasLighting) {
+        vkCmdBindDescriptorSets(
+              commandBuffer,
+              VK_PIPELINE_BIND_POINT_GRAPHICS,
+              pipelineManager->getPipelineLayout(renderProgramId),
+              3,                                    // Set index 3
+              1,                                    // Number of sets
+              &descriptorManager->lightInfoUBO.buffer.descriptorSet,
+              0, nullptr);
+    }
+}
+
+void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines) {
+    bool hasMeshUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != defines.end();
+    bool hasMaterial = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_PBR_GLSL) != defines.end();
+
+    VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    // Bind mesh descriptor set at set index 2
+    if (hasMeshUBO && mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            pipelineManager->getPipelineLayout(renderProgramId), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
+    }
+
+    // Bind material descriptor set at set index 1
+    if (hasMaterial) {
+        auto materialDescriptorSet = mesh->material->descriptorSet;
+        if (materialDescriptorSet != VK_NULL_HANDLE) {
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipelineManager->getPipelineLayout(renderProgramId), 1, 1, &materialDescriptorSet, 0, nullptr);
+        }
+    }
 }
 
 } // namespace vks

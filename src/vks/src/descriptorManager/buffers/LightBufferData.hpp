@@ -7,6 +7,7 @@
 
 #include <glm/vec3.hpp>
 #include <glm/detail/type_mat4x4.hpp>
+#include <vulkan/vulkan.h>
 
 namespace vks
 {
@@ -30,49 +31,49 @@ namespace vks
     // Directional light rendering data
     struct DirectionalLightBufferData
     {
-        glm::vec3 direction;      // World-space direction vector
-        float intensity;
-        glm::vec3 color;
-        float shadowBias;         // Bias for shadow mapping
-        glm::mat4 lightSpaceMatrix;
-        int32_t shadowMapIndex;   // Index into the shadow map array
-        bool castShadows;         // Whether to cast shadows
-        float shadowStrength;     // Strength/intensity of the shadow
-        float padding;            // Alignment padding for GPU buffers
+        alignas(16) glm::vec3 direction;      // World-space direction vector
+        alignas(4)  float intensity;
+        alignas(16) glm::vec3 color;
+        alignas(4)  float shadowBias;         // Bias for shadow mapping
+        alignas(16) glm::mat4 lightSpaceMatrix;
+        alignas(4)  float shadowStrength;     // Strength/intensity of the shadow
+        alignas(4)  int32_t shadowMapIndex;   // Index into the shadow map array
+        alignas(4)  bool castShadows;         // Whether to cast shadows
+        alignas(4)  float padding;
     };
 
     // Point light rendering data
     struct PointLightBufferData
     {
-        glm::vec3 position;       // World-space position
-        float intensity;
-        glm::vec3 color;
-        float radius;             // Light influence radius
-        float falloff;            // Falloff/attenuation factor
-        float shadowBias;         // Bias for shadow mapping
-        bool castShadows;
-        int32_t shadowMapIndex;   // Index into the cube shadow map array
-        float shadowStrength;     // Strength/intensity of the shadow
-        glm::mat4 lightSpaceMatrices[6];
-        float padding[2];         // Alignment padding for GPU buffers
+        alignas(16) glm::vec3 position;       // World-space position
+        alignas(4)  float intensity;
+        alignas(16) glm::vec3 color;
+        alignas(4)  float radius;             // Light influence radius
+        alignas(4)  float falloff;            // Falloff/attenuation factor
+        alignas(4)  float shadowBias;         // Bias for shadow mapping
+        alignas(4)  float shadowStrength;     // Strength/intensity of the shadow
+        alignas(4)  int32_t shadowMapIndex;   // Index into the cube shadow map array
+        alignas(4)  bool castShadows;
+        alignas(16) glm::mat4 lightSpaceMatrices[6];
+        alignas(4)  float padding;         // Alignment padding for GPU buffers
     };
 
     // Spot light rendering data
     struct SpotLightBufferData
     {
-        glm::vec3 position;       // World-space position
-        glm::vec3 direction;      // World-space direction vector
-        float innerAngle;         // Inner cone angle (in degrees)
-        float outerAngle;         // Outer cone angle (in degrees)
-        float range;              // Maximum light range
-        float intensity;
-        glm::vec3 color;
-        float shadowBias;         // Bias for shadow mapping
-        glm::mat4 lightSpaceMatrix;
-        int32_t shadowMapIndex;   // Index into the shadow map array
-        bool castShadows;         // Whether to cast shadows
-        float shadowStrength;     // Strength/intensity of the shadow
-        float padding;            // Alignment padding for GPU buffers
+        alignas(16) glm::vec3 position;       // World-space position
+        alignas(4)  float innerAngle;         // Inner cone angle (in degrees)
+        alignas(16) glm::vec3 direction;      // World-space direction vector
+        alignas(4)  float outerAngle;         // Outer cone angle (in degrees)
+        alignas(16) glm::vec3 color;
+        alignas(4)  float range;              // Maximum light range
+        alignas(16) glm::mat4 lightSpaceMatrix;
+        alignas(4)  float intensity;
+        alignas(4)  float shadowBias;         // Bias for shadow mapping
+        alignas(4)  float shadowStrength;     // Strength/intensity of the shadow
+        alignas(4)  int32_t shadowMapIndex;   // Index into the shadow map array
+        alignas(4)  bool castShadows;         // Whether to cast shadows
+        alignas(4)  float padding;
     };
 }
 
