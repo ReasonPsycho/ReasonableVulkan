@@ -7,17 +7,17 @@
 
 struct SpotLight {
     vec3 position;
-    vec3 direction;
     float innerAngle;
+    vec3 direction;
     float outerAngle;
-    float range;
-    float intensity;
     vec3 color;
-    float shadowBias;
+    float range;
     mat4 lightSpaceMatrix;
+    float intensity;
+    float shadowBias;
+    float shadowStrength;
     int shadowMapIndex;
     bool castShadows;
-    float shadowStrength;
     float padding;
 };
 
@@ -35,11 +35,11 @@ vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir
         return vec3(0.0, 0.0, 0.0);
 
     // Cone angle attenuation
-    float theta = acos(dot(lightDir, normalize(-light.direction)));
-    float innerRad = radians(light.innerAngle);
-    float outerRad = radians(light.outerAngle);
+    float cosTheta = dot(lightDir, normalize(-light.direction));
+    float cosInner = cos(radians(light.innerAngle));
+    float cosOuter = cos(radians(light.outerAngle));
 
-    float spotIntensity = smoothstep(outerRad, innerRad, theta);
+    float spotIntensity = smoothstep(cosOuter, cosInner, cosTheta);
 
     // Distance attenuation
     float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);

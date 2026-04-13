@@ -121,7 +121,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
             Entity entity = lightArray->ComponentIndexToEntity(i);
             auto& lightComponent = lights[i];
 
-            switch (lightComponent.type)
+            switch (lightComponent.getType())
             {
                 case LightComponent::Type::Point:
                 {

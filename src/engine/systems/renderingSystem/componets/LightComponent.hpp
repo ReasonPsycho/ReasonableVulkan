@@ -32,7 +32,17 @@ namespace engine::ecs
     {
         enum class Type { Directional, Point, Spot };
 
-        Type type;
+        Type getType() const { return type; }
+        void setType(Type t) {
+            if (type == t) return;
+            type = t;
+            switch (t) {
+                case Type::Point: data = PointLightData{}; break;
+                case Type::Spot: data = SpotLightData{}; break;
+                case Type::Directional: data = DirectionalLightData{}; break;
+            }
+        }
+
         glm::vec3 color;
         float intensity;
         bool hasShadow;
@@ -51,6 +61,9 @@ namespace engine::ecs
         void ShowImGui(Scene* scene, Component* component) const override;
         void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
         void DeserializeComponentFromJson(const rapidjson::Value& obj) override;
+
+    private:
+        Type type;
     };
 }
 

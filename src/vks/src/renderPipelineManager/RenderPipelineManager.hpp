@@ -41,6 +41,7 @@ namespace vks {
         // Getters
         VkRenderPass getRenderPass() const { return renderPass; }
         VkRenderPass getShadowRenderPass() const { return shadowRenderPass; }
+        VkRenderPass getShadowRenderPassMultiview() const { return shadowRenderPassMultiview; }
         VkPipeline getPipeline(const boost::uuids::uuid& pipelineId) const;
         VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t cameraIndex, uint32_t imageIndex) const;
@@ -92,6 +93,7 @@ namespace vks {
 
         VkRenderPass renderPass{VK_NULL_HANDLE};
         VkRenderPass shadowRenderPass{VK_NULL_HANDLE};
+        VkRenderPass shadowRenderPassMultiview{VK_NULL_HANDLE};
         VkPipelineCache pipelineCache{VK_NULL_HANDLE};
 
         std::vector<Pipeline> pipelines;

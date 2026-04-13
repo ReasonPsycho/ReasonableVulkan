@@ -12,29 +12,13 @@ void engine::ecs::LightComponent::ShowImGui(Scene* scene, Component* component) 
     auto typed = dynamic_cast<LightComponent*>(component);
     if (ImGui::CollapsingHeader("LightComponent"))
     {
-        int typeInt = static_cast<int>(typed->type);
+        int typeInt = static_cast<int>(typed->getType());
         const char* items[] = {"Directional", "Point", "Spot"};
 
         if (ImGui::Combo("LightComponent Type", &typeInt, items, IM_ARRAYSIZE(items)))
         {
             Type newType = static_cast<Type>(typeInt);
-            if (newType != typed->type)
-            {
-                typed->type = newType;
-                // Update variant to match the new type
-                switch (newType)
-                {
-                    case Type::Directional:
-                        typed->data = DirectionalLightData{};
-                        break;
-                    case Type::Point:
-                        typed->data = PointLightData{};
-                        break;
-                    case Type::Spot:
-                        typed->data = SpotLightData{};
-                        break;
-                }
-            }
+            typed->setType(newType);
         }
 
         ImGui::ColorEdit3("LightComponent Color", &typed->color[0]);
@@ -42,7 +26,7 @@ void engine::ecs::LightComponent::ShowImGui(Scene* scene, Component* component) 
         ImGui::Checkbox("Has Shadow##LightComponent", &typed->hasShadow);
 
         // Show type-specific controls
-        switch (typed->type)
+        switch (typed->getType())
         {
             case Type::Point:
             {
@@ -110,21 +94,7 @@ void engine::ecs::LightComponent::SerializeComponentToJson(rapidjson::Value& obj
 void engine::ecs::LightComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
 {
     if (obj.HasMember("lightType") && obj["lightType"].IsInt()) {
-        type = static_cast<Type>(obj["lightType"].GetInt());
-
-        // Initialize variant based on type
-        switch (type)
-        {
-            case Type::Directional:
-                data = DirectionalLightData{};
-                break;
-            case Type::Point:
-                data = PointLightData{};
-                break;
-            case Type::Spot:
-                data = SpotLightData{};
-                break;
-        }
+        setType(static_cast<Type>(obj["lightType"].GetInt()));
     }
 
     if (obj.HasMember("color") && obj["color"].IsArray()) {

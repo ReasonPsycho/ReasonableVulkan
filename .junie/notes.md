@@ -23,7 +23,13 @@ This file is used by Junie to keep track of important project details, progress,
 - ImGui rendering is kept after the multi-camera render loop, as it typically renders to the main swapchain or a dedicated layer.
 - Updated `VulkanRendererTests` and `RenderObjectTest` to match the new `GraphicsEngine` interface.
 
-## Shadow Pipeline Validation Fix (2026-03-25)
+### 2026-04-04 - Vulkan Shadow Matrix Fix
+- Updated shadow projection matrices in `RenderManager.cpp` to handle Vulkan's inverted Y-axis in clip space.
+- Added `projection[1][1] *= -1.0f` to directional, point, and spot light shadow projections.
+- Adjusted point light shadow `lookAt` up vectors to match Vulkan's cubemap coordinate system (inverted Y compared to OpenGL in world space, but effectively same as OpenGL's up vectors when combined with clip-space Y-flip).
+- Directional light now uses `glm::ortho` followed by a Y-flip.
+- Spot light now uses `glm::perspective` followed by a Y-flip.
+- These changes ensure shadow maps are rendered with the correct orientation and depth range [0, 1] (via `GLM_FORCE_DEPTH_ZERO_TO_ONE`).
 
 ### Problem
 Vulkan validation errors during shadow pipeline creation:

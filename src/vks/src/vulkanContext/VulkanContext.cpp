@@ -180,15 +180,22 @@ int VulkanContext::rateDeviceSuitability(VkPhysicalDevice device) {
     enabledFeatures.geometryShader = VK_TRUE;
     enabledFeatures.fillModeNonSolid = VK_TRUE;
     enabledFeatures.imageCubeArray = VK_TRUE;
+    enabledFeatures.multiViewport = VK_TRUE;
+
+    VkPhysicalDeviceMultiviewFeatures multiviewFeatures{};
+    multiviewFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES;
+    multiviewFeatures.multiview = VK_TRUE;
 
     // Required extensions
     std::vector<const char*> enabledExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_MULTIVIEW_EXTENSION_NAME
     };
 
     // Create the logical device
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pNext = &multiviewFeatures;
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     createInfo.pEnabledFeatures = &enabledFeatures;

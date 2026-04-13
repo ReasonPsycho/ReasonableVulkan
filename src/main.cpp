@@ -66,11 +66,25 @@ int main(int argc, char *argv[]) {
     scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
     scene.get()->GetComponent<CameraComponent>(cameraEntity).active = true;
 
-    auto lightEntity = scene.get()->CreateEntity("Light");
-    scene.get()->AddComponent<LightComponent>(lightEntity);
-    scene.get()->GetComponent<LightComponent>(lightEntity).hasShadow = true;
-    scene.get()->CreateEntity(); //Empty
+    /*
+    auto dirLightEntity = scene.get()->CreateEntity("Dir Light");
+    scene.get()->AddComponent<LightComponent>(dirLightEntity);
+    auto& dirLight = scene.get()->GetComponent<LightComponent>(dirLightEntity);
+    dirLight.hasShadow = true;
+    dirLight.setType(LightComponent::Type::Directional);
 
+    auto pointLightEntity = scene.get()->CreateEntity("Point Light");
+    scene.get()->AddComponent<LightComponent>(pointLightEntity);
+    auto& pointLight = scene.get()->GetComponent<LightComponent>(pointLightEntity);
+    pointLight.hasShadow = true;
+    pointLight.setType(LightComponent::Type::Point);
+    */
+
+    auto spotLightEntity = scene.get()->CreateEntity("Spot Light");
+    scene.get()->AddComponent<LightComponent>(spotLightEntity);
+    auto& spotLight = scene.get()->GetComponent<LightComponent>(spotLightEntity);
+    spotLight.hasShadow = true;
+    spotLight.setType(LightComponent::Type::Spot);
 
     // 5. Main loop
     bool running = true;
