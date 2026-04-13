@@ -1,6 +1,9 @@
 #include "MaterialAsset.hpp"
 
 am::MaterialAsset::MaterialAsset(AssetFactoryData& assetFactoryData) : Asset(assetFactoryData) {
+}
+
+void am::MaterialAsset::LoadAssetFromImport(AssetFactoryData assetFactoryData) {
     AssetManager &assetManager = AssetManager::getInstance();
     auto scene = assetManager.importer.GetScene();
 

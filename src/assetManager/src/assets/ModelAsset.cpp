@@ -9,6 +9,11 @@ namespace am
 {
     //private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
+    void ModelAsset::LoadAssetFromImport(AssetFactoryData assetFactoryData)
+    {
+        loadFromFile(assetFactoryData);
+    }
+
     void ModelAsset::loadFromFile(AssetFactoryData base_factory_context)
     {
         AssetManager& assetManager = AssetManager::getInstance();

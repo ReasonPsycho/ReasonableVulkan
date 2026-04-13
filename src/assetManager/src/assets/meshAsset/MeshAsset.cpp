@@ -45,6 +45,10 @@ namespace am {
 
     MeshAsset::MeshAsset(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext)
     {
+    }
+
+    void MeshAsset::LoadAssetFromImport(AssetFactoryData meshFactoryContext)
+    {
         AssetManager &assetManager = AssetManager::getInstance();
         auto scene = assetManager.importer.GetScene();
 

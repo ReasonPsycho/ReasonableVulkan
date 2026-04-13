@@ -8,6 +8,9 @@
 namespace am {
 
     ShaderProgramAsset::ShaderProgramAsset(AssetFactoryData &assetFactoryData) : Asset(assetFactoryData) {
+    }
+
+    void ShaderProgramAsset::LoadAssetFromImport(AssetFactoryData assetFactoryData) {
         loadFromJson(assetFactoryData.path);
     }
 

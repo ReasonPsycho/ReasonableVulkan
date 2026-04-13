@@ -31,8 +31,11 @@ namespace am {
         ModelData data;
 
         explicit ModelAsset(AssetFactoryData base_factory_context): Asset(base_factory_context) {
-            loadFromFile(base_factory_context);
         };
+
+        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
+        void saveAssetToJson(std::string& json) override {}
+        void LoadAssetFromJson(std::string& json) override {}
 
         void loadFromFile(AssetFactoryData base_factory_context);
 
