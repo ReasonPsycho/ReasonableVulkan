@@ -24,7 +24,9 @@ void AssetManager::RegisterAssetType()
 
     factories[type] = [](am::AssetFactoryData& data)
     {
-        return std::make_unique<T>(data);
+        auto asset = std::make_unique<T>(data);
+        asset->LoadAssetFromImport(data);
+        return asset;
     };
 
     savers[type] = [](am::Asset& asset, rapidjson::Document& doc)

@@ -20,6 +20,10 @@ namespace am {
 
         ~TextureAsset() override;
 
+        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
+        void saveAssetToJson(std::string& json) override {}
+        void LoadAssetFromJson(std::string& json) override {}
+
         void loadFromFile(const std::string &path);
 
         [[nodiscard]] size_t calculateContentHash() const override;

@@ -23,6 +23,13 @@ namespace am {
             return static_cast<T*>(getAssetData());
         }
 
+
+        virtual void LoadAssetFromImport(AssetFactoryData assetFactoryData) = 0;
+        virtual void saveAssetToJson(std::string& json) = 0;
+        virtual void LoadAssetFromJson(std::string& json) = 0;
+        //virtual void loadAssetToBin(std::string& json) = 0;
+        //virtual void loadAssetFromBin(std::string& json) = 0;
+
         virtual void SaveAssetMetadata(rapidjson::Document& document) = 0;
         virtual void LoadAssetMetadata(rapidjson::Document& document) = 0;
 

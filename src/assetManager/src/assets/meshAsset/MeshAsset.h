@@ -34,6 +34,10 @@ namespace am {
 
         explicit MeshAsset(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
 
+        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
+        void saveAssetToJson(std::string& json) override {}
+        void LoadAssetFromJson(std::string& json) override {}
+
         //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;
         [[nodiscard]] AssetType getType() const override;

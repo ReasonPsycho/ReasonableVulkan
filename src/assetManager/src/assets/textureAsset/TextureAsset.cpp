@@ -5,7 +5,11 @@ namespace am
     TextureAsset::TextureAsset(am::AssetFactoryData base_factory_context)
         : Asset(base_factory_context)
     {
-        loadFromFile(base_factory_context.path);
+    }
+
+    void TextureAsset::LoadAssetFromImport(AssetFactoryData assetFactoryData)
+    {
+        loadFromFile(assetFactoryData.path);
     }
 
     TextureAsset::~TextureAsset() = default;

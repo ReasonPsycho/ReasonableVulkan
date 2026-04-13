@@ -23,9 +23,13 @@ namespace am {
     public:
 
         explicit ShaderAsset(am::AssetFactoryData base_factory_context)
-            : Asset(base_factory_context) {
-            loadFromFile(base_factory_context.path);
+            : Asset(base_factory_context) {}
+
+        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override {
+            loadFromFile(assetFactoryData.path);
         }
+        void saveAssetToJson(std::string& json) override {}
+        void LoadAssetFromJson(std::string& json) override {}
 
         void loadFromFile(const std::string &path);
 

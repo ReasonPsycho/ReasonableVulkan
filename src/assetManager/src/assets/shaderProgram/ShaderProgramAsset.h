@@ -9,6 +9,10 @@ namespace am {
     public:
         explicit ShaderProgramAsset(AssetFactoryData &assetFactoryData);
 
+        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
+        void saveAssetToJson(std::string& json) override {}
+        void LoadAssetFromJson(std::string& json) override {}
+
         size_t calculateContentHash() const override;
         [[nodiscard]] AssetType getType() const override;
 
