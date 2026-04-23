@@ -12,6 +12,7 @@
 #include "modelDescriptor/descriptors/ShaderDescriptor/ShaderDescriptor.h"
 #include "../../vks/src/base/VulkanDevice.h"
 #include <glm/glm.hpp>
+#include <spdlog/spdlog.h>
 
 #include "ShaderDefinesEnum.hpp"
 #include "buffers/LightBufferData.hpp"
@@ -62,7 +63,7 @@ namespace vks {
 
         // Resource management
         template <typename T>
-        T* getOrLoadResource(std::string path);
+        T* getOrLoadResource(std::string lookUpName);
 
 
         am::AssetManagerInterface* assetManager;

@@ -183,7 +183,7 @@ void RenderSystem::OnComponentAdded(ComponentID componentID, std::type_index typ
       if (model.modelUuid == boost::uuids::nil_uuid())
           return;
 
-      auto modelData = scene->engine.assetManagerInterface->getAsset(model.modelUuid).value()->getAssetDataAs<am::ModelData>();
+      auto modelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(model.modelUuid);
       model.boundingBoxMin = modelData->boundingBoxMin;
       model.boundingBoxMax = modelData->boundingBoxMax;
   }

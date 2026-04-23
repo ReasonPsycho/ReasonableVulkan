@@ -5,6 +5,8 @@
 #include "../common/light_model_pc.glsl"
 #include "../lighting/light_point.glsl"
 
+#define ENABLE_MULTVIEW 1
+
 layout (location = 0) in vec3 inPos;
 
 layout (location = 0) out vec4 outFragPos;

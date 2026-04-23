@@ -1,16 +1,57 @@
 #include "TextureAsset.h"
+#include "../../AssetManager.hpp"
+#include "../../JsonHelpers.hpp"
+#include "stb_image.h"
 
 namespace am
 {
-    TextureAsset::TextureAsset(am::AssetFactoryData base_factory_context)
-        : Asset(base_factory_context)
+    TextureAsset::TextureAsset(ImportContext assetFactoryData)
+        : Asset(assetFactoryData)
     {
+        loadFromFile(assetFactoryData.importPath);
     }
 
-    void TextureAsset::LoadAssetFromImport(AssetFactoryData assetFactoryData)
+    TextureAsset::TextureAsset(const std::string& path, AssetFormat format) : Asset(path, format)
     {
-        loadFromFile(assetFactoryData.path);
+        if (format == AssetFormat::Json) {
+            rapidjson::Document document;
+            if (!loadJsonFromFile(path, document)) {
+                spdlog::error("Failed to load TextureAsset from JSON: {}", path);
+                return;
+            }
+            if (document.HasMember("width") && document["width"].IsUint()) data.width = document["width"].GetUint();
+            if (document.HasMember("height") && document["height"].IsUint()) data.height = document["height"].GetUint();
+            if (document.HasMember("channels") && document["channels"].IsUint()) data.channels = document["channels"].GetUint();
+            if (document.HasMember("hasAlpha") && document["hasAlpha"].IsBool()) data.hasAlpha = document["hasAlpha"].GetBool();
+
+            if (document.HasMember("type") && document["type"].IsString()) {
+                std::string typeStr = document["type"].GetString();
+                if (typeStr == "Texture2D") data.type = TextureType::Texture2D;
+                else if (typeStr == "TextureCube") data.type = TextureType::TextureCube;
+            }
+        }
     }
+
+    void TextureAsset::SaveAssetToJson(rapidjson::Document& document)
+    {
+        auto& allocator = document.GetAllocator();
+        if (!document.IsObject()) {
+            document.SetObject();
+        }
+
+        document.AddMember("width", data.width, allocator);
+        document.AddMember("height", data.height, allocator);
+        document.AddMember("channels", data.channels, allocator);
+        document.AddMember("hasAlpha", data.hasAlpha, allocator);
+
+        std::string typeStr;
+        switch (data.type) {
+            case TextureType::Texture2D: typeStr = "Texture2D"; break;
+            case TextureType::TextureCube: typeStr = "TextureCube"; break;
+        }
+        document.AddMember("type", rapidjson::Value(typeStr.c_str(), allocator), allocator);
+    }
+
 
     TextureAsset::~TextureAsset() = default;
 
@@ -24,7 +65,7 @@ namespace am
 
         if (!fileData)
         {
-            spdlog::error("Failed to load texture: {} - {}", path, stbi_failure_reason());
+            spdlog::error("Failed to load texture");
             throw std::runtime_error("Failed to load texture: " + path);
         }
 
@@ -44,8 +85,7 @@ namespace am
 
         data.type = TextureType::Texture2D;
 
-        spdlog::info("Loaded texture: {} ({}x{}, {} channels)",
-                     path, width, height, channels);
+        spdlog::info("Loaded texture");
     }
 
     size_t TextureAsset::calculateContentHash() const

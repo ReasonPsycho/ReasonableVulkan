@@ -15,29 +15,31 @@ namespace am {
     class AssetManager;
     enum class AssetType;
 
-    struct AssetFactoryData {
-        std::string path;
+    struct ImportContext {
+        std::string importPath;
         AssetType assetType;
         int assimpIndex;
 
         // Constructor to initialize the reference and other members
-        AssetFactoryData(std::string p, AssetType type, int assimpIndex = 0)
+        ImportContext(std::string p, AssetType type, int assimpIndex = 0)
             :
-               path(std::move(p))
+               importPath(std::move(p))
               , assetType(type)
               , assimpIndex(assimpIndex) {
         }
 
-        bool operator==(const AssetFactoryData& factory_context) const;
+        bool operator==(const ImportContext& factory_context) const;
     };
 
     class AssetInfo {
     public:
         boost::uuids::uuid id;
-        std::string path;
+        std::string importPath;
+        std::string jsonPath;
         AssetType type;
+        std::string lookUpName;
         size_t contentHash;
-        AssetFactoryData assetFactoryData;
+        ImportContext importContext;
         bool isLoaded = false;
         Asset *loadedAsset = nullptr;
 
@@ -46,26 +48,26 @@ namespace am {
                   std::string p,
                   AssetType t,
                   size_t hash,
-                  AssetFactoryData factoryData)
+                  ImportContext factoryData)
             : id(uuid)
-              , path(std::move(p))
+              , importPath(std::move(p))
               , type(t)
               , contentHash(hash)
-              , assetFactoryData(std::move(factoryData)) {
+              , importContext(std::move(factoryData)) {
         }
 
         // Method to get or load asset
         Asset *getAsset();
-        am::Asset* GetAssetWithRealisingScene();
 
         bool isAssetLoaded() const;
 
         AssetInfo(AssetInfo &&other) noexcept
             : id(other.id)
-              , path(std::move(other.path))
+              , importPath(std::move(other.importPath))
+              , jsonPath(std::move(other.jsonPath))
               , type(other.type)
               , contentHash(other.contentHash)
-              , assetFactoryData(std::move(other.assetFactoryData))
+              , importContext(std::move(other.importContext))
               , loadedAsset(other.loadedAsset)
               , isLoaded(other.isLoaded) {
             other.loadedAsset = nullptr;

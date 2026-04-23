@@ -831,8 +831,7 @@ namespace vks
         VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(shadowPipelineLayout, shadowRenderPass, 0);
         
         // Use multiview render pass for point shadow shaders (which use multiple views)
-        bool isMultiview = std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != combinedDefines.end() ||
-                           std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end();
+        bool isMultiview = std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::ENABLE_MULTVIEW) != combinedDefines.end();
         
         if (isMultiview) {
             pipelineCI.renderPass = shadowRenderPassMultiview;

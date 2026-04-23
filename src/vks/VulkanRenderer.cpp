@@ -90,12 +90,12 @@ namespace vks {
     renderManager->submitRenderCommand(cameraIndex, modelId, shaderId, transform);
 }
 
-    void VulkanRenderer::drawSkybox(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid shaderId)
+    void VulkanRenderer::drawSkybox(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId)
     {
         if (shaderId.is_nil()){
             shaderId = skyboxShaderId;
         }
-        renderManager->submitSkyboxRenderCommand(cameraIndex, textureId, shaderId);
+        renderManager->submitSkyboxRenderCommand(cameraIndex, modelId, shaderId);
     }
 
 
@@ -180,30 +180,24 @@ namespace vks {
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
         // Load shader programs
-        auto pbrShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader");
+        auto pbrShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("pbrShader");
         pbrShaderId = pbrShaderProgram->getAssetId();
         pipelineManager->createGraphicsPipeline(pbrShaderProgram);
 
-        auto wiremesh = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shader");
+        auto wiremesh = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("wiremeshShader");
         pipelineManager->createGraphicsPipeline(wiremesh);
 
-        auto wiremesh_textured = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shader");
+        auto wiremesh_textured = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("wiremeshTexturedShader");
         pipelineManager->createGraphicsPipeline(wiremesh_textured);
 
-        auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shader");
+        auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("skyboxShader");
         skyboxShaderId = skyboxShaderProgram->getAssetId();
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
 
-        auto shadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shader");
+        auto shadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowMapShader");
         pipelineManager->createShadowPipeline(shadowMapPipline);
 
-        auto cubeShadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(
-            "C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader");
+        auto cubeShadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowCubeMapShader");
         pipelineManager->createShadowPipeline(cubeShadowMapPipline);
 
         descriptorManager->updateShadowDescriptorSet(
@@ -217,8 +211,8 @@ namespace vks {
         pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
         // Initialize render manager
-        auto shadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shader");
-        auto cubeShadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader");
+        auto shadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowMapShader");
+        auto cubeShadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowCubeMapShader");
         renderManager->initialize(pbrShaderId, skyboxShaderId, shadowMapShader->getAssetId(), cubeShadowMapShader->getAssetId());
 
 #if ENABLE_IMGUI

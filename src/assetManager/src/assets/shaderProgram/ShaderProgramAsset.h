@@ -7,11 +7,10 @@
 namespace am {
     class ShaderProgramAsset : public Asset {
     public:
-        explicit ShaderProgramAsset(AssetFactoryData &assetFactoryData);
+        explicit ShaderProgramAsset(ImportContext assetFactoryData);
+        explicit ShaderProgramAsset(const std::string& path, AssetFormat format);
 
-        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
-        void saveAssetToJson(std::string& json) override {}
-        void LoadAssetFromJson(std::string& json) override {}
+        void SaveAssetToJson(rapidjson::Document& document) override;
 
         size_t calculateContentHash() const override;
         [[nodiscard]] AssetType getType() const override;
@@ -19,7 +18,9 @@ namespace am {
         void SaveAssetMetadata(rapidjson::Document& document) override {}
         void LoadAssetMetadata(rapidjson::Document& document) override {}
 
-        void* getAssetData() override { return &data; }
+        std::any getAssetData() override {
+            return &data;
+        }
 
     private:
         ShaderProgramData data;

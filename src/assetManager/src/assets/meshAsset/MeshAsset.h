@@ -32,11 +32,11 @@ namespace am {
     class MeshAsset : public Asset {
     public:
 
-        explicit MeshAsset(AssetFactoryData meshFactoryContext); //This maby someday should intake a interface of materials
+        explicit MeshAsset(const ImportContext& assetFactoryData);
+        explicit MeshAsset(const std::string& path, AssetFormat format);
 
-        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
-        void saveAssetToJson(std::string& json) override {}
-        void LoadAssetFromJson(std::string& json) override {}
+        void SaveAssetToJson(rapidjson::Document& document) override;
+        void SaveAssetToBin(std::string& path) override;
 
         //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;
@@ -44,10 +44,15 @@ namespace am {
 
         void SaveAssetMetadata(rapidjson::Document& document) override {}
         void LoadAssetMetadata(rapidjson::Document& document) override {}
-        void* getAssetData() override { return &data; }
 
+        any getAssetData() override {
+            return &data;
+        }
+
+        bool saveToBinInsteadOfJson = true;
     private:
         MeshData data;
+        ImportContext importContext;
     };
 }
 

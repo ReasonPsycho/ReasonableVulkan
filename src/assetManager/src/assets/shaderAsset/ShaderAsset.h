@@ -21,15 +21,11 @@ namespace am {
 
     class ShaderAsset : public Asset {
     public:
+        explicit ShaderAsset(ImportContext assetFactoryData);
+        explicit ShaderAsset(const std::string& path, AssetFormat format);
 
-        explicit ShaderAsset(am::AssetFactoryData base_factory_context)
-            : Asset(base_factory_context) {}
-
-        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override {
-            loadFromFile(assetFactoryData.path);
-        }
-        void saveAssetToJson(std::string& json) override {}
-        void LoadAssetFromJson(std::string& json) override {}
+        void SaveAssetToJson(rapidjson::Document& document) override {};
+        void SaveAssetToBin(std::string& path) override;
 
         void loadFromFile(const std::string &path);
 
@@ -44,16 +40,18 @@ namespace am {
         // Modify a single define and recompile
         bool setDefineAndRecompile(const std::string& name, const std::string& value);
 
-
         // Returns a view into the shader bytecode
         [[nodiscard]] std::span<const std::uint32_t> getBytecode() const;
-
         [[nodiscard]] ShaderStage getStage() const;
 
         void SaveAssetMetadata(rapidjson::Document& document) override {}
         void LoadAssetMetadata(rapidjson::Document& document) override {}
 
-        void* getAssetData() override { return &data; }
+        std::any getAssetData() override {
+            return &data;
+        }
+
+        bool saveToBinInsteadOfJson = true;
     private:
         ShaderData data;
 

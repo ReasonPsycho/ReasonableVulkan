@@ -18,11 +18,10 @@ namespace am {
 
 class MaterialAsset : public am::Asset {
 public:
-    explicit MaterialAsset(AssetFactoryData &assetFactoryData);
+    explicit MaterialAsset(ImportContext assetFactoryData);
+    explicit MaterialAsset(const std::string& path, AssetFormat format);
 
-    void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
-    void saveAssetToJson(std::string& json) override {}
-    void LoadAssetFromJson(std::string& json) override {}
+    void SaveAssetToJson(rapidjson::Document& document) override;
 
 
     size_t calculateContentHash() const override;
@@ -31,10 +30,12 @@ public:
     void SaveAssetMetadata(rapidjson::Document& document) override {}
     void LoadAssetMetadata(rapidjson::Document& document) override {}
 
-    void* getAssetData() override { return &data; }
+    std::any getAssetData() override {
+        return &data;
+    }
 private:
     MaterialData data;
-    void extractPBRData(const aiMaterial* aiMaterial,AssetFactoryData& assetFactoryData);
+    void extractPBRData(const aiMaterial* aiMaterial,ImportContext& assetFactoryData);
 };
 
 }

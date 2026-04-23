@@ -6,6 +6,8 @@
 
 layout (location = 0) in vec4 inFragPos;
 
+#define ENABLE_MULTVIEW 1
+
 void main()
 {
     // get distance between fragment and light source

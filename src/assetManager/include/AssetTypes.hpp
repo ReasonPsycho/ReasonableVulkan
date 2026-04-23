@@ -4,9 +4,15 @@
 #include <ostream>
 #include <string>
 #include <sstream>
+#include <filesystem>
 
 
 namespace am {
+    enum class AssetFormat {
+        Json,
+        Binary
+    };
+
     enum class AssetType {
         Mesh,
         Model,
@@ -63,15 +69,58 @@ namespace am {
     }
 
     inline AssetType GetAssetTypeFromExtension(const std::string& extension) {
-        if (extension == ".fbx")       return AssetType::Model;
-        if (extension == ".png")       return AssetType::Texture;
-        if (extension == ".spv")       return AssetType::Shader;
-        if (extension == ".spdv")      return AssetType::Shader;
-        if (extension == ".frag")      return AssetType::Shader;
-        if (extension == ".vert")      return AssetType::Shader;
-        if (extension == ".geom")      return AssetType::Shader;
-        if (extension == ".shader")      return AssetType::ShaderProgram; // Assuming programs are defined in json files
+
+        std::string ext = extension; // make a copy
+
+        // Strip prefixes
+        if (ext.rfind("b_", 0) == 0) {
+            ext = ext.substr(2);
+        }
+
+        if (ext == ".fbx")       return AssetType::Model;
+        if (ext == ".png")       return AssetType::Texture;
+        if (ext == ".spv")       return AssetType::Shader;
+        if (ext == ".spdv")      return AssetType::Shader;
+        if (ext == ".frag")      return AssetType::Shader;
+        if (ext == ".vert")      return AssetType::Shader;
+        if (ext == ".geom")      return AssetType::Shader;
+        if (ext == ".shader")    return AssetType::ShaderProgram;
+        if (ext == ".model")     return AssetType::Model;
+        if (ext == ".material")  return AssetType::Material;
+        if (ext == ".mesh")      return AssetType::Mesh;
+        if (ext == ".texture")   return AssetType::Texture;
+
         return AssetType::Other;
+    }
+
+    inline std::string GetExtensionFromAssetType(AssetType type) {
+        switch (type) {
+            case AssetType::Mesh:          return ".mesh";
+            case AssetType::Model:         return ".model";
+            case AssetType::Texture:       return ".texture";
+            case AssetType::Shader:        return ".shader";
+            case AssetType::ShaderProgram: return ".shaderprogram";
+            case AssetType::Animation:     return ".animation";
+            case AssetType::Material:      return ".material";
+            case AssetType::Animator:      return ".animator";
+            default:                       return ".other";
+        }
+    }
+
+    inline std::string GetBinPath(const std::string& importPath, AssetType type, int index = -1) {
+        std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
+        std::string filename =  p.stem().string();
+        if (index >= 0) filename += "_" + std::to_string(index);
+        filename += ".b_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        return (p.parent_path() / filename).string();
+    }
+
+    inline std::string GetJsonPath(const std::string& importPath, AssetType type, int index = -1) {
+        std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
+        std::string filename =  p.stem().string();
+        if (index >= 0) filename += "_" + std::to_string(index);
+        filename += ".j_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        return (p.parent_path() / filename).string();
     }
 }
 
