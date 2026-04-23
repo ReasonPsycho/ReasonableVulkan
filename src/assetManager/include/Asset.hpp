@@ -3,14 +3,15 @@
 #include <string>
 #include <boost/uuid/uuid.hpp>
 #include <filesystem>
+#include <any>
 #include "AssetTypes.hpp"
-#include "../src/AssetManager.hpp"
 #include "AssetInfo.hpp"
 
 namespace am {
     class Asset {
     public:
-        explicit Asset(AssetFactoryData assetFactoryData) {}
+        explicit Asset(const ImportContext& assetFactoryData) {}
+        explicit Asset(const std::string& path, AssetFormat format) {}
 
         virtual ~Asset() = default;
 
@@ -18,26 +19,21 @@ namespace am {
 
         [[nodiscard]] virtual AssetType getType() const = 0;
 
+        virtual std::any getAssetData() = 0;
+
         template<typename T>
-          T* getAssetDataAs() {
-            return static_cast<T*>(getAssetData());
+        T* getAssetDataAs() {
+            return std::any_cast<T*>(getAssetData());
         }
 
-
-        virtual void LoadAssetFromImport(AssetFactoryData assetFactoryData) = 0;
-        virtual void saveAssetToJson(std::string& json) = 0;
-        virtual void LoadAssetFromJson(std::string& json) = 0;
-        //virtual void loadAssetToBin(std::string& json) = 0;
-        //virtual void loadAssetFromBin(std::string& json) = 0;
+        virtual void SaveAssetToJson(rapidjson::Document& document) = 0;
+        virtual void SaveAssetToBin(std::string& path) {}
 
         virtual void SaveAssetMetadata(rapidjson::Document& document) = 0;
         virtual void LoadAssetMetadata(rapidjson::Document& document) = 0;
 
-    protected:
-        std::string path;
+        bool saveToBinInsteadOfJson = false;
         boost::uuids::uuid id;
-
-        virtual void* getAssetData() = 0;
     };
 }
 

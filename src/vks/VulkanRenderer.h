@@ -33,7 +33,7 @@ namespace vks {
 		void loadShader(boost::uuids::uuid uuid) override;
 		void loadTexture(boost::uuids::uuid uuid) override;
 		void drawModel(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) override;
-		void drawSkybox(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid shaderId) override;
+		void drawSkybox(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId) override;
 		void drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform) override;

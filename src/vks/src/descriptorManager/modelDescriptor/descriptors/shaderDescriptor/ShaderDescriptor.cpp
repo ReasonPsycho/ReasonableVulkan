@@ -87,6 +87,8 @@ namespace vks
                result.push_back(ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL);
            }else if (key == "WIREMESH_GLSL")  {
                result.push_back(ShaderDefinesEnum::WIREMESH_GLSL);
+           }else if (key == "ENABLE_MULTVIEW")  {
+               result.push_back(ShaderDefinesEnum::ENABLE_MULTVIEW);
            }
        }
         return result;

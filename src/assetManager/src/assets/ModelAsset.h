@@ -5,17 +5,14 @@
 #ifndef OPENGLGP_MODEL_H
 #define OPENGLGP_MODEL_H
 
+using namespace std;
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
 #include "../../include/assetDatas/Node.h"
 #include "../../include/Asset.hpp"
 #include "assetDatas/ModelData.h"
-
-using namespace std;
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "map"
@@ -30,14 +27,13 @@ namespace am {
         // model data
         ModelData data;
 
-        explicit ModelAsset(AssetFactoryData base_factory_context): Asset(base_factory_context) {
-        };
+        ModelAsset(ImportContext assetFactoryData);
+        explicit ModelAsset(const std::string& path, AssetFormat format);
 
-        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
-        void saveAssetToJson(std::string& json) override {}
-        void LoadAssetFromJson(std::string& json) override {}
+        void SaveAssetToJson(rapidjson::Document& document) override;
+        void SaveAssetToBin(std::string& path) override {}
 
-        void loadFromFile(AssetFactoryData base_factory_context);
+        void loadFromFile(ImportContext base_factory_context);
 
         static int getMeshIndexInScene(const aiScene *scene, const aiMesh *targetMesh);
 
@@ -47,12 +43,13 @@ namespace am {
         void SaveAssetMetadata(rapidjson::Document& document) override {}
         void LoadAssetMetadata(rapidjson::Document& document) override {}
 
-        void* getAssetData() override { return &data; }
+        any getAssetData() override {
+            return &data;
+        }
     private:
 
-        Node processNode(AssetFactoryData baseFactoryContext, aiNode *aiNode, const aiScene *scene);
-
-        std::shared_ptr<AssetInfo> processMesh(AssetFactoryData baseFactoryContext, aiMesh *mesh, const aiScene *scene);
+        Node processNode(ImportContext baseFactoryContext, aiNode *aiNode, const aiScene *scene);
+        boost::uuids::uuid processMesh(ImportContext baseFactoryContext, aiMesh* mesh, const aiScene* scene);
     };
 }
 

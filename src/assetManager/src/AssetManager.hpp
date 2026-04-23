@@ -8,6 +8,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/functional/hash.hpp>
+#include "../include/Asset.hpp"
 #include "../include/AssetTypes.hpp"
 #include "../include/UUIDManager.hpp"
 #include <memory>
@@ -29,7 +30,9 @@
 
 namespace am {
     class AssetManager : public AssetManagerInterface {
-        using AssetFactory = std::function<std::unique_ptr<am::Asset>(am::AssetFactoryData &)>;
+        using AssetImporter = std::function<std::unique_ptr<am::Asset>(am::ImportContext &)>;
+        using AssetJsonSaver = std::function<void(am::Asset&, rapidjson::Document&)>;
+        using AssetLoader = std::function<std::unique_ptr<am::Asset>(const std::string&, AssetFormat)>;
         using MetadataLoader = std::function<void(am::Asset&, rapidjson::Document&)>;
         using MetadataSaver  = std::function<void(am::Asset&, rapidjson::Document&)>;
 
@@ -40,25 +43,44 @@ namespace am {
 
         Assimp::Importer importer;
 
-        //Factories
-        AssetFactory getFactory(AssetType type) const;
-        AssetFactory getFactory(std::type_index type) const;
+        //Types
+        std::type_index getTypeIndex(AssetType type) const;
 
-        template<typename T>
-        AssetFactory getFactory() const {
-            return getFactory(std::type_index(typeid(T)));
-        }
+        //Importers
+        AssetImporter getImporter(std::type_index type) const;
 
-        //Assets
-        std::optional<std::shared_ptr<AssetInfo>> registerAsset(std::string path) override;
-        std::optional<std::shared_ptr<AssetInfo>> registerAsset(AssetFactoryData *factoryContext);
+        //Loaders
+        AssetLoader getLoader(std::type_index type) const;
+
+        //Jsons
+        AssetJsonSaver getJsonSaver(std::type_index type) const;
+
+        //Metadatas
+        MetadataLoader getMetadataLoader(std::type_index type) const;
+        MetadataSaver getMetadataSaver(std::type_index type) const;
+
+        //Creators
+        boost::uuids::uuid createAsset(AssetType assetType) override;
+        boost::uuids::uuid createAsset(AssetType assetType,std::string lookupName) override;
+
+        //Imports
+        std::optional<boost::uuids::uuid> registerAsset(std::string path,std::string lookupName) override;
+        std::optional<boost::uuids::uuid> registerAsset(std::string path) override;
+        std::optional<boost::uuids::uuid> registerAsset(ImportContext importContext);
+
+        //Getters
+        std::optional<boost::uuids::uuid> getAssetUuid(std::string lookupName) override;
+
+        std::any getAssetData(const boost::uuids::uuid& id) override;
+        std::any getAssetData(std::string lookupName) override;
+
+        std::vector<std::string> getRegisteredAssetsNames() const override;
+        std::vector<std::string> getRegisteredAssetsNames(AssetType type) const override;
+
+        std::vector<boost::uuids::uuid> getRegisteredAssetsUuids() const override;
+        std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
         [[nodiscard]] std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
-        [[nodiscard]] std::optional<Asset *> getAsset(const boost::uuids::uuid &id) override;
-
-        std::vector<std::shared_ptr<am::AssetInfo>> getRegisteredAssets() const override;
-        std::vector<std::shared_ptr<am::AssetInfo>> getRegisteredAssets(AssetType type) const override;
-
 
         //UUIDS
         template <typename T>
@@ -66,8 +88,6 @@ namespace am {
 
         template <typename T>
         void RegisterAssetType();
-
-        [[nodiscard]] std::vector<boost::uuids::uuid> getUUIDsByPath(const std::string &path) const;
 
         //Json
         bool saveRegistryMetadataToFile(const std::string& filename) const;
@@ -77,12 +97,16 @@ namespace am {
         AssetManager();
         ~AssetManager();
 
+        std::optional<boost::uuids::uuid> importAsset(ImportContext importContext, std::string lookUpName);
+
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
-        std::unordered_map<std::string, std::vector<boost::uuids::uuid>> pathToUUIDs;
-        std::unordered_map<std::type_index, AssetFactory> factories;
-        std::unordered_map<std::type_index, MetadataSaver> savers;
-        std::unordered_map<std::type_index, MetadataLoader> loaders;
+        std::unordered_map<std::string, boost::uuids::uuid> lookupNamesToUUIDs;
+        std::unordered_map<std::type_index, AssetImporter> importers;
+        std::unordered_map<std::type_index, AssetJsonSaver> jsonSavers;
+        std::unordered_map<std::type_index, AssetLoader> loaders;
+        std::unordered_map<std::type_index, MetadataSaver> metadataSavers;
+        std::unordered_map<std::type_index, MetadataLoader> metadataLoaders;
 
     #ifdef AM_ENABLE_TESTS
         friend struct AssetManagerTestFixture;

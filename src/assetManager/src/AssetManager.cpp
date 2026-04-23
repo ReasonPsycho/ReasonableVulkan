@@ -11,7 +11,7 @@
 #include "assets/materialAsset/MaterialAsset.hpp"
 #include "assets/shaderAsset/ShaderAsset.h"
 #include "assets/shaderProgram/ShaderProgramAsset.h"
-#include "assets/textureAsset/TextureAsset.h"
+#include "JsonHelpers.hpp"
 
 namespace am {
 
@@ -24,137 +24,274 @@ namespace am {
         RegisterAssetType<ModelAsset>();
         RegisterAssetType<MeshAsset>();
 
-        loadRegistryMetadataFromFile("metadatas.json");
+       // loadRegistryMetadataFromFile("metadatas.json");
     }
 
     AssetManager::~AssetManager() {
-        saveRegistryMetadataToFile("metadatas.json");
+    }
+
+    boost::uuids::uuid AssetManager::createAsset(AssetType assetType) {
+        return boost::uuids::uuid(); //TODO implement
+    }
+    boost::uuids::uuid AssetManager::createAsset(AssetType assetType, std::string lookupName) {
+        return boost::uuids::uuid(); //TODO implement
     }
 
 
 
 bool AssetManager::saveRegistryMetadataToFile(const std::string& filename) const {
-    try {
-        rapidjson::Document document;
-        document.SetObject();
-        auto& allocator = document.GetAllocator();
+    rapidjson::Document document;
+    document.SetObject();
+    auto& allocator = document.GetAllocator();
 
-        // Add encoding information
-        rapidjson::Value encodingInfo(rapidjson::kObjectType);
-        encodingInfo.AddMember("encoding", "UTF-8", allocator);
-        encodingInfo.AddMember("version", "1.0", allocator);
-        document.AddMember("_meta", encodingInfo, allocator);
+    // Add encoding information
+    rapidjson::Value encodingInfo(rapidjson::kObjectType);
+    encodingInfo.AddMember("encoding", "UTF-8", allocator);
+    encodingInfo.AddMember("version", "1.0", allocator);
+    document.AddMember("_meta", encodingInfo, allocator);
 
-        // Create metadata array
-        rapidjson::Value metadataArray(rapidjson::kArrayType);
+    // Create metadata array
+    rapidjson::Value metadataArray(rapidjson::kArrayType);
 
-        for (const auto& [uuid, info] : metadata) {
-            rapidjson::Value assetInfoObj(rapidjson::kObjectType);
-            info->SerializeAssetInfoToJson(assetInfoObj, allocator);
-            metadataArray.PushBack(assetInfoObj, allocator);
-        }
-
-        document.AddMember("metadata", metadataArray, allocator);
-
-        // Convert to string with pretty printing
-        rapidjson::StringBuffer buffer;
-        rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-        writer.SetIndent(' ', 2);
-        document.Accept(writer);
-
-        // Save to file
-        std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-        if (!ofs.is_open()) {
-            spdlog::error("Failed to open file for writing: {}", filename);
-            return false;
-        }
-
-        // Write UTF-8 BOM
-        const char bom[3] = { static_cast<char>(0xEF), static_cast<char>(0xBB), static_cast<char>(0xBF) };
-        ofs.write(bom, 3);
-
-        // Write the JSON content
-        ofs.write(buffer.GetString(), buffer.GetSize());
-        ofs.close();
-
-        return true;
-    } catch (const std::exception& e) {
-        spdlog::error("Error saving metadata to file: {}", e.what());
-        return false;
+    for (const auto& [uuid, info] : metadata) {
+        rapidjson::Value assetInfoObj(rapidjson::kObjectType);
+        info->SerializeAssetInfoToJson(assetInfoObj, allocator);
+        metadataArray.PushBack(assetInfoObj, allocator);
     }
+
+    document.AddMember("metadata", metadataArray, allocator);
+
+    return saveJsonToFile(filename, document);
 }
 
 bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
-    try {
-        std::ifstream ifs(filename, std::ios::binary);
-        if (!ifs.is_open()) {
-            spdlog::error("Failed to open file for reading: {}", filename);
-            return false;
-        }
-
-        // Skip UTF-8 BOM if present
-        char bom[3];
-        ifs.read(bom, 3);
-        if (!(bom[0] == static_cast<char>(0xEF) &&
-              bom[1] == static_cast<char>(0xBB) &&
-              bom[2] == static_cast<char>(0xBF))) {
-            ifs.seekg(0);
-        }
-
-        std::string json_content((std::istreambuf_iterator<char>(ifs)),
-                               std::istreambuf_iterator<char>());
-
-        rapidjson::Document document;
-        document.Parse(json_content.c_str());
-
-        if (!document.IsObject() || !document.HasMember("metadata") ||
-            !document["metadata"].IsArray()) {
-            spdlog::error("Invalid metadata file format");
-            return false;
-        }
-
-        // Clear existing data
-        metadata.clear();
-        pathToUUIDs.clear();
-        assets.clear();
-
-        // Load metadata
-        const auto& metadataArray = document["metadata"].GetArray();
-        for (const auto& assetInfoValue : metadataArray) {
-            auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(assetInfoValue);
-            auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
-            metadata[infoPtr->id] = infoPtr;
-            pathToUUIDs[infoPtr->path].push_back(infoPtr->id);
-        }
-
-        return true;
-    } catch (const std::exception& e) {
-        spdlog::error("Error loading metadata from file: {}", e.what());
+    rapidjson::Document document;
+    if (!loadJsonFromFile(filename, document)) {
         return false;
     }
-}
 
-    std::optional<std::shared_ptr<AssetInfo>> AssetManager::registerAsset(AssetFactoryData *factoryContext) {
+    if (!document.IsObject() || !document.HasMember("metadata") ||
+        !document["metadata"].IsArray()) {
+        spdlog::error("Invalid metadata file format");
+        return false;
+    }
+
+    // Clear existing data
+    metadata.clear();
+    lookupNamesToUUIDs.clear();
+    assets.clear();
+
+    // Load metadata
+    const auto& metadataArray = document["metadata"].GetArray();
+    for (const auto& assetInfoValue : metadataArray) {
+        auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(assetInfoValue);
+        auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+        metadata[infoPtr->id] = infoPtr;
+        lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+    }
+
+    return true;
+}
+    
+    AssetManager &AssetManager::getInstance() {
+        static AssetManager instance;
+        return instance;
+    }
+    
+    std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boost::uuids::uuid &id) const {
+        auto it = metadata.find(id);
+        if (it != metadata.end()) return it->second;
+        spdlog::error("No asset found!");
+        return std::nullopt;
+    }
+
+    std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path, std::string lookUpName)
+    {
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        std::string normalizedPath = p.string();
+
+        std::string extension = p.extension().string();
+
+        if (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
+        {
+            spdlog::error("Lookup name already exists");
+            throw std::runtime_error("Lookup name already exists");
+        }
+
+        ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
+        return importAsset(assetFactoryData, lookUpName);
+    }
+
+    std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path)
+    {
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        std::string normalizedPath = p.string();
+
+        std::string baseName = p.stem().string();
+        std::string extension = p.extension().string();
+
+        std::string lookUpName = baseName + GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
+
+        int counter = 1;
+
+        while (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
+        {
+            lookUpName = baseName + "_" + std::to_string(counter) +  GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
+            counter++;
+        }
+
+        ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
+        return importAsset(assetFactoryData, lookUpName);
+    }
+
+    std::string incrementSuffix(const std::string& suffix)
+    {
+        if (suffix.empty())
+            return "a";
+
+        std::string result = suffix;
+        int i = result.size() - 1;
+
+        while (i >= 0)
+        {
+            if (result[i] < 'z')
+            {
+                result[i]++;
+                return result;
+            }
+            result[i] = 'a';
+            --i;
+        }
+
+        // overflow (e.g. "z" -> "aa", "zz" -> "aaa")
+        return "a" + result;
+    }
+
+    std::optional<boost::uuids::uuid> AssetManager::registerAsset(ImportContext importContext)
+    {
+        importContext.importPath = std::filesystem::path(importContext.importPath).lexically_normal().string();
+        std::filesystem::path p(importContext.importPath);
+
+        std::string baseName = p.stem().string();
+        std::string extension = p.extension().string();
+
+        std::string baseLookupName = baseName + "_" + std::to_string(importContext.assimpIndex);
+        std::string suffix = "";
+        std::string lookUpName;
+
+        while (true)
+        {
+            lookUpName = baseLookupName + suffix + GetExtensionFromAssetType(importContext.assetType);
+
+            if (lookupNamesToUUIDs.find(lookUpName) == lookupNamesToUUIDs.end())
+                break;
+
+            suffix = incrementSuffix(suffix);
+        }
+
+        return importAsset(importContext, lookUpName);
+    }
+
+
+
+    std::optional<boost::uuids::uuid> AssetManager::getAssetUuid(std::string lookupName)
+    {
+        auto uuid = lookupNamesToUUIDs.find(lookupName);
+        if (uuid == lookupNamesToUUIDs.end()) return std::nullopt;
+        return uuid->second;
+    }
+
+
+    any AssetManager::getAssetData(const boost::uuids::uuid& id) {
+        auto asset = assets.find(id);
+        if (asset != assets.end()) {
+            return asset->second.get()->getAssetData();
+        }
+
+        auto assetInfo = metadata.find(id);
+        if (assetInfo == metadata.end()) return nullptr;
+
         try
         {
-            // First check if we already have this factoryContext
-            auto uuids = getUUIDsByPath(factoryContext->path);
-            for (auto uuid : uuids)
-            {
-                auto info = getAssetInfo(uuid);
-                if (info.value()->assetFactoryData == *factoryContext ) {
-                    return info.value();
-                }
+            auto loader = getLoader(getTypeIndex(assetInfo->second->type));
+            if (!loader) {
+                spdlog::error("No factory registered for asset type");
+                throw std::runtime_error("No factory registered for asset type");
             }
 
+            auto assetData = loader(assetInfo->second->jsonPath, AssetFormat::Json);
+            assets[id] = std::move(assetData);
+            return assets[id].get()->getAssetData();
+        }
+        catch (std::exception& e)
+        {
+            spdlog::error("Failed to get asset");
+        }
+        return nullptr;
+    }
+
+    any AssetManager::getAssetData(std::string lookupName)
+    {
+        auto it = lookupNamesToUUIDs.find(lookupName);
+        if (it != lookupNamesToUUIDs.end() ) {
+            return getAssetData(it->second);
+        }
+        return nullptr;
+    }
+
+    std::vector<std::string> AssetManager::getRegisteredAssetsNames() const
+    {
+        std::vector<std::string> result;
+        result.reserve(lookupNamesToUUIDs.size());
+        for (const auto& [name, uuids] : lookupNamesToUUIDs) {
+            result.push_back(name);
+        }
+        return result;
+    }
+
+    std::vector<std::string> AssetManager::getRegisteredAssetsNames(AssetType type) const
+    {
+        std::vector<std::string> result;
+        for (const auto& [_, info] : metadata) {
+            if (info->type == type)
+                result.push_back(info->lookUpName);
+        }
+        return result;
+    }
+
+    std::vector<boost::uuids::uuid> AssetManager::getRegisteredAssetsUuids() const
+    {
+        std::vector<boost::uuids::uuid> result;
+        result.reserve(metadata.size());
+        for (const auto& [_, info] : metadata) {
+            result.push_back(info.get()->id);
+        }
+        return result;
+    }
+
+    std::vector<boost::uuids::uuid> AssetManager::getRegisteredAssetsUuids(AssetType type) const
+    {
+        std::vector<boost::uuids::uuid> result;
+        for (const auto& [_, info] : metadata) {
+            if (info->type == type)
+                result.push_back(info.get()->id);
+        }
+        return result;
+    }
+
+    std::optional<boost::uuids::uuid> AssetManager::importAsset(ImportContext importContext, string lookUpName)
+    {
+        importContext.importPath = std::filesystem::path(importContext.importPath).lexically_normal().string();
+        try
+        {
             // Create and load the asset to calculate its hash
-            auto factory = getFactory(factoryContext->assetType);
+            auto factory = getImporter(getTypeIndex(importContext.assetType));
             if (!factory) {
                 spdlog::error("No factory registered for asset type");
                 throw std::runtime_error("No factory registered for asset type");
             }
 
-            std::unique_ptr<Asset> newAsset = factory(*factoryContext);
+            std::unique_ptr<Asset> newAsset = factory(importContext);
             size_t contentHash = newAsset->calculateContentHash();
 
             // Check if we have an asset with the same content hash
@@ -165,87 +302,26 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
 
             if (existingAsset != metadata.end()) {
                 // We found an asset with the same content
-                return existingAsset->second;
+                return existingAsset->second.get()->id;
             }
 
             auto id = boost::uuids::random_generator()();
             // If we get here, this is a new unique asset
-            auto info = std::make_shared<AssetInfo>(id, factoryContext->path, factoryContext->assetType, contentHash,
-                                                    *factoryContext);
+            auto info = std::make_shared<AssetInfo>(id, importContext.importPath, importContext.assetType, contentHash,importContext);
             info->isLoaded = true;
 
-            metadata.insert(std::make_pair(id, info));
-            assets[id] = std::move(newAsset);
-            info->loadedAsset = assets[id].get();
-            pathToUUIDs[factoryContext->path].push_back(id);
+            newAsset->id = id; //TODO make so I have to provide id to constructors
 
-            return info;
-        }
-            catch (const std::exception& e) {
-                return std::nullopt;
-            }
-        }
+            std::filesystem::path p = std::filesystem::path(importContext.importPath).lexically_normal();
+            std::string baseName = p.stem().string();
+            std::string filename = (p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string();
 
-    std::optional<std::shared_ptr<AssetInfo>> AssetManager::registerAsset(std::string path)
-    {
-        std::filesystem::path fsPath(path);
-        std::string extension = fsPath.extension().string(); // Includes the dot, e.g. ".fbx"
+            info->jsonPath = filename;
 
-        // Example usage
-        am::AssetType type = am::GetAssetTypeFromExtension(extension);
-
-        AssetFactoryData* assetFactoryData = new AssetFactoryData(path, type, 0);
-        return registerAsset(assetFactoryData);
-    }
-
-
-    AssetManager &AssetManager::getInstance() {
-        static AssetManager instance;
-        return instance;
-    }
-
-    std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boost::uuids::uuid &id) const {
-        auto it = metadata.find(id);
-        if (it != metadata.end()) return it->second;
-        spdlog::error("No asset found!");
-        return std::nullopt;
-    }
-
-    std::vector<boost::uuids::uuid> AssetManager::getUUIDsByPath(const std::string &path) const {
-        auto it = pathToUUIDs.find(path);
-        if (it != pathToUUIDs.end()) {
-            return it->second;
-        }
-        return {};
-    }
-
-    std::optional<Asset *> AssetManager::getAsset(const boost::uuids::uuid &id) {
-        auto asset = assets.find(id);
-        if (asset != assets.end()) return asset->second.get();
-
-        auto assetInfo = metadata.find(id);
-        if (assetInfo == metadata.end()) return std::nullopt;
-
-        auto factory = getFactory(assetInfo->second->type);
-        if (factory) {
-            auto assetPtr = factory(assetInfo->second->assetFactoryData);
-            if (!assetPtr)
-            {
-                spdlog::error("Failed to load asset: {}", assetInfo->second->path);
-                throw std::runtime_error("Failed to load asset: " +  assetInfo->second->path);
-            }
-
-            std::string filename = assetInfo->second->path;
-
-            size_t lastDot = filename.find_last_of('.');
-            if (lastDot != std::string::npos)
-                filename = filename.substr(0, lastDot) + ".meta";
-            else
-                filename += ".meta"; // fallback if no extension
-
-            std::ifstream ifs(filename, std::ios::binary);
-            if (!ifs.is_open()) {
-                spdlog::info("Unable to read metadata for file: {}, creating new.", filename);
+            if (newAsset->saveToBinInsteadOfJson) {
+                newAsset->SaveAssetToBin(filename);
+            } else {
+                auto jsonSaver = getJsonSaver(getTypeIndex(importContext.assetType));
 
                 rapidjson::Document document;
                 document.SetObject();
@@ -257,105 +333,102 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
                 encodingInfo.AddMember("version", "1.0", allocator);
                 document.AddMember("_meta", encodingInfo, allocator);
 
-                assetPtr->SaveAssetMetadata(document);
+                jsonSaver(*newAsset, document);
 
-                // Convert to string with pretty printing
-                rapidjson::StringBuffer buffer;
-                rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-                writer.SetIndent(' ', 2);
-                document.Accept(writer);
-
-                // Save to file
-                std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-                if (!ofs.is_open()) {
-                    spdlog::error("Failed to open file for writing: {}", filename);
-                    return std::nullopt;
-                }
-
-                // Write UTF-8 BOM
-                const char bom[3] = { static_cast<char>(0xEF), static_cast<char>(0xBB), static_cast<char>(0xBF) };
-                ofs.write(bom, 3);
-
-                // Write the JSON content
-                ofs.write(buffer.GetString(), buffer.GetSize());
-                ofs.close();
-            } else {
-                // Skip UTF-8 BOM if present
-                char bom[3];
-                ifs.read(bom, 3);
-                if (!(bom[0] == static_cast<char>(0xEF) &&
-                      bom[1] == static_cast<char>(0xBB) &&
-                      bom[2] == static_cast<char>(0xBF))) {
-                    ifs.seekg(0);
-                }
-
-                std::string json_content((std::istreambuf_iterator<char>(ifs)),
-                                       std::istreambuf_iterator<char>());
-
-                rapidjson::Document document;
-                document.Parse(json_content.c_str());
-
-                assetPtr->LoadAssetMetadata(document);
+                saveJsonToFile(filename, document);
             }
-            
-            assets[id] = std::move(assetPtr);
 
-            assetInfo->second->loadedAsset = assets[id].get();
-            assetInfo->second->isLoaded = true;
+            //We are here so we can save everything
+
+            metadata.insert(std::make_pair(id, info));
+            assets[id] = std::move(newAsset);
+            info->loadedAsset = assets[id].get();
+            lookupNamesToUUIDs[lookUpName] = id;
+            return id;
         }
-
-        return assets[id].get();
-    }
-
-    std::vector<std::shared_ptr<am::AssetInfo>> AssetManager::getRegisteredAssets() const
-    {
-        std::vector<std::shared_ptr<am::AssetInfo>> result;
-        result.reserve(metadata.size());
-        for (const auto& [_, info] : metadata) {
-            result.push_back(info);
+        catch (std::exception& e)
+        {
+            spdlog::error("Failed to import asset");
         }
-        return result;
+        return std::nullopt;
     }
-
-    std::vector<std::shared_ptr<am::AssetInfo>> AssetManager::getRegisteredAssets(AssetType type) const
-    {
-        std::vector<std::shared_ptr<am::AssetInfo>> result;
-        for (const auto& [_, info] : metadata) {
-            if (info->type == type)
-            result.push_back(info);
-        }
-        return result;
-    }
-
-    AssetManager::AssetFactory AssetManager::getFactory(AssetType type) const
+    
+    std::type_index AssetManager::getTypeIndex(AssetType type) const
     {
         switch (type) {
-            case AssetType::Mesh:
-                return getFactory(std::type_index(typeid(MeshAsset)));
-            case AssetType::Model:
-                return getFactory(std::type_index(typeid(ModelAsset)));
-            case AssetType::Texture:
-                return getFactory(std::type_index(typeid(TextureAsset)));
-            case AssetType::Shader:
-                return getFactory(std::type_index(typeid(ShaderAsset)));
-            case AssetType::ShaderProgram:
-                return getFactory(std::type_index(typeid(ShaderProgramAsset)));
-            case AssetType::Material:
-                return getFactory(std::type_index(typeid(MaterialAsset)));
-            default:
-                spdlog::error("Failed to get asset factory for AssetType: {}", (int)type);
-                throw std::runtime_error("Failed to get asset factory for AssetType!");
+        case AssetType::Mesh:
+            return std::type_index(typeid(MeshAsset));
+        case AssetType::Model:
+            return std::type_index(typeid(ModelAsset));
+        case AssetType::Texture:
+            return std::type_index(typeid(TextureAsset));
+        case AssetType::Shader:
+            return std::type_index(typeid(ShaderAsset));
+        case AssetType::ShaderProgram:
+            return std::type_index(typeid(ShaderProgramAsset));
+        case AssetType::Material:
+            return std::type_index(typeid(MaterialAsset));
+        default:
+            spdlog::error("Failed to get type_index for AssetType");
+            throw std::runtime_error("Failed to get type_index for AssetType!");
         }
     }
 
-    AssetManager::AssetFactory AssetManager::getFactory(std::type_index type) const
+
+    AssetManager::AssetImporter AssetManager::getImporter(std::type_index type) const
     {
-        auto it = factories.find(type);
-        if(it != factories.end())
+        auto it = importers.find(type);
+        if(it != importers.end())
         {
             return it->second;
         }
         spdlog::error("Failed to get asset factory!");
         throw std::runtime_error("Failed to get asset factory!");
+    }
+
+    AssetManager::AssetJsonSaver AssetManager::getJsonSaver(std::type_index type) const
+    {
+        auto it = jsonSavers.find(type);
+        if(it != jsonSavers.end())
+        {
+            return it->second;
+        }
+        spdlog::error("Failed to get json saver!");
+        throw std::runtime_error("Failed to get json saver!");
+    }
+
+    AssetManager::AssetLoader AssetManager::getLoader(std::type_index type) const
+    {
+        auto it = loaders.find(type);
+        if(it != loaders.end())
+        {
+            return it->second;
+        }
+        spdlog::error("Failed to get loader!");
+        throw std::runtime_error("Failed to get loader!");
+    }
+
+
+
+    AssetManager::MetadataLoader AssetManager::getMetadataLoader(std::type_index type) const
+    {
+        auto it = metadataLoaders.find(type);
+        if(it != metadataLoaders.end())
+        {
+            return it->second;
+        }
+        spdlog::error("Failed to get metadata loader!");
+        throw std::runtime_error("Failed to get metadata loader!");
+    }
+
+    AssetManager::MetadataSaver AssetManager::getMetadataSaver(std::type_index type) const
+    {
+        auto it = metadataSavers.find(type);
+        if(it != metadataSavers.end())
+        {
+            return it->second;
+        }
+        spdlog::error("Failed to get metadata saver!");
+        throw std::runtime_error("Failed to get metadata saver!");
     }
 }

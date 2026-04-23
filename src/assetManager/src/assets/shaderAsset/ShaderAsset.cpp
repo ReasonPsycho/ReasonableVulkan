@@ -1,4 +1,5 @@
 #include "ShaderAsset.h"
+#include "../../JsonHelpers.hpp"
 
 #include <spdlog/spdlog.h>
 #include <glslang/Public/ShaderLang.h>
@@ -11,7 +12,55 @@
 #include "ShaderIncluder.hpp"
 
 namespace am {
+    ShaderAsset::ShaderAsset(ImportContext assetFactoryData) : Asset(assetFactoryData) {
+        loadFromFile(assetFactoryData.importPath);
+    }
 
+    ShaderAsset::ShaderAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+        if (format == AssetFormat::Json) {
+            rapidjson::Document document;
+            if (!loadJsonFromFile(path, document)) {
+                spdlog::error("Failed to load ShaderAsset from JSON: {}", path);
+                return;
+            }
+            if (document.HasMember("stage") && document["stage"].IsString()) {
+                std::string stageStr = document["stage"].GetString();
+                if (stageStr == "Vertex") data.stage = ShaderStage::Vertex;
+                else if (stageStr == "Fragment") data.stage = ShaderStage::Fragment;
+                else if (stageStr == "Compute") data.stage = ShaderStage::Compute;
+                else if (stageStr == "Geometry") data.stage = ShaderStage::Geometry;
+                else if (stageStr == "TessellationControl") data.stage = ShaderStage::TessellationControl;
+                else if (stageStr == "TessellationEvaluation") data.stage = ShaderStage::TessellationEvaluation;
+            }
+
+            if (document.HasMember("defines") && document["defines"].IsObject()) {
+                data.defines.clear();
+                for (auto& m : document["defines"].GetObject()) {
+                    if (m.name.IsString() && m.value.IsString()) {
+                        data.defines[m.name.GetString()] = m.value.GetString();
+                    }
+                }
+            }
+
+            if (document.HasMember("originalSource") && document["originalSource"].IsString()) {
+                data.originalSource = document["originalSource"].GetString();
+                // If we have original source, we should probably recompile to populate bytecode
+                if (!data.originalSource.empty()) {
+                    std::ifstream file(data.originalSource, std::ios::binary | std::ios::in | std::ios::ate);
+                    if (file.is_open()) {
+                        size_t fileSize = static_cast<size_t>(file.tellg());
+                        file.seekg(0);
+                        std::string source(fileSize, '\0');
+                        file.read(source.data(), fileSize);
+                        file.close();
+                        data.bytecode = compileGLSLToSPIRV(source, data.stage, data.defines);
+                    } else {
+                        spdlog::error("Failed to open original source file for recompilation: {}", data.originalSource);
+                    }
+                }
+            }
+        }
+    }
 
     // Helper function to extract defines from shader source
     void extractDefinesRecursive(const std::string& source, const std::filesystem::path& currentFilePath,
@@ -44,7 +93,7 @@ namespace am {
 
             if (defines.find(name) == defines.end()) {
                 defines[name] = value;
-                spdlog::info("Found shader define: {} = '{}' (in {})", name, value, currentFilePath.string());
+        spdlog::info("Found shader define: {} = '{}'", name, value);
             }
         }
 
@@ -80,13 +129,17 @@ namespace am {
                         }
                     }
                 } catch (const std::exception& e) {
-                    spdlog::warn("Failed to process include {} for defines: {}", includePathStr, e.what());
+                    spdlog::warn("Failed to process include for defines: {}", e.what());
                 }
             } else {
-                spdlog::warn("Could not find include file: {} (while processing {})", includePathStr,
-                             currentFilePath.string());
+                spdlog::warn("Could not find include file: {}", includePathStr);
             }
         }
+    }
+
+    void ShaderAsset::SaveAssetToBin(std::string& path)
+    {
+
     }
 
     void ShaderAsset::loadFromFile(const std::string& path) {
@@ -149,12 +202,13 @@ namespace am {
             .bytecode = std::move(bytecode),
             .stage = stage,
             .defines = std::move(defines),
-            .originalSource = source
+            .originalSource = path
         };
 
-        spdlog::info("Compiled shader: {} (size: {} bytes, defines: {})",
-                     path, data.bytecode.size() * 4, data.defines.size());
+        spdlog::info("Compiled shader: {} (size: {} bytes)",
+                     path, (int)(data.bytecode.size() * 4));
     }
+
 
     std::vector<std::uint32_t> ShaderAsset::compileGLSLToSPIRV(
         const std::string &source,
@@ -267,11 +321,23 @@ namespace am {
 
     bool ShaderAsset::recompileWithDefines(const std::map<std::string, std::string>& newDefines) {
         if (data.originalSource.empty()) {
-            spdlog::error("Cannot recompile: original source not stored");
+            spdlog::error("Cannot recompile: original source path not stored");
             return false;
         }
 
-        auto bytecode = compileGLSLToSPIRV(data.originalSource, data.stage, newDefines);
+        std::ifstream file(data.originalSource, std::ios::binary | std::ios::in | std::ios::ate);
+        if (!file.is_open()) {
+            spdlog::error("Failed to open shader file for recompilation: {}", data.originalSource);
+            return false;
+        }
+
+        size_t fileSize = static_cast<size_t>(file.tellg());
+        file.seekg(0);
+        std::string source(fileSize, '\0');
+        file.read(source.data(), fileSize);
+        file.close();
+
+        auto bytecode = compileGLSLToSPIRV(source, data.stage, newDefines);
 
         if (bytecode.empty()) {
             spdlog::error("Failed to recompile shader with new defines");
@@ -282,7 +348,7 @@ namespace am {
         data.bytecode = std::move(bytecode);
         data.defines = newDefines;
 
-        spdlog::info("Shader recompiled with {} defines", data.defines.size());
+        spdlog::info("Shader recompiled");
         return true;
     }
 

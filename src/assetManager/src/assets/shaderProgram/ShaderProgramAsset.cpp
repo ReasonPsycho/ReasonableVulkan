@@ -1,4 +1,6 @@
 #include "ShaderProgramAsset.h"
+#include "../../AssetManager.hpp"
+#include "../../JsonHelpers.hpp"
 #include <fstream>
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
@@ -7,17 +9,41 @@
 
 namespace am {
 
-    ShaderProgramAsset::ShaderProgramAsset(AssetFactoryData &assetFactoryData) : Asset(assetFactoryData) {
+    ShaderProgramAsset::ShaderProgramAsset(ImportContext assetFactoryData) : Asset(assetFactoryData) {
+        loadFromJson(assetFactoryData.importPath);
     }
 
-    void ShaderProgramAsset::LoadAssetFromImport(AssetFactoryData assetFactoryData) {
-        loadFromJson(assetFactoryData.path);
+    ShaderProgramAsset::ShaderProgramAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+        if (format == AssetFormat::Json) {
+            loadFromJson(path);
+        }
     }
+
+    void ShaderProgramAsset::SaveAssetToJson(rapidjson::Document& document) {
+        auto& allocator = document.GetAllocator();
+        if (!document.IsObject()) {
+            document.SetObject();
+        }
+
+        auto addStage = [&](const char* key, std::shared_ptr<AssetInfo>& asset) {
+            if (asset) {
+                document.AddMember(rapidjson::StringRef(key), rapidjson::Value(asset->importPath.c_str(), allocator), allocator);
+            }
+        };
+
+        addStage("vertex", data.vertexShader);
+        addStage("fragment", data.fragmentShader);
+        addStage("compute", data.computeShader);
+        addStage("geometry", data.geometryShader);
+        addStage("tessellationControl", data.tessellationControlShader);
+        addStage("tessellationEvaluation", data.tessellationEvaluationShader);
+    }
+
 
     void ShaderProgramAsset::loadFromJson(const std::string& path) {
         std::ifstream ifs(path);
         if (!ifs.is_open()) {
-            spdlog::error("Failed to open shader program file: {}", path);
+            spdlog::error("Failed to open shader program file");
             return;
         }
 
@@ -26,7 +52,7 @@ namespace am {
         doc.ParseStream(isw);
 
         if (doc.HasParseError()) {
-            spdlog::error("Failed to parse shader program JSON: {}", path);
+            spdlog::error("Failed to parse shader program JSON");
             return;
         }
 
@@ -36,12 +62,12 @@ namespace am {
         auto loadStage = [&](const char* key, std::shared_ptr<AssetInfo>& target) {
             if (doc.HasMember(key) && doc[key].IsString()) {
                 std::string stagePath = doc[key].GetString();
-                std::filesystem::path fullPath = basePath / stagePath;
+                std::filesystem::path fullPath = (basePath / stagePath).lexically_normal();
                 auto result = assetManager.registerAsset(fullPath.string());
                 if (result) {
-                    target = result.value();
+                    target = assetManager.getAssetInfo(result.value()).value_or(nullptr);
                 } else {
-                    spdlog::warn("Failed to register shader stage: {} for program: {}", stagePath, path);
+                spdlog::warn("Failed to register shader stage for program");
                 }
             }
         };

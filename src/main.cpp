@@ -6,8 +6,10 @@
 #include <SDL3/SDL.h>
 
 #include "Asset.hpp"
+#include "assetDatas/MaterialData.h"
 #include "assetDatas/MeshData.h"
 #include "assetDatas/ModelData.h"
+#include "assetDatas/TextureData.h"
 #include "platform/src/Platform.hpp"
 #include "platform/include/PlatformInterface.hpp"
 #include "assetManager/src/AssetManager.hpp"
@@ -19,6 +21,11 @@
 #include "vks/VulkanRenderer.h"
 
 
+namespace am
+{
+    struct MaterialData;
+    struct TextureData;
+}
 
 int main(int argc, char *argv[]) {
     plt::PlatformInterface* platform = new plt::Platform();
@@ -28,6 +35,23 @@ int main(int argc, char *argv[]) {
     }
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
+
+    auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader","pbrShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shader","wiremeshShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shader","wiremeshTexturedShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shader","skyboxShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shader","shadowMapShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader","shadowCubeMapShader");
+    auto skyboxModelId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx","skyboxModel");
+    auto planeId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx","planeModel");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx","boxModel");
+
+    auto skyboxModelData = assetManager.getAssetData<am::ModelData>(skyboxModelId.value());
+    auto skyboxMeshData = assetManager.getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
+    auto skyboxMaterialData = assetManager.getAssetData<am::MaterialData>(skyboxMeshData->material.get()->id);
+    assetManager.getAssetData<am::TextureData>(skyboxMaterialData->diffuseTexture.get()->id)->type = am::TextureType::TextureCube;
+
+
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
     engine::Engine engine = engine::Engine(platform,vulkanRenderer,&assetManager);
     engine.Initialize();
@@ -42,28 +66,23 @@ int main(int argc, char *argv[]) {
     // 4. Initialize game systems (ECS, scenes, etc.)
     auto scene = engine.CreateScene("Main scene");
 
-    auto pbrShader = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader");
-    vulkanRenderer->loadShader(pbrShader->get()->id);
-
-    auto skybox = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Skybox/Skybox.fbx");
-    vulkanRenderer->loadModel(skybox->get()->id);
-
-    auto asset = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Plane.fbx");
-    vulkanRenderer->loadModel(asset->get()->id);
+    vulkanRenderer->loadModel(skyboxModelId.value());
+    vulkanRenderer->loadModel(planeId.value());
 
     auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity),{1,1,1});
-    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(asset->get()->id, pbrShader->get()->id));
+    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(planeId.value(), pbrShaderId.value()));
     scene.get()->GetComponent<TransformComponent>(modelEntity).position = glm::vec3(0,0,0);
 
     auto modelEntity2 = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity2),{1,-1,1});
-    scene.get()->AddComponent<RendererComponent>(modelEntity2,RendererComponent(asset->get()->id, pbrShader->get()->id));
+    scene.get()->AddComponent<RendererComponent>(modelEntity2,RendererComponent(planeId.value(), pbrShaderId.value()));
     scene.get()->GetComponent<TransformComponent>(modelEntity2).position = glm::vec3(0,0,0);
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");
     scene.get()->AddComponent<CameraComponent>(cameraEntity);
-    scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
+
+    scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skyboxMeshData->material.get()->id;
     scene.get()->GetComponent<CameraComponent>(cameraEntity).active = true;
 
     /*

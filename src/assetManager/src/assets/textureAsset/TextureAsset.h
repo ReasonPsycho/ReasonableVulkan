@@ -16,13 +16,12 @@ namespace am {
     class TextureAsset : public Asset {
     public:
 
-        explicit TextureAsset(am::AssetFactoryData base_factory_context);
+        explicit TextureAsset(ImportContext assetFactoryData);
+        explicit TextureAsset(const std::string& path, AssetFormat format);
 
         ~TextureAsset() override;
 
-        void LoadAssetFromImport(AssetFactoryData assetFactoryData) override;
-        void saveAssetToJson(std::string& json) override {}
-        void LoadAssetFromJson(std::string& json) override {}
+        void SaveAssetToJson(rapidjson::Document& document) override;
 
         void loadFromFile(const std::string &path);
 
@@ -45,7 +44,9 @@ namespace am {
         void SaveAssetMetadata(rapidjson::Document& document) override;
         void LoadAssetMetadata(rapidjson::Document& document) override;
 
-        void* getAssetData() override { return &data; }
+        std::any getAssetData() override {
+            return &data;
+        }
     private:
         TextureData data;
     };

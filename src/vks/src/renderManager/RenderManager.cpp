@@ -8,6 +8,8 @@
 #include "../imguiManager/ImguiManager.hpp"
 #endif
 
+#include <boost/uuid/nil_generator.hpp>
+
 #include "../descriptorManager/buffers/LightModelPushConstant.hpp"
 #include "../descriptorManager/buffers/ModelPushConstant.hpp"
 
@@ -37,7 +39,7 @@ void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uui
     createSyncObjects();
     
     // Load a default box model for skybox rendering
-    descriptorManager->getOrLoadResource<ModelDescriptor>("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx");
+    descriptorManager->getOrLoadResource<ModelDescriptor>("boxModel");
 }
 
 #ifdef ENABLE_IMGUI
@@ -154,9 +156,9 @@ void RenderManager::submitRenderCommand(uint32_t cameraIndex, boost::uuids::uuid
     renderQueue.push_back(RenderCommand{cameraIndex, modelId, renderProgramId, transform});
 }
 
-void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId)
+void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId)
 {
-    skyboxRenderQueue.push_back(SkyboxRenderCommand{cameraIndex, textureId, renderProgramId});
+    skyboxRenderQueue.push_back(SkyboxRenderCommand{cameraIndex, modelId, renderProgramId});
 }
 
 void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
@@ -550,7 +552,7 @@ void RenderManager::endFrame() {
 
             // Process skybox for this camera
             if (!skyboxRenderQueue.empty()) {
-                auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx");
+                auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("skyboxModel");
                 if (skyboxModel && !skyboxModel->meshes.empty()) {
                     auto skyboxMesh = skyboxModel->meshes[0];
 
@@ -570,7 +572,7 @@ void RenderManager::endFrame() {
 
 
                         // Bind material descriptor set at set index 1
-                        auto materialDescriptor = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.textureId);
+                        auto materialDescriptor = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.modelId);
                         if (materialDescriptor) {
                              if (materialDescriptor->descriptorSet == VK_NULL_HANDLE) {
                                   materialDescriptor->setUpDescriptorSet(descriptorManager->skyboxMaterialLayout, descriptorManager->skyboxMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);

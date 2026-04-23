@@ -22,14 +22,11 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
         
         if (ImGui::BeginPopup("Model List"))
         {
-            for (const auto& assetInfo : scene->engine.assetManagerInterface->getRegisteredAssets(am::AssetType::Model))
+            for (const auto& assetLookUpName : scene->engine.assetManagerInterface->getRegisteredAssetsNames(am::AssetType::Model))
             {
-                const std::string idStr = boost::uuids::to_string(assetInfo.get()->id);
-                if (ImGui::MenuItem(idStr.c_str()))
+                if (ImGui::MenuItem(assetLookUpName.c_str()))
                 {
-                    typed->modelUuid = assetInfo.get()->id;
-
-                    auto modelData = scene->engine.assetManagerInterface->getAsset(assetInfo.get()->id).value()->getAssetDataAs<am::ModelData>();
+                    auto modelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(assetLookUpName);
                     typed->boundingBoxMin = modelData->boundingBoxMin;
                     typed->boundingBoxMax = modelData->boundingBoxMax;
                 }
@@ -44,12 +41,11 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
 
         if (ImGui::BeginPopup("Shader Program List"))
         {
-            for (const auto& assetInfo : scene->engine.assetManagerInterface->getRegisteredAssets(am::AssetType::ShaderProgram))
+            for (const auto& lookUpName : scene->engine.assetManagerInterface->getRegisteredAssetsNames(am::AssetType::ShaderProgram))
             {
-                const std::string idStr = boost::uuids::to_string(assetInfo.get()->id);
-                if (ImGui::MenuItem(idStr.c_str()))
+                if (ImGui::MenuItem(lookUpName.c_str()))
                 {
-                    typed->shaderUuid = assetInfo.get()->id;
+                    //typed->shaderUuid = assetInfo.get()->id;
                 }
             }
             ImGui::EndPopup();

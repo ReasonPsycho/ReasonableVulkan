@@ -354,21 +354,17 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 void EditorSystem::Initialize()
 {
     SetUpCameraControls(scene->engine.platform);;
-    auto skybox = scene->engine.assetManagerInterface->registerAsset("res/models/my/Skybox/Skybox.fbx");
-    scene->engine.graphicsEngine->loadModel(skybox->get()->id);
-    camera.skyboxMaterialId = skybox->get()->getAsset()->getAssetDataAs<am::ModelData>()->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>()->material->id;
 
-    auto wiremesh = scene->engine.assetManagerInterface->registerAsset("res/shaders/jsons/wiremesh.shader");
-    if (wiremesh) {
-        wiremeshShaderId = wiremesh->get()->id;
-        scene->engine.graphicsEngine->loadShader(wiremeshShaderId);
-    }
+    auto skyboxModelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>("skyboxModel");
+    auto skyboxMeshData = scene->engine.assetManagerInterface->getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
 
-    auto wiremeshTextured = scene->engine.assetManagerInterface->registerAsset("res/shaders/jsons/wiremesh_textured.shader");
-    if (wiremeshTextured) {
-        wiremeshTexturedShaderId = wiremeshTextured->get()->id;
-        scene->engine.graphicsEngine->loadShader(wiremeshTexturedShaderId);
-    }
+    camera.skyboxMaterialId = skyboxMeshData->material.get()->id;
+
+    wiremeshShaderId = scene->engine.assetManagerInterface->getAssetUuid("wiremeshShader").value();
+    scene->engine.graphicsEngine->loadShader(wiremeshShaderId);
+
+    wiremeshTexturedShaderId = scene->engine.assetManagerInterface->getAssetUuid("wiremeshTexturedShader").value();
+    scene->engine.graphicsEngine->loadShader(wiremeshTexturedShaderId);
 }
 
 void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)

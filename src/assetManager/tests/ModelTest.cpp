@@ -17,7 +17,7 @@ std::vector<std::shared_ptr<am::AssetInfo>> collectAllMeshes(const am::Node& nod
 BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData data( "res/models/my/Box.fbx", am::AssetType::Model);
+    am::ImportContext data( "res/models/my/Box.fbx", am::AssetType::Model);
     auto info = manager.registerAsset(&data);
     BOOST_REQUIRE(info != nullptr);
 
@@ -37,12 +37,12 @@ BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
 BOOST_AUTO_TEST_CASE(LoadPlaneAndSphereSharedMaterial) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData planeData( "res/models/my/Plane.fbx", am::AssetType::Model);
+    am::ImportContext planeData( "res/models/my/Plane.fbx", am::AssetType::Model);
     auto planeInfo = manager.registerAsset(&planeData);
     auto plane = manager.getByUUID<am::ModelAsset>(planeInfo.value()->id);
     BOOST_REQUIRE(plane != nullptr);
 
-    am::AssetFactoryData sphereData( "res/models/my/Sphere.fbx", am::AssetType::Model);
+    am::ImportContext sphereData( "res/models/my/Sphere.fbx", am::AssetType::Model);
     auto sphereInfo = manager.registerAsset(&sphereData);
     auto sphere = manager.getByUUID<am::ModelAsset>(sphereInfo.value()->id);
     BOOST_REQUIRE(sphere != nullptr);
@@ -64,10 +64,10 @@ BOOST_AUTO_TEST_CASE(LoadPlaneAndSphereSharedMaterial) {
 BOOST_AUTO_TEST_CASE(ModelSamePathSameHash) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData data1( "res/models/my/Box.fbx", am::AssetType::Model);
+    am::ImportContext data1( "res/models/my/Box.fbx", am::AssetType::Model);
     auto model1 = manager.registerAsset(&data1);
 
-    am::AssetFactoryData data2( "res/models/my/Box.fbx", am::AssetType::Model);
+    am::ImportContext data2( "res/models/my/Box.fbx", am::AssetType::Model);
     auto model2 = manager.registerAsset(&data2);
 
     BOOST_TEST(model1.value()->id == model2.value()->id);
@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(ModelSamePathSameHash) {
 BOOST_AUTO_TEST_CASE(InvalidModelStillCreatesInfo) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::AssetFactoryData data( "res/models/my/NonExistent.fbx", am::AssetType::Model);
+    am::ImportContext data( "res/models/my/NonExistent.fbx", am::AssetType::Model);
     auto info = manager.registerAsset(&data);
     BOOST_REQUIRE(info != nullptr);
 

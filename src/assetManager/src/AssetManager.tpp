@@ -9,11 +9,8 @@ std::shared_ptr<T> AssetManager::getByUUID(const boost::uuids::uuid& id)
         return std::dynamic_pointer_cast<T>(std::shared_ptr<Asset>(it->second.get(), [](Asset *) {
         }));
     }
-    auto asset_opt = getAsset(id);
-    if (!asset_opt) {
-        return nullptr;
-    }
-    return std::dynamic_pointer_cast<T>(std::shared_ptr<Asset>(*asset_opt, [](Asset *) {
+    auto asset = getAssetData(id);
+    return std::dynamic_pointer_cast<T>(std::shared_ptr<Asset>(asset, [](Asset *) {
     }));
 }
 
@@ -22,19 +19,27 @@ void AssetManager::RegisterAssetType()
 {
     auto type = std::type_index(typeid(T));
 
-    factories[type] = [](am::AssetFactoryData& data)
+    importers[type] = [](am::ImportContext& data)
     {
-        auto asset = std::make_unique<T>(data);
-        asset->LoadAssetFromImport(data);
-        return asset;
+        return std::unique_ptr<am::Asset>(new T(data));
     };
 
-    savers[type] = [](am::Asset& asset, rapidjson::Document& doc)
+    jsonSavers[type] = [](am::Asset& asset, rapidjson::Document& doc)
+    {
+        static_cast<T&>(asset).SaveAssetToJson(doc);
+    };
+
+    loaders[type] = [](const std::string& path, am::AssetFormat format)
+    {
+        return std::unique_ptr<am::Asset>(new T(path, format));
+    };
+
+    metadataSavers[type] = [](am::Asset& asset, rapidjson::Document& doc)
     {
         static_cast<T&>(asset).SaveAssetMetadata(doc);
     };
 
-    loaders[type] = [](am::Asset& asset, rapidjson::Document& doc)
+    metadataLoaders[type] = [](am::Asset& asset, rapidjson::Document& doc)
     {
         static_cast<T&>(asset).LoadAssetMetadata(doc);
     };

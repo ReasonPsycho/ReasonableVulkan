@@ -30,7 +30,7 @@ namespace vks {
     struct SkyboxRenderCommand
     {
         uint32_t cameraIndex;
-        boost::uuids::uuid textureId;
+        boost::uuids::uuid modelId;
         boost::uuids::uuid renderProgramId;
     };
 
@@ -67,7 +67,7 @@ private:
 
         // Core rendering functions
         void submitRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform);
-        void submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid textureId, boost::uuids::uuid renderProgramId);
+        void submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId);
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);

@@ -24,7 +24,7 @@ namespace am
         std::vector<std::uint32_t> bytecode;
         ShaderStage stage;
         std::map<std::string, std::string> defines;
-        std::string originalSource;
+        std::string originalSource; // Path to the original GLSL source file
     };
 }
 #endif //SHADERDATA_H

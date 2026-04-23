@@ -4,21 +4,20 @@
 
 #include "ModelAsset.h"
 #include "../src/AssimpGLMHelpers.h"
+#include "../JsonHelpers.hpp"
 
 namespace am
 {
-    //private:
-    // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
-    void ModelAsset::LoadAssetFromImport(AssetFactoryData assetFactoryData)
+    ModelAsset::ModelAsset(ImportContext assetFactoryData) : Asset(assetFactoryData)
     {
         loadFromFile(assetFactoryData);
     }
 
-    void ModelAsset::loadFromFile(AssetFactoryData base_factory_context)
+    void ModelAsset::loadFromFile(ImportContext base_factory_context)
     {
         AssetManager& assetManager = AssetManager::getInstance();
         Assimp::Importer& importer = assetManager.importer;
-        const aiScene* scene = importer.ReadFile(base_factory_context.path,
+        const aiScene* scene = importer.ReadFile(base_factory_context.importPath,
                                                  aiProcess_Triangulate | aiProcess_GenSmoothNormals |
                                                  // aiProcess_FlipUVs |
                                                  aiProcess_CalcTangentSpace);
@@ -58,6 +57,117 @@ namespace am
         return hash;
     }
 
+    void ModelAsset::SaveAssetToJson(rapidjson::Document& document) {
+        auto& allocator = document.GetAllocator();
+        if (!document.IsObject()) {
+            document.SetObject();
+        }
+
+        auto addVec3 = [&](const char* key, const glm::vec3& vec) {
+            rapidjson::Value array(rapidjson::kArrayType);
+            array.PushBack(vec.x, allocator);
+            array.PushBack(vec.y, allocator);
+            array.PushBack(vec.z, allocator);
+            document.AddMember(rapidjson::StringRef(key), array, allocator);
+        };
+
+        addVec3("boundingBoxMin", data.boundingBoxMin);
+        addVec3("boundingBoxMax", data.boundingBoxMax);
+
+        std::function<rapidjson::Value(const Node&)> serializeNode = [&](const Node& node) -> rapidjson::Value {
+            rapidjson::Value nodeObj(rapidjson::kObjectType);
+            nodeObj.AddMember("name", rapidjson::Value(node.mName.c_str(), allocator), allocator);
+
+            // Matrix
+            rapidjson::Value matrix(rapidjson::kArrayType);
+            for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    matrix.PushBack(node.mTransformation[i][j], allocator);
+                }
+            }
+            nodeObj.AddMember("transformation", matrix, allocator);
+
+            // Meshes
+            rapidjson::Value meshes(rapidjson::kArrayType);
+            for (const auto& mesh : node.meshes) {
+                if (mesh) {
+                    std::string jsonPath = GetJsonPath(mesh->importPath, AssetType::Mesh, mesh->importContext.assimpIndex);
+                    meshes.PushBack(rapidjson::Value(jsonPath.c_str(), allocator), allocator);
+                }
+            }
+            nodeObj.AddMember("meshes", meshes, allocator);
+
+            // Children
+            rapidjson::Value children(rapidjson::kArrayType);
+            for (const auto& child : node.mChildren) {
+                children.PushBack(serializeNode(child), allocator);
+            }
+            nodeObj.AddMember("children", children, allocator);
+
+            return nodeObj;
+        };
+
+        document.AddMember("rootNode", serializeNode(data.rootNode), allocator);
+    }
+
+    ModelAsset::ModelAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+        if (format == AssetFormat::Json) {
+            rapidjson::Document document;
+            if (!loadJsonFromFile(path, document)) {
+                spdlog::error("Failed to load ModelAsset from JSON: {}", path);
+                return;
+            }
+            AssetManager& assetManager = AssetManager::getInstance();
+
+            auto loadVec3 = [&](const char* key, glm::vec3& vec) {
+                if (document.HasMember(key) && document[key].IsArray() && document[key].Size() == 3) {
+                    vec.x = document[key][0].GetFloat();
+                    vec.y = document[key][1].GetFloat();
+                    vec.z = document[key][2].GetFloat();
+                }
+            };
+
+            loadVec3("boundingBoxMin", data.boundingBoxMin);
+            loadVec3("boundingBoxMax", data.boundingBoxMax);
+
+            std::function<void(const rapidjson::Value&, Node&, Node*)> deserializeNode = [&](const rapidjson::Value& val, Node& node, Node* parent) {
+                if (val.HasMember("name") && val["name"].IsString()) node.mName = val["name"].GetString();
+                node.mParent = parent;
+
+                if (val.HasMember("transformation") && val["transformation"].IsArray() && val["transformation"].Size() == 16) {
+                    for (int i = 0; i < 4; ++i) {
+                        for (int j = 0; j < 4; ++j) {
+                            node.mTransformation[i][j] = val["transformation"][i * 4 + j].GetFloat();
+                        }
+                    }
+                }
+
+                if (val.HasMember("meshes") && val["meshes"].IsArray()) {
+                    node.meshes.clear();
+                    for (auto& m : val["meshes"].GetArray()) {
+                        if (m.IsString()) {
+                            auto result = assetManager.registerAsset(m.GetString());
+                            if (result) node.meshes.push_back(assetManager.getAssetInfo(result.value()).value_or(nullptr));
+                        }
+                    }
+                }
+
+                if (val.HasMember("children") && val["children"].IsArray()) {
+                    node.mChildren.clear();
+                    for (auto& c : val["children"].GetArray()) {
+                        Node child;
+                        deserializeNode(c, child, &node);
+                        node.mChildren.push_back(std::move(child));
+                    }
+                }
+            };
+
+            if (document.HasMember("rootNode") && document["rootNode"].IsObject()) {
+                deserializeNode(document["rootNode"], data.rootNode, nullptr);
+            }
+        }
+    }
+
     AssetType ModelAsset::getType() const
     {
         return AssetType::Model;
@@ -65,7 +175,7 @@ namespace am
 
 
     // processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
-    Node ModelAsset::processNode(AssetFactoryData base_factory_context, aiNode* aiNode, const aiScene* scene)
+    Node ModelAsset::processNode(ImportContext base_factory_context, aiNode* aiNode, const aiScene* scene)
     {
         Node node = {};
         node.mName = aiNode->mName.C_Str();
@@ -77,8 +187,9 @@ namespace am
             // the node object only contains indices to index the actual objects in the scene.
             // the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
             aiMesh* aiMesh = scene->mMeshes[aiNode->mMeshes[i]];
-            std::shared_ptr<AssetInfo> mesh = processMesh(base_factory_context, aiMesh, scene);
-            auto meshData = mesh.get()->getAsset()->getAssetDataAs<MeshData>();
+            auto meshId = processMesh(base_factory_context, aiMesh, scene);
+            AssetManagerInterface &assetManager = AssetManager::getInstance();
+            auto meshData = assetManager.getAssetData<MeshData>(meshId);
 
             data.boundingBoxMin.x = std::min(data.boundingBoxMin.x,meshData->boundingBoxMin.x);
             data.boundingBoxMin.y = std::min(data.boundingBoxMin.y,meshData->boundingBoxMin.y);
@@ -88,7 +199,8 @@ namespace am
             data.boundingBoxMax.y = std::max(data.boundingBoxMax.y,meshData->boundingBoxMax.y);
             data.boundingBoxMax.z = std::max(data.boundingBoxMax.z,meshData->boundingBoxMax.z);
 
-            meshes.push_back(mesh);
+            auto mesh = assetManager.getAssetInfo(meshId);
+            meshes.push_back(mesh.value());
         }
 
 
@@ -102,13 +214,13 @@ namespace am
         return node;
     }
 
-    std::shared_ptr<AssetInfo> ModelAsset::processMesh(AssetFactoryData baseFactoryContext, aiMesh* mesh,
-                                                  const aiScene* scene)
+    boost::uuids::uuid ModelAsset::processMesh(ImportContext baseFactoryContext, aiMesh* mesh,
+                                               const aiScene* scene)
     {
         AssetManager& assetManager = AssetManager::getInstance();
-        AssetFactoryData meshFactoryContext{baseFactoryContext};
+        ImportContext meshFactoryContext{baseFactoryContext};
         meshFactoryContext.assetType = AssetType::Mesh;
         meshFactoryContext.assimpIndex = getMeshIndexInScene(scene, mesh);
-        return assetManager.registerAsset(&meshFactoryContext).value();
+        return assetManager.registerAsset(meshFactoryContext).value();
     }
 }

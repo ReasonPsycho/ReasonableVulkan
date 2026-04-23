@@ -10,8 +10,11 @@ struct MockData
 // Mock Asset class for testing
 class MockAsset : public am::Asset {
 public:
-    explicit MockAsset(am::AssetFactoryData assetFactoryData)
+    explicit MockAsset(am::ImportContext assetFactoryData)
         : Asset(assetFactoryData), mockHash(0) {}
+
+    explicit MockAsset(const std::string& path, am::AssetFormat format)
+        : Asset(path, format), mockHash(0) {}
 
     void setMockHash(size_t hash) { mockHash = hash; }
 
@@ -21,7 +24,7 @@ public:
         return am::AssetType::Other;
     }
 
-    void* getAssetData() override { return &data; }
+    std::any getAssetData() override { return &data; }
 
     MockData data;
 private:
@@ -30,7 +33,7 @@ private:
 
 // Utility function to register mock factory (reusable)
 void registerMockFactory(am::AssetManager& manager, size_t hash = 12345) {
-    manager.registerFactory(am::AssetType::Other, [hash](am::AssetFactoryData& data) {
+    manager.registerFactory(am::AssetType::Other, [hash](am::ImportContext& data) {
         auto asset = std::make_unique<MockAsset>(data);
         asset->setMockHash(hash);
         return asset;
@@ -46,63 +49,55 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
         BOOST_TEST(&instance1 == &instance2, "AssetManager singleton instances must be equal");
     }
 
-    BOOST_AUTO_TEST_CASE(RegisterAndLookupAssetWorks) {
+BOOST_AUTO_TEST_CASE(RegisterAndLookupAssetWorks) {
         auto& manager = am::AssetManager::getInstance();
-        registerMockFactory(manager);
 
-        am::AssetFactoryData data( "test_path.txt", am::AssetType::Other);
-        auto assetInfo = manager.registerAsset(&data);
-        BOOST_REQUIRE(assetInfo != nullptr);
+        am::ImportContext context( "test_path.txt", am::AssetType::Texture);
+        auto assetId = manager.registerAsset(context);
+        BOOST_REQUIRE(assetId.has_value());
 
-        auto uids = manager.getUUIDsByPath("test_path.txt");
-        BOOST_REQUIRE_EQUAL(uids.size(), 1);
-
-        auto result = manager.getAssetInfo(uids[0]);
+        auto result = manager.getAssetInfo(assetId.value());
         BOOST_REQUIRE(result.has_value());
 
-        BOOST_TEST(result.value()->path == "test_path.txt");
-        BOOST_TEST(result.value()->type == am::AssetType::Other);
-        BOOST_TEST(result.value()->id == assetInfo.value()->id);
+        BOOST_TEST(result.value()->importPath == "test_path.txt");
+        BOOST_TEST(result.value()->type == am::AssetType::Texture);
+        BOOST_TEST(result.value()->id == assetId.value());
     }
 
-    BOOST_AUTO_TEST_CASE(DuplicatePathReturnsSameAssetInfo) {
+    BOOST_AUTO_TEST_CASE(DuplicatePathReturnsSameAssetId) {
         auto& manager = am::AssetManager::getInstance();
-        registerMockFactory(manager);
 
-        am::AssetFactoryData data1( "duplicate.txt", am::AssetType::Other);
-        auto asset1 = manager.registerAsset(&data1);
+        am::ImportContext data1( "duplicate.txt", am::AssetType::Texture);
+        auto asset1 = manager.registerAsset(data1);
 
-        am::AssetFactoryData data2( "duplicate.txt", am::AssetType::Other);
-        auto asset2 = manager.registerAsset(&data2);
+        am::ImportContext data2( "duplicate.txt", am::AssetType::Texture);
+        auto asset2 = manager.registerAsset(data2);
 
-        BOOST_TEST(asset1.value()->id == asset2.value()->id);
-        BOOST_TEST(asset1.value()->path == asset2.value()->path);
+        BOOST_TEST(asset1.value() == asset2.value());
     }
 
     BOOST_AUTO_TEST_CASE(GetAssetByUUIDReturnsCorrectInstance) {
         auto& manager = am::AssetManager::getInstance();
-        registerMockFactory(manager);
 
-        am::AssetFactoryData data("uuid_test.txt", am::AssetType::Other);
-        auto assetInfo = manager.registerAsset(&data);
+        am::ImportContext data("uuid_test.txt", am::AssetType::Texture);
+        auto assetId = manager.registerAsset(data);
 
-        auto asset = manager.getByUUID<am::Asset>(assetInfo.value()->id);
+        auto asset = manager.getByUUID<am::Asset>(assetId.value());
         BOOST_REQUIRE(asset != nullptr);
-        BOOST_TEST(asset->getType() == am::AssetType::Other);
+        BOOST_TEST(asset->getType() == am::AssetType::Texture);
     }
 
     BOOST_AUTO_TEST_CASE(IdenticalContentHashMeansSameAsset) {
         auto& manager = am::AssetManager::getInstance();
-        registerMockFactory(manager, 98765);  // all assets get the same hash
 
-        am::AssetFactoryData data1( "a.txt", am::AssetType::Other);
-        auto asset1 = manager.registerAsset(&data1);
+        am::ImportContext data1( "a.txt", am::AssetType::Texture);
+        auto asset1 = manager.registerAsset(data1);
 
-        am::AssetFactoryData data2( "b.txt", am::AssetType::Other);
-        auto asset2 = manager.registerAsset(&data2);
+        am::ImportContext data2( "b.txt", am::AssetType::Texture);
+        auto asset2 = manager.registerAsset(data2);
 
-        BOOST_TEST(asset1.value()->id == asset2.value()->id);
-        BOOST_TEST(asset1.value()->contentHash == asset2.value()->contentHash);
+        // Textures with same data (or same empty file) should have same hash
+        BOOST_TEST(asset1.value() == asset2.value());
     }
 
     BOOST_AUTO_TEST_CASE(NonexistentAssetsReturnNull) {
@@ -111,9 +106,6 @@ BOOST_AUTO_TEST_SUITE(AssetManagerTests)
 
         auto asset = manager.getByUUID<am::Asset>(randomUUID);
         BOOST_TEST(asset == nullptr);
-
-        auto uids = manager.getUUIDsByPath("no_such_path.txt");
-        BOOST_TEST(uids.empty());
     }
 
 BOOST_AUTO_TEST_SUITE_END()

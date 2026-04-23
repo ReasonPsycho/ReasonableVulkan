@@ -12,10 +12,18 @@ T* vks::DescriptorManager::getOrLoadResource(const boost::uuids::uuid& assetId)
 }
 
 template <typename T>
-T* vks::DescriptorManager::getOrLoadResource(std::string path)
+T* vks::DescriptorManager::getOrLoadResource(std::string lookUpName)
 {
-    auto assetInfo = assetManager->registerAsset(path);
-    return (T*)(loadResource(assetInfo->get()->id));
+    auto id = assetManager->getAssetUuid(lookUpName);
+    if (id.has_value())
+    {
+        return (T*)(loadResource(id.value()));
+    }else
+    {
+        spdlog::error("Asset not found");
+        throw std::runtime_error("Asset not found");
+    }
+
 }
 
 inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost::uuids::uuid& assetId)

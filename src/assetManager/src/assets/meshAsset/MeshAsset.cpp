@@ -3,6 +3,7 @@
 //
 
 #include "MeshAsset.h"
+#include "../../JsonHelpers.hpp"
 
 
 
@@ -43,11 +44,7 @@ namespace am {
     }
 
 
-    MeshAsset::MeshAsset(AssetFactoryData meshFactoryContext): Asset(meshFactoryContext)
-    {
-    }
-
-    void MeshAsset::LoadAssetFromImport(AssetFactoryData meshFactoryContext)
+    MeshAsset::MeshAsset(const ImportContext& assetFactoryData): Asset(assetFactoryData), importContext(assetFactoryData)
     {
         AssetManager &assetManager = AssetManager::getInstance();
         auto scene = assetManager.importer.GetScene();
@@ -57,7 +54,7 @@ namespace am {
 
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
-            scene = assetManager.importer.ReadFile(meshFactoryContext.path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+            scene = assetManager.importer.ReadFile(assetFactoryData.importPath, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
             if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
             {
                 spdlog::error("Assimp error: " + string(assetManager.importer.GetErrorString()));
@@ -65,18 +62,18 @@ namespace am {
             }
         }
              // walk through each of the mesh's vertices
-        auto mesh = scene->mMeshes[meshFactoryContext.assimpIndex];
+        auto mesh = scene->mMeshes[assetFactoryData.assimpIndex];
 
-        AssetFactoryData materialFactoryContext{meshFactoryContext};
+        ImportContext materialFactoryContext{assetFactoryData};
         materialFactoryContext.assimpIndex = mesh->mMaterialIndex;
         materialFactoryContext.assetType = AssetType::Material;
 
-        auto rMaterial = assetManager.registerAsset(&materialFactoryContext);
+        auto rMaterial = assetManager.registerAsset(materialFactoryContext);
         if (!rMaterial) {
-            spdlog::error("Failed to load material for mesh: " + meshFactoryContext.path);
-            throw std::runtime_error("Failed to load material for mesh: " + meshFactoryContext.path);
+            spdlog::error("Failed to load material for mesh: " + assetFactoryData.importPath);
+            throw std::runtime_error("Failed to load material for mesh: " + assetFactoryData.importPath);
         }
-        data.material = rMaterial.value();
+        data.material = assetManager.getAssetInfo(rMaterial.value()).value_or(nullptr);
 
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             VertexAsset vertex;
@@ -171,8 +168,215 @@ namespace am {
         }
     }
 
+    MeshAsset::MeshAsset(const std::string& path, AssetFormat format): Asset(path, format), importContext("",AssetType::Other)
+    {
+        if (format == AssetFormat::Json) {
+            rapidjson::Document document;
+            if (!loadJsonFromFile(path, document)) {
+                spdlog::error("Failed to load MeshAsset from JSON: {}", path);
+                return;
+            }
+            AssetManager &assetManager = AssetManager::getInstance();
+
+            if (document.HasMember("importContext") && document["importContext"].IsObject()) {
+                const auto& ic = document["importContext"];
+                if (ic.HasMember("path") && ic["path"].IsString()) importContext.importPath = ic["path"].GetString();
+                if (ic.HasMember("type") && ic["type"].IsString()) importContext.assetType = StringToAssetType(ic["type"].GetString());
+                if (ic.HasMember("assimpIndex") && ic["assimpIndex"].IsInt()) importContext.assimpIndex = ic["assimpIndex"].GetInt();
+            }
+
+            if (document.HasMember("binPath") && document["binPath"].IsString()) {
+                std::string binPath = document["binPath"].GetString();
+
+                std::ifstream ifs(binPath, std::ios::binary | std::ios::in);
+                if (!ifs.is_open()) {
+                    spdlog::error("Failed to open file for reading binary asset: {}", binPath);
+                    return;
+                }
+
+                // Read magic number
+                char magic[6];
+                ifs.read(magic, sizeof(magic));
+                if (std::string(magic) != "RMESH") {
+                    spdlog::error("Invalid magic number in binary mesh asset: {}", binPath);
+                    return;
+                }
+
+                // Read material path
+                size_t pathSize;
+                ifs.read(reinterpret_cast<char*>(&pathSize), sizeof(pathSize));
+                std::string materialPath(pathSize, '\0');
+                ifs.read(&materialPath[0], pathSize);
+
+                if (!materialPath.empty()) {
+                    auto result = AssetManager::getInstance().registerAsset(materialPath);
+                    if (result) {
+                        data.material = AssetManager::getInstance().getAssetInfo(result.value()).value_or(nullptr);
+                    }
+                }
+
+                // Read bounding box
+                ifs.read(reinterpret_cast<char*>(&data.boundingBoxMin), sizeof(glm::vec3));
+                ifs.read(reinterpret_cast<char*>(&data.boundingBoxMax), sizeof(glm::vec3));
+
+                // Read vertices
+                size_t vertexCount;
+                ifs.read(reinterpret_cast<char*>(&vertexCount), sizeof(vertexCount));
+                data.vertices.resize(vertexCount);
+                if (vertexCount > 0) {
+                    ifs.read(reinterpret_cast<char*>(data.vertices.data()), vertexCount * sizeof(am::VertexAsset));
+                }
+
+                // Read indices
+                size_t indexCount;
+                ifs.read(reinterpret_cast<char*>(&indexCount), sizeof(indexCount));
+                data.indices.resize(indexCount);
+                if (indexCount > 0) {
+                    ifs.read(reinterpret_cast<char*>(data.indices.data()), indexCount * sizeof(unsigned int));
+                }
+
+                ifs.close();
+            }
+
+            if (document.HasMember("material") && document["material"].IsString()) {
+                auto result = assetManager.registerAsset(document["material"].GetString());
+                if (result) {
+                    data.material = assetManager.getAssetInfo(result.value()).value_or(nullptr);
+                }
+            }
+
+            auto loadVec3 = [&](const char* key, glm::vec3& vec) {
+                if (document.HasMember(key) && document[key].IsArray() && document[key].Size() == 3) {
+                    vec.x = document[key][0].GetFloat();
+                    vec.y = document[key][1].GetFloat();
+                    vec.z = document[key][2].GetFloat();
+                }
+            };
+
+            loadVec3("boundingBoxMin", data.boundingBoxMin);
+            loadVec3("boundingBoxMax", data.boundingBoxMax);
+        } else if (format == AssetFormat::Binary) {
+            std::ifstream ifs(path, std::ios::binary | std::ios::in);
+            if (!ifs.is_open()) {
+                spdlog::error("Failed to open file for reading binary asset: {}", path);
+                return;
+            }
+
+            // Read magic number
+            char magic[6];
+            ifs.read(magic, sizeof(magic));
+            if (std::string(magic) != "RMESH") {
+                spdlog::error("Invalid magic number in binary mesh asset: {}", path);
+                return;
+            }
+
+            // Read material path
+            size_t pathSize;
+            ifs.read(reinterpret_cast<char*>(&pathSize), sizeof(pathSize));
+            std::string materialPath(pathSize, '\0');
+            ifs.read(&materialPath[0], pathSize);
+
+            if (!materialPath.empty()) {
+                auto result = AssetManager::getInstance().registerAsset(materialPath);
+                if (result) {
+                    data.material = AssetManager::getInstance().getAssetInfo(result.value()).value_or(nullptr);
+                }
+            }
+
+            // Read bounding box
+            ifs.read(reinterpret_cast<char*>(&data.boundingBoxMin), sizeof(glm::vec3));
+            ifs.read(reinterpret_cast<char*>(&data.boundingBoxMax), sizeof(glm::vec3));
+
+            // Read vertices
+            size_t vertexCount;
+            ifs.read(reinterpret_cast<char*>(&vertexCount), sizeof(vertexCount));
+            data.vertices.resize(vertexCount);
+            if (vertexCount > 0) {
+                ifs.read(reinterpret_cast<char*>(data.vertices.data()), vertexCount * sizeof(am::VertexAsset));
+            }
+
+            // Read indices
+            size_t indexCount;
+            ifs.read(reinterpret_cast<char*>(&indexCount), sizeof(indexCount));
+            data.indices.resize(indexCount);
+            if (indexCount > 0) {
+                ifs.read(reinterpret_cast<char*>(data.indices.data()), indexCount * sizeof(unsigned int));
+            }
+
+            ifs.close();
+        }
+    }
+
+    void MeshAsset::SaveAssetToJson(rapidjson::Document& document) {
+        auto& allocator = document.GetAllocator();
+        if (!document.IsObject()) {
+            document.SetObject();
+        }
+
+        rapidjson::Value icObj(rapidjson::kObjectType);
+        icObj.AddMember("path", rapidjson::Value(importContext.importPath.c_str(), allocator), allocator);
+        icObj.AddMember("type", rapidjson::Value(AssetTypeToString(importContext.assetType).c_str(), allocator), allocator);
+        icObj.AddMember("assimpIndex", importContext.assimpIndex, allocator);
+        document.AddMember("importContext", icObj, allocator);
+
+
+
+        if (data.material) {
+            document.AddMember("material", rapidjson::Value(data.material->importPath.c_str(), allocator), allocator);
+        }
+
+        auto addVec3 = [&](const char* key, const glm::vec3& vec) {
+            rapidjson::Value array(rapidjson::kArrayType);
+            array.PushBack(vec.x, allocator);
+            array.PushBack(vec.y, allocator);
+            array.PushBack(vec.z, allocator);
+            document.AddMember(rapidjson::StringRef(key), array, allocator);
+        };
+
+        addVec3("boundingBoxMin", data.boundingBoxMin);
+        addVec3("boundingBoxMax", data.boundingBoxMax);
+    }
+
     AssetType MeshAsset::getType() const {
         return AssetType::Mesh;
+    }
+
+    void MeshAsset::SaveAssetToBin(std::string& path) {
+        std::ofstream ofs(path, std::ios::binary | std::ios::out);
+        if (!ofs.is_open()) {
+            spdlog::error("Failed to open file for writing binary asset: {}", path);
+            return;
+        }
+
+        // Write magic number or version if needed
+        const char magic[] = "RMESH";
+        ofs.write(magic, sizeof(magic));
+
+        // Write material path (string)
+        std::string materialPath = data.material ? data.material->importPath : "";
+        size_t pathSize = materialPath.size();
+        ofs.write(reinterpret_cast<const char*>(&pathSize), sizeof(pathSize));
+        ofs.write(materialPath.c_str(), pathSize);
+
+        // Write bounding box
+        ofs.write(reinterpret_cast<const char*>(&data.boundingBoxMin), sizeof(glm::vec3));
+        ofs.write(reinterpret_cast<const char*>(&data.boundingBoxMax), sizeof(glm::vec3));
+
+        // Write vertices
+        size_t vertexCount = data.vertices.size();
+        ofs.write(reinterpret_cast<const char*>(&vertexCount), sizeof(vertexCount));
+        if (vertexCount > 0) {
+            ofs.write(reinterpret_cast<const char*>(data.vertices.data()), vertexCount * sizeof(am::VertexAsset));
+        }
+
+        // Write indices
+        size_t indexCount = data.indices.size();
+        ofs.write(reinterpret_cast<const char*>(&indexCount), sizeof(indexCount));
+        if (indexCount > 0) {
+            ofs.write(reinterpret_cast<const char*>(data.indices.data()), indexCount * sizeof(unsigned int));
+        }
+
+        ofs.close();
     }
 }
 
