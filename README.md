@@ -30,3 +30,4 @@ Notes
 -----
 
 - After build, a symbolic link to the ``res/`` folder is created in the build directory.
+- Implicit Vulkan layers are disabled via `VK_LOADER_LAYERS_DISABLE=~implicit~` in CMake presets because they caused Vulkan validation layers to crash.

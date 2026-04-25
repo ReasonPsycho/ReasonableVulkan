@@ -105,4 +105,5 @@ if (ENABLE_INTEGRATION_TESTS)
     # Enable CTest
     enable_testing()
     add_test(NAME integration_tests COMMAND integration_tests)
+    set_tests_properties(integration_tests PROPERTIES ENVIRONMENT "VK_LOADER_LAYERS_DISABLE=~implicit~")
 endif ()

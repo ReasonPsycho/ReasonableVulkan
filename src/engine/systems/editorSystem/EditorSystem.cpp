@@ -297,7 +297,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
     {
         lastViewportSize = viewportPanelSize;
         if (viewportPanelSize.x > 0 && viewportPanelSize.y > 0) {
-            scene->engine.graphicsEngine->resize((uint32_t)viewportPanelSize.x, (uint32_t)viewportPanelSize.y);
+   //         scene->engine.graphicsEngine->resize((uint32_t)viewportPanelSize.x, (uint32_t)viewportPanelSize.y); //This should be only used for rezise of whole window. We should add seperate calls for the viewports
         }
     }
 

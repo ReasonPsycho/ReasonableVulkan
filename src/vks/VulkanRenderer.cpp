@@ -279,6 +279,14 @@ namespace vks {
         // Recreate swap chain
         swapChain->recreateSwapChain(width, height);
 
+#if ENABLE_IMGUI
+        imguiManager.get()->createFramebuffers(swapChain->getImageViews());
+        imguiManager.get()->createDescriptorSets(swapChain->getImageViews());
+        // Update ImGui display size
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
+#endif
+
         // Recreate depth resources with new dimensions
         pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
         pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
@@ -286,15 +294,8 @@ namespace vks {
         // Recreate framebuffers
         pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
-    #if ENABLE_IMGUI
-            imguiManager.get()->createFramebuffers(swapChain->getImageViews());
-            imguiManager.get()->createDescriptorSets(swapChain->getImageViews());
-    #endif
+        waitIdle();
 
-    #if ENABLE_IMGUI
-            // Update ImGui display size
-            ImGuiIO& io = ImGui::GetIO();
-            io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
-    #endif
+
     }
 } // namespace vks
