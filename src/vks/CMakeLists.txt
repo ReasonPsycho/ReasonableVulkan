@@ -111,4 +111,5 @@ if (VKS_ENABLE_TESTS)
     # Enable CTest
     enable_testing()
     add_test(NAME vks_test COMMAND vks_test WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    set_tests_properties(vks_test PROPERTIES ENVIRONMENT "VK_LOADER_LAYERS_DISABLE=~implicit~")
 endif()

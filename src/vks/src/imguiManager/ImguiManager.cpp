@@ -71,10 +71,12 @@ namespace vks
 
         ImGui_ImplVulkan_Init(&init_info);
 
-        // Upload ImGui Fonts
+        // Upload ImGui Fonts //???
+        /*
         VkCommandBuffer command_buffer = context->beginSingleTimeCommands();
         ImGui_ImplVulkan_CreateFontsTexture();
         context->endSingleTimeCommands(command_buffer);
+        */
 
         ImGuizmo::SetImGuiContext(ctx);
 

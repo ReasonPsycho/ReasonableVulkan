@@ -13,7 +13,11 @@
         "VCPKG_HOST_TRIPLET": "x64-mingw-dynamic",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_MAKE_PROGRAM": "mingw32-make"
+        "CMAKE_MAKE_PROGRAM": "mingw32-make",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays"
+      },
+      "environment": {
+        "VK_LOADER_LAYERS_DISABLE": "~implicit~"
       }
     },
     {
