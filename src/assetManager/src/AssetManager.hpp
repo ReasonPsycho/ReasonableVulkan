@@ -30,9 +30,9 @@
 
 namespace am {
     class AssetManager : public AssetManagerInterface {
-        using AssetImporter = std::function<std::unique_ptr<am::Asset>(am::ImportContext &)>;
+        using AssetImporter = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, am::ImportContext &)>;
         using AssetJsonSaver = std::function<void(am::Asset&, rapidjson::Document&)>;
-        using AssetLoader = std::function<std::unique_ptr<am::Asset>(const std::string&, AssetFormat)>;
+        using AssetLoader = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, const std::string&, AssetFormat)>;
         using MetadataLoader = std::function<void(am::Asset&, rapidjson::Document&)>;
         using MetadataSaver  = std::function<void(am::Asset&, rapidjson::Document&)>;
 

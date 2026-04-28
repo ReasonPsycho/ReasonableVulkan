@@ -12,53 +12,58 @@
 #include "ShaderIncluder.hpp"
 
 namespace am {
-    ShaderAsset::ShaderAsset(ImportContext assetFactoryData) : Asset(assetFactoryData) {
+    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
         loadFromFile(assetFactoryData.importPath);
     }
 
-    ShaderAsset::ShaderAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
         if (format == AssetFormat::Json) {
-            rapidjson::Document document;
-            if (!loadJsonFromFile(path, document)) {
-                spdlog::error("Failed to load ShaderAsset from JSON: {}", path);
+            throw std::runtime_error("ShaderAsset does not support JSON format");
+        } else if (format == AssetFormat::Binary) {
+            std::ifstream ifs(path, std::ios::binary | std::ios::in);
+            if (!ifs.is_open()) {
+                spdlog::error("Failed to open binary shader asset: {}", path);
                 return;
             }
-            if (document.HasMember("stage") && document["stage"].IsString()) {
-                std::string stageStr = document["stage"].GetString();
-                if (stageStr == "Vertex") data.stage = ShaderStage::Vertex;
-                else if (stageStr == "Fragment") data.stage = ShaderStage::Fragment;
-                else if (stageStr == "Compute") data.stage = ShaderStage::Compute;
-                else if (stageStr == "Geometry") data.stage = ShaderStage::Geometry;
-                else if (stageStr == "TessellationControl") data.stage = ShaderStage::TessellationControl;
-                else if (stageStr == "TessellationEvaluation") data.stage = ShaderStage::TessellationEvaluation;
+
+            char magic[6];
+            ifs.read(magic, sizeof(magic));
+            if (std::string(magic) != "RSHDR") {
+                spdlog::error("Invalid magic number in binary shader asset: {}", path);
+                return;
             }
 
-            if (document.HasMember("defines") && document["defines"].IsObject()) {
-                data.defines.clear();
-                for (auto& m : document["defines"].GetObject()) {
-                    if (m.name.IsString() && m.value.IsString()) {
-                        data.defines[m.name.GetString()] = m.value.GetString();
-                    }
-                }
+            ifs.read(reinterpret_cast<char*>(&data.stage), sizeof(data.stage));
+
+            size_t sourcePathSize;
+            ifs.read(reinterpret_cast<char*>(&sourcePathSize), sizeof(sourcePathSize));
+            data.originalSource.resize(sourcePathSize);
+            ifs.read(&data.originalSource[0], sourcePathSize);
+
+            size_t definesCount;
+            ifs.read(reinterpret_cast<char*>(&definesCount), sizeof(definesCount));
+            for (size_t i = 0; i < definesCount; ++i) {
+                size_t keySize;
+                ifs.read(reinterpret_cast<char*>(&keySize), sizeof(keySize));
+                std::string key(keySize, '\0');
+                ifs.read(&key[0], keySize);
+
+                size_t valueSize;
+                ifs.read(reinterpret_cast<char*>(&valueSize), sizeof(valueSize));
+                std::string value(valueSize, '\0');
+                ifs.read(&value[0], valueSize);
+
+                data.defines[key] = value;
             }
 
-            if (document.HasMember("originalSource") && document["originalSource"].IsString()) {
-                data.originalSource = document["originalSource"].GetString();
-                // If we have original source, we should probably recompile to populate bytecode
-                if (!data.originalSource.empty()) {
-                    std::ifstream file(data.originalSource, std::ios::binary | std::ios::in | std::ios::ate);
-                    if (file.is_open()) {
-                        size_t fileSize = static_cast<size_t>(file.tellg());
-                        file.seekg(0);
-                        std::string source(fileSize, '\0');
-                        file.read(source.data(), fileSize);
-                        file.close();
-                        data.bytecode = compileGLSLToSPIRV(source, data.stage, data.defines);
-                    } else {
-                        spdlog::error("Failed to open original source file for recompilation: {}", data.originalSource);
-                    }
-                }
+            size_t bytecodeSize;
+            ifs.read(reinterpret_cast<char*>(&bytecodeSize), sizeof(bytecodeSize));
+            data.bytecode.resize(bytecodeSize);
+            if (bytecodeSize > 0) {
+                ifs.read(reinterpret_cast<char*>(data.bytecode.data()), bytecodeSize * sizeof(std::uint32_t));
             }
+
+            ifs.close();
         }
     }
 
@@ -139,7 +144,46 @@ namespace am {
 
     void ShaderAsset::SaveAssetToBin(std::string& path)
     {
+        std::ofstream ofs(path, std::ios::binary | std::ios::out);
+        if (!ofs.is_open()) {
+            spdlog::error("Failed to open file for writing binary shader asset: {}", path);
+            return;
+        }
 
+        // Write magic number
+        const char magic[] = "RSHDR";
+        ofs.write(magic, sizeof(magic));
+
+        // Write stage
+        ofs.write(reinterpret_cast<const char*>(&data.stage), sizeof(data.stage));
+
+        // Write originalSource
+        size_t sourcePathSize = data.originalSource.size();
+        ofs.write(reinterpret_cast<const char*>(&sourcePathSize), sizeof(sourcePathSize));
+        ofs.write(data.originalSource.c_str(), sourcePathSize);
+
+        // Write defines map
+        size_t definesCount = data.defines.size();
+        ofs.write(reinterpret_cast<const char*>(&definesCount), sizeof(definesCount));
+        for (const auto& [key, value] : data.defines) {
+            size_t keySize = key.size();
+            ofs.write(reinterpret_cast<const char*>(&keySize), sizeof(keySize));
+            ofs.write(key.c_str(), keySize);
+
+            size_t valueSize = value.size();
+            ofs.write(reinterpret_cast<const char*>(&valueSize), sizeof(valueSize));
+            ofs.write(value.c_str(), valueSize);
+        }
+
+        // Write bytecode
+        size_t bytecodeSize = data.bytecode.size();
+        ofs.write(reinterpret_cast<const char*>(&bytecodeSize), sizeof(bytecodeSize));
+        if (bytecodeSize > 0) {
+            ofs.write(reinterpret_cast<const char*>(data.bytecode.data()), bytecodeSize * sizeof(std::uint32_t));
+        }
+
+        ofs.close();
+        spdlog::info("Saved binary shader asset: {}", path);
     }
 
     void ShaderAsset::loadFromFile(const std::string& path) {

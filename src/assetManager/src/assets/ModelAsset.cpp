@@ -8,7 +8,7 @@
 
 namespace am
 {
-    ModelAsset::ModelAsset(ImportContext assetFactoryData) : Asset(assetFactoryData)
+    ModelAsset::ModelAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData)
     {
         loadFromFile(assetFactoryData);
     }
@@ -91,8 +91,8 @@ namespace am
             rapidjson::Value meshes(rapidjson::kArrayType);
             for (const auto& mesh : node.meshes) {
                 if (mesh) {
-                    std::string jsonPath = GetJsonPath(mesh->importPath, AssetType::Mesh, mesh->importContext.assimpIndex);
-                    meshes.PushBack(rapidjson::Value(jsonPath.c_str(), allocator), allocator);
+                    std::string binaryPath = mesh->jsonPath;
+                    meshes.PushBack(rapidjson::Value(binaryPath.c_str(), allocator), allocator);
                 }
             }
             nodeObj.AddMember("meshes", meshes, allocator);
@@ -110,7 +110,7 @@ namespace am
         document.AddMember("rootNode", serializeNode(data.rootNode), allocator);
     }
 
-    ModelAsset::ModelAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+    ModelAsset::ModelAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
             if (!loadJsonFromFile(path, document)) {

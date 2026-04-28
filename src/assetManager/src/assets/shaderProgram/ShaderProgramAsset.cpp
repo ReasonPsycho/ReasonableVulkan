@@ -9,11 +9,11 @@
 
 namespace am {
 
-    ShaderProgramAsset::ShaderProgramAsset(ImportContext assetFactoryData) : Asset(assetFactoryData) {
+    ShaderProgramAsset::ShaderProgramAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
         loadFromJson(assetFactoryData.importPath);
     }
 
-    ShaderProgramAsset::ShaderProgramAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+    ShaderProgramAsset::ShaderProgramAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
         if (format == AssetFormat::Json) {
             loadFromJson(path);
         }

@@ -280,6 +280,7 @@ void RenderManager::renderFrame() {
     submitInfo.pSignalSemaphores = signalSemaphores;
 
     if (vkQueueSubmit(context->getGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+        spdlog::error("failed to submit draw command buffer!");
         throw std::runtime_error("failed to submit draw command buffer!");
     }
 
@@ -358,7 +359,7 @@ void RenderManager::endFrame() {
 
                     auto shadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(shadowShaderId);
                     if (shadowShaderDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, shadowShaderId, imageIndex, shadowShaderDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, shadowShaderId, 0, shadowShaderDescriptor->getDefines());
                     }
 
                     for (auto& command : renderQueue) {
@@ -416,7 +417,7 @@ void RenderManager::endFrame() {
 
                     auto cubeShadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cubeShadowShaderId);
                     if (cubeShadowShaderDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, cubeShadowShaderId, imageIndex, cubeShadowShaderDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, cubeShadowShaderId, 0, cubeShadowShaderDescriptor->getDefines());
                     }
 
                     for (auto& command : renderQueue) {
@@ -467,7 +468,7 @@ void RenderManager::endFrame() {
 
                     auto spotShadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(shadowShaderId);
                     if (spotShadowShaderDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, shadowShaderId, imageIndex, spotShadowShaderDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, shadowShaderId, 0, spotShadowShaderDescriptor->getDefines());
                     }
 
                     for (auto& command : renderQueue) {

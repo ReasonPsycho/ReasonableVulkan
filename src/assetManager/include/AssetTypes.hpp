@@ -107,19 +107,10 @@ namespace am {
         }
     }
 
-    inline std::string GetBinPath(const std::string& importPath, AssetType type, int index = -1) {
+    inline std::string GetBinPath(const std::string& importPath) {
         std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
         std::string filename =  p.stem().string();
-        if (index >= 0) filename += "_" + std::to_string(index);
         filename += ".b_" + p.extension().string().substr(1,p.extension().string().size()-1);
-        return (p.parent_path() / filename).string();
-    }
-
-    inline std::string GetJsonPath(const std::string& importPath, AssetType type, int index = -1) {
-        std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
-        std::string filename =  p.stem().string();
-        if (index >= 0) filename += "_" + std::to_string(index);
-        filename += ".j_" + p.extension().string().substr(1,p.extension().string().size()-1);
         return (p.parent_path() / filename).string();
     }
 }

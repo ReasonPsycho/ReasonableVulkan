@@ -44,7 +44,7 @@ namespace am {
     }
 
 
-    MeshAsset::MeshAsset(const ImportContext& assetFactoryData): Asset(assetFactoryData), importContext(assetFactoryData)
+    MeshAsset::MeshAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData): Asset(id, assetFactoryData), importContext(assetFactoryData)
     {
         AssetManager &assetManager = AssetManager::getInstance();
         auto scene = assetManager.importer.GetScene();
@@ -168,7 +168,7 @@ namespace am {
         }
     }
 
-    MeshAsset::MeshAsset(const std::string& path, AssetFormat format): Asset(path, format), importContext("",AssetType::Other)
+    MeshAsset::MeshAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format): Asset(id, path, format), importContext("",AssetType::Other)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;

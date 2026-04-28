@@ -2,7 +2,7 @@
 #include "../../AssetManager.hpp"
 #include "../../JsonHelpers.hpp"
 
-am::MaterialAsset::MaterialAsset(ImportContext assetFactoryData) : Asset(assetFactoryData) {
+am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
     AssetManager &assetManager = AssetManager::getInstance();
     auto scene = assetManager.importer.GetScene();
 
@@ -23,7 +23,7 @@ am::MaterialAsset::MaterialAsset(ImportContext assetFactoryData) : Asset(assetFa
     }
 }
 
-am::MaterialAsset::MaterialAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
     if (format == AssetFormat::Json) {
         rapidjson::Document document;
         if (!loadJsonFromFile(path, document)) {
