@@ -18,8 +18,8 @@ namespace am {
 
 class MaterialAsset : public am::Asset {
 public:
-    explicit MaterialAsset(ImportContext assetFactoryData);
-    explicit MaterialAsset(const std::string& path, AssetFormat format);
+    explicit MaterialAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
+    explicit MaterialAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
 
     void SaveAssetToJson(rapidjson::Document& document) override;
 

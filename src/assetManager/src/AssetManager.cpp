@@ -15,7 +15,7 @@
 
 namespace am {
 
-    AssetManager::AssetManager()
+    AssetManager::AssetManager() : AssetManagerInterface()
     {
         RegisterAssetType<MaterialAsset>();
         RegisterAssetType<TextureAsset>();
@@ -219,7 +219,7 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
                 throw std::runtime_error("No factory registered for asset type");
             }
 
-            auto assetData = loader(assetInfo->second->jsonPath, AssetFormat::Json);
+            auto assetData = loader(id, assetInfo->second->jsonPath, AssetFormat::Json);
             assets[id] = std::move(assetData);
             return assets[id].get()->getAssetData();
         }
@@ -291,7 +291,8 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
                 throw std::runtime_error("No factory registered for asset type");
             }
 
-            std::unique_ptr<Asset> newAsset = factory(importContext);
+            auto id = boost::uuids::random_generator()();
+            std::unique_ptr<Asset> newAsset = factory(id, importContext);
             size_t contentHash = newAsset->calculateContentHash();
 
             // Check if we have an asset with the same content hash
@@ -305,22 +306,21 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
                 return existingAsset->second.get()->id;
             }
 
-            auto id = boost::uuids::random_generator()();
             // If we get here, this is a new unique asset
             auto info = std::make_shared<AssetInfo>(id, importContext.importPath, importContext.assetType, contentHash,importContext);
             info->isLoaded = true;
 
-            newAsset->id = id; //TODO make so I have to provide id to constructors
-
             std::filesystem::path p = std::filesystem::path(importContext.importPath).lexically_normal();
             std::string baseName = p.stem().string();
-            std::string filename = (p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string();
 
-            info->jsonPath = filename;
-
-            if (newAsset->saveToBinInsteadOfJson) {
+            if (newAsset->shouldSaveToBin())
+            {
+                std::string filename = GetBinPath((p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string());
+                info->jsonPath = filename;
                 newAsset->SaveAssetToBin(filename);
             } else {
+                std::string filename = (p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string();
+                info->jsonPath = filename;
                 auto jsonSaver = getJsonSaver(getTypeIndex(importContext.assetType));
 
                 rapidjson::Document document;

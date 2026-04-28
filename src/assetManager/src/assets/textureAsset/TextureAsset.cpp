@@ -5,13 +5,13 @@
 
 namespace am
 {
-    TextureAsset::TextureAsset(ImportContext assetFactoryData)
-        : Asset(assetFactoryData)
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData)
+        : Asset(id, assetFactoryData)
     {
         loadFromFile(assetFactoryData.importPath);
     }
 
-    TextureAsset::TextureAsset(const std::string& path, AssetFormat format) : Asset(path, format)
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
@@ -28,6 +28,10 @@ namespace am
                 std::string typeStr = document["type"].GetString();
                 if (typeStr == "Texture2D") data.type = TextureType::Texture2D;
                 else if (typeStr == "TextureCube") data.type = TextureType::TextureCube;
+            }
+
+            if (document.HasMember("originalSource") && document["originalSource"].IsString()) {
+                data.originalSource = document["originalSource"].GetString();
             }
         }
     }
@@ -50,6 +54,7 @@ namespace am
             case TextureType::TextureCube: typeStr = "TextureCube"; break;
         }
         document.AddMember("type", rapidjson::Value(typeStr.c_str(), allocator), allocator);
+        document.AddMember("originalSource", rapidjson::Value(data.originalSource.c_str(), allocator), allocator);
     }
 
 
@@ -84,6 +89,8 @@ namespace am
         stbi_image_free(fileData);
 
         data.type = TextureType::Texture2D;
+
+        data.originalSource = path;
 
         spdlog::info("Loaded texture");
     }
