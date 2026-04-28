@@ -22,7 +22,6 @@ namespace am
         uint32_t channels{0};
         bool hasAlpha{false};
         TextureType type;
-        std::string originalSource;
     };
 }
 #endif //TEXTUREDATA_H

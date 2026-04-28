@@ -36,12 +36,12 @@ int main(int argc, char *argv[]) {
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
 
-    auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader","pbrShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shader","wiremeshShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shader","wiremeshTexturedShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shader","skyboxShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shader","shadowMapShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader","shadowCubeMapShader");
+    auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shaderImport","pbrShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shaderImport","wiremeshShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shaderImport","wiremeshTexturedShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shaderImport","skyboxShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shaderImport","shadowMapShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shaderImport","shadowCubeMapShader");
     auto skyboxModelId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx","skyboxModel");
     auto planeId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx","planeModel");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx","boxModel");

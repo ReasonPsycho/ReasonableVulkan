@@ -84,6 +84,7 @@ namespace am {
         if (ext == ".frag")      return AssetType::Shader;
         if (ext == ".vert")      return AssetType::Shader;
         if (ext == ".geom")      return AssetType::Shader;
+        if (ext == ".shaderImport") return AssetType::ShaderProgram;
         if (ext == ".shader")    return AssetType::ShaderProgram;
         if (ext == ".model")     return AssetType::Model;
         if (ext == ".material")  return AssetType::Material;

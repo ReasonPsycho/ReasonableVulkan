@@ -24,7 +24,8 @@ namespace am {
 
     private:
         ShaderProgramData data;
-        void loadFromJson(const std::string& path);
+        void importFromImportJson(const std::string& path);
+        void loadFromProgramJson(const std::string& path);
     };
 }
 
