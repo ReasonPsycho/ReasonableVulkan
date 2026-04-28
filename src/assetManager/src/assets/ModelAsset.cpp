@@ -63,6 +63,8 @@ namespace am
             document.SetObject();
         }
 
+        document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
+
         auto addVec3 = [&](const char* key, const glm::vec3& vec) {
             rapidjson::Value array(rapidjson::kArrayType);
             array.PushBack(vec.x, allocator);
@@ -91,8 +93,8 @@ namespace am
             rapidjson::Value meshes(rapidjson::kArrayType);
             for (const auto& mesh : node.meshes) {
                 if (mesh) {
-                    std::string binaryPath = mesh->jsonPath;
-                    meshes.PushBack(rapidjson::Value(binaryPath.c_str(), allocator), allocator);
+                    std::string uuidStr = boost::uuids::to_string(mesh->id);
+                    meshes.PushBack(rapidjson::Value(uuidStr.c_str(), allocator), allocator);
                 }
             }
             nodeObj.AddMember("meshes", meshes, allocator);
@@ -117,6 +119,15 @@ namespace am
                 spdlog::error("Failed to load ModelAsset from JSON: {}", path);
                 return;
             }
+
+            if (document.HasMember("uuid") && document["uuid"].IsString()) {
+                std::string savedUuidStr = document["uuid"].GetString();
+                boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
+                if (savedUuid != id) {
+                    spdlog::warn("Model asset UUID mismatch in {}: expected {}, got {}", path, boost::uuids::to_string(id), savedUuidStr);
+                }
+            }
+
             AssetManager& assetManager = AssetManager::getInstance();
 
             auto loadVec3 = [&](const char* key, glm::vec3& vec) {
@@ -146,8 +157,17 @@ namespace am
                     node.meshes.clear();
                     for (auto& m : val["meshes"].GetArray()) {
                         if (m.IsString()) {
-                            auto result = assetManager.registerAsset(m.GetString());
-                            if (result) node.meshes.push_back(assetManager.getAssetInfo(result.value()).value_or(nullptr));
+                            try {
+                                boost::uuids::uuid meshId = boost::uuids::string_generator()(m.GetString());
+                                auto meshInfo = assetManager.getAssetInfo(meshId);
+                                if (meshInfo) {
+                                    node.meshes.push_back(meshInfo.value());
+                                } else {
+                                    spdlog::warn("Mesh asset with UUID {} not found for model", m.GetString());
+                                }
+                            } catch (const std::exception& e) {
+                                spdlog::error("Failed to parse mesh UUID {} for model: {}", m.GetString(), e.what());
+                            }
                         }
                     }
                 }

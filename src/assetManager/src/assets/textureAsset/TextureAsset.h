@@ -22,6 +22,7 @@ namespace am {
         ~TextureAsset() override;
 
         void SaveAssetToJson(rapidjson::Document& document) override;
+        void SaveAssetToBin(std::string& path) override;
 
         void loadFromFile(const std::string &path);
 
@@ -47,8 +48,13 @@ namespace am {
         std::any getAssetData() override {
             return &data;
         }
+
+        bool shouldSaveToBin() const override { return saveToBinInsteadOfJson; }
     private:
         TextureData data;
+
+        bool saveToBinInsteadOfJson = true;
+
     };
 }
 

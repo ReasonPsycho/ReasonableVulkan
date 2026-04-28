@@ -33,6 +33,13 @@ namespace am {
                 return;
             }
 
+            // Read UUID
+            boost::uuids::uuid savedId;
+            ifs.read(reinterpret_cast<char*>(&savedId), 16);
+            if (savedId != id) {
+                spdlog::warn("Shader asset UUID mismatch: expected {}, got {}", boost::uuids::to_string(id), boost::uuids::to_string(savedId));
+            }
+
             ifs.read(reinterpret_cast<char*>(&data.stage), sizeof(data.stage));
 
             size_t sourcePathSize;
@@ -153,6 +160,9 @@ namespace am {
         // Write magic number
         const char magic[] = "RSHDR";
         ofs.write(magic, sizeof(magic));
+
+        // Write UUID
+        ofs.write(reinterpret_cast<const char*>(&id), 16);
 
         // Write stage
         ofs.write(reinterpret_cast<const char*>(&data.stage), sizeof(data.stage));

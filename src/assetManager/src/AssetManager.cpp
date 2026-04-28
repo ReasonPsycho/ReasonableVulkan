@@ -220,6 +220,9 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             }
 
             auto assetData = loader(id, assetInfo->second->jsonPath, AssetFormat::Json);
+            if (assetData->shouldSaveToBin()) {
+                assetData = loader(id, assetInfo->second->jsonPath, AssetFormat::Binary);
+            }
             assets[id] = std::move(assetData);
             return assets[id].get()->getAssetData();
         }
