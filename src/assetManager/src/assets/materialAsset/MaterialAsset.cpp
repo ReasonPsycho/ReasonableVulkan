@@ -2,6 +2,9 @@
 #include "../../AssetManager.hpp"
 #include "../../JsonHelpers.hpp"
 
+am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id) : Asset(id) {
+}
+
 am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
     AssetManager &assetManager = AssetManager::getInstance();
     auto scene = assetManager.importer.GetScene();

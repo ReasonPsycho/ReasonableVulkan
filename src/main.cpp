@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     auto skyboxModelId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx","skyboxModel");
     auto planeId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx","planeModel");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx","boxModel");
+    assetManager.createAsset(am::AssetType::Scene,"C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/scene");
 
     auto skyboxModelData = assetManager.getAssetData<am::ModelData>(skyboxModelId.value());
     auto skyboxMeshData = assetManager.getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);

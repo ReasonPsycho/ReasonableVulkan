@@ -8,6 +8,10 @@
 
 namespace am
 {
+    ModelAsset::ModelAsset(const boost::uuids::uuid& id) : Asset(id)
+    {
+    }
+
     ModelAsset::ModelAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData)
     {
         loadFromFile(assetFactoryData);

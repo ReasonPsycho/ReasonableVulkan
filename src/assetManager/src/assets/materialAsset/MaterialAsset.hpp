@@ -18,6 +18,7 @@ namespace am {
 
 class MaterialAsset : public am::Asset {
 public:
+    explicit MaterialAsset(const boost::uuids::uuid& id);
     explicit MaterialAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
     explicit MaterialAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
 

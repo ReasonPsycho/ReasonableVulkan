@@ -30,6 +30,7 @@
 
 namespace am {
     class AssetManager : public AssetManagerInterface {
+        using AssetCreator = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&)>;
         using AssetImporter = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, am::ImportContext &)>;
         using AssetJsonSaver = std::function<void(am::Asset&, rapidjson::Document&)>;
         using AssetLoader = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, const std::string&, AssetFormat)>;
@@ -46,8 +47,11 @@ namespace am {
         //Types
         std::type_index getTypeIndex(AssetType type) const;
 
-        //Importers
+        //Creators
         AssetImporter getImporter(std::type_index type) const;
+
+        //Importers
+        AssetCreator getCreator(std::type_index type) const;
 
         //Loaders
         AssetLoader getLoader(std::type_index type) const;
@@ -60,8 +64,10 @@ namespace am {
         MetadataSaver getMetadataSaver(std::type_index type) const;
 
         //Creators
-        boost::uuids::uuid createAsset(AssetType assetType) override;
-        boost::uuids::uuid createAsset(AssetType assetType,std::string lookupName) override;
+        std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) override;
+        std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookupName) override;
+
+        std::optional<boost::uuids::uuid> initializeAsset(AssetType assetType, std::string path, std::string lookupName);
 
         //Imports
         std::optional<boost::uuids::uuid> registerAsset(std::string path,std::string lookupName) override;
@@ -102,6 +108,7 @@ namespace am {
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, boost::uuids::uuid> lookupNamesToUUIDs;
+        std::unordered_map<std::type_index, AssetCreator> creators;
         std::unordered_map<std::type_index, AssetImporter> importers;
         std::unordered_map<std::type_index, AssetJsonSaver> jsonSavers;
         std::unordered_map<std::type_index, AssetLoader> loaders;

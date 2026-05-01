@@ -11,6 +11,8 @@
 #include "assets/materialAsset/MaterialAsset.hpp"
 #include "assets/shaderAsset/ShaderAsset.h"
 #include "assets/shaderProgram/ShaderProgramAsset.h"
+#include "assets/engineAssets/SceneAsset.h"
+#include "assets/engineAssets/PrefabAsset.h"
 #include "JsonHelpers.hpp"
 
 namespace am {
@@ -23,6 +25,8 @@ namespace am {
         RegisterAssetType<ShaderProgramAsset>();
         RegisterAssetType<ModelAsset>();
         RegisterAssetType<MeshAsset>();
+        RegisterAssetType<SceneAsset>();
+        RegisterAssetType<PrefabAsset>();
 
        // loadRegistryMetadataFromFile("metadatas.json");
     }
@@ -30,16 +34,78 @@ namespace am {
     AssetManager::~AssetManager() {
     }
 
-    boost::uuids::uuid AssetManager::createAsset(AssetType assetType) {
-        return boost::uuids::uuid(); //TODO implement
+    std::optional<boost::uuids::uuid> AssetManager::createAsset(AssetType assetType, std::string path) {
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+
+        std::string baseName = p.stem().string();
+        std::string extension = p.extension().string();
+
+        std::string lookUpName = baseName + GetExtensionFromAssetType(assetType);
+
+        int counter = 1;
+
+        while (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
+        {
+            lookUpName = baseName + "_" + std::to_string(counter) +  GetExtensionFromAssetType(assetType);
+            counter++;
+        }
+
+        std::string normalizedPath = p.parent_path().string() + "/" + lookUpName;
+
+        return initializeAsset(assetType, normalizedPath, lookUpName);
     }
-    boost::uuids::uuid AssetManager::createAsset(AssetType assetType, std::string lookupName) {
-        return boost::uuids::uuid(); //TODO implement
+
+    std::optional<boost::uuids::uuid> AssetManager::createAsset(AssetType assetType, string path, std::string lookupName) {
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+
+        if (lookupNamesToUUIDs.find(lookupName) != lookupNamesToUUIDs.end())
+        {
+            spdlog::error("Lookup name already exists");
+            throw std::runtime_error("Lookup name already exists");
+        }
+
+        std::string normalizedPath = p.parent_path().string() + "/" + lookupName + GetExtensionFromAssetType(assetType);
+
+        return initializeAsset(assetType, normalizedPath, lookupName);
+    }
+
+    std::optional<boost::uuids::uuid> AssetManager::initializeAsset(AssetType assetType, std::string path,
+        std::string lookupName)
+    {
+        try
+        {
+            auto creator = getCreator(getTypeIndex(assetType));
+            if (!creator) {
+                spdlog::error("No creator registered for asset type");
+                throw std::runtime_error("No creator registered for asset type");
+            }
+            auto id = boost::uuids::random_generator()();
+            auto newAsset = creator(id);
+            metadata.insert(std::make_pair(id, std::make_shared<AssetInfo>(id, "", assetType, 0,ImportContext("", assetType, 0))));
+            if (newAsset->shouldSaveToBin())
+            {
+                std::string filename = GetBinPath(path);
+                newAsset->SaveAssetToBin(filename);
+            }else
+            {
+                rapidjson::Document doc;
+                doc.SetObject();
+                newAsset->SaveAssetToJson(doc);
+                saveJsonToFile(path, doc);
+            }
+            lookupNamesToUUIDs.insert(std::make_pair(lookupName, id));
+            assets[id] = std::move(newAsset);
+            return id;
+        }
+        catch (std::exception& e)
+        {
+            spdlog::error("Failed to create asset");
+        }
+        return boost::uuids::nil_uuid();
     }
 
 
-
-bool AssetManager::saveRegistryMetadataToFile(const std::string& filename) const {
+    bool AssetManager::saveRegistryMetadataToFile(const std::string& filename) const {
     rapidjson::Document document;
     document.SetObject();
     auto& allocator = document.GetAllocator();
@@ -371,6 +437,10 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             return std::type_index(typeid(ShaderProgramAsset));
         case AssetType::Material:
             return std::type_index(typeid(MaterialAsset));
+        case AssetType::Scene:
+            return std::type_index(typeid(SceneAsset));
+        case AssetType::Prefab:
+            return std::type_index(typeid(PrefabAsset));
         default:
             spdlog::error("Failed to get type_index for AssetType");
             throw std::runtime_error("Failed to get type_index for AssetType!");
@@ -387,6 +457,17 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
         }
         spdlog::error("Failed to get asset factory!");
         throw std::runtime_error("Failed to get asset factory!");
+    }
+
+    AssetManager::AssetCreator AssetManager::getCreator(std::type_index type) const
+    {
+        auto it = creators.find(type);
+        if(it != creators.end())
+        {
+            return it->second;
+        }
+        spdlog::error("Failed to get creator!");
+        throw std::runtime_error("Failed to get creator!");
     }
 
     AssetManager::AssetJsonSaver AssetManager::getJsonSaver(std::type_index type) const
