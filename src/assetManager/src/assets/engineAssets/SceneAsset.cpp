@@ -45,7 +45,16 @@ namespace am {
     std::any SceneAsset::getAssetData() { return &sceneData; }
 
     void SceneAsset::SaveAssetToJson(rapidjson::Document& document) {
-        document.CopyFrom(sceneData, document.GetAllocator());
+        auto& allocator = document.GetAllocator();
+        if (sceneData.IsObject()) {
+            for (auto& member : sceneData.GetObject()) {
+                rapidjson::Value key;
+                key.CopyFrom(member.name, allocator);
+                rapidjson::Value value;
+                value.CopyFrom(member.value, allocator);
+                document.AddMember(key, value, allocator);
+            }
+        }
     }
 
     void SceneAsset::SaveAssetToBin(std::string& path) {

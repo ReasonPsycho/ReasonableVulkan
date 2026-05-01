@@ -45,13 +45,12 @@ int main(int argc, char *argv[]) {
     auto skyboxModelId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx","skyboxModel");
     auto planeId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx","planeModel");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx","boxModel");
-    assetManager.createAsset(am::AssetType::Scene,"C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/scene");
 
     auto skyboxModelData = assetManager.getAssetData<am::ModelData>(skyboxModelId.value());
     auto skyboxMeshData = assetManager.getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
     auto skyboxMaterialData = assetManager.getAssetData<am::MaterialData>(skyboxMeshData->material.get()->id);
     assetManager.getAssetData<am::TextureData>(skyboxMaterialData->diffuseTexture.get()->id)->type = am::TextureType::TextureCube;
-
+    assetManager.saveAsset(skyboxMaterialData->diffuseTexture.get()->id);
 
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
     engine::Engine engine = engine::Engine(platform,vulkanRenderer,&assetManager);
@@ -66,6 +65,8 @@ int main(int argc, char *argv[]) {
     */
     // 4. Initialize game systems (ECS, scenes, etc.)
     auto scene = engine.CreateScene("Main scene");
+    auto uuid = assetManager.createAsset(am::AssetType::Scene,"C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/scene");
+    scene.get()->sceneId = uuid.value();
 
     vulkanRenderer->loadModel(skyboxModelId.value());
     vulkanRenderer->loadModel(planeId.value());
@@ -105,6 +106,8 @@ int main(int argc, char *argv[]) {
     auto& spotLight = scene.get()->GetComponent<LightComponent>(spotLightEntity);
     spotLight.hasShadow = true;
     spotLight.setType(LightComponent::Type::Spot);
+
+    engine.SaveScene();
 
     // 5. Main loop
     bool running = true;
