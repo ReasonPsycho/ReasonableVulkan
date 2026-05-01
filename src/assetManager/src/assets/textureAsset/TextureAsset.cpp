@@ -5,13 +5,17 @@
 
 namespace am
 {
-    TextureAsset::TextureAsset(ImportContext assetFactoryData)
-        : Asset(assetFactoryData)
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id) : Asset(id)
+    {
+    }
+
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData)
+        : Asset(id, assetFactoryData)
     {
         loadFromFile(assetFactoryData.importPath);
     }
 
-    TextureAsset::TextureAsset(const std::string& path, AssetFormat format) : Asset(path, format)
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
@@ -19,16 +23,58 @@ namespace am
                 spdlog::error("Failed to load TextureAsset from JSON: {}", path);
                 return;
             }
-            if (document.HasMember("width") && document["width"].IsUint()) data.width = document["width"].GetUint();
-            if (document.HasMember("height") && document["height"].IsUint()) data.height = document["height"].GetUint();
-            if (document.HasMember("channels") && document["channels"].IsUint()) data.channels = document["channels"].GetUint();
-            if (document.HasMember("hasAlpha") && document["hasAlpha"].IsBool()) data.hasAlpha = document["hasAlpha"].GetBool();
 
+            if (document.HasMember("uuid") && document["uuid"].IsString()) {
+                std::string savedUuidStr = document["uuid"].GetString();
+                boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
+                if (savedUuid != id) {
+                    spdlog::warn("Texture asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), boost::uuids::to_string(savedUuid).c_str());
+                }
+            }
+            
             if (document.HasMember("type") && document["type"].IsString()) {
                 std::string typeStr = document["type"].GetString();
                 if (typeStr == "Texture2D") data.type = TextureType::Texture2D;
                 else if (typeStr == "TextureCube") data.type = TextureType::TextureCube;
             }
+        } else if (format == AssetFormat::Binary) {
+            std::ifstream ifs(path, std::ios::binary | std::ios::in);
+            if (!ifs.is_open()) {
+                spdlog::error("Failed to open file for reading binary asset: {}", path);
+                return;
+            }
+
+            // Read magic number
+            char magic[6];
+            ifs.read(magic, sizeof(magic));
+            if (std::string(magic) != "RTEX_") {
+                spdlog::error("Invalid magic number in binary texture asset: {}", path);
+                return;
+            }
+
+            // Read UUID
+            boost::uuids::uuid savedId;
+            ifs.read(reinterpret_cast<char*>(&savedId), 16);
+            if (savedId != id) {
+                spdlog::warn("Texture asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), boost::uuids::to_string(savedId).c_str());
+            }
+
+            // Read metadata
+            ifs.read(reinterpret_cast<char*>(&data.width), sizeof(data.width));
+            ifs.read(reinterpret_cast<char*>(&data.height), sizeof(data.height));
+            ifs.read(reinterpret_cast<char*>(&data.channels), sizeof(data.channels));
+            ifs.read(reinterpret_cast<char*>(&data.hasAlpha), sizeof(data.hasAlpha));
+            ifs.read(reinterpret_cast<char*>(&data.type), sizeof(data.type));
+
+            // Read pixels
+            size_t pixelCount;
+            ifs.read(reinterpret_cast<char*>(&pixelCount), sizeof(pixelCount));
+            data.pixels.resize(pixelCount);
+            if (pixelCount > 0) {
+                ifs.read(reinterpret_cast<char*>(data.pixels.data()), pixelCount * sizeof(std::uint32_t));
+            }
+
+            ifs.close();
         }
     }
 
@@ -39,10 +85,7 @@ namespace am
             document.SetObject();
         }
 
-        document.AddMember("width", data.width, allocator);
-        document.AddMember("height", data.height, allocator);
-        document.AddMember("channels", data.channels, allocator);
-        document.AddMember("hasAlpha", data.hasAlpha, allocator);
+        document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
 
         std::string typeStr;
         switch (data.type) {
@@ -50,6 +93,37 @@ namespace am
             case TextureType::TextureCube: typeStr = "TextureCube"; break;
         }
         document.AddMember("type", rapidjson::Value(typeStr.c_str(), allocator), allocator);
+    }
+
+    void TextureAsset::SaveAssetToBin(std::string& path)
+    {
+        std::ofstream ofs(path, std::ios::binary | std::ios::out);
+        if (!ofs.is_open()) {
+            spdlog::error("Failed to open file for writing binary asset: {}", path);
+            return;
+        }
+
+        // Write magic number
+        ofs.write("RTEX_", 6);
+
+        // Write UUID
+        ofs.write(reinterpret_cast<const char*>(&id), 16);
+
+        // Write metadata
+        ofs.write(reinterpret_cast<const char*>(&data.width), sizeof(data.width));
+        ofs.write(reinterpret_cast<const char*>(&data.height), sizeof(data.height));
+        ofs.write(reinterpret_cast<const char*>(&data.channels), sizeof(data.channels));
+        ofs.write(reinterpret_cast<const char*>(&data.hasAlpha), sizeof(data.hasAlpha));
+        ofs.write(reinterpret_cast<const char*>(&data.type), sizeof(data.type));
+
+        // Write pixels
+        size_t pixelCount = data.pixels.size();
+        ofs.write(reinterpret_cast<const char*>(&pixelCount), sizeof(pixelCount));
+        if (pixelCount > 0) {
+            ofs.write(reinterpret_cast<const char*>(data.pixels.data()), pixelCount * sizeof(std::uint32_t));
+        }
+
+        ofs.close();
     }
 
 

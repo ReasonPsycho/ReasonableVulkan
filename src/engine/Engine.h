@@ -60,8 +60,8 @@ namespace engine {
         std::shared_ptr<IComponentArray> CreateComponentArray(const std::type_index& type) const;
         std::shared_ptr<SystemBase> CreateSystem(const std::type_index& type, Scene* scene) const;
 
-        void SaveScene(std::string filename);
-        void LoadScene(std::string filename);
+        void SaveScene();
+        void LoadScene(boost::uuids::uuid sceneId);
 
         // Get registered types
         const std::set<std::type_index>& GetRegisteredComponentTypes() const { return componentTypes; }

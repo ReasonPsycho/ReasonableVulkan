@@ -7,8 +7,9 @@
 namespace am {
     class ShaderProgramAsset : public Asset {
     public:
-        explicit ShaderProgramAsset(ImportContext assetFactoryData);
-        explicit ShaderProgramAsset(const std::string& path, AssetFormat format);
+        explicit ShaderProgramAsset(const boost::uuids::uuid& id);
+        explicit ShaderProgramAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
+        explicit ShaderProgramAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
 
         void SaveAssetToJson(rapidjson::Document& document) override;
 
@@ -21,10 +22,11 @@ namespace am {
         std::any getAssetData() override {
             return &data;
         }
-
     private:
+
         ShaderProgramData data;
-        void loadFromJson(const std::string& path);
+        void importFromImportJson(const std::string& path);
+        void loadFromProgramJson(const std::string& path);
     };
 }
 

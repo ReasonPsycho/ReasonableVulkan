@@ -36,12 +36,13 @@ int main(int argc, char *argv[]) {
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
 
-    auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shader","pbrShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shader","wiremeshShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shader","wiremeshTexturedShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shader","skyboxShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shader","shadowMapShader");
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shader","shadowCubeMapShader");
+    /* //asset loading
+    auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shaderImport","pbrShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shaderImport","wiremeshShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shaderImport","wiremeshTexturedShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shaderImport","skyboxShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shaderImport","shadowMapShader");
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shaderImport","shadowCubeMapShader");
     auto skyboxModelId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx","skyboxModel");
     auto planeId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx","planeModel");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx","boxModel");
@@ -50,7 +51,8 @@ int main(int argc, char *argv[]) {
     auto skyboxMeshData = assetManager.getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
     auto skyboxMaterialData = assetManager.getAssetData<am::MaterialData>(skyboxMeshData->material.get()->id);
     assetManager.getAssetData<am::TextureData>(skyboxMaterialData->diffuseTexture.get()->id)->type = am::TextureType::TextureCube;
-
+    assetManager.saveAsset(skyboxMaterialData->diffuseTexture.get()->id);
+    */
 
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
     engine::Engine engine = engine::Engine(platform,vulkanRenderer,&assetManager);
@@ -64,7 +66,10 @@ int main(int argc, char *argv[]) {
     gfx::Init();
     */
     // 4. Initialize game systems (ECS, scenes, etc.)
+    /*
     auto scene = engine.CreateScene("Main scene");
+    auto uuid = assetManager.createAsset(am::AssetType::Scene,"C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/scene","scene");
+    scene.get()->sceneId = uuid.value();
 
     vulkanRenderer->loadModel(skyboxModelId.value());
     vulkanRenderer->loadModel(planeId.value());
@@ -85,25 +90,18 @@ int main(int argc, char *argv[]) {
     scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skyboxMeshData->material.get()->id;
     scene.get()->GetComponent<CameraComponent>(cameraEntity).active = true;
 
-    /*
-    auto dirLightEntity = scene.get()->CreateEntity("Dir Light");
-    scene.get()->AddComponent<LightComponent>(dirLightEntity);
-    auto& dirLight = scene.get()->GetComponent<LightComponent>(dirLightEntity);
-    dirLight.hasShadow = true;
-    dirLight.setType(LightComponent::Type::Directional);
-
-    auto pointLightEntity = scene.get()->CreateEntity("Point Light");
-    scene.get()->AddComponent<LightComponent>(pointLightEntity);
-    auto& pointLight = scene.get()->GetComponent<LightComponent>(pointLightEntity);
-    pointLight.hasShadow = true;
-    pointLight.setType(LightComponent::Type::Point);
-    */
-
     auto spotLightEntity = scene.get()->CreateEntity("Spot Light");
     scene.get()->AddComponent<LightComponent>(spotLightEntity);
     auto& spotLight = scene.get()->GetComponent<LightComponent>(spotLightEntity);
     spotLight.hasShadow = true;
     spotLight.setType(LightComponent::Type::Spot);
+
+    engine.SaveScene();
+
+    */
+
+    auto sceneId = assetManager.getAssetUuid("scene");
+    engine.LoadScene(sceneId.value());
 
     // 5. Main loop
     bool running = true;

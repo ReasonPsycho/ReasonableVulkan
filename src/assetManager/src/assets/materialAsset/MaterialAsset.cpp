@@ -2,7 +2,10 @@
 #include "../../AssetManager.hpp"
 #include "../../JsonHelpers.hpp"
 
-am::MaterialAsset::MaterialAsset(ImportContext assetFactoryData) : Asset(assetFactoryData) {
+am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id) : Asset(id) {
+}
+
+am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
     AssetManager &assetManager = AssetManager::getInstance();
     auto scene = assetManager.importer.GetScene();
 
@@ -23,20 +26,35 @@ am::MaterialAsset::MaterialAsset(ImportContext assetFactoryData) : Asset(assetFa
     }
 }
 
-am::MaterialAsset::MaterialAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
     if (format == AssetFormat::Json) {
         rapidjson::Document document;
         if (!loadJsonFromFile(path, document)) {
             spdlog::error("Failed to load MaterialAsset from JSON: {}", path);
             return;
         }
+
+        if (document.HasMember("uuid") && document["uuid"].IsString()) {
+            std::string savedUuidStr = document["uuid"].GetString();
+            boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
+                if (savedUuid != id) {
+                    spdlog::warn("Material asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), savedUuidStr.c_str());
+                }
+        }
+
         AssetManager &assetManager = AssetManager::getInstance();
 
         auto loadTexture = [&](const char* key, std::shared_ptr<AssetInfo>& target) {
             if (document.HasMember(key) && document[key].IsString()) {
-                auto result = assetManager.registerAsset(document[key].GetString());
-                if (result) {
-                    target = assetManager.getAssetInfo(result.value()).value_or(nullptr);
+                std::string textureUuidStr = document[key].GetString();
+                try {
+                    boost::uuids::uuid textureId = boost::uuids::string_generator()(textureUuidStr);
+                    target = assetManager.getAssetInfo(textureId).value_or(nullptr);
+                    if (!target) {
+                        spdlog::warn("Texture asset with UUID {} not found for material {}", textureUuidStr.c_str(), path.c_str());
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::error("Failed to parse texture UUID {} for material {}: {}", textureUuidStr.c_str(), path.c_str(), e.what());
                 }
             }
         };
@@ -156,15 +174,18 @@ void am::MaterialAsset::extractPBRData(const aiMaterial* aiMaterial,ImportContex
     }
 }
 
-void am::MaterialAsset::SaveAssetToJson(rapidjson::Document& document) {
+    void am::MaterialAsset::SaveAssetToJson(rapidjson::Document& document) {
     auto& allocator = document.GetAllocator();
     if (!document.IsObject()) {
         document.SetObject();
     }
 
+    document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
+
     auto addTexture = [&](const char* key, std::shared_ptr<AssetInfo>& texture) {
         if (texture) {
-            document.AddMember(rapidjson::StringRef(key), rapidjson::Value(texture->importPath.c_str(), allocator), allocator);
+            std::string uuidStr = boost::uuids::to_string(texture->id);
+            document.AddMember(rapidjson::StringRef(key), rapidjson::Value(uuidStr.c_str(), allocator), allocator);
         }
     };
 
