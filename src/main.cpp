@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
 
+    /* //asset loading
     auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shaderImport","pbrShader");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shaderImport","wiremeshShader");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shaderImport","wiremeshTexturedShader");
@@ -51,6 +52,7 @@ int main(int argc, char *argv[]) {
     auto skyboxMaterialData = assetManager.getAssetData<am::MaterialData>(skyboxMeshData->material.get()->id);
     assetManager.getAssetData<am::TextureData>(skyboxMaterialData->diffuseTexture.get()->id)->type = am::TextureType::TextureCube;
     assetManager.saveAsset(skyboxMaterialData->diffuseTexture.get()->id);
+    */
 
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
     engine::Engine engine = engine::Engine(platform,vulkanRenderer,&assetManager);
@@ -64,8 +66,9 @@ int main(int argc, char *argv[]) {
     gfx::Init();
     */
     // 4. Initialize game systems (ECS, scenes, etc.)
+    /*
     auto scene = engine.CreateScene("Main scene");
-    auto uuid = assetManager.createAsset(am::AssetType::Scene,"C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/scene");
+    auto uuid = assetManager.createAsset(am::AssetType::Scene,"C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/scene","scene");
     scene.get()->sceneId = uuid.value();
 
     vulkanRenderer->loadModel(skyboxModelId.value());
@@ -87,20 +90,6 @@ int main(int argc, char *argv[]) {
     scene.get()->GetComponent<CameraComponent>(cameraEntity).skyboxMaterialId = skyboxMeshData->material.get()->id;
     scene.get()->GetComponent<CameraComponent>(cameraEntity).active = true;
 
-    /*
-    auto dirLightEntity = scene.get()->CreateEntity("Dir Light");
-    scene.get()->AddComponent<LightComponent>(dirLightEntity);
-    auto& dirLight = scene.get()->GetComponent<LightComponent>(dirLightEntity);
-    dirLight.hasShadow = true;
-    dirLight.setType(LightComponent::Type::Directional);
-
-    auto pointLightEntity = scene.get()->CreateEntity("Point Light");
-    scene.get()->AddComponent<LightComponent>(pointLightEntity);
-    auto& pointLight = scene.get()->GetComponent<LightComponent>(pointLightEntity);
-    pointLight.hasShadow = true;
-    pointLight.setType(LightComponent::Type::Point);
-    */
-
     auto spotLightEntity = scene.get()->CreateEntity("Spot Light");
     scene.get()->AddComponent<LightComponent>(spotLightEntity);
     auto& spotLight = scene.get()->GetComponent<LightComponent>(spotLightEntity);
@@ -108,6 +97,11 @@ int main(int argc, char *argv[]) {
     spotLight.setType(LightComponent::Type::Spot);
 
     engine.SaveScene();
+
+    */
+
+    auto sceneId = assetManager.getAssetUuid("scene");
+    engine.LoadScene(sceneId.value());
 
     // 5. Main loop
     bool running = true;

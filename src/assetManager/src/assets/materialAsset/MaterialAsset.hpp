@@ -34,7 +34,9 @@ public:
     std::any getAssetData() override {
         return &data;
     }
+
 private:
+
     MaterialData data;
     void extractPBRData(const aiMaterial* aiMaterial,ImportContext& assetFactoryData);
 };

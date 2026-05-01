@@ -33,9 +33,6 @@ namespace am {
         virtual void SaveAssetMetadata(rapidjson::Document& document) = 0;
         virtual void LoadAssetMetadata(rapidjson::Document& document) = 0;
 
-        virtual bool shouldSaveToBin() const { return saveToBinInsteadOfJson; }
-
-        bool saveToBinInsteadOfJson = false;
         boost::uuids::uuid id;
     };
 }

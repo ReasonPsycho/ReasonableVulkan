@@ -20,6 +20,19 @@ bool am::ImportContext::operator==(const ImportContext& factory_context) const
 }
 
 am::Asset *am::AssetInfo::getAsset() {
+    if (!isLoaded)
+    {
+        AssetManager &assetManager = AssetManager::getInstance();
+        auto asset = assetManager.getAsset(id);
+        if (asset.has_value())
+        {
+            loadedAsset = asset.value();
+        }else
+        {
+            spdlog::error("Failed to load asset with id: {}", boost::uuids::to_string(id));
+        }
+        return loadedAsset;
+    }
     return loadedAsset;
 }
 
@@ -33,14 +46,14 @@ void am::AssetInfo::SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::D
     std::string uuidStr = boost::uuids::to_string(id);
 
     obj.AddMember("id", rapidjson::Value(uuidStr.c_str(), allocator), allocator);
-    obj.AddMember("path", rapidjson::Value(importPath.c_str(), allocator), allocator);
+    obj.AddMember("path", rapidjson::Value(path.c_str(), allocator), allocator);
     obj.AddMember("type", rapidjson::Value(AssetTypeToString(type).c_str(), allocator), allocator);
     obj.AddMember("lookUpName", rapidjson::Value(lookUpName.c_str(), allocator), allocator);
     obj.AddMember("contentHash", rapidjson::Value(static_cast<uint64_t>(contentHash)), allocator);
 
     // Add AssetFactoryData
     rapidjson::Value factoryDataObj(rapidjson::kObjectType);
-    factoryDataObj.AddMember("path", rapidjson::Value(importContext.importPath.c_str(), allocator), allocator);
+    factoryDataObj.AddMember("importPath", rapidjson::Value(importContext.importPath.c_str(), allocator), allocator);
     factoryDataObj.AddMember("assetType", rapidjson::Value(AssetTypeToString(importContext.assetType).c_str(), allocator), allocator);
     factoryDataObj.AddMember("assimpIndex", rapidjson::Value(importContext.assimpIndex), allocator);
 
@@ -59,7 +72,7 @@ am::AssetInfo am::AssetInfo::DeserializeAssetInfoFromJson(const rapidjson::Value
 
     const auto& factoryData = obj["assetFactoryData"];
     ImportContext assetFactoryData(
-        factoryData["path"].GetString(),
+        factoryData["importPath"].GetString(),
         StringToAssetType(factoryData["assetType"].GetString()),
         factoryData["assimpIndex"].GetInt()
     );

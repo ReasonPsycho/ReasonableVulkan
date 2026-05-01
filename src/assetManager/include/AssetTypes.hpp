@@ -6,6 +6,8 @@
 #include <sstream>
 #include <filesystem>
 
+#include "assetDatas/ShaderData.h"
+
 
 namespace am {
     enum class AssetFormat {
@@ -81,8 +83,9 @@ namespace am {
         std::string ext = extension; // make a copy
 
         // Strip prefixes
-        if (ext.rfind("b_", 0) == 0) {
-            ext = ext.substr(2);
+        size_t lastUnderscore = ext.find_last_of('_');
+        if (lastUnderscore != std::string::npos) {
+            ext = "." + ext.substr(lastUnderscore + 1);
         }
 
         if (ext == ".fbx")       return AssetType::Model;
@@ -120,10 +123,47 @@ namespace am {
         }
     }
 
-    inline std::string GetBinPath(const std::string& importPath) {
+    inline bool GetEditorSavesToBin(AssetType type) {
+        switch (type) {
+        case AssetType::Mesh:          return true;
+        case AssetType::Model:         return false;
+        case AssetType::Texture:       return true;
+        case AssetType::Shader:        return true;
+        case AssetType::ShaderProgram: return false;
+        case AssetType::Animation:     return true;
+        case AssetType::Material:      return false;
+        case AssetType::Animator:      return true;
+        case AssetType::Scene:         return false;
+        case AssetType::Prefab:        return false;
+        default:                       return false;
+        }
+    }
+
+    inline std::string GetShaderSufix(ShaderStage shaderStage)
+    {
+        switch (shaderStage)
+        {
+            case ShaderStage::Vertex: return "vs"; break;
+            case ShaderStage::TessellationControl: return "tcs"; break;
+            case ShaderStage::TessellationEvaluation: return "tes"; break;
+            case ShaderStage::Fragment: return "fs"; break;
+            case ShaderStage::Geometry: return "gs"; break;
+            case ShaderStage::Compute: return "cs"; break;
+            default: return "";
+        }
+    }
+
+
+    inline std::string GetBinPath(const std::string& importPath, std::string additionalSufix) {
         std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
         std::string filename =  p.stem().string();
-        filename += ".b_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        if (additionalSufix != "")
+        {
+            filename += ".b_" + additionalSufix + "_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        }else
+        {
+            filename += ".b_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        }
         return (p.parent_path() / filename).string();
     }
 }

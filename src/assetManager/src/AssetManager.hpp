@@ -63,6 +63,7 @@ namespace am {
         MetadataLoader getMetadataLoader(std::type_index type) const;
         MetadataSaver getMetadataSaver(std::type_index type) const;
 
+
         //Creators
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) override;
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookupName) override;
@@ -86,7 +87,7 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
         std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
-        std::optional<Asset*> getAsset(const boost::uuids::uuid& id) const override;
+        std::optional<Asset*> getAsset(const boost::uuids::uuid& id) override;
 
         void saveAsset(boost::uuids::uuid id) override;
         void saveAsset(std::string lookupName) override;

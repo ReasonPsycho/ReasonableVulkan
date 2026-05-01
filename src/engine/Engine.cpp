@@ -154,9 +154,12 @@ namespace engine {
 
     void Engine::LoadScene(boost::uuids::uuid sceneId)
     {
-        if (activeScene) {
-            activeScene->sceneId = sceneId;
+        if (!activeScene)
+        {
+            activeScene = CreateScene("scene");
         }
+
+        activeScene->sceneId = sceneId;
 
         auto assetInfo = assetManagerInterface->getAssetInfo(sceneId);
         if (!assetInfo) {

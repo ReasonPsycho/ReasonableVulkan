@@ -34,7 +34,6 @@ namespace am {
     class AssetInfo {
     public:
         boost::uuids::uuid id;
-        std::string importPath;
         std::string path;
         AssetType type;
         std::string lookUpName;
@@ -51,7 +50,7 @@ namespace am {
                   ImportContext factoryData,
                   std::string lookUpName)
             : id(uuid)
-              , importPath(std::move(p))
+              , path(std::move(p))
               , type(t)
               , contentHash(hash)
               , importContext(std::move(factoryData))
@@ -65,12 +64,12 @@ namespace am {
 
         AssetInfo(AssetInfo &&other) noexcept
             : id(other.id)
-              , importPath(std::move(other.importPath))
               , path(std::move(other.path))
               , type(other.type)
               , contentHash(other.contentHash)
               , importContext(std::move(other.importContext))
               , loadedAsset(other.loadedAsset)
+              , lookUpName(other.lookUpName)
               , isLoaded(other.isLoaded) {
             other.loadedAsset = nullptr;
             other.isLoaded = false;

@@ -52,9 +52,6 @@ namespace am {
             return &data;
         }
 
-        bool shouldSaveToBin() const override { return saveToBinInsteadOfJson; }
-
-        bool saveToBinInsteadOfJson = true;
     private:
         ShaderData data;
 

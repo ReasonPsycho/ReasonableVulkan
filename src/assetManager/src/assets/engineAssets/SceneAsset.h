@@ -29,6 +29,7 @@ namespace am {
 
         void SaveAssetMetadata(rapidjson::Document& document) override;
         void LoadAssetMetadata(rapidjson::Document& document) override;
+
     };
 }
 

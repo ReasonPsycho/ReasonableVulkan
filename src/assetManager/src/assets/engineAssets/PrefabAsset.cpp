@@ -45,16 +45,8 @@ namespace am {
     std::any PrefabAsset::getAssetData() { return &prefabData; }
 
     void PrefabAsset::SaveAssetToJson(rapidjson::Document& document) {
-        auto& allocator = document.GetAllocator();
-        if (prefabData.IsObject()) {
-            for (auto& member : prefabData.GetObject()) {
-                rapidjson::Value key;
-                key.CopyFrom(member.name, allocator);
-                rapidjson::Value value;
-                value.CopyFrom(member.value, allocator);
-                document.AddMember(key, value, allocator);
-            }
-        }    }
+        document.CopyFrom(prefabData, document.GetAllocator());
+    }
 
     void PrefabAsset::SaveAssetToBin(std::string& path) {
         std::ofstream ofs(path, std::ios::binary | std::ios::out);

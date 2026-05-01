@@ -28,7 +28,7 @@ namespace am {
         RegisterAssetType<SceneAsset>();
         RegisterAssetType<PrefabAsset>();
 
-        //loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
+        loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
     }
 
     AssetManager::~AssetManager() {
@@ -83,10 +83,14 @@ namespace am {
             auto id = boost::uuids::random_generator()();
             auto newAsset = creator(id);
             auto info = std::make_shared<AssetInfo>(id, path, assetType, 0,ImportContext("", assetType, 0), lookupName);
-            if (newAsset->shouldSaveToBin())
+            if (GetEditorSavesToBin(assetType))
             {
-
-                std::string filename = GetBinPath(path);
+                std::string additionalSufix = "";
+                if (info.get()->type == AssetType::Shader)
+                {
+                    additionalSufix = GetShaderSufix(newAsset.get()->getAssetDataAs<ShaderData>()->stage);
+                }
+                std::string filename = GetBinPath(path, additionalSufix);
                 info->path = filename;
                 newAsset->SaveAssetToBin(filename);
                 metadata.insert(std::make_pair(id, info));
@@ -178,11 +182,43 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
         return std::nullopt;
     }
 
-    std::optional<Asset*> AssetManager::getAsset(const boost::uuids::uuid& id) const
+    std::optional<Asset*> AssetManager::getAsset(const boost::uuids::uuid& id)
     {
         auto it = assets.find(id);
         if (it != assets.end()) return it->second.get();
-        spdlog::error("No asset found!");
+
+        auto assetInfo = metadata.find(id);
+        if (assetInfo == metadata.end()) return std::nullopt;
+        auto decodedAssetInfo = assetInfo->second;
+        unique_ptr<Asset> assetNew;
+        try
+        {
+            if (GetEditorSavesToBin(assetInfo->second->type))
+            {
+                auto binLoader = getLoader(getTypeIndex(assetInfo->second->type));
+                if (!binLoader) {
+                    spdlog::error("No factory registered for asset type");
+                    throw std::runtime_error("No factory registered for asset type");
+                }
+                assetNew = binLoader(id, assetInfo->second->path, AssetFormat::Binary);
+            }else
+            {
+                auto jsonLoader = getLoader(getTypeIndex(assetInfo->second->type));
+                if (!jsonLoader) {
+                    spdlog::error("No factory registered for asset type");
+                    throw std::runtime_error("No factory registered for asset type");
+                }
+                assetNew = jsonLoader(id, assetInfo->second->path, AssetFormat::Json);
+            }
+            assetInfo->second->loadedAsset = assetNew.get();
+            assetInfo->second->isLoaded = true;
+            assets[id] = std::move(assetNew);
+            return assets[id].get();
+        }catch (const std::exception& e)
+        {
+            spdlog::error("Failed to load asset");
+            return std::nullopt;
+        }
         return std::nullopt;
     }
 
@@ -199,12 +235,14 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             spdlog::error("No asset found with id: {}", boost::uuids::to_string(id));
         }
         
-        if (asset.value()->shouldSaveToBin())
+        if (GetEditorSavesToBin(info.value()->type))
         {
             asset.value()->SaveAssetToBin(info.value()->path);
         } else {
             rapidjson::Document document;
             document.SetObject();
+
+            asset.value()->SaveAssetToJson(document);
 
             auto& allocator = document.GetAllocator();
 
@@ -213,8 +251,6 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             encodingInfo.AddMember("encoding", "UTF-8", allocator);
             encodingInfo.AddMember("version", "1.0", allocator);
             document.AddMember("_meta", encodingInfo, allocator);
-
-            asset.value()->SaveAssetToJson(document);
 
             saveJsonToFile(info.value()->path, document);
         }
@@ -230,6 +266,7 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             return;
         }
     }
+
 
     std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path, std::string lookUpName)
     {
@@ -329,34 +366,13 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
 
 
     any AssetManager::getAssetData(const boost::uuids::uuid& id) {
-        auto asset = assets.find(id);
-        if (asset != assets.end()) {
-            return asset->second.get()->getAssetData();
-        }
+        auto asset = getAsset(id);
 
-        auto assetInfo = metadata.find(id);
-        if (assetInfo == metadata.end()) return nullptr;
-
-        try
+        if (asset.has_value())
         {
-            auto loader = getLoader(getTypeIndex(assetInfo->second->type));
-            if (!loader) {
-                spdlog::error("No factory registered for asset type");
-                throw std::runtime_error("No factory registered for asset type");
-            }
-
-            auto assetData = loader(id, assetInfo->second->path, AssetFormat::Json);
-            if (assetData->shouldSaveToBin()) {
-                assetData = loader(id, assetInfo->second->path, AssetFormat::Binary);
-            }
-            assets[id] = std::move(assetData);
-            return assets[id].get()->getAssetData();
+            return asset.value()->getAssetData();
         }
-        catch (std::exception& e)
-        {
-            spdlog::error("Failed to get asset");
-        }
-        return nullptr;
+        return std::nullopt;
     }
 
     any AssetManager::getAssetData(std::string lookupName)
@@ -442,9 +458,14 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             std::filesystem::path p = std::filesystem::path(importContext.importPath).lexically_normal();
             std::string baseName = p.stem().string();
 
-            if (newAsset->shouldSaveToBin())
+            if (GetEditorSavesToBin(importContext.assetType))
             {
-                std::string filename = GetBinPath((p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string());
+                std::string additionalSufix = "";
+                if (info.get()->type == AssetType::Shader)
+                {
+                    additionalSufix = GetShaderSufix(newAsset.get()->getAssetDataAs<ShaderData>()->stage);
+                }
+                std::string filename = GetBinPath((p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string(), additionalSufix);
                 info->path = filename;
                 newAsset->SaveAssetToBin(filename);
             } else {
@@ -575,4 +596,6 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
         spdlog::error("Failed to get metadata saver!");
         throw std::runtime_error("Failed to get metadata saver!");
     }
+
+
 }

@@ -46,18 +46,8 @@ namespace am {
 
 
     void ShaderProgramAsset::importFromImportJson(const std::string& path) {
-        std::ifstream ifs(path);
-        if (!ifs.is_open()) {
-            spdlog::error("Failed to open shader import file: {}", path);
-            return;
-        }
-
-        rapidjson::IStreamWrapper isw(ifs);
         rapidjson::Document doc;
-        doc.ParseStream(isw);
-
-        if (doc.HasParseError()) {
-            spdlog::error("Failed to parse shader import JSON: {}", path);
+        if (!loadJsonFromFile(path, doc)) {
             return;
         }
 
@@ -81,18 +71,9 @@ namespace am {
     }
 
     void ShaderProgramAsset::loadFromProgramJson(const std::string& path) {
-        std::ifstream ifs(path);
-        if (!ifs.is_open()) {
-            spdlog::error("Failed to open shader program file: {}", path);
-            return;
-        }
-
-        rapidjson::IStreamWrapper isw(ifs);
         rapidjson::Document doc;
-        doc.ParseStream(isw);
-
-        if (doc.HasParseError()) {
-            spdlog::error("Failed to parse shader program JSON: {}", path);
+        if (!loadJsonFromFile(path, doc)) {
+            // Error logged by loadJsonFromFile
             return;
         }
 
