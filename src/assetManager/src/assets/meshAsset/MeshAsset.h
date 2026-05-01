@@ -32,6 +32,7 @@ namespace am {
     class MeshAsset : public Asset {
     public:
 
+        explicit MeshAsset(const boost::uuids::uuid& id);
         explicit MeshAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
         explicit MeshAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
 

@@ -15,6 +15,9 @@ using namespace std;
 
 namespace am {
 
+    MeshAsset::MeshAsset(const boost::uuids::uuid& id) : Asset(id), importContext("", AssetType::Other) {
+    }
+
     size_t MeshAsset::calculateContentHash() const {
         size_t hash = 0;
 

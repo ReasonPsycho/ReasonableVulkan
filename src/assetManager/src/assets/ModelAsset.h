@@ -27,6 +27,7 @@ namespace am {
         // model data
         ModelData data;
 
+        explicit ModelAsset(const boost::uuids::uuid& id);
         ModelAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
         explicit ModelAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
 

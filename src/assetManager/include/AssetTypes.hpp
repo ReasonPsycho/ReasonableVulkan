@@ -22,6 +22,8 @@ namespace am {
         Animation,
         Material,
         Animator,
+        Scene,
+        Prefab,
         Other // Just for testing
     };
 
@@ -45,6 +47,10 @@ namespace am {
                 return os << "Other";
             case AssetType::Material:
                 return os << "Material";
+            case AssetType::Scene:
+                return os << "Scene";
+            case AssetType::Prefab:
+                return os << "Prefab";
             default:
                 return os << "Unknown";
         }
@@ -65,6 +71,8 @@ namespace am {
         if (str == "Animation") return AssetType::Animation;
         if (str == "Material") return AssetType::Material;
         if (str == "Animator") return AssetType::Animator;
+        if (str == "Scene") return AssetType::Scene;
+        if (str == "Prefab") return AssetType::Prefab;
         return AssetType::Other;
     }
 
@@ -90,6 +98,8 @@ namespace am {
         if (ext == ".material")  return AssetType::Material;
         if (ext == ".mesh")      return AssetType::Mesh;
         if (ext == ".texture")   return AssetType::Texture;
+        if (ext == ".scene")     return AssetType::Scene;
+        if (ext == ".prefab")    return AssetType::Prefab;
 
         return AssetType::Other;
     }
@@ -104,6 +114,8 @@ namespace am {
             case AssetType::Animation:     return ".animation";
             case AssetType::Material:      return ".material";
             case AssetType::Animator:      return ".animator";
+            case AssetType::Scene:         return ".scene";
+            case AssetType::Prefab:        return ".prefab";
             default:                       return ".other";
         }
     }

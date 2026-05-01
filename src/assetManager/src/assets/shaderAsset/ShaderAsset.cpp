@@ -12,6 +12,9 @@
 #include "ShaderIncluder.hpp"
 
 namespace am {
+    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id) : Asset(id) {
+    }
+
     ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
         loadFromFile(assetFactoryData.importPath);
     }

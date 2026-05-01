@@ -5,6 +5,10 @@
 
 namespace am
 {
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id) : Asset(id)
+    {
+    }
+
     TextureAsset::TextureAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData)
         : Asset(id, assetFactoryData)
     {
