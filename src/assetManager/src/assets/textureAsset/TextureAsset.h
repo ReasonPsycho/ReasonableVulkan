@@ -49,13 +49,8 @@ namespace am {
         std::any getAssetData() override {
             return &data;
         }
-
-        bool shouldSaveToBin() const override { return saveToBinInsteadOfJson; }
-    private:
+  private:
         TextureData data;
-
-        bool saveToBinInsteadOfJson = true;
-
     };
 }
 

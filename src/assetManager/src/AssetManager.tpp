@@ -48,4 +48,5 @@ void AssetManager::RegisterAssetType()
     {
         static_cast<T&>(asset).LoadAssetMetadata(doc);
     };
+
 }

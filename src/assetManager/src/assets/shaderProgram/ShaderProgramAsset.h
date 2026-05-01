@@ -22,8 +22,8 @@ namespace am {
         std::any getAssetData() override {
             return &data;
         }
-
     private:
+
         ShaderProgramData data;
         void importFromImportJson(const std::string& path);
         void loadFromProgramJson(const std::string& path);

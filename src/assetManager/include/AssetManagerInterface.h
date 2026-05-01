@@ -40,7 +40,7 @@ namespace am
         }
 
         virtual std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid& id) const = 0;
-        virtual std::optional<Asset*> getAsset(const boost::uuids::uuid& id) const = 0;
+        virtual std::optional<Asset*> getAsset(const boost::uuids::uuid& id) = 0;
 
         virtual void saveAsset(boost::uuids::uuid id) = 0;
         virtual void saveAsset(std::string lookupName) = 0;
