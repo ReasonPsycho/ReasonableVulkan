@@ -32,8 +32,9 @@ namespace am {
     class MeshAsset : public Asset {
     public:
 
-        explicit MeshAsset(const ImportContext& assetFactoryData);
-        explicit MeshAsset(const std::string& path, AssetFormat format);
+        explicit MeshAsset(const boost::uuids::uuid& id);
+        explicit MeshAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
+        explicit MeshAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
 
         void SaveAssetToJson(rapidjson::Document& document) override;
         void SaveAssetToBin(std::string& path) override;
@@ -49,7 +50,6 @@ namespace am {
             return &data;
         }
 
-        bool saveToBinInsteadOfJson = true;
     private:
         MeshData data;
         ImportContext importContext;

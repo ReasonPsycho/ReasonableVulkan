@@ -16,8 +16,9 @@ namespace am
     public:
         virtual ~AssetManagerInterface() = default;
 
-        virtual boost::uuids::uuid createAsset(AssetType assetType) = 0;
-        virtual boost::uuids::uuid createAsset(AssetType assetType,std::string lookUpName) = 0;
+        virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) = 0;
+        virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookUpName) = 0;
+
 
         virtual std::optional<boost::uuids::uuid> registerAsset(std::string path) = 0;
         virtual std::optional<boost::uuids::uuid> registerAsset(std::string path,std::string lookUpName) = 0;
@@ -39,6 +40,10 @@ namespace am
         }
 
         virtual std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid& id) const = 0;
+        virtual std::optional<Asset*> getAsset(const boost::uuids::uuid& id) = 0;
+
+        virtual void saveAsset(boost::uuids::uuid id) = 0;
+        virtual void saveAsset(std::string lookupName) = 0;
 
         virtual std::vector<std::string> getRegisteredAssetsNames() const = 0;
         virtual std::vector<std::string> getRegisteredAssetsNames(AssetType type) const = 0;

@@ -21,10 +21,11 @@ namespace am {
 
     class ShaderAsset : public Asset {
     public:
-        explicit ShaderAsset(ImportContext assetFactoryData);
-        explicit ShaderAsset(const std::string& path, AssetFormat format);
+        explicit ShaderAsset(const boost::uuids::uuid& id);
+        explicit ShaderAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
+        explicit ShaderAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
 
-        void SaveAssetToJson(rapidjson::Document& document) override {};
+        void SaveAssetToJson(rapidjson::Document& document) override {throw std::runtime_error("Cannot save ShaderAsset to JSON");};
         void SaveAssetToBin(std::string& path) override;
 
         void loadFromFile(const std::string &path);
@@ -51,7 +52,6 @@ namespace am {
             return &data;
         }
 
-        bool saveToBinInsteadOfJson = true;
     private:
         ShaderData data;
 

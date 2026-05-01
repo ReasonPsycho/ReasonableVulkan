@@ -15,6 +15,9 @@ using namespace std;
 
 namespace am {
 
+    MeshAsset::MeshAsset(const boost::uuids::uuid& id) : Asset(id), importContext("", AssetType::Other) {
+    }
+
     size_t MeshAsset::calculateContentHash() const {
         size_t hash = 0;
 
@@ -44,7 +47,7 @@ namespace am {
     }
 
 
-    MeshAsset::MeshAsset(const ImportContext& assetFactoryData): Asset(assetFactoryData), importContext(assetFactoryData)
+    MeshAsset::MeshAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData): Asset(id, assetFactoryData), importContext(assetFactoryData)
     {
         AssetManager &assetManager = AssetManager::getInstance();
         auto scene = assetManager.importer.GetScene();
@@ -168,7 +171,7 @@ namespace am {
         }
     }
 
-    MeshAsset::MeshAsset(const std::string& path, AssetFormat format): Asset(path, format), importContext("",AssetType::Other)
+    MeshAsset::MeshAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format): Asset(id, path, format), importContext("",AssetType::Other)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
@@ -239,9 +242,15 @@ namespace am {
             }
 
             if (document.HasMember("material") && document["material"].IsString()) {
-                auto result = assetManager.registerAsset(document["material"].GetString());
-                if (result) {
-                    data.material = assetManager.getAssetInfo(result.value()).value_or(nullptr);
+                std::string materialUuidStr = document["material"].GetString();
+                try {
+                    boost::uuids::uuid materialId = boost::uuids::string_generator()(materialUuidStr);
+                    data.material = assetManager.getAssetInfo(materialId).value_or(nullptr);
+                    if (!data.material) {
+                        spdlog::warn("Material asset with UUID {} not found for mesh {}", materialUuidStr, path);
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::error("Failed to parse material UUID {} for mesh {}: {}", materialUuidStr, path, e.what());
                 }
             }
 
@@ -270,16 +279,21 @@ namespace am {
                 return;
             }
 
-            // Read material path
-            size_t pathSize;
-            ifs.read(reinterpret_cast<char*>(&pathSize), sizeof(pathSize));
-            std::string materialPath(pathSize, '\0');
-            ifs.read(&materialPath[0], pathSize);
+            // Read UUID
+            boost::uuids::uuid savedId;
+            ifs.read(reinterpret_cast<char*>(&savedId), 16);
+            if (savedId != id) {
+                spdlog::warn("Mesh asset UUID mismatch: expected {}, got {}", boost::uuids::to_string(id), boost::uuids::to_string(savedId));
+            }
 
-            if (!materialPath.empty()) {
-                auto result = AssetManager::getInstance().registerAsset(materialPath);
-                if (result) {
-                    data.material = AssetManager::getInstance().getAssetInfo(result.value()).value_or(nullptr);
+            // Read material UUID
+            boost::uuids::uuid materialId;
+            ifs.read(reinterpret_cast<char*>(&materialId), 16);
+
+            if (!materialId.is_nil()) {
+                data.material = AssetManager::getInstance().getAssetInfo(materialId).value_or(nullptr);
+                if (!data.material) {
+                    spdlog::warn("Material asset with UUID {} not found for mesh {}", boost::uuids::to_string(materialId), path);
                 }
             }
 
@@ -313,6 +327,8 @@ namespace am {
             document.SetObject();
         }
 
+        document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
+
         rapidjson::Value icObj(rapidjson::kObjectType);
         icObj.AddMember("path", rapidjson::Value(importContext.importPath.c_str(), allocator), allocator);
         icObj.AddMember("type", rapidjson::Value(AssetTypeToString(importContext.assetType).c_str(), allocator), allocator);
@@ -322,7 +338,7 @@ namespace am {
 
 
         if (data.material) {
-            document.AddMember("material", rapidjson::Value(data.material->importPath.c_str(), allocator), allocator);
+            document.AddMember("material", rapidjson::Value(boost::uuids::to_string(data.material->id).c_str(), allocator), allocator);
         }
 
         auto addVec3 = [&](const char* key, const glm::vec3& vec) {
@@ -352,11 +368,12 @@ namespace am {
         const char magic[] = "RMESH";
         ofs.write(magic, sizeof(magic));
 
-        // Write material path (string)
-        std::string materialPath = data.material ? data.material->importPath : "";
-        size_t pathSize = materialPath.size();
-        ofs.write(reinterpret_cast<const char*>(&pathSize), sizeof(pathSize));
-        ofs.write(materialPath.c_str(), pathSize);
+        // Write UUID
+        ofs.write(reinterpret_cast<const char*>(&id), 16);
+
+        // Write material UUID
+        boost::uuids::uuid materialId = data.material ? data.material->id : boost::uuids::nil_uuid();
+        ofs.write(reinterpret_cast<const char*>(&materialId), 16);
 
         // Write bounding box
         ofs.write(reinterpret_cast<const char*>(&data.boundingBoxMin), sizeof(glm::vec3));

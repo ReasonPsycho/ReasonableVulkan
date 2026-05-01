@@ -6,6 +6,8 @@
 #include <sstream>
 #include <filesystem>
 
+#include "assetDatas/ShaderData.h"
+
 
 namespace am {
     enum class AssetFormat {
@@ -22,6 +24,8 @@ namespace am {
         Animation,
         Material,
         Animator,
+        Scene,
+        Prefab,
         Other // Just for testing
     };
 
@@ -45,6 +49,10 @@ namespace am {
                 return os << "Other";
             case AssetType::Material:
                 return os << "Material";
+            case AssetType::Scene:
+                return os << "Scene";
+            case AssetType::Prefab:
+                return os << "Prefab";
             default:
                 return os << "Unknown";
         }
@@ -65,6 +73,8 @@ namespace am {
         if (str == "Animation") return AssetType::Animation;
         if (str == "Material") return AssetType::Material;
         if (str == "Animator") return AssetType::Animator;
+        if (str == "Scene") return AssetType::Scene;
+        if (str == "Prefab") return AssetType::Prefab;
         return AssetType::Other;
     }
 
@@ -73,8 +83,9 @@ namespace am {
         std::string ext = extension; // make a copy
 
         // Strip prefixes
-        if (ext.rfind("b_", 0) == 0) {
-            ext = ext.substr(2);
+        size_t lastUnderscore = ext.find_last_of('_');
+        if (lastUnderscore != std::string::npos) {
+            ext = "." + ext.substr(lastUnderscore + 1);
         }
 
         if (ext == ".fbx")       return AssetType::Model;
@@ -84,11 +95,14 @@ namespace am {
         if (ext == ".frag")      return AssetType::Shader;
         if (ext == ".vert")      return AssetType::Shader;
         if (ext == ".geom")      return AssetType::Shader;
+        if (ext == ".shaderImport") return AssetType::ShaderProgram;
         if (ext == ".shader")    return AssetType::ShaderProgram;
         if (ext == ".model")     return AssetType::Model;
         if (ext == ".material")  return AssetType::Material;
         if (ext == ".mesh")      return AssetType::Mesh;
         if (ext == ".texture")   return AssetType::Texture;
+        if (ext == ".scene")     return AssetType::Scene;
+        if (ext == ".prefab")    return AssetType::Prefab;
 
         return AssetType::Other;
     }
@@ -103,23 +117,53 @@ namespace am {
             case AssetType::Animation:     return ".animation";
             case AssetType::Material:      return ".material";
             case AssetType::Animator:      return ".animator";
+            case AssetType::Scene:         return ".scene";
+            case AssetType::Prefab:        return ".prefab";
             default:                       return ".other";
         }
     }
 
-    inline std::string GetBinPath(const std::string& importPath, AssetType type, int index = -1) {
-        std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
-        std::string filename =  p.stem().string();
-        if (index >= 0) filename += "_" + std::to_string(index);
-        filename += ".b_" + p.extension().string().substr(1,p.extension().string().size()-1);
-        return (p.parent_path() / filename).string();
+    inline bool GetEditorSavesToBin(AssetType type) {
+        switch (type) {
+        case AssetType::Mesh:          return true;
+        case AssetType::Model:         return false;
+        case AssetType::Texture:       return true;
+        case AssetType::Shader:        return true;
+        case AssetType::ShaderProgram: return false;
+        case AssetType::Animation:     return true;
+        case AssetType::Material:      return false;
+        case AssetType::Animator:      return true;
+        case AssetType::Scene:         return false;
+        case AssetType::Prefab:        return false;
+        default:                       return false;
+        }
     }
 
-    inline std::string GetJsonPath(const std::string& importPath, AssetType type, int index = -1) {
+    inline std::string GetShaderSufix(ShaderStage shaderStage)
+    {
+        switch (shaderStage)
+        {
+            case ShaderStage::Vertex: return "vs"; break;
+            case ShaderStage::TessellationControl: return "tcs"; break;
+            case ShaderStage::TessellationEvaluation: return "tes"; break;
+            case ShaderStage::Fragment: return "fs"; break;
+            case ShaderStage::Geometry: return "gs"; break;
+            case ShaderStage::Compute: return "cs"; break;
+            default: return "";
+        }
+    }
+
+
+    inline std::string GetBinPath(const std::string& importPath, std::string additionalSufix) {
         std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
         std::string filename =  p.stem().string();
-        if (index >= 0) filename += "_" + std::to_string(index);
-        filename += ".j_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        if (additionalSufix != "")
+        {
+            filename += ".b_" + additionalSufix + "_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        }else
+        {
+            filename += ".b_" + p.extension().string().substr(1,p.extension().string().size()-1);
+        }
         return (p.parent_path() / filename).string();
     }
 }

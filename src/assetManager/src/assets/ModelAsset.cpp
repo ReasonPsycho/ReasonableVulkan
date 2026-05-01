@@ -8,7 +8,11 @@
 
 namespace am
 {
-    ModelAsset::ModelAsset(ImportContext assetFactoryData) : Asset(assetFactoryData)
+    ModelAsset::ModelAsset(const boost::uuids::uuid& id) : Asset(id)
+    {
+    }
+
+    ModelAsset::ModelAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData)
     {
         loadFromFile(assetFactoryData);
     }
@@ -63,6 +67,8 @@ namespace am
             document.SetObject();
         }
 
+        document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
+
         auto addVec3 = [&](const char* key, const glm::vec3& vec) {
             rapidjson::Value array(rapidjson::kArrayType);
             array.PushBack(vec.x, allocator);
@@ -91,8 +97,8 @@ namespace am
             rapidjson::Value meshes(rapidjson::kArrayType);
             for (const auto& mesh : node.meshes) {
                 if (mesh) {
-                    std::string jsonPath = GetJsonPath(mesh->importPath, AssetType::Mesh, mesh->importContext.assimpIndex);
-                    meshes.PushBack(rapidjson::Value(jsonPath.c_str(), allocator), allocator);
+                    std::string uuidStr = boost::uuids::to_string(mesh->id);
+                    meshes.PushBack(rapidjson::Value(uuidStr.c_str(), allocator), allocator);
                 }
             }
             nodeObj.AddMember("meshes", meshes, allocator);
@@ -110,13 +116,22 @@ namespace am
         document.AddMember("rootNode", serializeNode(data.rootNode), allocator);
     }
 
-    ModelAsset::ModelAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+    ModelAsset::ModelAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
             if (!loadJsonFromFile(path, document)) {
                 spdlog::error("Failed to load ModelAsset from JSON: {}", path);
                 return;
             }
+
+            if (document.HasMember("uuid") && document["uuid"].IsString()) {
+                std::string savedUuidStr = document["uuid"].GetString();
+                boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
+                if (savedUuid != id) {
+                    spdlog::warn("Model asset UUID mismatch in {}: expected {}, got {}", path, boost::uuids::to_string(id), savedUuidStr);
+                }
+            }
+
             AssetManager& assetManager = AssetManager::getInstance();
 
             auto loadVec3 = [&](const char* key, glm::vec3& vec) {
@@ -146,8 +161,17 @@ namespace am
                     node.meshes.clear();
                     for (auto& m : val["meshes"].GetArray()) {
                         if (m.IsString()) {
-                            auto result = assetManager.registerAsset(m.GetString());
-                            if (result) node.meshes.push_back(assetManager.getAssetInfo(result.value()).value_or(nullptr));
+                            try {
+                                boost::uuids::uuid meshId = boost::uuids::string_generator()(m.GetString());
+                                auto meshInfo = assetManager.getAssetInfo(meshId);
+                                if (meshInfo) {
+                                    node.meshes.push_back(meshInfo.value());
+                                } else {
+                                    spdlog::warn("Mesh asset with UUID {} not found for model", m.GetString());
+                                }
+                            } catch (const std::exception& e) {
+                                spdlog::error("Failed to parse mesh UUID {} for model: {}", m.GetString(), e.what());
+                            }
                         }
                     }
                 }
