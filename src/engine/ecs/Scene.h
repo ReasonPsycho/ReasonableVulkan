@@ -118,6 +118,8 @@ namespace engine::ecs
 
         //Engine
         engine::Engine& engine;
+
+        boost::uuids::uuid sceneId;
     private:
 
         //Entities

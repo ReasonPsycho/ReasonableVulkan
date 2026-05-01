@@ -490,15 +490,16 @@ void engine::ecs::EditorSystem::ImGuiSceneGraph()
             scene->CreateEntity();
         }
 
+        /*
         if (ImGui::Button("Save Scene"))
         {
-            scene->engine.SaveScene("scene.json");
+            scene->engine.SaveScene();
         }
 
         if (ImGui::Button("Load Scene"))
         {
-            scene->engine.LoadScene("scene.json");
-        }
+            scene->engine.LoadScene();
+        }*/
 
         ImGui::EndMenuBar();
     }

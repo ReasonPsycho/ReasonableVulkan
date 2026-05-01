@@ -1,0 +1,332 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "metadata": [
+    {
+      "id": "ce680a53-5651-4858-85b4-43ad02fb23b9",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowMap.b_fs_shader",
+      "type": "Shader",
+      "lookUpName": "shadowMap_1.shader",
+      "contentHash": 4698783094057894525,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowMap.frag",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "78acf9d4-414c-42b0-b9f6-35d4312cfcd5",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\skybox.b_fs_shader",
+      "type": "Shader",
+      "lookUpName": "skybox_1.shader",
+      "contentHash": 5322124608606701410,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\skybox.frag",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "fa53801f-2e4d-4f6e-b211-5db9fca57e4f",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\skybox.shaderprogram",
+      "type": "ShaderProgram",
+      "lookUpName": "skyboxShader",
+      "contentHash": 3914405969793702240,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\skybox.shaderImport",
+        "assetType": "ShaderProgram",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "5edc6086-7a82-4ebe-9afc-e0bf079224a2",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh_textured.b_fs_shader",
+      "type": "Shader",
+      "lookUpName": "wiremesh_textured.shader",
+      "contentHash": 15684069207013809655,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh_textured.frag",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "47c405c2-705c-4e21-a781-afe793396ae4",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowMap.b_vs_shader",
+      "type": "Shader",
+      "lookUpName": "shadowMap.shader",
+      "contentHash": 1124843935182183586,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowMap.vert",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "fb2c7ed8-3ffe-43d1-bf76-825928121632",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\skybox.b_vs_shader",
+      "type": "Shader",
+      "lookUpName": "skybox.shader",
+      "contentHash": 13283475067344067819,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\skybox.vert",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "1f5d4c63-94e7-4042-af56-cdd8df04dba6",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\shadowCubeMap.shaderprogram",
+      "type": "ShaderProgram",
+      "lookUpName": "shadowCubeMapShader",
+      "contentHash": 13520377098133461889,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\shadowCubeMap.shaderImport",
+        "assetType": "ShaderProgram",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "aac54cbf-0145-4e07-8ce5-af96255494b2",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\wiremesh.shaderprogram",
+      "type": "ShaderProgram",
+      "lookUpName": "wiremeshShader",
+      "contentHash": 14789617359017068707,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\wiremesh.shaderImport",
+        "assetType": "ShaderProgram",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "59d03120-7230-403c-81af-16dd0802a753",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Box.model",
+      "type": "Model",
+      "lookUpName": "boxModel",
+      "contentHash": 17319882714742782225,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Box.fbx",
+        "assetType": "Model",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "5a8b9f5d-07a6-4166-b19f-d042c1eb8341",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh.b_fs_shader",
+      "type": "Shader",
+      "lookUpName": "wiremesh.shader",
+      "contentHash": 14484873410992813000,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh.frag",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "20b1cc30-adc8-4b45-8ae5-06ae25394708",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.b_texture",
+      "type": "Texture",
+      "lookUpName": "Skybox_0.texture",
+      "contentHash": 5159174310912765632,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.png",
+        "assetType": "Texture",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "47939726-a955-4d1a-b679-ef77735d6dca",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.material",
+      "type": "Material",
+      "lookUpName": "Skybox_0.material",
+      "contentHash": 5159174313567201401,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx",
+        "assetType": "Material",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "5c40fcd0-42cb-4098-8372-ad76faaba452",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shaderprogram",
+      "type": "ShaderProgram",
+      "lookUpName": "pbrShader",
+      "contentHash": 14525977998531044010,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shaderImport",
+        "assetType": "ShaderProgram",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "34af6297-3529-42eb-9335-56602739269d",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\wiremesh_textured.shaderprogram",
+      "type": "ShaderProgram",
+      "lookUpName": "wiremeshTexturedShader",
+      "contentHash": 4437362203882087122,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\wiremesh_textured.shaderImport",
+        "assetType": "ShaderProgram",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "58ece0f4-745f-4010-aabc-898376801d1e",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my/scene.scene",
+      "type": "Scene",
+      "lookUpName": "scene",
+      "contentHash": 0,
+      "assetFactoryData": {
+        "importPath": "",
+        "assetType": "Scene",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.model",
+      "type": "Model",
+      "lookUpName": "planeModel",
+      "contentHash": 2234112481858389971,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx",
+        "assetType": "Model",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "e0898068-6ef8-421e-930f-200a434e68c5",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.b_mesh",
+      "type": "Mesh",
+      "lookUpName": "Plane_0.mesh",
+      "contentHash": 17222296131364895489,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx",
+        "assetType": "Mesh",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "4a6d624b-5530-458d-bd8f-0e4ced4aa466",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.model",
+      "type": "Model",
+      "lookUpName": "skyboxModel",
+      "contentHash": 43590915286374941,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx",
+        "assetType": "Model",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "7bec3220-31ed-4dba-ab7b-ff8ca14c1cad",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.b_mesh",
+      "type": "Mesh",
+      "lookUpName": "Skybox_0.mesh",
+      "contentHash": 11043026994859389112,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx",
+        "assetType": "Mesh",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "480875e5-3492-4fc3-b8f3-23cec4288bdf",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowCubeMap.b_fs_shader",
+      "type": "Shader",
+      "lookUpName": "shadowCubeMap_1.shader",
+      "contentHash": 1039928710718948755,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowCubeMap.frag",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "a2423c9b-eb44-4d78-8183-c5d32d4cd7f4",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Sphere.fbm\\rock-wall-mortar_albedo.b_texture",
+      "type": "Texture",
+      "lookUpName": "rock-wall-mortar_albedo_0.texture",
+      "contentHash": 14155052396331108522,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Sphere.fbm\\rock-wall-mortar_albedo.png",
+        "assetType": "Texture",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "fd0ede92-6b9a-4eea-b12b-844219316a71",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowCubeMap.b_vs_shader",
+      "type": "Shader",
+      "lookUpName": "shadowCubeMap.shader",
+      "contentHash": 5713552278281872984,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\shadowCubeMap.vert",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "f572c230-9493-4eed-97a3-6ace99b1673a",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\mesh.b_fs_shader",
+      "type": "Shader",
+      "lookUpName": "mesh_1.shader",
+      "contentHash": 14243470573620370895,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\mesh.frag",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "f5ab9f09-d4c0-49aa-b48f-7ce950ab1a5d",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.material",
+      "type": "Material",
+      "lookUpName": "Plane_0.material",
+      "contentHash": 14155052398985544291,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx",
+        "assetType": "Material",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "a70be68f-ada2-45b4-abd7-4828d5a09100",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\mesh.b_vs_shader",
+      "type": "Shader",
+      "lookUpName": "mesh.shader",
+      "contentHash": 4069165301351927497,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\mesh.vert",
+        "assetType": "Shader",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "10f18d68-9941-4202-af0b-7332fd19c989",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Box.b_mesh",
+      "type": "Mesh",
+      "lookUpName": "Box_0.mesh",
+      "contentHash": 14574799872376708562,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Box.fbx",
+        "assetType": "Mesh",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "82dc6362-6bf7-4a1c-b71f-3ad89519fceb",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\shadowMap.shaderprogram",
+      "type": "ShaderProgram",
+      "lookUpName": "shadowMapShader",
+      "contentHash": 2571655601188445911,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\shadowMap.shaderImport",
+        "assetType": "ShaderProgram",
+        "assimpIndex": 0
+      }
+    }
+  ]
+}
