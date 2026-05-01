@@ -1,6 +1,7 @@
 #include "Engine.h"
 
 #include "PlatformInterface.hpp"
+#include "../assetManager/src/assets/engineAssets/SceneAsset.h"
 #include "ecs/Scene.h"
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
@@ -111,73 +112,73 @@ namespace engine {
         throw std::runtime_error("No factory registered for system type: " + std::string(type.name()));
     }
 
-    void Engine::SaveScene(std::string filename)
+    void Engine::SaveScene()
     {
-        try
+        am::SceneAsset* sceneAsset = nullptr;
+        auto assetInfo = assetManagerInterface->getAssetInfo(activeScene->sceneId);
+        if (assetInfo)
         {
-            rapidjson::Document document;
-            document.SetObject();
-            auto& allocator = document.GetAllocator();
-
-            // Add encoding information
-            rapidjson::Value encodingInfo(rapidjson::kObjectType);
-            encodingInfo.AddMember("encoding", "UTF-8", allocator);
-            encodingInfo.AddMember("version", "1.0", allocator);
-            document.AddMember("_meta", encodingInfo, allocator);
-
-            activeScene->SerializeToJson(document);
-
-            // Convert to string with pretty printing
-            rapidjson::StringBuffer buffer;
-            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-            writer.SetIndent(' ', 2);
-            document.Accept(writer);
-
-            // Save to file
-            std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-            if (!ofs.is_open()) {
-
-                spdlog::error("Failed to open file for writing: {}", filename);
+            sceneAsset = dynamic_cast<am::SceneAsset*>(assetInfo->get()->getAsset());
+            if (!sceneAsset)
+            {
+                spdlog::error("Failed to cast asset to SceneAsset for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
                 return;
             }
+        }
+        else
+        {
+            assetManagerInterface->createAsset(am::AssetType::Scene, "activeScene");
+            assetInfo = assetManagerInterface->getAssetInfo(activeScene->sceneId);
+            if (!assetInfo)
+            {
+                spdlog::error("Failed to create scene asset for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
+                return;
+            }
+        }
 
-            // Write UTF-8 BOM
-            const char bom[3] = { static_cast<char>(0xEF), static_cast<char>(0xBB), static_cast<char>(0xBF) };
-            ofs.write(bom, 3);
+        rapidjson::Document* document = sceneAsset->getAssetDataAs<rapidjson::Document>();
+        if (!document)
+        {
+            spdlog::error("Scene asset data is null for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
+            return;
+        }
 
-            // Write the JSON content
-            ofs.write(buffer.GetString(), buffer.GetSize());
-            ofs.close();
+        try
+        {
+            activeScene->SerializeToJson(*document);
+            assetManagerInterface->saveAsset(assetInfo->get()->id);
         } catch (const std::exception& e) {
             spdlog::error("Error saving scene to file: {}", e.what());
         }
     }
 
-    void Engine::LoadScene(std::string filename)
+    void Engine::LoadScene(boost::uuids::uuid sceneId)
     {
+        if (activeScene) {
+            activeScene->sceneId = sceneId;
+        }
+
+        auto assetInfo = assetManagerInterface->getAssetInfo(sceneId);
+        if (!assetInfo) {
+            spdlog::error("Failed to get asset info for scene ID: {}", boost::uuids::to_string(sceneId).c_str());
+            return;
+        }
+
+        auto sceneAsset = dynamic_cast<am::SceneAsset*>(assetInfo->get()->getAsset());
+        if (!sceneAsset) {
+            spdlog::error("Asset for scene ID is not a SceneAsset: {}", boost::uuids::to_string(sceneId).c_str());
+            return;
+        }
+
         try {
-            std::ifstream ifs(filename, std::ios::binary);
-            if (!ifs.is_open()) {
-                spdlog::error("Failed to open file for reading: {}", filename);
-                return;
+
+
+            rapidjson::Document* document = sceneAsset->getAssetDataAs<rapidjson::Document>();
+            if (document) {
+                activeScene->DeserializeFromJson(*document);
+            } else {
+                spdlog::error("Scene asset data is null for scene ID: {}", boost::uuids::to_string(sceneId).c_str());
             }
-
-            // Skip UTF-8 BOM if present
-            char bom[3];
-            ifs.read(bom, 3);
-            if (!(bom[0] == static_cast<char>(0xEF) &&
-                  bom[1] == static_cast<char>(0xBB) &&
-                  bom[2] == static_cast<char>(0xBF))) {
-                ifs.seekg(0);
-                  }
-
-            std::string json_content((std::istreambuf_iterator<char>(ifs)),
-                                   std::istreambuf_iterator<char>());
-
-            rapidjson::Document document;
-            document.Parse(json_content.c_str());
-
-           activeScene->DeserializeFromJson(document);
 
             return ;
         } catch (const std::exception& e) {

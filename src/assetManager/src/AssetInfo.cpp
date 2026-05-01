@@ -35,6 +35,7 @@ void am::AssetInfo::SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::D
     obj.AddMember("id", rapidjson::Value(uuidStr.c_str(), allocator), allocator);
     obj.AddMember("path", rapidjson::Value(importPath.c_str(), allocator), allocator);
     obj.AddMember("type", rapidjson::Value(AssetTypeToString(type).c_str(), allocator), allocator);
+    obj.AddMember("lookUpName", rapidjson::Value(lookUpName.c_str(), allocator), allocator);
     obj.AddMember("contentHash", rapidjson::Value(static_cast<uint64_t>(contentHash)), allocator);
 
     // Add AssetFactoryData
@@ -53,6 +54,7 @@ am::AssetInfo am::AssetInfo::DeserializeAssetInfoFromJson(const rapidjson::Value
 
     std::string path = obj["path"].GetString();
     AssetType type = StringToAssetType(obj["type"].GetString());
+    std::string lookUpName = obj["lookUpName"].GetString();
     size_t contentHash = obj["contentHash"].GetUint64();
 
     const auto& factoryData = obj["assetFactoryData"];
@@ -62,7 +64,7 @@ am::AssetInfo am::AssetInfo::DeserializeAssetInfoFromJson(const rapidjson::Value
         factoryData["assimpIndex"].GetInt()
     );
 
-    AssetInfo info(id, path, type, contentHash, assetFactoryData);
+    AssetInfo info(id, path, type, contentHash, assetFactoryData, lookUpName);
     info.isLoaded = false;
 
     return info;

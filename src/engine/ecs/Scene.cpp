@@ -68,6 +68,8 @@ Scene::Scene(Engine& engine): engine(engine)
     RegisterIntegralComponent<TransformComponent>();
     RegisterSystem<TransformSystem>();
     RegisterSystem<CollisionSystem>();
+
+    sceneId = boost::uuids::nil_uuid();
 }
 
 void Scene::Update(float deltaTime) {

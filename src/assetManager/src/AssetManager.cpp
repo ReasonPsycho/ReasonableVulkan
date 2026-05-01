@@ -28,10 +28,11 @@ namespace am {
         RegisterAssetType<SceneAsset>();
         RegisterAssetType<PrefabAsset>();
 
-       // loadRegistryMetadataFromFile("metadatas.json");
+        //loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
     }
 
     AssetManager::~AssetManager() {
+        saveRegistryMetadataToFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
     }
 
     std::optional<boost::uuids::uuid> AssetManager::createAsset(AssetType assetType, std::string path) {
@@ -81,20 +82,26 @@ namespace am {
             }
             auto id = boost::uuids::random_generator()();
             auto newAsset = creator(id);
-            metadata.insert(std::make_pair(id, std::make_shared<AssetInfo>(id, "", assetType, 0,ImportContext("", assetType, 0))));
+            auto info = std::make_shared<AssetInfo>(id, path, assetType, 0,ImportContext("", assetType, 0), lookupName);
             if (newAsset->shouldSaveToBin())
             {
+
                 std::string filename = GetBinPath(path);
+                info->path = filename;
                 newAsset->SaveAssetToBin(filename);
+                metadata.insert(std::make_pair(id, info));
             }else
             {
                 rapidjson::Document doc;
                 doc.SetObject();
                 newAsset->SaveAssetToJson(doc);
                 saveJsonToFile(path, doc);
+                info->path = path;
+                metadata.insert(std::make_pair(id, info));
             }
             lookupNamesToUUIDs.insert(std::make_pair(lookupName, id));
             assets[id] = std::move(newAsset);
+            metadata[id]->loadedAsset = assets[id].get();
             return id;
         }
         catch (std::exception& e)
@@ -169,6 +176,59 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
         if (it != metadata.end()) return it->second;
         spdlog::error("No asset found!");
         return std::nullopt;
+    }
+
+    std::optional<Asset*> AssetManager::getAsset(const boost::uuids::uuid& id) const
+    {
+        auto it = assets.find(id);
+        if (it != assets.end()) return it->second.get();
+        spdlog::error("No asset found!");
+        return std::nullopt;
+    }
+
+    void AssetManager::saveAsset(const boost::uuids::uuid id)
+    {
+        auto info = getAssetInfo(id);
+        if (!info)
+        {
+            spdlog::error("No asset info found with id: {}", boost::uuids::to_string(id));
+        }
+        auto asset = getAsset(id);
+        if (!asset)
+        {
+            spdlog::error("No asset found with id: {}", boost::uuids::to_string(id));
+        }
+        
+        if (asset.value()->shouldSaveToBin())
+        {
+            asset.value()->SaveAssetToBin(info.value()->path);
+        } else {
+            rapidjson::Document document;
+            document.SetObject();
+
+            auto& allocator = document.GetAllocator();
+
+            // Add encoding information
+            rapidjson::Value encodingInfo(rapidjson::kObjectType);
+            encodingInfo.AddMember("encoding", "UTF-8", allocator);
+            encodingInfo.AddMember("version", "1.0", allocator);
+            document.AddMember("_meta", encodingInfo, allocator);
+
+            asset.value()->SaveAssetToJson(document);
+
+            saveJsonToFile(info.value()->path, document);
+        }
+    }
+
+    void AssetManager::saveAsset(std::string lookupName)
+    {
+        auto uuid = getAssetUuid(lookupName);
+        if (uuid) {
+            saveAsset(uuid.value());
+        } else {
+            spdlog::error("No asset found with lookup name: {}", lookupName);
+            return;
+        }
     }
 
     std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path, std::string lookUpName)
@@ -285,9 +345,9 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
                 throw std::runtime_error("No factory registered for asset type");
             }
 
-            auto assetData = loader(id, assetInfo->second->jsonPath, AssetFormat::Json);
+            auto assetData = loader(id, assetInfo->second->path, AssetFormat::Json);
             if (assetData->shouldSaveToBin()) {
-                assetData = loader(id, assetInfo->second->jsonPath, AssetFormat::Binary);
+                assetData = loader(id, assetInfo->second->path, AssetFormat::Binary);
             }
             assets[id] = std::move(assetData);
             return assets[id].get()->getAssetData();
@@ -376,7 +436,7 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             }
 
             // If we get here, this is a new unique asset
-            auto info = std::make_shared<AssetInfo>(id, importContext.importPath, importContext.assetType, contentHash,importContext);
+            auto info = std::make_shared<AssetInfo>(id, importContext.importPath, importContext.assetType, contentHash,importContext, lookUpName);
             info->isLoaded = true;
 
             std::filesystem::path p = std::filesystem::path(importContext.importPath).lexically_normal();
@@ -385,11 +445,11 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
             if (newAsset->shouldSaveToBin())
             {
                 std::string filename = GetBinPath((p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string());
-                info->jsonPath = filename;
+                info->path = filename;
                 newAsset->SaveAssetToBin(filename);
             } else {
                 std::string filename = (p.parent_path() / (baseName + GetExtensionFromAssetType(importContext.assetType))).string();
-                info->jsonPath = filename;
+                info->path = filename;
                 auto jsonSaver = getJsonSaver(getTypeIndex(importContext.assetType));
 
                 rapidjson::Document document;

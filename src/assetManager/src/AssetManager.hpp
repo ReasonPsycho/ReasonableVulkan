@@ -66,7 +66,6 @@ namespace am {
         //Creators
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) override;
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookupName) override;
-
         std::optional<boost::uuids::uuid> initializeAsset(AssetType assetType, std::string path, std::string lookupName);
 
         //Imports
@@ -86,7 +85,11 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids() const override;
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
-        [[nodiscard]] std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
+        std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
+        std::optional<Asset*> getAsset(const boost::uuids::uuid& id) const override;
+
+        void saveAsset(boost::uuids::uuid id) override;
+        void saveAsset(std::string lookupName) override;
 
         //UUIDS
         template <typename T>

@@ -35,7 +35,7 @@ namespace am {
     public:
         boost::uuids::uuid id;
         std::string importPath;
-        std::string jsonPath;
+        std::string path;
         AssetType type;
         std::string lookUpName;
         size_t contentHash;
@@ -48,12 +48,14 @@ namespace am {
                   std::string p,
                   AssetType t,
                   size_t hash,
-                  ImportContext factoryData)
+                  ImportContext factoryData,
+                  std::string lookUpName)
             : id(uuid)
               , importPath(std::move(p))
               , type(t)
               , contentHash(hash)
-              , importContext(std::move(factoryData)) {
+              , importContext(std::move(factoryData))
+              , lookUpName(std::move(lookUpName)) {
         }
 
         // Method to get or load asset
@@ -64,7 +66,7 @@ namespace am {
         AssetInfo(AssetInfo &&other) noexcept
             : id(other.id)
               , importPath(std::move(other.importPath))
-              , jsonPath(std::move(other.jsonPath))
+              , path(std::move(other.path))
               , type(other.type)
               , contentHash(other.contentHash)
               , importContext(std::move(other.importContext))
