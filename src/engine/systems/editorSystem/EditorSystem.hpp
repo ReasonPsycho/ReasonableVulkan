@@ -89,7 +89,6 @@ namespace engine::ecs
         void ImGuiGizmo();
         void ImguiShaderOverrideWindow();
         void ImguiToolbar();
-        void ImguiMenu();
 
         bool isRightMousePressed = false;
         bool isLeftMousePressed = false;

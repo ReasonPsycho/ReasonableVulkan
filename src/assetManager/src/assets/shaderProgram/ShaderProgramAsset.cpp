@@ -15,7 +15,7 @@ namespace am {
         importFromImportJson(assetFactoryData.importPath);
     }
 
-    ShaderProgramAsset::ShaderProgramAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
+    ShaderProgramAsset::ShaderProgramAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Json) {
             loadFromProgramJson(path);
         }
@@ -79,10 +79,7 @@ namespace am {
 
         if (doc.HasMember("uuid") && doc["uuid"].IsString()) {
             std::string savedUuidStr = doc["uuid"].GetString();
-            boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
-            if (savedUuid != id) {
-                spdlog::warn("Shader program asset UUID mismatch in {}: expected {}, got {}", path, boost::uuids::to_string(id), savedUuidStr);
-            }
+            id = boost::uuids::string_generator()(savedUuidStr);
         }
 
         AssetManager &assetManager = AssetManager::getInstance();
