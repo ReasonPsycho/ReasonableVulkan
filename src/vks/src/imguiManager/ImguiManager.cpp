@@ -9,6 +9,7 @@
 #include <SDL3/SDL_video.h>
 #include <ImGuizmo.h>
 
+#include "IconsFontAwesome6.h"
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../swapChainManager/SwapChainManager.hpp"
 #include "../renderPipelineManager/RenderPipelineManager.hpp"
@@ -27,8 +28,29 @@ namespace vks
         IMGUI_CHECKVERSION();
         auto ctx = ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
+
+        // Merge icons into default tool font
+        io.Fonts->AddFontDefault();
+
+        float baseFontSize = 13.0f; // 13.0f is the size of the default font. Change to the font size you use.
+        float iconFontSize = baseFontSize * 2.0f / 3.0f; // FontAwesome fonts need to have their sizes reduced by 2.0f/3.0f in order to align correctly
+
+        ImFontConfig config;
+        config.MergeMode = true;
+        config.PixelSnapH = true;
+        config.GlyphMinAdvanceX = iconFontSize;
+        static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+        io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\fonts\\fa-regular-400.ttf", iconFontSize, &config, iconRanges);
+
+        ImFontConfig largeConfig;
+        largeConfig.PixelSnapH = true;
+        largeConfig.GlyphMinAdvanceX = 48.0f;
+        largeIconFont = io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\fonts\\fa-regular-400.ttf", 48.0f, &largeConfig, iconRanges);
+
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        io.BackendFlags |= ImGuiBackendFlags_RendererHasViewports;
+        io.BackendFlags |= ImGuiBackendFlags_PlatformHasViewports;
 
         //ImGui::StyleColorsLight();
         ImGui::StyleColorsDark();
@@ -71,12 +93,12 @@ namespace vks
 
         ImGui_ImplVulkan_Init(&init_info);
 
-        // Upload ImGui Fonts //???
-        /*
-        VkCommandBuffer command_buffer = context->beginSingleTimeCommands();
+
+        /*VkCommandBuffer command_buffer = context->beginSingleTimeCommands();
+
         ImGui_ImplVulkan_CreateFontsTexture();
-        context->endSingleTimeCommands(command_buffer);
-        */
+        context->endSingleTimeCommands(command_buffer);*/
+
 
         ImGuizmo::SetImGuiContext(ctx);
 

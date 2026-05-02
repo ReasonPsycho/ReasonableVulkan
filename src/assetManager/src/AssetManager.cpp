@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
+#include "IconsFontAwesome6.h"
 #include "assets/ModelAsset.h"
 #include "assets/materialAsset/MaterialAsset.hpp"
 #include "assets/shaderAsset/ShaderAsset.h"
@@ -21,14 +22,6 @@ namespace am {
 
     void AssetManager::Initialize(plt::PlatformInterface* platformInterface)
     {
-        /*
-        ImGuiIO& io = ImGui::GetIO();
-        io.Fonts->AddFontDefaultVector();
-        ImFontConfig config;
-        config.MergeMode = true;
-        config.GlyphMinAdvanceX = 13.0f; // Use if you want to make the icon monospaced
-        io.Fonts->AddFontFromFileTTF("fonts/fontawesome-webfont.ttf", 13.0f, &config);
-        */
 
 
         platformInterface->SubscribeToEvent(plt::EventType::FileAddedToFolder,
@@ -559,14 +552,32 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     ImGui::BeginGroup();
 
                     // Dummy "icon"
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
+
+                    // Use large icon font if available (it's the second font we loaded)
+                    bool pushedFont = false;
+                    if (ImGui::GetIO().Fonts->Fonts.Size > 1) {
+                        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]);
+                        pushedFont = true;
+                    }
+
                     if (entry.is_directory()) {
-                        ImGui::Button("[DIR]", ImVec2(iconSize, iconSize));
+                        ImGui::Button(ICON_FA_FOLDER, ImVec2(iconSize, iconSize));
                         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
                             currentPath = path;
                         }
                     } else {
-                        ImGui::Button("[FILE]", ImVec2(iconSize, iconSize));
+                        ImGui::Button(ICON_FA_FILE, ImVec2(iconSize, iconSize));
                     }
+
+                    if (pushedFont)
+                    {
+                        ImGui::PopFont();
+                    }
+
+                    ImGui::PopStyleColor(3);
 
                     // Centered text below icon
                     float textWidth = ImGui::CalcTextSize(filename.c_str()).x;

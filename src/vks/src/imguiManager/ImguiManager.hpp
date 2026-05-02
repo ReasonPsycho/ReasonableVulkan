@@ -6,6 +6,7 @@
 #define REASONABLEVULKAN_IMGUIMANAGER_HPP
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include <imgui.h>
 
 namespace vks
 {
@@ -46,6 +47,8 @@ namespace vks
         VkDescriptorSet getTexture(uint32_t imageIndex);
         std::vector<std::vector<VkDescriptorSet>> cameraImguiTextureIDs;
         std::vector<VkDescriptorSet> swapChainImguiTextureIDs;
+
+        ImFont* largeIconFont{nullptr};
 
         VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
         VkCommandBuffer imguiCommandBuffer{VK_NULL_HANDLE};
