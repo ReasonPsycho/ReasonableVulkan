@@ -19,7 +19,7 @@ namespace am {
         loadFromFile(assetFactoryData.importPath);
     }
 
-    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
+    ShaderAsset::ShaderAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Json) {
             throw std::runtime_error("ShaderAsset does not support JSON format");
         } else if (format == AssetFormat::Binary) {
@@ -37,11 +37,7 @@ namespace am {
             }
 
             // Read UUID
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
-            if (savedId != id) {
-                spdlog::warn("Shader asset UUID mismatch: expected {}, got {}", boost::uuids::to_string(id), boost::uuids::to_string(savedId));
-            }
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             ifs.read(reinterpret_cast<char*>(&data.stage), sizeof(data.stage));
 

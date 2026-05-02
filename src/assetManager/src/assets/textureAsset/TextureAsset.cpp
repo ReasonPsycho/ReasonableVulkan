@@ -15,7 +15,7 @@ namespace am
         loadFromFile(assetFactoryData.importPath);
     }
 
-    TextureAsset::TextureAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format)
+    TextureAsset::TextureAsset(const std::string& path, AssetFormat format) : Asset(path, format)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
@@ -26,10 +26,7 @@ namespace am
 
             if (document.HasMember("uuid") && document["uuid"].IsString()) {
                 std::string savedUuidStr = document["uuid"].GetString();
-                boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
-                if (savedUuid != id) {
-                    spdlog::warn("Texture asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), boost::uuids::to_string(savedUuid).c_str());
-                }
+                id = boost::uuids::string_generator()(savedUuidStr);
             }
             
             if (document.HasMember("type") && document["type"].IsString()) {
@@ -53,11 +50,7 @@ namespace am
             }
 
             // Read UUID
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
-            if (savedId != id) {
-                spdlog::warn("Texture asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), boost::uuids::to_string(savedId).c_str());
-            }
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             // Read metadata
             ifs.read(reinterpret_cast<char*>(&data.width), sizeof(data.width));

@@ -199,13 +199,7 @@ void EditorSystem::ImguiToolbar()
     ImGui::End();
 }
 
-void EditorSystem::ImguiMenu()
-{
-    ImGui::Begin("Menu");
-    ImGui::Text("Menu Content");
-    // Add your menu content here
-    ImGui::End();
-}
+
 
 EditorSystem::EditorSystem(Scene* scene): System(scene)
 {
@@ -327,7 +321,9 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
     }
 
     ImguiToolbar();
-    ImguiMenu();
+
+    scene->engine.assetManagerInterface->ImguiFileBrowser("Menu");
+
     ImGuiSceneGraph();
     ImGuiInspector();
     ImGuiGizmo();

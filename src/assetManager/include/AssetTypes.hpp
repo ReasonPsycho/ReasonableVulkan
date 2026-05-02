@@ -15,6 +15,12 @@ namespace am {
         Binary
     };
 
+    enum class AssetOwnership {
+        Import,
+        Managed,
+        Unmanaged
+    };
+
     enum class AssetType {
         Mesh,
         Model,
@@ -26,6 +32,7 @@ namespace am {
         Animator,
         Scene,
         Prefab,
+        Config,
         Other // Just for testing
     };
 
@@ -53,6 +60,8 @@ namespace am {
                 return os << "Scene";
             case AssetType::Prefab:
                 return os << "Prefab";
+            case AssetType::Config:
+                return os << "Config";
             default:
                 return os << "Unknown";
         }
@@ -75,9 +84,39 @@ namespace am {
         if (str == "Animator") return AssetType::Animator;
         if (str == "Scene") return AssetType::Scene;
         if (str == "Prefab") return AssetType::Prefab;
+        if (str == "Config") return AssetType::Config;
         return AssetType::Other;
     }
 
+    inline AssetOwnership StringToAssetOwnership(const std::string& str)
+    {
+        std::string ext = str; // make a copy
+
+        // Strip prefixes
+        size_t lastUnderscore = ext.find_last_of('_');
+        if (lastUnderscore != std::string::npos) {
+            ext = "." + ext.substr(lastUnderscore + 1);
+        }
+        
+        if (ext == ".fbx")       return AssetOwnership::Import;
+        if (ext == ".png")       return AssetOwnership::Import;
+        if (ext == ".spv")       return AssetOwnership::Import;
+        if (ext == ".spdv")      return AssetOwnership::Import;
+        if (ext == ".frag")      return AssetOwnership::Import;
+        if (ext == ".vert")      return AssetOwnership::Import;
+        if (ext == ".geom")      return AssetOwnership::Import;
+        if (ext == ".shaderImport") return AssetOwnership::Import;
+        if (ext == ".shader")    return AssetOwnership::Managed;
+        if (ext == ".model")     return AssetOwnership::Managed;
+        if (ext == ".material")  return AssetOwnership::Managed;
+        if (ext == ".mesh")      return AssetOwnership::Managed;
+        if (ext == ".texture")   return AssetOwnership::Managed;
+        if (ext == ".scene")     return AssetOwnership::Managed;
+        if (ext == ".prefab")    return AssetOwnership::Managed;
+        if (ext == ".config")    return AssetOwnership::Managed;
+        return AssetOwnership::Unmanaged;
+    }
+    
     inline AssetType GetAssetTypeFromExtension(const std::string& extension) {
 
         std::string ext = extension; // make a copy
@@ -103,6 +142,7 @@ namespace am {
         if (ext == ".texture")   return AssetType::Texture;
         if (ext == ".scene")     return AssetType::Scene;
         if (ext == ".prefab")    return AssetType::Prefab;
+        if (ext == ".config")    return AssetType::Config;
 
         return AssetType::Other;
     }
@@ -119,6 +159,7 @@ namespace am {
             case AssetType::Animator:      return ".animator";
             case AssetType::Scene:         return ".scene";
             case AssetType::Prefab:        return ".prefab";
+            case AssetType::Config:        return ".config";
             default:                       return ".other";
         }
     }
@@ -135,6 +176,7 @@ namespace am {
         case AssetType::Animator:      return true;
         case AssetType::Scene:         return false;
         case AssetType::Prefab:        return false;
+        case AssetType::Config:        return false;
         default:                       return false;
         }
     }

@@ -171,7 +171,7 @@ namespace am {
         }
     }
 
-    MeshAsset::MeshAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format): Asset(id, path, format), importContext("",AssetType::Other)
+    MeshAsset::MeshAsset(const std::string& path, AssetFormat format): Asset(path, format), importContext("",AssetType::Other)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
@@ -179,6 +179,11 @@ namespace am {
                 spdlog::error("Failed to load MeshAsset from JSON: {}", path);
                 return;
             }
+
+            if (document.HasMember("uuid") && document["uuid"].IsString()) {
+                id = boost::uuids::string_generator()(document["uuid"].GetString());
+            }
+
             AssetManager &assetManager = AssetManager::getInstance();
 
             if (document.HasMember("importContext") && document["importContext"].IsObject()) {
@@ -280,11 +285,7 @@ namespace am {
             }
 
             // Read UUID
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
-            if (savedId != id) {
-                spdlog::warn("Mesh asset UUID mismatch: expected {}, got {}", boost::uuids::to_string(id), boost::uuids::to_string(savedId));
-            }
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             // Read material UUID
             boost::uuids::uuid materialId;
