@@ -29,7 +29,7 @@ namespace am {
 
         explicit ModelAsset(const boost::uuids::uuid& id);
         ModelAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
-        explicit ModelAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
+        explicit ModelAsset(const std::string& path, AssetFormat format);
 
         void SaveAssetToJson(rapidjson::Document& document) override;
         void SaveAssetToBin(std::string& path) override {}

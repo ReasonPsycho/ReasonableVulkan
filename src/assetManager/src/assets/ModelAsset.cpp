@@ -116,7 +116,7 @@ namespace am
         document.AddMember("rootNode", serializeNode(data.rootNode), allocator);
     }
 
-    ModelAsset::ModelAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
+    ModelAsset::ModelAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
             if (!loadJsonFromFile(path, document)) {
@@ -125,11 +125,7 @@ namespace am
             }
 
             if (document.HasMember("uuid") && document["uuid"].IsString()) {
-                std::string savedUuidStr = document["uuid"].GetString();
-                boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
-                if (savedUuid != id) {
-                    spdlog::warn("Model asset UUID mismatch in {}: expected {}, got {}", path, boost::uuids::to_string(id), savedUuidStr);
-                }
+                id = boost::uuids::string_generator()(document["uuid"].GetString());
             }
 
             AssetManager& assetManager = AssetManager::getInstance();

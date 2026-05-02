@@ -13,7 +13,7 @@
   }, {
     "name" : "imgui",
     "features" : [ "docking-experimental", "vulkan-binding", "sdl3-binding" ],
-    "version>=" : "1.91.9"
+    "version>=" : "1.92.5"
   }, {
     "name" : "glm",
     "version>=" : "1.0.1#3"

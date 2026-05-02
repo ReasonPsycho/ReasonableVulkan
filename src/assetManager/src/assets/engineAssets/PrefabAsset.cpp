@@ -9,11 +9,11 @@ namespace am {
         prefabData.SetObject();
     }
 
-    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
+    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData) : Asset(id, assetFactoryData) {
         loadJsonFromFile(assetFactoryData.importPath, prefabData);
     }
 
-    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
+    PrefabAsset::PrefabAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Binary) {
             std::ifstream ifs(path, std::ios::binary);
             if (!ifs.is_open()) return;
@@ -21,8 +21,7 @@ namespace am {
             char magic[6];
             ifs.read(magic, sizeof(PREFAB_MAGIC));
 
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             size_t dataSize;
             ifs.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
@@ -33,6 +32,9 @@ namespace am {
             prefabData.Parse(jsonStr.c_str());
         } else {
             loadJsonFromFile(path, prefabData);
+            if (prefabData.HasMember("uuid") && prefabData["uuid"].IsString()) {
+                id = boost::uuids::string_generator()(prefabData["uuid"].GetString());
+            }
         }
     }
 

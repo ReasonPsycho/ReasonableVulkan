@@ -13,9 +13,9 @@ namespace am {
 
         explicit SceneAsset(const boost::uuids::uuid& id);
 
-        SceneAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
+        SceneAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
 
-        explicit SceneAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
+        explicit SceneAsset(const std::string& path, AssetFormat format);
 
         [[nodiscard]] AssetType getType() const override;
 

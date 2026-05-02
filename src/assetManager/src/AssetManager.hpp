@@ -33,7 +33,7 @@ namespace am {
         using AssetCreator = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&)>;
         using AssetImporter = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, am::ImportContext &)>;
         using AssetJsonSaver = std::function<void(am::Asset&, rapidjson::Document&)>;
-        using AssetLoader = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, const std::string&, AssetFormat)>;
+        using AssetLoader = std::function<std::unique_ptr<am::Asset>(const std::string&, AssetFormat)>;
         using MetadataLoader = std::function<void(am::Asset&, rapidjson::Document&)>;
         using MetadataSaver  = std::function<void(am::Asset&, rapidjson::Document&)>;
 
@@ -69,12 +69,15 @@ namespace am {
         //Creators
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) override;
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookupName) override;
-        std::optional<boost::uuids::uuid> initializeAsset(AssetType assetType, std::string path, std::string lookupName);
 
         //Imports
         std::optional<boost::uuids::uuid> registerAsset(std::string path,std::string lookupName) override;
-        std::optional<boost::uuids::uuid> registerAsset(std::string path) override;
         std::optional<boost::uuids::uuid> registerAsset(ImportContext importContext);
+        std::optional<boost::uuids::uuid> registerAsset(std::string path) override;
+
+        //Asset manager inside functions. We should use public ones for importing and creating.
+        std::optional<boost::uuids::uuid> importAsset(ImportContext importContext, std::string lookUpName);
+        std::optional<boost::uuids::uuid> initializeAsset(AssetType assetType, std::string path, std::string lookupName);
 
         //Getters
         std::optional<boost::uuids::uuid> getAssetUuid(std::string lookupName) override;
@@ -89,6 +92,7 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
         void ImguiFileBrowser(std::string windowName) override;
+        std::filesystem::path currentPath;
 
         std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
         std::optional<Asset*> getAsset(const boost::uuids::uuid& id) override;
@@ -107,13 +111,15 @@ namespace am {
         bool saveRegistryMetadataToFile(const std::string& filename) const;
         bool loadRegistryMetadataFromFile(const std::string& filename);
 
-
     private:
         AssetManager();
         ~AssetManager();
 
-        std::optional<boost::uuids::uuid> importAsset(ImportContext importContext, std::string lookUpName);
 
+        void handleFileAddedToFolder(const plt::FileAddedEvent* event);
+        void handleFileDropped(const plt::FileDropEvent* event);
+
+        std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res";
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, boost::uuids::uuid> lookupNamesToUUIDs;

@@ -61,7 +61,7 @@ namespace vks
         init_info.Device = context->getDevice();
         init_info.QueueFamily = context->getQueueFamilyIndices().graphics;
         init_info.Queue = context->getGraphicsQueue();
-        init_info.RenderPass = imguiRenderPass;
+        init_info.PipelineInfoMain.RenderPass = imguiRenderPass;
         init_info.PipelineCache = imguiPipelineCache;
         init_info.DescriptorPool = imguiDescriptorPool;
         init_info.MinImageCount = 2;
