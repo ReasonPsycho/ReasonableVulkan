@@ -18,13 +18,15 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 message(STATUS "Searching for platform library dependencies")
 find_package(SDL3 CONFIG REQUIRED)
 
+# Create the interface target
+add_library(platform_interface INTERFACE)
+target_include_directories(platform_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 # Create platform static library
 add_library(platform STATIC ${BASE_SRC})
 
 # Configure include directories
 target_include_directories(platform
-        PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -32,6 +34,8 @@ target_include_directories(platform
 # Link dependencies
 message(STATUS "Configuring platform library dependencies")
 target_link_libraries(platform
+        PUBLIC
+        platform_interface
         PRIVATE
         SDL3::SDL3
 )

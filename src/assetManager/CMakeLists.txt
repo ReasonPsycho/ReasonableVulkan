@@ -41,13 +41,16 @@ file(GLOB_RECURSE TEST_FILES
 )
 list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
+# Create the interface target
+add_library(am_interface INTERFACE)
+target_include_directories(am_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(am_interface INTERFACE platform_interface Boost::uuid)
+
 # Create platform static library
 add_library(am STATIC ${BASE_SRC})
 
 # Configure include directories
 target_include_directories(am
-        PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${Stb_INCLUDE_DIR}
@@ -56,10 +59,11 @@ add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 # Link Assimp, Boost UUID
 target_link_libraries(am
         PUBLIC
-        platform
+        am_interface
+        platform_interface
+        PRIVATE
         RapidJSON
         assimp::assimp
-        Boost::uuid
         fmt::fmt
         spdlog::spdlog
         imgui::imgui

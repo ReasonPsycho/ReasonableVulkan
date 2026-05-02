@@ -2,8 +2,9 @@
 <project version="4">
   <component name="CidrCTestProjectState">
     <ctestState>
-      <lineNumber testId="path:null test:am_test" value="96" />
+      <lineNumber testId="path:null test:am_test" value="99" />
       <lineNumber testId="path:null test:integration_tests" value="106" />
+      <lineNumber testId="path:null test:platform_tests" value="67" />
       <lineNumber testId="path:null test:vks_test" value="112" />
     </ctestState>
   </component>
