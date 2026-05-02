@@ -13,6 +13,8 @@ endif ()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_compile_definitions(SPDLOG_COMPILED_LIB)
+
 # Adding debug and build definitions 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG_BUILD)
@@ -56,7 +58,7 @@ add_definitions(-DGLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 platform vks am engine)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 engine_interface vks_interface am_interface platform_interface engine vks am platform)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder
@@ -83,9 +85,14 @@ if (ENABLE_INTEGRATION_TESTS)
     target_link_libraries(integration_tests
             PRIVATE
             SDL3::SDL3
-            platform
+            engine_interface
+            vks_interface
+            am_interface
+            platform_interface
+            engine
             vks
             am
+            platform
             Boost::unit_test_framework
     )
 

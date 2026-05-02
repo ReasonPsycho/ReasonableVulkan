@@ -49,13 +49,18 @@ file(GLOB_RECURSE TEST_FILES
 )
 list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
+# Create the interface target
+add_library(vks_interface INTERFACE)
+target_include_directories(vks_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(vks_interface INTERFACE am_interface platform_interface glm::glm)
+
 # Create static library
 add_library(vks STATIC ${BASE_SRC})
 
 # Configure include directories
 target_include_directories(vks
-        PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
@@ -63,13 +68,14 @@ add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 # Platform specific linking
 target_link_libraries(vks
         PUBLIC
-        am
-        platform
+        vks_interface
+        am_interface
+        platform_interface
+        PRIVATE
         KTX::ktx
         SDL3::SDL3
         imgui::imgui
         imguizmo::imguizmo
-        glm::glm
         Vulkan::Vulkan
         fmt::fmt
         spdlog::spdlog
