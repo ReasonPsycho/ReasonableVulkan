@@ -23,6 +23,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 find_package(glslang CONFIG REQUIRED)
 
 # Find Boost with required components
@@ -55,11 +56,13 @@ add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 # Link Assimp, Boost UUID
 target_link_libraries(am
         PUBLIC
+        platform
         RapidJSON
         assimp::assimp
         Boost::uuid
         fmt::fmt
         spdlog::spdlog
+        imgui::imgui
         glslang::glslang glslang::glslang-default-resource-limits glslang::SPIRV glslang::SPVRemapper
 )
 

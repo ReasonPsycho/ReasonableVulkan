@@ -29,6 +29,7 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
                     auto modelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(assetLookUpName);
                     typed->boundingBoxMin = modelData->boundingBoxMin;
                     typed->boundingBoxMax = modelData->boundingBoxMax;
+                    typed->modelUuid = scene->engine.assetManagerInterface->getAssetUuid(assetLookUpName).value();
                 }
             }
             ImGui::EndPopup();
@@ -45,7 +46,7 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
             {
                 if (ImGui::MenuItem(lookUpName.c_str()))
                 {
-                    //typed->shaderUuid = assetInfo.get()->id;
+                    typed->shaderUuid = scene->engine.assetManagerInterface->getAssetUuid(lookUpName).value();
                 }
             }
             ImGui::EndPopup();

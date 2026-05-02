@@ -2,11 +2,18 @@
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <vector>
+#include <thread>
+#include <atomic>
+#include <mutex>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "PlatformInterface.hpp"
 
 namespace  plt
@@ -36,6 +43,10 @@ public:
     bool IsWindowMinimized() const override;
     bool IsWindowFocused() const override;
 
+    // Folder monitoring functions
+    void WatchFolder(const std::string& path) override;
+    void UnwatchFolder(const std::string& path) override;
+
     // Input state functions
     bool IsKeyPressed(int keyCode) const override;
     bool IsMouseButtonPressed(uint8_t button) const override;
@@ -54,6 +65,34 @@ private:
     std::unordered_map<uint8_t, bool> mouseButtonStates;
     float mouseX = 0.0f, mouseY = 0.0f;
     float lastMouseX = 0.0f, lastMouseY = 0.0f;
+
+    // Folder monitoring
+#ifdef _WIN32
+    struct WatcherInfo {
+        std::string path;
+        HANDLE directoryHandle;
+        std::thread watchThread;
+        std::atomic<bool> stopWatching;
+    };
+#else
+    struct WatcherInfo {
+        std::string path;
+        int watchDescriptor; // For inotify/etc
+        std::thread watchThread;
+        std::atomic<bool> stopWatching;
+    };
+#endif
+    std::unordered_map<std::string, std::shared_ptr<WatcherInfo>> folderWatchers;
+    std::mutex watchersMutex;
+    void WatcherThread(std::shared_ptr<WatcherInfo> info);
+
+    // Queue for events detected in other threads
+    struct QueuedEvent {
+        EventType type;
+        std::shared_ptr<void> data;
+    };
+    std::vector<QueuedEvent> queuedEvents;
+    std::mutex queuedEventsMutex;
 };
 
 

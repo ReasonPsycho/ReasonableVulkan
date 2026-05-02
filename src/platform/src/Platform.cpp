@@ -32,6 +32,17 @@ namespace  plt
     }
 
     void Platform::PollEvents(bool& running) {
+        // Process queued events from other threads
+        {
+            std::lock_guard<std::mutex> lock(queuedEventsMutex);
+            for (const auto& qEvent : queuedEvents) {
+                for (const auto& callback : eventCallbacks[qEvent.type]) {
+                    callback(qEvent.data.get());
+                }
+            }
+            queuedEvents.clear();
+        }
+
         // Update last mouse position
         lastMouseX = mouseX;
         lastMouseY = mouseY;
@@ -163,6 +174,14 @@ namespace  plt
                     }
                 }
                 break;
+            case SDL_EVENT_DROP_FILE:
+                if (event.drop.windowID == SDL_GetWindowID(window)) {
+                    FileDropEvent dropEvent{event.drop.data};
+                    for (const auto& callback : eventCallbacks[EventType::FileDropped]) {
+                        callback(&dropEvent);
+                    }
+                }
+                break;
             }
         }
 
@@ -173,6 +192,25 @@ namespace  plt
     }
 
     void Platform::Shutdown() {
+        {
+            std::lock_guard<std::mutex> lock(watchersMutex);
+            for (auto& pair : folderWatchers) {
+                pair.second->stopWatching = true;
+#ifdef _WIN32
+                CancelIoEx(pair.second->directoryHandle, nullptr);
+                if (pair.second->watchThread.joinable()) {
+                    pair.second->watchThread.join();
+                }
+                CloseHandle(pair.second->directoryHandle);
+#else
+                // Non-windows shutdown logic (e.g. close inotify fd)
+                if (pair.second->watchThread.joinable()) {
+                    pair.second->watchThread.join();
+                }
+#endif
+            }
+            folderWatchers.clear();
+        }
         eventCallbacks.clear();
         if (window) {
             SDL_DestroyWindow(window);
@@ -226,5 +264,107 @@ namespace  plt
     void Platform::GetMousePosition(float& x, float& y) const {
         x = mouseX;
         y = mouseY;
+    }
+
+    void Platform::WatchFolder(const std::string& path) {
+        std::lock_guard<std::mutex> lock(watchersMutex);
+        if (folderWatchers.find(path) != folderWatchers.end()) return;
+
+#ifdef _WIN32
+        HANDLE hDir = CreateFileA(
+            path.c_str(),
+            FILE_LIST_DIRECTORY,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            NULL,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            NULL
+        );
+
+        if (hDir == INVALID_HANDLE_VALUE) {
+            return;
+        }
+
+        auto info = std::make_shared<WatcherInfo>();
+        info->path = path;
+        info->directoryHandle = hDir;
+        info->stopWatching = false;
+        info->watchThread = std::thread(&Platform::WatcherThread, this, info);
+
+        folderWatchers[path] = info;
+#else
+        // Non-windows implementation placeholder
+        // e.g. using inotify_add_watch on Linux
+#endif
+    }
+
+    void Platform::UnwatchFolder(const std::string& path) {
+        std::lock_guard<std::mutex> lock(watchersMutex);
+        auto it = folderWatchers.find(path);
+        if (it != folderWatchers.end()) {
+            it->second->stopWatching = true;
+#ifdef _WIN32
+            CancelIoEx(it->second->directoryHandle, nullptr);
+            if (it->second->watchThread.joinable()) {
+                it->second->watchThread.join();
+            }
+            CloseHandle(it->second->directoryHandle);
+#else
+            if (it->second->watchThread.joinable()) {
+                it->second->watchThread.join();
+            }
+#endif
+            folderWatchers.erase(it);
+        }
+    }
+
+    void Platform::WatcherThread(std::shared_ptr<WatcherInfo> info) {
+#ifdef _WIN32
+        char buffer[1024];
+        DWORD bytesReturned;
+
+        while (!info->stopWatching) {
+            if (ReadDirectoryChangesW(
+                info->directoryHandle,
+                buffer,
+                sizeof(buffer),
+                TRUE,
+                FILE_NOTIFY_CHANGE_FILE_NAME,
+                &bytesReturned,
+                NULL,
+                NULL
+            )) {
+                if (info->stopWatching) break;
+
+                FILE_NOTIFY_INFORMATION* fni = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(buffer);
+                do {
+                    if (fni->Action == FILE_ACTION_ADDED) {
+                        int fileNameLength = fni->FileNameLength / sizeof(WCHAR);
+                        std::wstring wFileName(fni->FileName, fileNameLength);
+                        std::string fileName(wFileName.begin(), wFileName.end());
+
+                        auto eventData = std::make_shared<FileAddedEvent>();
+                        eventData->filePath = info->path + "/" + fileName;
+                        eventData->folderPath = info->path;
+
+                        {
+                            std::lock_guard<std::mutex> lock(queuedEventsMutex);
+                            queuedEvents.push_back({EventType::FileAddedToFolder, eventData});
+                        }
+                    }
+                    if (fni->NextEntryOffset == 0) break;
+                    fni = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(
+                        reinterpret_cast<BYTE*>(fni) + fni->NextEntryOffset
+                    );
+                } while (true);
+            } else {
+                if (GetLastError() == ERROR_OPERATION_ABORTED) break;
+                // Some other error, maybe wait a bit
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+#else
+        // Non-windows implementation placeholder
+#endif
     }
 }
