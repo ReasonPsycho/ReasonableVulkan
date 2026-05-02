@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     }
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
-
+    assetManager.Initialize(platform);
     /* //asset loading
     auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shaderImport","pbrShader");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shaderImport","wiremeshShader");
