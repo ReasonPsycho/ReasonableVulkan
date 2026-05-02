@@ -9,7 +9,7 @@ namespace am {
     public:
         explicit ShaderProgramAsset(const boost::uuids::uuid& id);
         explicit ShaderProgramAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
-        explicit ShaderProgramAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
+        explicit ShaderProgramAsset(const std::string& path, AssetFormat format);
 
         void SaveAssetToJson(rapidjson::Document& document) override;
 
