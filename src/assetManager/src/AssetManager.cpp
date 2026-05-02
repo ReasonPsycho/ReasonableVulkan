@@ -5,6 +5,7 @@
 #include "../include/Asset.hpp"
 #include "AssetManager.hpp"
 
+#include <imgui.h>
 #include <spdlog/spdlog.h>
 
 #include "assets/ModelAsset.h"
@@ -13,13 +14,33 @@
 #include "assets/shaderProgram/ShaderProgramAsset.h"
 #include "assets/engineAssets/SceneAsset.h"
 #include "assets/engineAssets/PrefabAsset.h"
+#include "assets/configAsset/ConfigAsset.h"
 #include "JsonHelpers.hpp"
 
 namespace am {
 
     void AssetManager::Initialize(plt::PlatformInterface* platformInterface)
     {
+        /*
+        ImGuiIO& io = ImGui::GetIO();
+        io.Fonts->AddFontDefaultVector();
+        ImFontConfig config;
+        config.MergeMode = true;
+        config.GlyphMinAdvanceX = 13.0f; // Use if you want to make the icon monospaced
+        io.Fonts->AddFontFromFileTTF("fonts/fontawesome-webfont.ttf", 13.0f, &config);
+        */
 
+
+        platformInterface->SubscribeToEvent(plt::EventType::FileAddedToFolder,
+                   [this](const void* data) {
+                       const auto* event = static_cast<const plt::FileAddedEvent*>(data);
+                       this->handleFileAddedToFolder(event);
+                   });
+        platformInterface->SubscribeToEvent(plt::EventType::FileDropped,
+                 [this](const void* data) {
+                     const auto* event = static_cast<const plt::FileDropEvent*>(data);
+                     this->handleFileDropped(event);
+                 });
     }
 
     AssetManager &AssetManager::getInstance() {
@@ -48,7 +69,7 @@ namespace am {
         return initializeAsset(assetType, normalizedPath, lookUpName);
     }
 
-    std::optional<boost::uuids::uuid> AssetManager::createAsset(AssetType assetType, string path, std::string lookupName) {
+    std::optional<boost::uuids::uuid> AssetManager::createAsset(AssetType assetType, std::string path, std::string lookupName) {
         std::filesystem::path p = std::filesystem::path(path).lexically_normal();
 
         if (lookupNamesToUUIDs.find(lookupName) != lookupNamesToUUIDs.end())
@@ -171,7 +192,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     spdlog::error("No factory registered for asset type");
                     throw std::runtime_error("No factory registered for asset type");
                 }
-                assetNew = binLoader(id, assetInfo->second->path, AssetFormat::Binary);
+                assetNew = binLoader(assetInfo->second->path, AssetFormat::Binary);
             }else
             {
                 auto jsonLoader = getLoader(getTypeIndex(assetInfo->second->type));
@@ -179,7 +200,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     spdlog::error("No factory registered for asset type");
                     throw std::runtime_error("No factory registered for asset type");
                 }
-                assetNew = jsonLoader(id, assetInfo->second->path, AssetFormat::Json);
+                assetNew = jsonLoader(assetInfo->second->path, AssetFormat::Json);
             }
             assetInfo->second->loadedAsset = assetNew.get();
             assetInfo->second->isLoaded = true;
@@ -295,6 +316,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     AssetManager::AssetManager() : AssetManagerInterface()
     {
+        currentPath = resourceFolder;
         RegisterAssetType<MaterialAsset>();
         RegisterAssetType<TextureAsset>();
         RegisterAssetType<ShaderAsset>();
@@ -303,6 +325,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         RegisterAssetType<MeshAsset>();
         RegisterAssetType<SceneAsset>();
         RegisterAssetType<PrefabAsset>();
+        RegisterAssetType<ConfigAsset>();
 
         loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
     }
@@ -359,6 +382,79 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         return importAsset(importContext, lookUpName);
     }
 
+    void AssetManager::handleFileAddedToFolder(const plt::FileAddedEvent* event)
+    {
+        auto filePath = event->filePath;
+        auto ext = std::filesystem::path(filePath).extension().string();
+        auto assetOwnership = StringToAssetOwnership(ext);
+
+        if (assetOwnership == AssetOwnership::Managed)
+        {
+            AssetType assetType = GetAssetTypeFromExtension(ext);
+            unique_ptr<Asset> assetNew;
+            try
+            {
+                if (GetEditorSavesToBin(assetType))
+                {
+                    auto binLoader = getLoader(getTypeIndex(assetType));
+                    if (!binLoader) {
+                        spdlog::error("No factory registered for asset type");
+                        throw std::runtime_error("No factory registered for asset type");
+                    }
+                    assetNew = binLoader(event->filePath, AssetFormat::Binary);
+                }else
+                {
+                    auto jsonLoader = getLoader(getTypeIndex(assetType));
+                    if (!jsonLoader) {
+                        spdlog::error("No factory registered for asset type");
+                        throw std::runtime_error("No factory registered for asset type");
+                    }
+                    assetNew = jsonLoader(event->filePath, AssetFormat::Json);
+                }
+                auto id = assetNew->id;
+                auto assetInfoIt = metadata.find(id);
+                if (assetInfoIt != metadata.end()) {
+                    if (std::filesystem::exists(assetInfoIt->second->path) && std::filesystem::path(assetInfoIt->second->path) != std::filesystem::path(event->filePath)) {
+                        std::filesystem::remove(assetInfoIt->second->path);
+                    }
+                    assetInfoIt->second->path = event->filePath;
+                    assetInfoIt->second->loadedAsset = assetNew.get();
+                    assetInfoIt->second->isLoaded = true;
+                }
+                assets[id] = std::move(assetNew);
+            }catch (const std::exception& e)
+            {
+                spdlog::error("Failed to load asset: {}", e.what());
+            }
+        }
+        //Don't do anything for other types
+    }
+
+    void AssetManager::handleFileDropped(const plt::FileDropEvent* event)
+    {
+        auto filePath = std::filesystem::path(event->filePath).lexically_normal();
+        auto ext = filePath.extension().string();
+        auto assetOwnership = StringToAssetOwnership(ext);
+
+        if (assetOwnership == AssetOwnership::Import)
+        {
+            // If it's outside the current path, copy it there
+            std::filesystem::path destPath = currentPath / filePath.filename();
+
+            if (filePath != destPath)
+            {
+                try {
+                    std::filesystem::copy(filePath, destPath, std::filesystem::copy_options::overwrite_existing);
+                    registerAsset(destPath.string());
+                } catch (const std::exception& e) {
+                    spdlog::error("Failed to copy dropped file: {}", e.what());
+                }
+            } else {
+                registerAsset(filePath.string());
+            }
+        }
+        //Don't do anything for other types
+    }
 
 
     std::optional<boost::uuids::uuid> AssetManager::getAssetUuid(std::string lookupName)
@@ -430,10 +526,83 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     void AssetManager::ImguiFileBrowser(std::string windowName)
     {
+        ImGui::Begin(windowName.c_str());
 
+        if (currentPath != resourceFolder)
+        {
+            if (ImGui::Button(".."))
+            {
+                currentPath = currentPath.parent_path();
+            }
+            ImGui::SameLine();
+        }
+        ImGui::Text("Current Path: %s", currentPath.string().c_str());
+
+        ImGui::Separator();
+
+        if (ImGui::BeginChild("FileBrowserScroll"))
+        {
+            float iconSize = 64.0f;
+            float padding = 16.0f;
+            float cellSize = iconSize + padding;
+
+            float windowVisibleX2 = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+
+            try {
+                int i = 0;
+                for (const auto& entry : std::filesystem::directory_iterator(currentPath))
+                {
+                    const auto& path = entry.path();
+                    std::string filename = path.filename().string();
+
+                    ImGui::PushID(i++);
+                    ImGui::BeginGroup();
+
+                    // Dummy "icon"
+                    if (entry.is_directory()) {
+                        ImGui::Button("[DIR]", ImVec2(iconSize, iconSize));
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                            currentPath = path;
+                        }
+                    } else {
+                        ImGui::Button("[FILE]", ImVec2(iconSize, iconSize));
+                    }
+
+                    // Centered text below icon
+                    float textWidth = ImGui::CalcTextSize(filename.c_str()).x;
+                    if (textWidth > iconSize) {
+                        // Truncate text if too long
+                        std::string truncated = filename.substr(0, 8) + "...";
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (iconSize - ImGui::CalcTextSize(truncated.c_str()).x) * 0.5f);
+                        ImGui::Text("%s", truncated.c_str());
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", filename.c_str());
+                    } else {
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (iconSize - textWidth) * 0.5f);
+                        ImGui::Text("%s", filename.c_str());
+                    }
+
+                    ImGui::EndGroup();
+
+                    float lastButtonX2 = ImGui::GetItemRectMax().x;
+                    float nextButtonX2 = lastButtonX2 + padding + cellSize;
+                    if (nextButtonX2 < windowVisibleX2)
+                        ImGui::SameLine(0, padding);
+
+                    ImGui::PopID();
+                }
+            } catch (const std::exception& e) {
+                ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: %s", e.what());
+                if (ImGui::Button("Reset to Resource Folder")) {
+                    currentPath = resourceFolder;
+                }
+            }
+            ImGui::EndChild();
+        }
+
+        ImGui::End();
     }
 
-    std::optional<boost::uuids::uuid> AssetManager::importAsset(ImportContext importContext, string lookUpName)
+    std::optional<boost::uuids::uuid> AssetManager::importAsset(ImportContext importContext, std::string lookUpName)
     {
         importContext.importPath = std::filesystem::path(importContext.importPath).lexically_normal().string();
         try
@@ -447,8 +616,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
             auto id = boost::uuids::random_generator()();
             std::unique_ptr<Asset> newAsset = factory(id, importContext);
-            size_t contentHash = newAsset->calculateContentHash();
 
+            size_t contentHash = newAsset->calculateContentHash(); // We don't check for duplicates. Maby do that on realise
+            /*
             // Check if we have an asset with the same content hash
             auto existingAsset = std::find_if(metadata.begin(), metadata.end(),
                                               [contentHash](const auto &pair) {
@@ -459,6 +629,8 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 // We found an asset with the same content
                 return existingAsset->second.get()->id;
             }
+
+            */
 
             // If we get here, this is a new unique asset
             auto info = std::make_shared<AssetInfo>(id, importContext.importPath, importContext.assetType, contentHash,importContext, lookUpName);
@@ -531,6 +703,8 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             return std::type_index(typeid(SceneAsset));
         case AssetType::Prefab:
             return std::type_index(typeid(PrefabAsset));
+        case AssetType::Config:
+            return std::type_index(typeid(ConfigAsset));
         default:
             spdlog::error("Failed to get type_index for AssetType");
             throw std::runtime_error("Failed to get type_index for AssetType!");

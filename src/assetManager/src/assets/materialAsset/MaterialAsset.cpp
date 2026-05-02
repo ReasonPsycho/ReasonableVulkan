@@ -26,7 +26,7 @@ am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, ImportContext ass
     }
 }
 
-am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
+am::MaterialAsset::MaterialAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
     if (format == AssetFormat::Json) {
         rapidjson::Document document;
         if (!loadJsonFromFile(path, document)) {
@@ -35,11 +35,7 @@ am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, const std::string
         }
 
         if (document.HasMember("uuid") && document["uuid"].IsString()) {
-            std::string savedUuidStr = document["uuid"].GetString();
-            boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
-                if (savedUuid != id) {
-                    spdlog::warn("Material asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), savedUuidStr.c_str());
-                }
+            id = boost::uuids::string_generator()(document["uuid"].GetString());
         }
 
         AssetManager &assetManager = AssetManager::getInstance();

@@ -18,7 +18,7 @@ namespace am {
 
         explicit TextureAsset(const boost::uuids::uuid& id);
         explicit TextureAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
-        explicit TextureAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
+        explicit TextureAsset(const std::string& path, AssetFormat format);
 
         ~TextureAsset() override;
 

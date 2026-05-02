@@ -13,9 +13,9 @@ namespace am {
 
         explicit PrefabAsset(const boost::uuids::uuid& id);
 
-        PrefabAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
+        PrefabAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
 
-        explicit PrefabAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format);
+        explicit PrefabAsset(const std::string& path, AssetFormat format);
 
         [[nodiscard]] AssetType getType() const override;
 
