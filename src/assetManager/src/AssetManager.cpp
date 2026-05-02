@@ -17,22 +17,14 @@
 
 namespace am {
 
-    AssetManager::AssetManager() : AssetManagerInterface()
+    void AssetManager::Initialize(plt::PlatformInterface* platformInterface)
     {
-        RegisterAssetType<MaterialAsset>();
-        RegisterAssetType<TextureAsset>();
-        RegisterAssetType<ShaderAsset>();
-        RegisterAssetType<ShaderProgramAsset>();
-        RegisterAssetType<ModelAsset>();
-        RegisterAssetType<MeshAsset>();
-        RegisterAssetType<SceneAsset>();
-        RegisterAssetType<PrefabAsset>();
 
-        loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
     }
 
-    AssetManager::~AssetManager() {
-        saveRegistryMetadataToFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
+    AssetManager &AssetManager::getInstance() {
+        static AssetManager instance;
+        return instance;
     }
 
     std::optional<boost::uuids::uuid> AssetManager::createAsset(AssetType assetType, std::string path) {
@@ -71,7 +63,7 @@ namespace am {
     }
 
     std::optional<boost::uuids::uuid> AssetManager::initializeAsset(AssetType assetType, std::string path,
-        std::string lookupName)
+                                                                    std::string lookupName)
     {
         try
         {
@@ -116,71 +108,51 @@ namespace am {
     }
 
 
-    bool AssetManager::saveRegistryMetadataToFile(const std::string& filename) const {
-    rapidjson::Document document;
-    document.SetObject();
-    auto& allocator = document.GetAllocator();
+    std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path, std::string lookUpName)
+    {
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        std::string normalizedPath = p.string();
 
-    // Add encoding information
-    rapidjson::Value encodingInfo(rapidjson::kObjectType);
-    encodingInfo.AddMember("encoding", "UTF-8", allocator);
-    encodingInfo.AddMember("version", "1.0", allocator);
-    document.AddMember("_meta", encodingInfo, allocator);
+        std::string extension = p.extension().string();
 
-    // Create metadata array
-    rapidjson::Value metadataArray(rapidjson::kArrayType);
+        if (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
+        {
+            spdlog::error("Lookup name already exists");
+            throw std::runtime_error("Lookup name already exists");
+        }
 
-    for (const auto& [uuid, info] : metadata) {
-        rapidjson::Value assetInfoObj(rapidjson::kObjectType);
-        info->SerializeAssetInfoToJson(assetInfoObj, allocator);
-        metadataArray.PushBack(assetInfoObj, allocator);
+        ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
+        return importAsset(assetFactoryData, lookUpName);
     }
 
-    document.AddMember("metadata", metadataArray, allocator);
+std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path)
+{
+    std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+    std::string normalizedPath = p.string();
 
-    return saveJsonToFile(filename, document);
+    std::string baseName = p.stem().string();
+    std::string extension = p.extension().string();
+
+    std::string lookUpName = baseName + GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
+
+    int counter = 1;
+
+    while (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
+    {
+        lookUpName = baseName + "_" + std::to_string(counter) +  GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
+        counter++;
+    }
+
+    ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
+    return importAsset(assetFactoryData, lookUpName);
 }
 
-bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
-    rapidjson::Document document;
-    if (!loadJsonFromFile(filename, document)) {
-        return false;
-    }
-
-    if (!document.IsObject() || !document.HasMember("metadata") ||
-        !document["metadata"].IsArray()) {
-        spdlog::error("Invalid metadata file format");
-        return false;
-    }
-
-    // Clear existing data
-    metadata.clear();
-    lookupNamesToUUIDs.clear();
-    assets.clear();
-
-    // Load metadata
-    const auto& metadataArray = document["metadata"].GetArray();
-    for (const auto& assetInfoValue : metadataArray) {
-        auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(assetInfoValue);
-        auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
-        metadata[infoPtr->id] = infoPtr;
-        lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-    }
-
-    return true;
+std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boost::uuids::uuid &id) const {
+    auto it = metadata.find(id);
+    if (it != metadata.end()) return it->second;
+    spdlog::error("No asset found!");
+    return std::nullopt;
 }
-    
-    AssetManager &AssetManager::getInstance() {
-        static AssetManager instance;
-        return instance;
-    }
-    
-    std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boost::uuids::uuid &id) const {
-        auto it = metadata.find(id);
-        if (it != metadata.end()) return it->second;
-        spdlog::error("No asset found!");
-        return std::nullopt;
-    }
 
     std::optional<Asset*> AssetManager::getAsset(const boost::uuids::uuid& id)
     {
@@ -189,7 +161,6 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
 
         auto assetInfo = metadata.find(id);
         if (assetInfo == metadata.end()) return std::nullopt;
-        auto decodedAssetInfo = assetInfo->second;
         unique_ptr<Asset> assetNew;
         try
         {
@@ -221,7 +192,7 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
         }
         return std::nullopt;
     }
-
+    
     void AssetManager::saveAsset(const boost::uuids::uuid id)
     {
         auto info = getAssetInfo(id);
@@ -234,7 +205,7 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
         {
             spdlog::error("No asset found with id: {}", boost::uuids::to_string(id));
         }
-        
+
         if (GetEditorSavesToBin(info.value()->type))
         {
             asset.value()->SaveAssetToBin(info.value()->path);
@@ -267,44 +238,77 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
         }
     }
 
+    bool AssetManager::saveRegistryMetadataToFile(const std::string& filename) const {
+        rapidjson::Document document;
+        document.SetObject();
+        auto& allocator = document.GetAllocator();
 
-    std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path, std::string lookUpName)
-    {
-        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
-        std::string normalizedPath = p.string();
+        // Add encoding information
+        rapidjson::Value encodingInfo(rapidjson::kObjectType);
+        encodingInfo.AddMember("encoding", "UTF-8", allocator);
+        encodingInfo.AddMember("version", "1.0", allocator);
+        document.AddMember("_meta", encodingInfo, allocator);
 
-        std::string extension = p.extension().string();
+        // Create metadata array
+        rapidjson::Value metadataArray(rapidjson::kArrayType);
 
-        if (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
-        {
-            spdlog::error("Lookup name already exists");
-            throw std::runtime_error("Lookup name already exists");
+        for (const auto& [uuid, info] : metadata) {
+            rapidjson::Value assetInfoObj(rapidjson::kObjectType);
+            info->SerializeAssetInfoToJson(assetInfoObj, allocator);
+            metadataArray.PushBack(assetInfoObj, allocator);
         }
 
-        ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
-        return importAsset(assetFactoryData, lookUpName);
+        document.AddMember("metadata", metadataArray, allocator);
+
+        return saveJsonToFile(filename, document);
     }
 
-    std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path)
-    {
-        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
-        std::string normalizedPath = p.string();
-
-        std::string baseName = p.stem().string();
-        std::string extension = p.extension().string();
-
-        std::string lookUpName = baseName + GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
-
-        int counter = 1;
-
-        while (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
-        {
-            lookUpName = baseName + "_" + std::to_string(counter) +  GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
-            counter++;
+    bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
+        rapidjson::Document document;
+        if (!loadJsonFromFile(filename, document)) {
+            return false;
         }
 
-        ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
-        return importAsset(assetFactoryData, lookUpName);
+        if (!document.IsObject() || !document.HasMember("metadata") ||
+            !document["metadata"].IsArray()) {
+            spdlog::error("Invalid metadata file format");
+            return false;
+        }
+
+        // Clear existing data
+        metadata.clear();
+        lookupNamesToUUIDs.clear();
+        assets.clear();
+
+        // Load metadata
+        const auto& metadataArray = document["metadata"].GetArray();
+        for (const auto& assetInfoValue : metadataArray) {
+            auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(assetInfoValue);
+            auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+            metadata[infoPtr->id] = infoPtr;
+            lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+        }
+
+        return true;
+    }
+
+
+    AssetManager::AssetManager() : AssetManagerInterface()
+    {
+        RegisterAssetType<MaterialAsset>();
+        RegisterAssetType<TextureAsset>();
+        RegisterAssetType<ShaderAsset>();
+        RegisterAssetType<ShaderProgramAsset>();
+        RegisterAssetType<ModelAsset>();
+        RegisterAssetType<MeshAsset>();
+        RegisterAssetType<SceneAsset>();
+        RegisterAssetType<PrefabAsset>();
+
+        loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
+    }
+
+    AssetManager::~AssetManager() {
+        saveRegistryMetadataToFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
     }
 
     std::string incrementSuffix(const std::string& suffix)
@@ -422,6 +426,11 @@ bool AssetManager::loadRegistryMetadataFromFile(const std::string& filename) {
                 result.push_back(info.get()->id);
         }
         return result;
+    }
+
+    void AssetManager::ImguiFileBrowser(std::string windowName)
+    {
+
     }
 
     std::optional<boost::uuids::uuid> AssetManager::importAsset(ImportContext importContext, string lookUpName)

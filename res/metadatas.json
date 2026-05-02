@@ -113,26 +113,14 @@
       }
     },
     {
-      "id": "5a8b9f5d-07a6-4166-b19f-d042c1eb8341",
-      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh.b_fs_shader",
-      "type": "Shader",
-      "lookUpName": "wiremesh.shader",
-      "contentHash": 14484873410992813000,
+      "id": "5c40fcd0-42cb-4098-8372-ad76faaba452",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shaderprogram",
+      "type": "ShaderProgram",
+      "lookUpName": "pbrShader",
+      "contentHash": 14525977998531044010,
       "assetFactoryData": {
-        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh.frag",
-        "assetType": "Shader",
-        "assimpIndex": 0
-      }
-    },
-    {
-      "id": "20b1cc30-adc8-4b45-8ae5-06ae25394708",
-      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.b_texture",
-      "type": "Texture",
-      "lookUpName": "Skybox_0.texture",
-      "contentHash": 5159174310912765632,
-      "assetFactoryData": {
-        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.png",
-        "assetType": "Texture",
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shaderImport",
+        "assetType": "ShaderProgram",
         "assimpIndex": 0
       }
     },
@@ -149,14 +137,26 @@
       }
     },
     {
-      "id": "5c40fcd0-42cb-4098-8372-ad76faaba452",
-      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shaderprogram",
-      "type": "ShaderProgram",
-      "lookUpName": "pbrShader",
-      "contentHash": 14525977998531044010,
+      "id": "20b1cc30-adc8-4b45-8ae5-06ae25394708",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.b_texture",
+      "type": "Texture",
+      "lookUpName": "Skybox_0.texture",
+      "contentHash": 5159174310912765632,
       "assetFactoryData": {
-        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\jsons\\pbr.shaderImport",
-        "assetType": "ShaderProgram",
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox.png",
+        "assetType": "Texture",
+        "assimpIndex": 0
+      }
+    },
+    {
+      "id": "5a8b9f5d-07a6-4166-b19f-d042c1eb8341",
+      "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh.b_fs_shader",
+      "type": "Shader",
+      "lookUpName": "wiremesh.shader",
+      "contentHash": 14484873410992813000,
+      "assetFactoryData": {
+        "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\shaders\\glsl\\entry\\wiremesh.frag",
+        "assetType": "Shader",
         "assimpIndex": 0
       }
     },

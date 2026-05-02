@@ -38,6 +38,8 @@ namespace am {
         using MetadataSaver  = std::function<void(am::Asset&, rapidjson::Document&)>;
 
     public:
+
+        void Initialize(plt::PlatformInterface* platformInterface) override;
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
         static AssetManager &getInstance();
@@ -86,6 +88,8 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids() const override;
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
+        void ImguiFileBrowser(std::string windowName) override;
+
         std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
         std::optional<Asset*> getAsset(const boost::uuids::uuid& id) override;
 
@@ -102,6 +106,7 @@ namespace am {
         //Json
         bool saveRegistryMetadataToFile(const std::string& filename) const;
         bool loadRegistryMetadataFromFile(const std::string& filename);
+
 
     private:
         AssetManager();
