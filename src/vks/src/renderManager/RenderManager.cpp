@@ -688,6 +688,10 @@ void RenderManager::waitIdle() {
     vkDeviceWaitIdle(context->getDevice());
 }
 
+void RenderManager::updateSyncObjects() {
+    imagesInFlight.assign(swapChain->getImageViews().size(), VK_NULL_HANDLE);
+}
+
 void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines) {
     bool hasSceneUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::SCENE_UBO_GLSL) != defines.end();
     bool hasLighting = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != defines.end() ||
