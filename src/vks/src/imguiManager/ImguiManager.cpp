@@ -182,6 +182,13 @@ namespace vks
 
     void ImguiManager::createDescriptorSets(std::vector<VkImageView> swapChainImagesViews)
     {
+        for (auto& cameraTextures : cameraImguiTextureIDs) {
+            for (auto& descriptorSet : cameraTextures) {
+                if (descriptorSet != VK_NULL_HANDLE) {
+                    ImGui_ImplVulkan_RemoveTexture(descriptorSet);
+                }
+            }
+        }
         cameraImguiTextureIDs.clear();
         swapChainImguiTextureIDs.clear();
         if (pipelineManager->cameraResources.empty()) return;
