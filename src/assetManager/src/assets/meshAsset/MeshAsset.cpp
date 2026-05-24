@@ -3,7 +3,9 @@
 //
 
 #include "MeshAsset.h"
+#include "../../AssetManager.hpp"
 #include "../../JsonHelpers.hpp"
+#include <filesystem>
 
 
 
@@ -15,7 +17,8 @@ using namespace std;
 
 namespace am {
 
-    MeshAsset::MeshAsset(const boost::uuids::uuid& id) : Asset(id), importContext("", AssetType::Other) {
+    MeshAsset::MeshAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path), importContext("", AssetType::Other) {
+        createEmptyMaterial(path);
     }
 
     size_t MeshAsset::calculateContentHash() const {
@@ -171,7 +174,7 @@ namespace am {
         }
     }
 
-    MeshAsset::MeshAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format): Asset(id, path, format), importContext("",AssetType::Other)
+    MeshAsset::MeshAsset(const std::string& path, AssetFormat format): Asset(path, format), importContext("",AssetType::Other)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
@@ -179,6 +182,11 @@ namespace am {
                 spdlog::error("Failed to load MeshAsset from JSON: {}", path);
                 return;
             }
+
+            if (document.HasMember("uuid") && document["uuid"].IsString()) {
+                id = boost::uuids::string_generator()(document["uuid"].GetString());
+            }
+
             AssetManager &assetManager = AssetManager::getInstance();
 
             if (document.HasMember("importContext") && document["importContext"].IsObject()) {
@@ -280,11 +288,7 @@ namespace am {
             }
 
             // Read UUID
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
-            if (savedId != id) {
-                spdlog::warn("Mesh asset UUID mismatch: expected {}, got {}", boost::uuids::to_string(id), boost::uuids::to_string(savedId));
-            }
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             // Read material UUID
             boost::uuids::uuid materialId;
@@ -357,7 +361,23 @@ namespace am {
         return AssetType::Mesh;
     }
 
+    void MeshAsset::createEmptyMaterial(string path) {
+        AssetManager &assetManager = AssetManager::getInstance();
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        auto texturePath = p.parent_path();
+        auto materialUuid = assetManager.createAsset(AssetType::Material, texturePath.string() + "\\materialOf" + p.stem().string());
+        if (materialUuid) {
+            data.material = assetManager.getAssetInfo(materialUuid.value()).value_or(nullptr);
+        }
+    }
+
     void MeshAsset::SaveAssetToBin(std::string& path) {
+        // Ensure parent directory exists
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+
         std::ofstream ofs(path, std::ios::binary | std::ios::out);
         if (!ofs.is_open()) {
             spdlog::error("Failed to open file for writing binary asset: {}", path);

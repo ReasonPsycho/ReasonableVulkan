@@ -1,6 +1,22 @@
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 
-set(SOURCE_PATH "C:/Users/redkc/CLionProjects/imgui")
+if ("docking-experimental" IN_LIST FEATURES)
+    vcpkg_from_github(
+        OUT_SOURCE_PATH SOURCE_PATH
+        REPO ocornut/imgui
+        REF "v${VERSION}-docking"
+        SHA512 4618b8bd6e65ac27cd7cecb3469d135622279d83f8a580c028231578f7023c4465911c5878ee7e40c2f6dda606aef86f27c3cecfb7bc9a6022bd1d89eed17c29
+        HEAD_REF docking
+    )
+else()
+    vcpkg_from_github(
+        OUT_SOURCE_PATH SOURCE_PATH
+        REPO ocornut/imgui
+        REF "v${VERSION}"
+        SHA512 689338deecfa75d94d5796a42872f2d807eb853a3b9b3e4c2904e2a36a53bdce5de2e74b7812e38548ebdc02cfd70652d49d8c7aa1d20fd46193eb912e10b826
+        HEAD_REF master
+    )
+endif()
 
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/imgui-config.cmake.in" DESTINATION "${SOURCE_PATH}")
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt" DESTINATION "${SOURCE_PATH}")
@@ -45,13 +61,16 @@ if ("libigl-imgui" IN_LIST FEATURES)
 endif()
 
 if ("test-engine" IN_LIST FEATURES)
-    set(TEST_ENGINE_SOURCE_PATH "${SOURCE_PATH}/test-engine")
-    if(NOT EXISTS "${TEST_ENGINE_SOURCE_PATH}")
-        message(FATAL_ERROR "imgui-test-engine source not found at ${TEST_ENGINE_SOURCE_PATH}. Please ensure it is present in the local imgui directory.")
-    endif()
+    vcpkg_from_github(
+        OUT_SOURCE_PATH TEST_ENGINE_SOURCE_PATH
+        REPO ocornut/imgui_test_engine
+        REF "v${VERSION}"
+        SHA512 e251e38938ecadd902c997d4299c507e1a6f4ed95d60224182ca351d10d6abcc2744bc80b61b7296ec3b36dfe959c1bae27ba49afa8535540d16f1e5fdc9fedb
+        HEAD_REF master
+    )
 
-    # file(REMOVE_RECURSE "${SOURCE_PATH}/test-engine")
-    # file(COPY "${TEST_ENGINE_SOURCE_PATH}/imgui_test_engine/" DESTINATION "${SOURCE_PATH}/test-engine")
+    file(REMOVE_RECURSE "${SOURCE_PATH}/test-engine")
+    file(COPY "${TEST_ENGINE_SOURCE_PATH}/imgui_test_engine/" DESTINATION "${SOURCE_PATH}/test-engine")
     file(REMOVE_RECURSE "${SOURCE_PATH}/test-engine/thirdparty/stb")
     vcpkg_replace_string("${SOURCE_PATH}/test-engine/imgui_capture_tool.cpp" "//#define IMGUI_STB_IMAGE_WRITE_FILENAME \"my_folder/stb_image_write.h\"" "#define IMGUI_STB_IMAGE_WRITE_FILENAME <stb_image_write.h>\n#define STB_IMAGE_WRITE_STATIC")
     vcpkg_replace_string("${SOURCE_PATH}/imconfig.h" "#pragma once" "#pragma  once\n\n#include \"imgui_te_imconfig.h\"")

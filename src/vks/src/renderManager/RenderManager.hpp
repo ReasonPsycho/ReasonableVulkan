@@ -59,7 +59,8 @@ private:
                      DescriptorManager* descriptorManager);
         ~RenderManager();
 
-        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId);
+        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost
+                        ::uuids::uuid raycastShaderId);
         #ifdef ENABLE_IMGUI
         void initializeImgui(ImguiManager* manager);
         #endif
@@ -76,6 +77,7 @@ private:
         void renderFrame();
         void endFrame();
         void waitIdle();
+        void updateSyncObjects();
 
         size_t getCurrentFrame() const { return currentFrame; }
         void setActiveCameraCount(uint32_t count) { activeCameraCount = count; }
@@ -100,6 +102,7 @@ private:
         boost::uuids::uuid skyboxShaderId;
         boost::uuids::uuid shadowShaderId;
         boost::uuids::uuid cubeShadowShaderId;
+        boost::uuids::uuid raycastShaderId;
 
     private:
         std::vector<RenderCommand> renderQueue;

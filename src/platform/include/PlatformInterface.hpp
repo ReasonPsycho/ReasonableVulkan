@@ -19,13 +19,24 @@ namespace  plt
         MouseMoved,
         MouseButtonPressed,
         MouseButtonReleased,
-        MouseScrolled
+        MouseScrolled,
+        FileDropped,
+        FileAddedToFolder
     };
 
     // Event data structures
     struct WindowResizeEvent {
         int width;
         int height;
+    };
+
+    struct FileDropEvent {
+        std::string filePath;
+    };
+
+    struct FileAddedEvent {
+        std::string filePath;
+        std::string folderPath;
     };
 
     struct KeyEvent {
@@ -76,6 +87,10 @@ namespace  plt
         virtual void GetWindowPosition(int& x, int& y) const = 0;
         virtual bool IsWindowMinimized() const = 0;
         virtual bool IsWindowFocused() const = 0;
+
+        // Folder monitoring functions
+        virtual void WatchFolder(const std::string& path) = 0;
+        virtual void UnwatchFolder(const std::string& path) = 0;
 
         // Input state functions
         virtual bool IsKeyPressed(int keyCode) const = 0;

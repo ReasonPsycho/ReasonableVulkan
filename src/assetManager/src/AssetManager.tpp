@@ -19,9 +19,9 @@ void AssetManager::RegisterAssetType()
 {
     auto type = std::type_index(typeid(T));
 
-    creators[type] = [](const boost::uuids::uuid& id)
+    creators[type] = [](const boost::uuids::uuid& id, std::string path)
     {
-        return std::unique_ptr<am::Asset>(new T(id));
+        return std::unique_ptr<am::Asset>(new T(id, path));
     };
 
     importers[type] = [](const boost::uuids::uuid& id, am::ImportContext& data)
@@ -34,9 +34,9 @@ void AssetManager::RegisterAssetType()
         static_cast<T&>(asset).SaveAssetToJson(doc);
     };
 
-    loaders[type] = [](const boost::uuids::uuid& id, const std::string& path, am::AssetFormat format)
+    loaders[type] = [](const std::string& path, am::AssetFormat format)
     {
-        return std::unique_ptr<am::Asset>(new T(id, path, format));
+        return std::unique_ptr<am::Asset>(new T(path, format));
     };
 
     metadataSavers[type] = [](am::Asset& asset, rapidjson::Document& doc)

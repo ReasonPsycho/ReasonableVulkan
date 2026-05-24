@@ -11,7 +11,7 @@ namespace am
 {
     struct ModelData
     {
-        am::Node rootNode;
+        am::Node rootNode; // Root node shouldn't actually hold any models since the blender will not have any prob should think about refactoring this
         glm::vec3 boundingBoxMin;
         glm::vec3 boundingBoxMax;
     };

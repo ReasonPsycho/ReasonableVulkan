@@ -3,17 +3,18 @@
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 #include <fstream>
+#include <filesystem>
 
 namespace am {
-    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id) : Asset(id) {
+    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path) {
         prefabData.SetObject();
     }
 
-    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
+    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData) : Asset(id, assetFactoryData) {
         loadJsonFromFile(assetFactoryData.importPath, prefabData);
     }
 
-    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
+    PrefabAsset::PrefabAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Binary) {
             std::ifstream ifs(path, std::ios::binary);
             if (!ifs.is_open()) return;
@@ -21,8 +22,7 @@ namespace am {
             char magic[6];
             ifs.read(magic, sizeof(PREFAB_MAGIC));
 
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             size_t dataSize;
             ifs.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
@@ -33,6 +33,9 @@ namespace am {
             prefabData.Parse(jsonStr.c_str());
         } else {
             loadJsonFromFile(path, prefabData);
+            if (prefabData.HasMember("uuid") && prefabData["uuid"].IsString()) {
+                id = boost::uuids::string_generator()(prefabData["uuid"].GetString());
+            }
         }
     }
 
@@ -49,6 +52,12 @@ namespace am {
     }
 
     void PrefabAsset::SaveAssetToBin(std::string& path) {
+        // Ensure parent directory exists
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+
         std::ofstream ofs(path, std::ios::binary | std::ios::out);
         if (!ofs.is_open()) return;
 

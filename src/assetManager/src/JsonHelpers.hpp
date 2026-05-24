@@ -10,6 +10,7 @@
 #include <rapidjson/stringbuffer.h>
 #include <fstream>
 #include <string>
+#include <filesystem>
 #include <spdlog/spdlog.h>
 
 namespace am {
@@ -21,6 +22,12 @@ namespace am {
             rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
             writer.SetIndent(' ', 2);
             document.Accept(writer);
+
+            // Ensure parent directory exists
+            std::filesystem::path p(filename);
+            if (p.has_parent_path()) {
+                std::filesystem::create_directories(p.parent_path());
+            }
 
             // Save to file
             std::ofstream ofs(filename, std::ios::out | std::ios::binary);

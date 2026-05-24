@@ -12,14 +12,14 @@
 #include "ShaderIncluder.hpp"
 
 namespace am {
-    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id) : Asset(id) {
+    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path) {
     }
 
     ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
         loadFromFile(assetFactoryData.importPath);
     }
 
-    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format) {
+    ShaderAsset::ShaderAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Json) {
             throw std::runtime_error("ShaderAsset does not support JSON format");
         } else if (format == AssetFormat::Binary) {
@@ -37,11 +37,7 @@ namespace am {
             }
 
             // Read UUID
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
-            if (savedId != id) {
-                spdlog::warn("Shader asset UUID mismatch: expected {}, got {}", boost::uuids::to_string(id), boost::uuids::to_string(savedId));
-            }
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             ifs.read(reinterpret_cast<char*>(&data.stage), sizeof(data.stage));
 
@@ -154,6 +150,12 @@ namespace am {
 
     void ShaderAsset::SaveAssetToBin(std::string& path)
     {
+        // Ensure parent directory exists
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+
         std::ofstream ofs(path, std::ios::binary | std::ios::out);
         if (!ofs.is_open()) {
             spdlog::error("Failed to open file for writing binary shader asset: {}", path);

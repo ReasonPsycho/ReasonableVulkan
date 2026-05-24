@@ -15,6 +15,8 @@ ReasonableVulkan is a modular game engine transitioned from ReasonableGL to Vulk
 - `debug-with-tests`: Includes unit and integration tests.
 - `release`: Optimized release build.
 
+> **Note**: When building for tests (e.g., `debug-with-tests`), it is highly recommended to use parallel building (e.g., `cmake --build --parallel` or `-j <number_of_cores>`) to significantly reduce build times.
+
 ### Assets
 - The `res/` folder is symlinked to the build directory after building. Ensure all paths used in code are relative to this root.
 
