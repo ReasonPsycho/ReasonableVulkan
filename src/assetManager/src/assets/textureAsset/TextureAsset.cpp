@@ -1,11 +1,12 @@
 #include "TextureAsset.h"
 #include "../../AssetManager.hpp"
 #include "../../JsonHelpers.hpp"
+#include <filesystem>
 #include "stb_image.h"
 
 namespace am
 {
-    TextureAsset::TextureAsset(const boost::uuids::uuid& id) : Asset(id)
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path)
     {
     }
 
@@ -90,6 +91,12 @@ namespace am
 
     void TextureAsset::SaveAssetToBin(std::string& path)
     {
+        // Ensure parent directory exists
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+
         std::ofstream ofs(path, std::ios::binary | std::ios::out);
         if (!ofs.is_open()) {
             spdlog::error("Failed to open file for writing binary asset: {}", path);

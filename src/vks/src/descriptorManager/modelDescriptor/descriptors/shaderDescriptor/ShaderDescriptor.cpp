@@ -89,6 +89,8 @@ namespace vks
                result.push_back(ShaderDefinesEnum::WIREMESH_GLSL);
            }else if (key == "ENABLE_MULTVIEW")  {
                result.push_back(ShaderDefinesEnum::ENABLE_MULTVIEW);
+           }else if (key == "RAYCAST_GLSL")  {
+               result.push_back(ShaderDefinesEnum::RAYCAST_GLSL);
            }
        }
         return result;

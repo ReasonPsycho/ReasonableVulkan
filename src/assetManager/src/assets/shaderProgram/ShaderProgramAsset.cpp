@@ -8,7 +8,7 @@
 #include <filesystem>
 
 namespace am {
-    ShaderProgramAsset::ShaderProgramAsset(const boost::uuids::uuid& id) : Asset(id) {
+    ShaderProgramAsset::ShaderProgramAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path) {
     }
 
     ShaderProgramAsset::ShaderProgramAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {

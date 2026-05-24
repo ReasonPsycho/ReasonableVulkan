@@ -19,6 +19,7 @@
 #include "systems/renderingSystem/componets/LightComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "vks/VulkanRenderer.h"
+#include "Config.hpp"
 
 
 namespace am
@@ -36,7 +37,11 @@ int main(int argc, char *argv[]) {
 
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
     assetManager.Initialize(platform);
+
+
     /* //asset loading
+    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/raycast.shaderImport","raycastShader");
+
     auto pbrShaderId = assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/pbr.shaderImport","pbrShader");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh.shaderImport","wiremeshShader");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/wiremesh_textured.shaderImport","wiremeshTexturedShader");

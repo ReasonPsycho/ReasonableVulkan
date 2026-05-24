@@ -30,11 +30,13 @@ RenderManager::~RenderManager() {
     cleanup();
 }
 
-void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId) {
+void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost
+                               ::uuids::uuid raycastShaderId) {
     this->pbrShaderId = pbrShaderId;
     this->skyboxShaderId = skyboxShaderId;
     this->shadowShaderId = shadowShaderId;
     this->cubeShadowShaderId = cubeShadowShaderId;
+    this->raycastShaderId = raycastShaderId;
     createCommandBuffers();
     createSyncObjects();
     

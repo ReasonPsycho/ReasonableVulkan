@@ -3,9 +3,10 @@
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 #include <fstream>
+#include <filesystem>
 
 namespace am {
-    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id) : Asset(id) {
+    PrefabAsset::PrefabAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path) {
         prefabData.SetObject();
     }
 
@@ -51,6 +52,12 @@ namespace am {
     }
 
     void PrefabAsset::SaveAssetToBin(std::string& path) {
+        // Ensure parent directory exists
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+
         std::ofstream ofs(path, std::ios::binary | std::ios::out);
         if (!ofs.is_open()) return;
 

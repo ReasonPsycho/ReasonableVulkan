@@ -7,7 +7,7 @@
 namespace am {
     class ShaderProgramAsset : public Asset {
     public:
-        explicit ShaderProgramAsset(const boost::uuids::uuid& id);
+        explicit ShaderProgramAsset(const boost::uuids::uuid& id, std::string path);
         explicit ShaderProgramAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
         explicit ShaderProgramAsset(const std::string& path, AssetFormat format);
 

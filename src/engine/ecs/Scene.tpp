@@ -188,5 +188,11 @@ template<typename T>
 std::shared_ptr<T> Scene::GetSystem()
 {
     auto typeIndex = std::type_index(typeid(T));
-    return std::static_pointer_cast<T>(systems.at(typeIndex));
+    auto it = systems.find(typeIndex);
+
+    if (it != systems.end()) {
+        return std::static_pointer_cast<T>(it->second);
+    }
+
+    return nullptr;
 }

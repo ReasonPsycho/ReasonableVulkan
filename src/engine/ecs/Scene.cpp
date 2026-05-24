@@ -8,6 +8,7 @@
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "tracy/Tracy.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
+#include "systems/gizmoSystem/GizmoSystem.hpp"
 
 
 using namespace engine::ecs;
@@ -61,6 +62,8 @@ Scene::Scene(Engine& engine): engine(engine)
     GetSystem<EditorSystem>().get()->RegisterComponentType<CameraComponent>();
     GetSystem<EditorSystem>().get()->RegisterComponentType<LightComponent>();
 #endif
+
+    RegisterSystem<GizmoSystem>();
     RegisterComponent<RendererComponent>(); //For some reason I have to register them in reverse
     RegisterComponent<CameraComponent>();
     RegisterComponent<LightComponent>();
