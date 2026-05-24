@@ -3,13 +3,33 @@
 //
 
 #include "ModelAsset.h"
+#include "../AssetManager.hpp"
 #include "../src/AssimpGLMHelpers.h"
 #include "../JsonHelpers.hpp"
 
 namespace am
 {
-    ModelAsset::ModelAsset(const boost::uuids::uuid& id) : Asset(id)
+    ModelAsset::ModelAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path)
     {
+        AssetManager& assetManager = AssetManager::getInstance();
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        auto meshPath = p.parent_path();
+        auto meshUuid = assetManager.createAsset(AssetType::Mesh,  meshPath.string() + "\\meshOf" + p.stem().string());
+        if (meshUuid) {
+            data.rootNode.mName = "RootNode";
+            data.rootNode.mTransformation = glm::mat4(1.0f);
+
+
+            auto n = Node{};
+            n.mName = "ChildNode";
+            n.mParent = &data.rootNode;
+            n.mTransformation = glm::mat4(1.0f);
+            n.meshes.push_back(assetManager.getAssetInfo(meshUuid.value()).value());
+            data.rootNode.mChildren.push_back(n);
+        }
+
+        data.boundingBoxMin = glm::vec3(-0.5f);
+        data.boundingBoxMax = glm::vec3(0.5f);
     }
 
     ModelAsset::ModelAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData)

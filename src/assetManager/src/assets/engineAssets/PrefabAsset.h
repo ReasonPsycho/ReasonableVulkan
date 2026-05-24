@@ -11,7 +11,7 @@ namespace am {
     public:
         rapidjson::Document prefabData;
 
-        explicit PrefabAsset(const boost::uuids::uuid& id);
+        explicit PrefabAsset(const boost::uuids::uuid& id, std::string path);
 
         PrefabAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
 

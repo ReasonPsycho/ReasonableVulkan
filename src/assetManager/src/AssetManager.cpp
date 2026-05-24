@@ -57,7 +57,7 @@ namespace am {
             counter++;
         }
 
-        std::string normalizedPath = p.parent_path().string() + "/" + lookUpName;
+        std::string normalizedPath = (p.parent_path() / lookUpName).string();
 
         return initializeAsset(assetType, normalizedPath, lookUpName);
     }
@@ -71,7 +71,7 @@ namespace am {
             throw std::runtime_error("Lookup name already exists");
         }
 
-        std::string normalizedPath = p.parent_path().string() + "/" + lookupName + GetExtensionFromAssetType(assetType);
+        std::string normalizedPath = (p.parent_path() / (lookupName + GetExtensionFromAssetType(assetType))).string();
 
         return initializeAsset(assetType, normalizedPath, lookupName);
     }
@@ -87,7 +87,7 @@ namespace am {
                 throw std::runtime_error("No creator registered for asset type");
             }
             auto id = boost::uuids::random_generator()();
-            auto newAsset = creator(id);
+            auto newAsset = creator(id, path);
             auto info = std::make_shared<AssetInfo>(id, path, assetType, 0,ImportContext("", assetType, 0), lookupName);
             if (GetEditorSavesToBin(assetType))
             {
@@ -207,7 +207,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         return std::nullopt;
     }
     
-    void AssetManager::saveAsset(const boost::uuids::uuid id)
+    void AssetManager::saveAsset(const boost::uuids::uuid id) //TODO prob i should also save the depended assets
     {
         auto info = getAssetInfo(id);
         if (!info)

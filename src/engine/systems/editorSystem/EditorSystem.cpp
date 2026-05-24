@@ -16,6 +16,7 @@
 #include "assetDatas/MeshData.h"
 #include "assetDatas/ModelData.h"
 #include "systems/collisionSystem/CollisionSystem.hpp"
+#include "systems/gizmoSystem/GizmoSystem.hpp"
 
 void EditorSystem::ImGuiInspector()
 {
@@ -298,6 +299,70 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
     void* textureId = scene->engine.graphicsEngine->getViewportTexturePointer(0);
     if (textureId) {
         ImGui::Image((ImTextureID)textureId, viewportPanelSize);
+
+        ImGuiIO& io = ImGui::GetIO();
+        bool isHovered = ImGui::IsItemHovered();
+
+        // Zoom
+        if (isHovered && io.MouseWheel != 0.0f) {
+            float zoomSensitivity = 0.1f;
+            cameraDistance = glm::max(0.1f, cameraDistance - io.MouseWheel * zoomSensitivity);
+            UpdateCameraPosition();
+        }
+
+        // Selection (Left Click)
+        if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
+            auto* collisionSystem = scene->GetSystem<CollisionSystem>().get();
+            if (collisionSystem) {
+                ImVec2 mousePos = ImGui::GetMousePos();
+                Ray ray = collisionSystem->ScreenToWorldRay(camera, mousePos.x - viewportPos.x,
+                                                            mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
+
+                auto gizmoSystem = scene->GetSystem<GizmoSystem>();
+                if (gizmoSystem) {
+                    gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f),5);
+                }
+
+                auto hit = collisionSystem->RayCastClosest(ray);
+                if (hit.has_value()) {
+                    SetSelectedEntity(hit->entity);
+                } else {
+                    SetSelectedEntity(std::numeric_limits<std::uint32_t>::max());
+                }
+            }
+        }
+
+        // Orbit/Pan Start
+        if (isHovered) {
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) isRightMousePressed = true;
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) isMiddleMousePressed = true;
+        }
+
+        // Orbit/Pan Stop
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) isRightMousePressed = false;
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) isMiddleMousePressed = false;
+
+        // Orbit camera
+        if (isRightMousePressed) {
+            float sensitivity = 0.3f;
+            cameraYaw += io.MouseDelta.x * sensitivity;
+            cameraPitch += -io.MouseDelta.y * sensitivity;
+            cameraPitch = glm::clamp(cameraPitch, -89.0f, 89.0f);
+            UpdateCameraPosition();
+        }
+
+        // Pan camera
+        if (isMiddleMousePressed) {
+            float sensitivity = 0.001f * cameraDistance;
+            glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0, 1, 0),
+                cameraTransform.position - cameraTarget));
+            glm::vec3 up = glm::cross(right, cameraTransform.position - cameraTarget);
+
+            cameraTarget += right * (-io.MouseDelta.x * sensitivity);
+            cameraTarget += up * (io.MouseDelta.y * sensitivity);
+
+            UpdateCameraPosition();
+        }
     }
     ImGui::End();
 
@@ -349,7 +414,7 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 
 void EditorSystem::Initialize()
 {
-    SetUpCameraControls(scene->engine.platform);;
+    SetUpCameraControls();
 
     auto skyboxModelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>("skyboxModel");
     auto skyboxMeshData = scene->engine.assetManagerInterface->getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
@@ -363,92 +428,8 @@ void EditorSystem::Initialize()
     scene->engine.graphicsEngine->loadShader(wiremeshTexturedShaderId);
 }
 
-void EditorSystem::SetUpCameraControls(plt::PlatformInterface* platform)
+void EditorSystem::SetUpCameraControls()
 {
-    platform->SubscribeToEvent(plt::EventType::MouseButtonPressed, [this](const void* eventData) {
-     const auto& mouseEvent = *static_cast<const plt::MouseButtonEvent*>(eventData);
-     if (mouseEvent.button == SDL_BUTTON_RIGHT) {
-         isRightMousePressed = true;
-     } else if (mouseEvent.button == SDL_BUTTON_MIDDLE) {
-         isMiddleMousePressed = true;
-     }else
-        if (mouseEvent.button == SDL_BUTTON_LEFT) {
-            isLeftMousePressed = true;
-
-            if (!ImGui::GetIO().WantCaptureMouse) {
-                auto* collisionSystem = scene->GetSystem<CollisionSystem>().get();
-                if (collisionSystem) {
-                    ImGui::Begin("Editor");
-                    ImVec2 viewportPos = ImGui::GetWindowPos();
-                    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-                    viewportPos.x += contentMin.x;
-                    viewportPos.y += contentMin.y;
-                    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-                    ImGui::End();
-
-                    Ray ray = collisionSystem->ScreenToWorldRay(camera, mouseEvent.x - viewportPos.x,
-                                                                mouseEvent.y - viewportPos.y, viewportSize.x, viewportSize.y);
-
-                    auto hit = collisionSystem->RayCastClosest(ray);
-                    if (hit.has_value()) {
-                        SetSelectedEntity(hit->entity);
-                    } else {
-                        SetSelectedEntity(std::numeric_limits<std::uint32_t>::max());
-                    }
-                }
-            }
-        }
-    });
-
-    platform->SubscribeToEvent(plt::EventType::MouseButtonReleased, [this](const void* eventData) {
-        const auto& mouseEvent = *static_cast<const plt::MouseButtonEvent*>(eventData);
-        if (mouseEvent.button == SDL_BUTTON_RIGHT) {
-            isRightMousePressed = false;
-        } else if (mouseEvent.button == SDL_BUTTON_MIDDLE) {
-            isMiddleMousePressed = false;
-        }else if (mouseEvent.button == SDL_BUTTON_LEFT) {
-            isLeftMousePressed = false;
-        }
-    });
-
-    // Set up mouse motion handler
-    platform->SubscribeToEvent(plt::EventType::MouseMoved, [this, platform](const void* eventData) {
-        const auto& motionEvent = *static_cast<const plt::MouseMoveEvent*>(eventData);
-
-        if (isRightMousePressed) {
-            // Orbit camera
-            float sensitivity = 0.3f;
-            cameraYaw += motionEvent.deltaX * sensitivity;
-            cameraPitch += -motionEvent.deltaY * sensitivity;
-
-            // Clamp pitch to prevent camera flipping
-            cameraPitch = glm::clamp(cameraPitch, -89.0f, 89.0f);
-
-            UpdateCameraPosition();
-        }
-        else if (isMiddleMousePressed) {
-            // Pan camera
-            float sensitivity = 0.001f * cameraDistance;
-            glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0, 1, 0),
-                cameraTransform.position - cameraTarget));
-            glm::vec3 up = glm::cross(right, cameraTransform.position - cameraTarget);
-
-            cameraTarget += right * (-motionEvent.deltaX * sensitivity);
-            cameraTarget += up * (motionEvent.deltaY * sensitivity);
-
-            UpdateCameraPosition();
-        }
-    });
-
-    // Set up mouse wheel handler
-    platform->SubscribeToEvent(plt::EventType::MouseScrolled, [this](const void* eventData) {
-        const auto& wheelEvent = *static_cast<const plt::MouseScrollEvent*>(eventData);
-        // Zoom camera
-        float zoomSensitivity = 0.1f;
-        cameraDistance = glm::max(0.1f, cameraDistance - wheelEvent.yOffset * zoomSensitivity);
-        UpdateCameraPosition();
-    });
-
     // Initialize camera position
     UpdateCameraPosition();
 }

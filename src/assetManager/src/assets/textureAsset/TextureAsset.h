@@ -16,7 +16,7 @@ namespace am {
     class TextureAsset : public Asset {
     public:
 
-        explicit TextureAsset(const boost::uuids::uuid& id);
+        explicit TextureAsset(const boost::uuids::uuid& id, std::string path);
         explicit TextureAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
         explicit TextureAsset(const std::string& path, AssetFormat format);
 

@@ -190,6 +190,9 @@ namespace vks {
         auto wiremesh_textured = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("wiremeshTexturedShader");
         pipelineManager->createGraphicsPipeline(wiremesh_textured);
 
+        auto raycast = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("raycastShader");
+        pipelineManager->createGraphicsPipeline(raycast);
+
         auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("skyboxShader");
         skyboxShaderId = skyboxShaderProgram->getAssetId();
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
@@ -213,7 +216,7 @@ namespace vks {
         // Initialize render manager
         auto shadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowMapShader");
         auto cubeShadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowCubeMapShader");
-        renderManager->initialize(pbrShaderId, skyboxShaderId, shadowMapShader->getAssetId(), cubeShadowMapShader->getAssetId());
+        renderManager->initialize(pbrShaderId, skyboxShaderId, shadowMapShader->getAssetId(), cubeShadowMapShader->getAssetId(), raycast->getAssetId());
 
 #if ENABLE_IMGUI
         imguiManager.get()->initialize(windowHandle, swapChain->getImageViews());

@@ -11,14 +11,14 @@ Ray CollisionSystem::ScreenToWorldRay(const CameraComponent& camera,
                                       float screenX, float screenY, float windowWidth, float windowHeight) {
     // Convert screen coordinates to normalized device coordinates (-1 to 1)
     float x = (2.0f * screenX) / windowWidth - 1.0f;
-    float y = (2.0f * screenY) / windowHeight - 1.0f;
+    float y = 1.0f - (2.0f * screenY) / windowHeight;
 
     // Get view and projection matrices
     glm::mat4 projection = camera.projection;
     glm::mat4 view = camera.view;
     
     // Unproject near and far points
-    glm::vec4 nearPoint = glm::inverse(projection * view) * glm::vec4(x, y, -1.0f, 1.0f);
+    glm::vec4 nearPoint = glm::inverse(projection * view) * glm::vec4(x, y, 0.0f, 1.0f);
     glm::vec4 farPoint = glm::inverse(projection * view) * glm::vec4(x, y, 1.0f, 1.0f);
     
     // Convert to 3D points

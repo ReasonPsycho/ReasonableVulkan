@@ -10,7 +10,7 @@
 namespace am {
     class Asset {
     public:
-        explicit Asset(const boost::uuids::uuid& id) : id(id) {}
+        explicit Asset(const boost::uuids::uuid& id, std::string path) : id(id) {}
         explicit Asset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData) : id(id) {}
         explicit Asset(const std::string& path, AssetFormat format) : id() {}
 

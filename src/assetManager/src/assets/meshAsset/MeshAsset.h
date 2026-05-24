@@ -32,12 +32,14 @@ namespace am {
     class MeshAsset : public Asset {
     public:
 
-        explicit MeshAsset(const boost::uuids::uuid& id);
+        explicit MeshAsset(const boost::uuids::uuid& id, std::string path);
         explicit MeshAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
         explicit MeshAsset(const std::string& path, AssetFormat format);
 
         void SaveAssetToJson(rapidjson::Document& document) override;
         void SaveAssetToBin(std::string& path) override;
+
+        void createEmptyMaterial(string path);
 
         //This maby someday should intake a interface of materials
         size_t calculateContentHash() const override;

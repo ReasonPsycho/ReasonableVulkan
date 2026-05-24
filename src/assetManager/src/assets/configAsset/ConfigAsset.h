@@ -11,7 +11,7 @@ namespace am {
     public:
         rapidjson::Document configData;
 
-        explicit ConfigAsset(const boost::uuids::uuid& id);
+        explicit ConfigAsset(const boost::uuids::uuid& id, std::string path);
 
         ConfigAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
 
