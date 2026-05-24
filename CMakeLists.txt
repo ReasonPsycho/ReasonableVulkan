@@ -67,12 +67,6 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         ${CMAKE_SOURCE_DIR}/res
         ${CMAKE_CURRENT_BINARY_DIR}/res)
 
-# Add and link to tracy files in build folder
-#add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-#        COMMAND ${CMAKE_COMMAND} -E create_symlink
-#        ${CMAKE_SOURCE_DIR}/tracey
-#        ${CMAKE_CURRENT_BINARY_DIR}/tracey)
-
 if (ENABLE_INTEGRATION_TESTS)
     message(STATUS "Configuring integration tests")
 

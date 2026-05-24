@@ -5,6 +5,7 @@
 #include "ecs/Scene.h"
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
+#include "systems/gizmoSystem/GizmoSystem.hpp"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
 
@@ -20,6 +21,8 @@ namespace engine {
 #ifdef EDITOR_ENABLED
         RegisterSystemType<EditorSystem>();
 #endif
+
+        RegisterSystemType<GizmoSystem>();
 
         RegisterComponentType<RendererComponent>(); //For some reason I have to register them in reverse
         RegisterComponentType<CameraComponent>();

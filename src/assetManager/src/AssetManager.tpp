@@ -19,9 +19,9 @@ void AssetManager::RegisterAssetType()
 {
     auto type = std::type_index(typeid(T));
 
-    creators[type] = [](const boost::uuids::uuid& id)
+    creators[type] = [](const boost::uuids::uuid& id, std::string path)
     {
-        return std::unique_ptr<am::Asset>(new T(id));
+        return std::unique_ptr<am::Asset>(new T(id, path));
     };
 
     importers[type] = [](const boost::uuids::uuid& id, am::ImportContext& data)
