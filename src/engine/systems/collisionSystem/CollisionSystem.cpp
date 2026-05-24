@@ -1,5 +1,6 @@
 #include "CollisionSystem.hpp"
 
+#include "assetDatas/ModelData.h"
 #include "ecs/Scene.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
@@ -80,7 +81,7 @@ std::optional<RayHit> CollisionSystem::RayCastClosest(const Ray& ray) {
             if (models[i].modelUuid != boost::uuids::nil_uuid())
             {
                 float distance;
-                if (RayIntersectsAABB(ray, models[i].boundingBoxMin, models[i].boundingBoxMax,
+                if (RayIntersectsAABB(ray,  scene->engine.assetManagerInterface->getAssetData<am::ModelData>(models[i].modelUuid)->boundingBoxMin, scene->engine.assetManagerInterface->getAssetData<am::ModelData>(models[i].modelUuid)->boundingBoxMax,
                                       transforms[entity].globalMatrix, distance))
                 {
                     if (distance < closestHit.distance) {
