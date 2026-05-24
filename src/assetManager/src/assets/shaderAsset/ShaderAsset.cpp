@@ -12,7 +12,7 @@
 #include "ShaderIncluder.hpp"
 
 namespace am {
-    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id) : Asset(id) {
+    ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path) {
     }
 
     ShaderAsset::ShaderAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {
@@ -150,6 +150,12 @@ namespace am {
 
     void ShaderAsset::SaveAssetToBin(std::string& path)
     {
+        // Ensure parent directory exists
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+
         std::ofstream ofs(path, std::ios::binary | std::ios::out);
         if (!ofs.is_open()) {
             spdlog::error("Failed to open file for writing binary shader asset: {}", path);

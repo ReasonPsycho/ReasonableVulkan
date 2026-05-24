@@ -11,6 +11,7 @@
 #include"componets/CameraComponent.hpp"
 #include "ecs/Scene.h"
 #include "systems/editorSystem/EditorSystem.hpp"
+#include "systems/gizmoSystem/GizmoSystem.hpp"
 
 void engine::ecs::RenderSystem::Update(float deltaTime)
 {
@@ -111,6 +112,20 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                 }
             }
         }
+    }
+
+    auto gizmoSystem = scene->GetSystem<GizmoSystem>();
+    if (gizmoSystem != nullptr)
+    {
+        for (auto& command : gizmoSystem->gizmoRenderCommandQueue) {
+            boost::uuids::uuid modelUuid = gizmoSystem->ModelUUIDByGizmoType(command.type);
+            boost::uuids::uuid shaderUuid = gizmoSystem->ShaderUUIDByGizmoType(command.type);
+            for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
+                scene->engine.graphicsEngine->drawModel(camIdx, modelUuid, shaderUuid,
+                                                        command.transform);
+            }
+        }
+        //gizmoSystem->gizmoRenderCommandQueue.clear();
     }
 
     // Only iterate up to the actual size of used components

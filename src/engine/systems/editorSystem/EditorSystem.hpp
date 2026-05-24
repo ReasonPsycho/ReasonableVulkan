@@ -25,7 +25,7 @@ namespace engine::ecs
     class EditorSystem :  public System<EditorSystem>
     {
     public:
-        EditorSystem(Scene* scene);
+        explicit EditorSystem(Scene* scene);
         void Update(float deltaTime) override;
 
         struct ComponentInfo {
@@ -72,7 +72,7 @@ namespace engine::ecs
         boost::uuids::uuid wiremeshShaderId = boost::uuids::nil_uuid();
         boost::uuids::uuid wiremeshTexturedShaderId = boost::uuids::nil_uuid();
 
-        void SetUpCameraControls(plt::PlatformInterface* platfrom);
+        void SetUpCameraControls();
 
     protected:
         void OnComponentAdded(ComponentID componentID, std::type_index type) override {}

@@ -2,7 +2,7 @@
 #include "../../AssetManager.hpp"
 #include "../../JsonHelpers.hpp"
 
-am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id) : Asset(id) {
+am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path) {
 }
 
 am::MaterialAsset::MaterialAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData) : Asset(id, assetFactoryData) {

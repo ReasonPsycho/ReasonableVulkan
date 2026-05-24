@@ -46,6 +46,11 @@ add_library(am_interface INTERFACE)
 target_include_directories(am_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(am_interface INTERFACE platform_interface Boost::uuid)
 
+# Configuration for resource directory
+set(RESOURCES_DIR_PATH "${CMAKE_SOURCE_DIR}/res/")
+configure_file(Config.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/generated/include/Config.hpp")
+target_include_directories(am_interface INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/generated/include")
+
 # Create platform static library
 add_library(am STATIC ${BASE_SRC})
 

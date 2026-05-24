@@ -11,7 +11,7 @@ namespace am {
     public:
         rapidjson::Document sceneData;
 
-        explicit SceneAsset(const boost::uuids::uuid& id);
+        explicit SceneAsset(const boost::uuids::uuid& id, std::string path);
 
         SceneAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);
 
