@@ -24,4 +24,4 @@ The Engine module is the core orchestrator of the ReasonableVulkan engine, provi
 The main singleton class that orchestrates the entire engine:
 - **Scene Management**: Create, switch, and manage multiple scenes
 - **Update Loop**: Centralized update coordination for all active systems
-- **Singleton Pattern**: Global access point for engine functionality
+- **Singleton Pattern**: Global access point for engine functionality 
