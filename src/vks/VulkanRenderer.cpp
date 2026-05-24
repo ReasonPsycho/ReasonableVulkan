@@ -190,6 +190,9 @@ namespace vks {
         auto wiremesh_textured = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("wiremeshTexturedShader");
         pipelineManager->createGraphicsPipeline(wiremesh_textured);
 
+        auto raycast = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("raycastShader");
+        pipelineManager->createGraphicsPipeline(raycast);
+
         auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("skyboxShader");
         skyboxShaderId = skyboxShaderProgram->getAssetId();
         pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
@@ -213,7 +216,7 @@ namespace vks {
         // Initialize render manager
         auto shadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowMapShader");
         auto cubeShadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowCubeMapShader");
-        renderManager->initialize(pbrShaderId, skyboxShaderId, shadowMapShader->getAssetId(), cubeShadowMapShader->getAssetId());
+        renderManager->initialize(pbrShaderId, skyboxShaderId, shadowMapShader->getAssetId(), cubeShadowMapShader->getAssetId(), raycast->getAssetId());
 
 #if ENABLE_IMGUI
         imguiManager.get()->initialize(windowHandle, swapChain->getImageViews());
@@ -278,6 +281,16 @@ namespace vks {
 
         // Recreate swap chain
         swapChain->recreateSwapChain(width, height);
+        VkExtent2D newExtent = swapChain->getSwapChainExtent();
+
+        renderManager->updateSyncObjects();
+
+        // Recreate depth resources with new dimensions
+        pipelineManager->createDepthResources(newExtent);
+        pipelineManager->createOffscreenResources(newExtent);
+
+        // Recreate framebuffers
+        pipelineManager->createFramebuffers(newExtent);
 
 #if ENABLE_IMGUI
         imguiManager.get()->createFramebuffers(swapChain->getImageViews());
@@ -286,13 +299,6 @@ namespace vks {
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
 #endif
-
-        // Recreate depth resources with new dimensions
-        pipelineManager->createDepthResources(swapChain->getSwapChainExtent());
-        pipelineManager->createOffscreenResources(swapChain->getSwapChainExtent());
-
-        // Recreate framebuffers
-        pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
         waitIdle();
 

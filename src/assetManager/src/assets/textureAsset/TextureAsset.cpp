@@ -1,11 +1,12 @@
 #include "TextureAsset.h"
 #include "../../AssetManager.hpp"
 #include "../../JsonHelpers.hpp"
+#include <filesystem>
 #include "stb_image.h"
 
 namespace am
 {
-    TextureAsset::TextureAsset(const boost::uuids::uuid& id) : Asset(id)
+    TextureAsset::TextureAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path)
     {
     }
 
@@ -15,7 +16,7 @@ namespace am
         loadFromFile(assetFactoryData.importPath);
     }
 
-    TextureAsset::TextureAsset(const boost::uuids::uuid& id, const std::string& path, AssetFormat format) : Asset(id, path, format)
+    TextureAsset::TextureAsset(const std::string& path, AssetFormat format) : Asset(path, format)
     {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
@@ -26,10 +27,7 @@ namespace am
 
             if (document.HasMember("uuid") && document["uuid"].IsString()) {
                 std::string savedUuidStr = document["uuid"].GetString();
-                boost::uuids::uuid savedUuid = boost::uuids::string_generator()(savedUuidStr);
-                if (savedUuid != id) {
-                    spdlog::warn("Texture asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), boost::uuids::to_string(savedUuid).c_str());
-                }
+                id = boost::uuids::string_generator()(savedUuidStr);
             }
             
             if (document.HasMember("type") && document["type"].IsString()) {
@@ -53,11 +51,7 @@ namespace am
             }
 
             // Read UUID
-            boost::uuids::uuid savedId;
-            ifs.read(reinterpret_cast<char*>(&savedId), 16);
-            if (savedId != id) {
-                spdlog::warn("Texture asset UUID mismatch in {}: expected {}, got {}", path.c_str(), boost::uuids::to_string(id).c_str(), boost::uuids::to_string(savedId).c_str());
-            }
+            ifs.read(reinterpret_cast<char*>(&id), 16);
 
             // Read metadata
             ifs.read(reinterpret_cast<char*>(&data.width), sizeof(data.width));
@@ -97,6 +91,12 @@ namespace am
 
     void TextureAsset::SaveAssetToBin(std::string& path)
     {
+        // Ensure parent directory exists
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+
         std::ofstream ofs(path, std::ios::binary | std::ios::out);
         if (!ofs.is_open()) {
             spdlog::error("Failed to open file for writing binary asset: {}", path);

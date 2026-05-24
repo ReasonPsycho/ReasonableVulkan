@@ -1,0 +1,31 @@
+﻿{
+  "uuid": "3732df11-6986-410b-9225-4b5dfa998992",
+  "baseColorFactor": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "metallicFactor": 1.0,
+  "roughnessFactor": 1.0,
+  "specularFactor": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "diffuseFactor": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "glossinessFactor": 1.0,
+  "occlusionStrength": 1.0,
+  "emissiveFactor": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "alphaCutoff": 1.0,
+  "isOpaque": true,
+  "useSpecularGlossiness": false
+}

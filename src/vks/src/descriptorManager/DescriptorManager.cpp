@@ -133,6 +133,10 @@ namespace vks
         {
             vkDestroyDescriptorPool(device, scenePool, nullptr);
         }
+        if (lightPool != VK_NULL_HANDLE)
+        {
+            vkDestroyDescriptorPool(device, lightPool, nullptr);
+        }
     }
 
     void DescriptorManager::createDescriptorPools()
@@ -181,6 +185,25 @@ namespace vks
         if (vkCreateDescriptorPool(context->getDevice(), &scenePoolInfo, nullptr, &scenePool) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create scene descriptor pool!");
+        }
+
+        // Light pool
+        std::vector<VkDescriptorPoolSize> lightPoolSizes = {
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 10},
+            {VK_DESCRIPTOR_TYPE_SAMPLER, 10},
+        };
+
+        VkDescriptorPoolCreateInfo lightPoolInfo{};
+        lightPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        lightPoolInfo.poolSizeCount = static_cast<uint32_t>(lightPoolSizes.size());
+        lightPoolInfo.pPoolSizes = lightPoolSizes.data();
+        lightPoolInfo.maxSets = 10;
+
+        if (vkCreateDescriptorPool(context->getDevice(), &lightPoolInfo, nullptr, &lightPool) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create light descriptor pool!");
         }
     }
 
@@ -827,7 +850,7 @@ namespace vks
         // Allocate a single descriptor set for all lights from the lights layout
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = scenePool;
+        allocInfo.descriptorPool = lightPool;
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &lightsLayout;
 

@@ -824,6 +824,7 @@ namespace vks
         const auto& shaderStages = shaderProgramDescriptor->getShaderStages();
 
         VkPipelineRasterizationStateCreateInfo rasterizationState = base::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+        rasterizationState.lineWidth = 1.0f;
         rasterizationState.depthBiasEnable = VK_TRUE;
 
         VkPipelineDepthStencilStateCreateInfo depthStencilState = base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -871,12 +872,6 @@ namespace vks
 
         const auto& combinedDefines = shaderProgramDescriptor->getDefines();
 
-        // Get layouts for each define - ensuring they are at the correct set index
-        // We know the set indices: 0: Scene, 1: Material, 2: Mesh, 3: Lights
-        // DescriptorManager::getLayoutsFromEnums should ideally return them in the correct order,
-        // but it doesn't guarantee the size or empty slots.
-
-        // Let's get them one by one or filter.
         std::vector<VkDescriptorSetLayout> combinedLayouts;
 
         // Find max define index to determine layout count
@@ -955,6 +950,11 @@ namespace vks
             base::initializers::pipelineInputAssemblyStateCreateInfo(
                 VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::RAYCAST_GLSL) != combinedDefines.end())
+        {
+            inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        }
+
         VkPipelineViewportStateCreateInfo viewportState =
             base::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
@@ -982,12 +982,14 @@ namespace vks
         VkPipelineRasterizationStateCreateInfo rasterizationState =
             base::initializers::pipelineRasterizationStateCreateInfo(
                 VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+        rasterizationState.lineWidth = 1.0f;
 
         // Mesh-specific depth state
         VkPipelineDepthStencilStateCreateInfo depthStencilState =
             base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
-        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != combinedDefines.end())
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != combinedDefines.end() ||
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::RAYCAST_GLSL) != combinedDefines.end())
         {
             rasterizationState.cullMode = VK_CULL_MODE_NONE;
         }
@@ -1005,7 +1007,18 @@ namespace vks
         pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineCI.pStages = shaderStages.data();
 
-        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end() ||
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::RAYCAST_GLSL) != combinedDefines.end())
+        {
+            pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
+                VertexComponent::Position,
+                VertexComponent::Normal,
+                VertexComponent::UV,
+                VertexComponent::Color,
+                VertexComponent::Tangent,
+                VertexComponent::Bitangent
+            });
+        }
+        else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end() ||
             std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())
         {
             pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({

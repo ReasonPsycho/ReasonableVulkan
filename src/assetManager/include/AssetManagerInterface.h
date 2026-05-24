@@ -6,19 +6,19 @@
 #define ASSETMANAGERINTERFACE_H
 #include <any>
 #include <boost/uuid/uuid.hpp>
-#include <utility>
 #include "AssetInfo.hpp"
+#include "PlatformInterface.hpp"
 
 
 namespace am
 {
     class AssetManagerInterface{
     public:
+        virtual void Initialize(plt::PlatformInterface* platformInterface) = 0;
         virtual ~AssetManagerInterface() = default;
 
         virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) = 0;
         virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookUpName) = 0;
-
 
         virtual std::optional<boost::uuids::uuid> registerAsset(std::string path) = 0;
         virtual std::optional<boost::uuids::uuid> registerAsset(std::string path,std::string lookUpName) = 0;
@@ -51,6 +51,7 @@ namespace am
         virtual std::vector<boost::uuids::uuid> getRegisteredAssetsUuids() const = 0;
         virtual std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const = 0;
 
+        virtual void ImguiFileBrowser(std::string windowName) = 0;
     };
 }
 

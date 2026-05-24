@@ -10,8 +10,11 @@ struct MockData
 // Mock Asset class for testing
 class MockAsset : public am::Asset {
 public:
-    explicit MockAsset(am::ImportContext assetFactoryData)
-        : Asset(assetFactoryData), mockHash(0) {}
+    explicit MockAsset(const boost::uuids::uuid& id, std::string path)
+        : Asset(id, path), mockHash(0) {}
+
+    explicit MockAsset(const boost::uuids::uuid& id, am::ImportContext assetFactoryData)
+        : Asset(id, assetFactoryData), mockHash(0) {}
 
     explicit MockAsset(const std::string& path, am::AssetFormat format)
         : Asset(path, format), mockHash(0) {}

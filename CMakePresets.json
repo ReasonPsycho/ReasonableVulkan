@@ -1,6 +1,5 @@
-
 {
-  "version": 1,
+  "version": 3,
   "configurePresets": [
     {
       "name": "gfx-base",
@@ -26,7 +25,6 @@
       "displayName": "Tests",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "PLATFORM_SDL3": "ON",
         "EDITOR_ENABLED": "ON",
         "GFX_ENABLE_TESTS": "ON",
         "PLATFORM_ENABLE_TESTS": "ON",
@@ -34,6 +32,7 @@
         "AM_ENABLE_TESTS": "ON",
         "VKS_ENABLE_TESTS": "ON",
         "ENABLE_IMGUI": "ON",
+        "PLATFORM_SDL3": "ON",
         "ENGINE_ENABLE_TESTS": "ON",
         "SPDLOG_ACTIVE_LEVEL": "SPDLOG_LEVEL_DEBUG",
         "CMAKE_CXX_FLAGS": "--coverage",
@@ -47,7 +46,10 @@
       "displayName": "Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "SPDLOG_ACTIVE_LEVEL": "SPDLOG_LEVEL_DEBUG"
+        "SPDLOG_ACTIVE_LEVEL": "SPDLOG_LEVEL_DEBUG",
+        "ENABLE_IMGUI": "ON",
+        "PLATFORM_SDL3": "ON",
+        "EDITOR_ENABLED": "ON"
       }
     },
     {
@@ -59,6 +61,18 @@
         "GFX_ENABLE_TESTS": "OFF",
         "SPDLOG_DISABLE_LOGGING": "ON"
       }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "parallel",
+      "configurePreset": "debug",
+      "jobs": 0
+    },
+    {
+      "name": "tests-parallel",
+      "configurePreset": "tests",
+      "jobs": 0
     }
   ]
 }

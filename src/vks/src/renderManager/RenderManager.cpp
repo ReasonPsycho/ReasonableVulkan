@@ -30,11 +30,13 @@ RenderManager::~RenderManager() {
     cleanup();
 }
 
-void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId) {
+void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost
+                               ::uuids::uuid raycastShaderId) {
     this->pbrShaderId = pbrShaderId;
     this->skyboxShaderId = skyboxShaderId;
     this->shadowShaderId = shadowShaderId;
     this->cubeShadowShaderId = cubeShadowShaderId;
+    this->raycastShaderId = raycastShaderId;
     createCommandBuffers();
     createSyncObjects();
     
@@ -686,6 +688,10 @@ void RenderManager::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 
 void RenderManager::waitIdle() {
     vkDeviceWaitIdle(context->getDevice());
+}
+
+void RenderManager::updateSyncObjects() {
+    imagesInFlight.assign(swapChain->getImageViews().size(), VK_NULL_HANDLE);
 }
 
 void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines) {
