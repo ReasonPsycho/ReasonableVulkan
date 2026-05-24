@@ -26,9 +26,6 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
             {
                 if (ImGui::MenuItem(assetLookUpName.c_str()))
                 {
-                    auto modelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(assetLookUpName);
-                    typed->boundingBoxMin = modelData->boundingBoxMin;
-                    typed->boundingBoxMax = modelData->boundingBoxMax;
                     typed->modelUuid = scene->engine.assetManagerInterface->getAssetUuid(assetLookUpName).value();
                 }
             }
@@ -52,8 +49,10 @@ void RendererComponent::ShowImGui(Scene* scene, Component* component) const
             ImGui::EndPopup();
         }
 
-        ImGui::DragVec3("Min bounding box", typed->boundingBoxMin);
-        ImGui::DragVec3("Max bounding box", typed->boundingBoxMax);
+        auto modelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(typed->modelUuid);
+
+        ImGui::DragVec3("Min bounding box", modelData->boundingBoxMin);
+        ImGui::DragVec3("Max bounding box", modelData->boundingBoxMax);
     }
 
 }
