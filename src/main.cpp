@@ -31,8 +31,6 @@ namespace am
 int main(int argc, char *argv[]) {
     am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
 
-    assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/config/editor.config","editorConfig");
-
     plt::PlatformInterface* platform = new plt::Platform();
     // 1. Initialize platform (SDL window, input, etc.)
     if (!platform->Init("My Game Engine", &assetManager)) {
