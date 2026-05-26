@@ -66,8 +66,8 @@ target_link_libraries(am
         PUBLIC
         am_interface
         platform_interface
-        PRIVATE
         RapidJSON
+        PRIVATE
         assimp::assimp
         fmt::fmt
         spdlog::spdlog

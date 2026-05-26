@@ -22,8 +22,6 @@ namespace am {
 
     void AssetManager::Initialize(plt::PlatformInterface* platformInterface)
     {
-
-
         platformInterface->SubscribeToEvent(plt::EventType::FileAddedToFolder,
                    [this](const void* data) {
                        const auto* event = static_cast<const plt::FileAddedEvent*>(data);
