@@ -1,5 +1,7 @@
 #include "Platform.hpp"
 #include <imgui_impl_sdl3.h>
+#include "AssetManagerInterface.h"
+#include <rapidjson/document.h>
 
 namespace  plt
 {
@@ -23,6 +25,30 @@ namespace  plt
         SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
         lastFrameTime = std::chrono::steady_clock::now();
         return true;
+    }
+
+    bool Platform::Init(const std::string& title, am::AssetManagerInterface* assetManager) {
+        assetManager = assetManager;
+        auto uuid = assetManager->getAssetUuid(configLookupName);
+        if (uuid) {
+            auto configData = assetManager->getAssetData<rapidjson::Document>(uuid.value());
+            if (configData) {
+                int width = 1280;
+                int height = 720;
+
+                if (configData->HasMember("width") && (*configData)["width"].IsInt()) {
+                    width = (*configData)["width"].GetInt();
+                }
+                if (configData->HasMember("height") && (*configData)["height"].IsInt()) {
+                    height = (*configData)["height"].GetInt();
+                }
+
+                return Init(title, width, height);
+            }
+        }
+        
+        SDL_Log("Failed to load platform config: %s. Using default 1280x720", configLookupName.c_str());
+        return Init(title, 1280, 720);
     }
 
 
@@ -192,6 +218,7 @@ namespace  plt
     }
 
     void Platform::Shutdown() {
+        SaveConfig();
         {
             std::lock_guard<std::mutex> lock(watchersMutex);
             for (auto& pair : folderWatchers) {
@@ -366,5 +393,35 @@ namespace  plt
 #else
         // Non-windows implementation placeholder
 #endif
+    }
+    Platform::~Platform() {
+        Shutdown();
+    }
+
+    void Platform::SaveConfig() {
+        if (!assetManager || configLookupName.empty() || !window) return;
+
+        auto uuid = assetManager->getAssetUuid(configLookupName);
+        if (!uuid) return;
+
+        auto configData = assetManager->getAssetData<rapidjson::Document>(uuid.value());
+        if (configData) {
+            int width, height;
+            GetWindowSize(width, height);
+
+            if (!configData->HasMember("width")) {
+                configData->AddMember("width", width, configData->GetAllocator());
+            } else {
+                (*configData)["width"].SetInt(width);
+            }
+
+            if (!configData->HasMember("height")) {
+                configData->AddMember("height", height, configData->GetAllocator());
+            } else {
+                (*configData)["height"].SetInt(height);
+            }
+
+            assetManager->saveAsset(uuid.value());
+        }
     }
 }

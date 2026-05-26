@@ -5,6 +5,8 @@
 #include <string>
 #include <functional>
 #include <chrono>
+namespace am { class AssetManagerInterface; }
+
 namespace  plt
 {
     enum class EventType {
@@ -73,6 +75,7 @@ namespace  plt
 
         // Main platform functions
         virtual bool Init(const std::string& title, int width, int height) = 0;
+        virtual bool Init(const std::string& title, am::AssetManagerInterface* assetManager) = 0;
         virtual void PollEvents(bool& running) = 0;
         virtual void Shutdown() = 0;
         virtual void* GetNativeWindow() const = 0;
