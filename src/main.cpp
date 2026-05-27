@@ -29,14 +29,17 @@ namespace am
 }
 
 int main(int argc, char *argv[]) {
+    am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
+
     plt::PlatformInterface* platform = new plt::Platform();
     // 1. Initialize platform (SDL window, input, etc.)
-    if (!platform->Init("My Game Engine", 1280, 720)) {
+    if (!platform->Init("My Game Engine", &assetManager)) {
         return EXIT_FAILURE;
     }
 
-    am::AssetManagerInterface& assetManager = am::AssetManager::getInstance();
     assetManager.Initialize(platform);
+
+
 
 
     /* //asset loading
@@ -64,7 +67,9 @@ int main(int argc, char *argv[]) {
     engine.Initialize();
 
 
-    vulkanRenderer->initialize(platform,1280, 720);
+    int width, height;
+    platform->GetWindowSize(width, height);
+    vulkanRenderer->initialize(platform,width, height);
 
     /*
     // 3. Initialize the graphics abstraction

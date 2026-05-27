@@ -26,8 +26,10 @@ public:
     {
 
     }
+    ~Platform() override;
     // Main platform functions
     bool Init(const std::string& title, int width, int height) override;
+    bool Init(const std::string& title, am::AssetManagerInterface* assetManager) override;
     void PollEvents(bool& running) override;
     void Shutdown() override;
     void* GetNativeWindow() const override { return window; }
@@ -85,6 +87,10 @@ private:
     std::unordered_map<std::string, std::shared_ptr<WatcherInfo>> folderWatchers;
     std::mutex watchersMutex;
     void WatcherThread(std::shared_ptr<WatcherInfo> info);
+
+    void SaveConfig();
+    am::AssetManagerInterface* assetManager = nullptr;
+    std::string configLookupName = "platformConfig";
 
     // Queue for events detected in other threads
     struct QueuedEvent {
