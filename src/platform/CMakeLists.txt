@@ -17,10 +17,7 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 # Find required dependencies
 message(STATUS "Searching for platform library dependencies")
 find_package(SDL3 CONFIG REQUIRED)
-
-# Create the interface target
-add_library(platform_interface INTERFACE)
-target_include_directories(platform_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+find_package(RapidJSON CONFIG REQUIRED)
 
 # Create platform static library
 add_library(platform STATIC ${BASE_SRC})
@@ -38,6 +35,8 @@ target_link_libraries(platform
         platform_interface
         PRIVATE
         SDL3::SDL3
+        am
+        RapidJSON
 )
 
 # Configure tests
