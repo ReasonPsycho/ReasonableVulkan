@@ -90,7 +90,7 @@ private:
 
     void SaveConfig();
     am::AssetManagerInterface* assetManager = nullptr;
-    std::string configLookupName = "platformconfig";
+    std::string configLookupName = "platformConfig";
 
     // Queue for events detected in other threads
     struct QueuedEvent {

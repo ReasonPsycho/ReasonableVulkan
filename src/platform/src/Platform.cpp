@@ -28,7 +28,7 @@ namespace  plt
     }
 
     bool Platform::Init(const std::string& title, am::AssetManagerInterface* assetManager) {
-        assetManager = assetManager;
+        this->assetManager = assetManager;
         auto uuid = assetManager->getAssetUuid(configLookupName);
         if (uuid) {
             auto configData = assetManager->getAssetData<rapidjson::Document>(uuid.value());
