@@ -18,6 +18,7 @@
 #include <typeindex>
 #include <stdexcept>
 #include <tuple>
+#include <cstdio>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -494,6 +495,15 @@ namespace engine::ecs
         } else if constexpr (std::is_same_v<RawT, boost::uuids::uuid>) {
             std::string idStr = boost::uuids::to_string(value);
             ImGui::LabelText(name, "%s", idStr.c_str());
+        } else if constexpr (std::is_same_v<RawT, std::string>) {
+            if constexpr (isReadOnly) ImGui::BeginDisabled();
+            char buffer[256];
+            std::snprintf(buffer, sizeof(buffer), "%s", value.c_str());
+            if (ImGui::InputText(name, buffer, sizeof(buffer))) {
+                value = buffer;
+                changed = true;
+            }
+            if constexpr (isReadOnly) ImGui::EndDisabled();
         } else if constexpr (is_variant_v<RawT>) {
             std::visit([&](auto& inner) {
                 if (DrawComponentFields(inner, scene)) {

@@ -50,6 +50,9 @@ namespace engine::ecs
 
         bool IsEntityActive(Entity entity) const;
 
+        std::string GetEntityName(Entity entity) const;
+        void SetEntityName(Entity entity, const std::string& name);
+
         template<typename... Components>
         std::vector<Entity> GetEntitiesWith();
 

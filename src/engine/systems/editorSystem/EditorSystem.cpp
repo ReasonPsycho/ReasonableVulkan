@@ -15,6 +15,8 @@
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "systems/renderingSystem/componets/LightComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "ecs/NameComponent.hpp"
+#include "ecs/TagComponent.hpp"
 #include "PlatformInterface.hpp"
 #include "assetDatas/MeshData.h"
 #include "assetDatas/ModelData.h"
@@ -26,39 +28,154 @@ void EditorSystem::ImGuiInspector()
     ImGui::Begin("Inspector");
     if (selectedEntity != std::numeric_limits<std::uint32_t>::max())
     {
-        auto name = GetEntityName(selectedEntity);
-        ImGui::Text("Selected: %s", name.c_str());
+        if (!scene->IsEntityActive(selectedEntity) && !scene->HasComponent<TransformComponent>(selectedEntity))
+        {
+            selectedEntity = std::numeric_limits<std::uint32_t>::max();
+            ImGui::End();
+            return;
+        }
 
+        // 1. Entity Header: Active toggle, Name, Entity ID
+        bool active = scene->IsEntityActive(selectedEntity);
+        if (ImGui::Checkbox("##EntityActive", &active))
+        {
+            scene->SetEntityActive(selectedEntity, active);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(active ? "Entity is Active" : "Entity is Inactive");
+        ImGui::SameLine();
 
+        char nameBuf[256];
+        std::string rawName = GetEntityRawName(selectedEntity);
+        std::snprintf(nameBuf, sizeof(nameBuf), "%s", rawName.c_str());
+        float idWidth = 70.0f;
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - idWidth);
+        if (ImGui::InputText("##EntityName", nameBuf, sizeof(nameBuf)))
+        {
+            SetEntityName(selectedEntity, nameBuf);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Entity Name (Editable)");
+        ImGui::SameLine();
+        ImGui::TextDisabled("ID: %u", selectedEntity);
+
+        // 2. Tag row (TagComponent)
+        if (scene->HasComponent<TagComponent>(selectedEntity))
+        {
+            auto& tagComp = scene->GetComponent<TagComponent>(selectedEntity);
+            char tagBuf[128];
+            std::snprintf(tagBuf, sizeof(tagBuf), "%s", tagComp.tag.c_str());
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 30.0f);
+            if (ImGui::InputText("Tag", tagBuf, sizeof(tagBuf)))
+            {
+                tagComp.tag = tagBuf;
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton("x##RemoveTag"))
+            {
+                scene->RemoveComponent<TagComponent>(selectedEntity);
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Remove TagComponent");
+        }
+        else
+        {
+            if (ImGui::SmallButton("+ Add Tag"))
+            {
+                scene->AddComponent<TagComponent>(selectedEntity, TagComponent{"Untagged"});
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add TagComponent to entity");
+        }
+
+        ImGui::Separator();
+
+        // 3. Components list
         auto componentArrays = scene->GetComponentArrays();
 
-        for (auto& [typeIndex, array] : componentArrays)
+        // Always display TransformComponent first if present
+        if (scene->HasComponent<TransformComponent>(selectedEntity))
         {
-            if (array.get()->HasComponentUntyped(selectedEntity))
+            auto transformArray = scene->GetIntegralComponentArray<TransformComponent>();
+            if (transformArray)
             {
-                registeredComponentTypes[typeIndex].showImGuiComponent(scene, array.get()->GetComponentUntyped(selectedEntity));
+                registeredComponentTypes[typeid(TransformComponent)].showImGuiComponent(scene, transformArray->GetComponentUntyped(selectedEntity));
             }
         }
 
-        if (ImGui::Button("Add Component"))
+        // Draw other components (excluding NameComponent, TransformComponent, TagComponent)
+        std::type_index componentToRemove = typeid(void);
+        for (auto& [typeIndex, array] : componentArrays)
+        {
+            if (typeIndex == typeid(NameComponent) || typeIndex == typeid(TransformComponent) || typeIndex == typeid(TagComponent))
+            {
+                continue;
+            }
+
+            if (array->HasComponentUntyped(selectedEntity))
+            {
+                registeredComponentTypes[typeIndex].showImGuiComponent(scene, array->GetComponentUntyped(selectedEntity));
+
+                if (ImGui::BeginPopupContextItem())
+                {
+                    if (ImGui::MenuItem("Remove Component"))
+                    {
+                        componentToRemove = typeIndex;
+                    }
+                    ImGui::EndPopup();
+                }
+            }
+        }
+
+        if (componentToRemove != typeid(void))
+        {
+            auto& array = componentArrays[componentToRemove];
+            array->RemoveComponentUntyped(selectedEntity);
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // 4. Add Component button
+        float buttonWidth = 200.0f;
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x - buttonWidth) * 0.5f);
+        if (ImGui::Button("Add Component", ImVec2(buttonWidth, 0)))
         {
             ImGui::OpenPopup("Components List");
         }
 
         if (ImGui::BeginPopup("Components List"))
         {
+            bool anyAvailable = false;
             for (const auto& [typeIndex, info] : registeredComponentTypes)
             {
-                if (info.displayName != std::meta::identifier_of(^^TransformComponent))
+                // Skip integral components (TransformComponent, NameComponent)
+                if (info.isIntegral || typeIndex == typeid(TransformComponent) || typeIndex == typeid(NameComponent))
                 {
+                    continue;
+                }
+
+                auto it = componentArrays.find(typeIndex);
+                bool alreadyHas = (it != componentArrays.end() && it->second->HasComponentUntyped(selectedEntity));
+
+                if (!alreadyHas)
+                {
+                    anyAvailable = true;
                     if (ImGui::MenuItem(info.displayName.c_str()))
                     {
-                        scene->AddComponent(selectedEntity,typeIndex);
+                        scene->AddComponent(selectedEntity, typeIndex);
                     }
                 }
             }
+
+            if (!anyAvailable)
+            {
+                ImGui::TextDisabled("No more components available");
+            }
+
             ImGui::EndPopup();
         }
+    }
+    else
+    {
+        ImGui::TextDisabled("No entity selected");
     }
 
     ImGui::End();
@@ -417,6 +534,12 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
 
 void EditorSystem::SetEntityName(Entity entity, const std::string& name)
 {
+    if (scene->HasComponent<NameComponent>(entity)) {
+        scene->GetComponent<NameComponent>(entity).name = name;
+    } else if (!name.empty()) {
+        scene->AddComponent<NameComponent>(entity, NameComponent{name});
+    }
+
     if (name.empty()) {
         named_entities.erase(entity);
     } else {
@@ -424,10 +547,21 @@ void EditorSystem::SetEntityName(Entity entity, const std::string& name)
     }
 }
 
+std::string EditorSystem::GetEntityRawName(Entity entity) const
+{
+    if (scene->HasComponent<NameComponent>(entity)) {
+        const auto& compName = scene->GetComponent<NameComponent>(entity).name;
+        if (!compName.empty()) {
+            return compName;
+        }
+    }
+    auto it = named_entities.find(entity);
+    return it != named_entities.end() ? it->second : "Entity";
+}
+
 std::string EditorSystem::GetEntityName(Entity entity) const
 {
-    auto it = named_entities.find(entity);
-    return it != named_entities.end() ? "(#" + std::to_string(entity) + ") " + it->second : "(#" + std::to_string(entity) +") Entity";
+    return "(#" + std::to_string(entity) + ") " + GetEntityRawName(entity);
 }
 
 void EditorSystem::Initialize()
@@ -484,17 +618,13 @@ void engine::ecs::EditorSystem::ImGuiSceneGraph()
 
     if (ImGui::BeginMenuBar())
     {
-        if (ImGui::Button("New Entity"))
-        {
-            scene->CreateEntity();
-        }
 
-        /*
         if (ImGui::Button("Save Scene"))
         {
             scene->engine.SaveScene();
         }
 
+        /*
         if (ImGui::Button("Load Scene"))
         {
             scene->engine.LoadScene();
@@ -503,9 +633,20 @@ void engine::ecs::EditorSystem::ImGuiSceneGraph()
         ImGui::EndMenuBar();
     }
 
-    for (Entity root : scene->rootEntities)
+    auto rootsCopy = scene->rootEntities;
+    for (Entity root : rootsCopy)
     {
         ImGuiGraphEntity(root);
+    }
+
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && selectedEntity != std::numeric_limits<std::uint32_t>::max() && renamingEntity == std::numeric_limits<std::uint32_t>::max())
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_F2))
+        {
+            renamingEntity = selectedEntity;
+            std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(selectedEntity).c_str());
+            renameFocusRequested = true;
+        }
     }
 
     // Handle dropping onto empty space (to make an entity a root)
@@ -517,6 +658,16 @@ void engine::ecs::EditorSystem::ImGuiSceneGraph()
             scene->RemoveParent(droppedEntity);
         }
         ImGui::EndDragDropTarget();
+    }
+
+    // Context menu on empty area
+    if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    {
+        if (ImGui::MenuItem("Create Entity"))
+        {
+            scene->CreateEntity();
+        }
+        ImGui::EndPopup();
     }
 
     ImGui::End();
@@ -536,10 +687,94 @@ void EditorSystem::ImGuiGraphEntity(Entity entity)
         flags |= ImGuiTreeNodeFlags_Selected;
     }
 
-    bool nodeOpen = ImGui::TreeNodeEx(nameStr.c_str(), flags, "%s", nameStr.c_str());
+    bool isActive = scene->IsEntityActive(entity);
+    if (!isActive) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    }
+
+    bool isRenaming = (renamingEntity == entity);
+    bool nodeOpen = false;
+
+    if (isRenaming)
+    {
+        flags |= ImGuiTreeNodeFlags_AllowOverlap;
+        nodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "(#%u) ", entity);
+        ImGui::SameLine();
+        if (renameFocusRequested)
+        {
+            ImGui::SetKeyboardFocusHere();
+            renameFocusRequested = false;
+        }
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 10.0f);
+        ImGuiInputTextFlags inputFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
+        if (ImGui::InputText("##TreeRename", renameBuf, sizeof(renameBuf), inputFlags))
+        {
+            SetEntityName(entity, renameBuf);
+            renamingEntity = std::numeric_limits<std::uint32_t>::max();
+        }
+        else if (ImGui::IsItemDeactivated())
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+            {
+                renamingEntity = std::numeric_limits<std::uint32_t>::max();
+            }
+            else
+            {
+                SetEntityName(entity, renameBuf);
+                renamingEntity = std::numeric_limits<std::uint32_t>::max();
+            }
+        }
+    }
+    else
+    {
+        nodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s", nameStr.c_str());
+    }
+
+    if (!isActive) {
+        ImGui::PopStyleColor();
+    }
+
+    // Context menu on entity
+    if (ImGui::BeginPopupContextItem())
+    {
+        if (ImGui::MenuItem("Rename", "F2"))
+        {
+            renamingEntity = entity;
+            std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(entity).c_str());
+            renameFocusRequested = true;
+        }
+        if (ImGui::MenuItem("Create Child Entity"))
+        {
+            scene->CreateEntity("Child Entity", entity);
+        }
+        if (ImGui::MenuItem(isActive ? "Disable Entity" : "Enable Entity"))
+        {
+            scene->SetEntityActive(entity, !isActive);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Delete Entity"))
+        {
+            scene->DestroyEntity(entity);
+            if (selectedEntity == entity)
+            {
+                selectedEntity = std::numeric_limits<std::uint32_t>::max();
+            }
+            if (renamingEntity == entity)
+            {
+                renamingEntity = std::numeric_limits<std::uint32_t>::max();
+            }
+            ImGui::EndPopup();
+            if (nodeOpen)
+            {
+                ImGui::TreePop();
+            }
+            return;
+        }
+        ImGui::EndPopup();
+    }
 
     // Start drag operation
-    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+    if (!isRenaming && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
         // Set payload to carry the entity index
         ImGui::SetDragDropPayload("SCENE_ENTITY", &entity, sizeof(Entity));
@@ -563,7 +798,7 @@ void EditorSystem::ImGuiGraphEntity(Entity entity)
     }
 
     // Handle selection when clicked
-    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+    if (!isRenaming && ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
         if (selectedEntity == entity)
         {
             selectedEntity = std::numeric_limits<std::uint32_t>::max();
@@ -579,9 +814,14 @@ void EditorSystem::ImGuiGraphEntity(Entity entity)
 
         if (hasChildren)
         {
-            for (Entity child : it->second.children)
+            auto itCurrent = scene->sceneGraph.find(entity);
+            if (itCurrent != scene->sceneGraph.end())
             {
-                ImGuiGraphEntity(child);
+                auto childrenCopy = itCurrent->second.children;
+                for (Entity child : childrenCopy)
+                {
+                    ImGuiGraphEntity(child);
+                }
             }
         }
 

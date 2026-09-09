@@ -1,6 +1,8 @@
 #define BOOST_TEST_MODULE EngineAndSceneTest
 #include <boost/test/unit_test.hpp>
 #include "../Engine.h"
+#include "ecs/NameComponent.hpp"
+#include "ecs/TagComponent.hpp"
 
 using namespace engine;
 using namespace engine::ecs;
@@ -360,4 +362,46 @@ BOOST_AUTO_TEST_CASE(StaticReflectionAndSerializationTest) {
     BOOST_REQUIRE(fullSceneDoc.HasMember("systems"));
     BOOST_REQUIRE(fullSceneDoc["systems"].HasMember("RenderSystem"));
     BOOST_REQUIRE(!fullSceneDoc["systems"].HasMember("N6engine3ecs12RenderSystemE"));
+
+    // 8. Test NameComponent and TagComponent
+    Entity namedEntity = scene->CreateEntity("PlayerEntity");
+    BOOST_REQUIRE(scene->HasComponent<NameComponent>(namedEntity));
+    BOOST_REQUIRE_EQUAL(scene->GetComponent<NameComponent>(namedEntity).name, "PlayerEntity");
+    BOOST_REQUIRE_EQUAL(scene->GetEntityName(namedEntity), "PlayerEntity");
+
+    scene->SetEntityName(namedEntity, "RenamedPlayer");
+    BOOST_REQUIRE_EQUAL(scene->GetEntityName(namedEntity), "RenamedPlayer");
+    BOOST_REQUIRE_EQUAL(scene->GetComponent<NameComponent>(namedEntity).name, "RenamedPlayer");
+
+    scene->AddComponent<TagComponent>(namedEntity, TagComponent{"Player"});
+    BOOST_REQUIRE(scene->HasComponent<TagComponent>(namedEntity));
+    BOOST_REQUIRE_EQUAL(scene->GetComponent<TagComponent>(namedEntity).tag, "Player");
+
+    // Serialization of NameComponent
+    NameComponent nameComp{"MainCamera"};
+    rapidjson::Document nameDoc;
+    nameDoc.SetObject();
+    SerializeTypeToJson(nameComp, nameDoc, nameDoc.GetAllocator());
+    BOOST_REQUIRE(nameDoc.HasMember("name"));
+    BOOST_REQUIRE_EQUAL(nameDoc["name"].GetString(), "MainCamera");
+
+    NameComponent deserializedName;
+    DeserializeTypeFromJson(deserializedName, nameDoc);
+    BOOST_REQUIRE_EQUAL(deserializedName.name, "MainCamera");
+
+    // Serialization of TagComponent
+    TagComponent tagComp{"Enemy"};
+    rapidjson::Document tagDoc;
+    tagDoc.SetObject();
+    SerializeTypeToJson(tagComp, tagDoc, tagDoc.GetAllocator());
+    BOOST_REQUIRE(tagDoc.HasMember("tag"));
+    BOOST_REQUIRE_EQUAL(tagDoc["tag"].GetString(), "Enemy");
+
+    TagComponent deserializedTag;
+    DeserializeTypeFromJson(deserializedTag, tagDoc);
+    BOOST_REQUIRE_EQUAL(deserializedTag.tag, "Enemy");
+
+    // ComponentArray GetName
+    BOOST_REQUIRE_EQUAL(scene->GetIntegralComponentArray<NameComponent>()->GetName(), "NameComponent");
+    BOOST_REQUIRE_EQUAL(scene->GetComponentArray<TagComponent>()->GetName(), "TagComponent");
 }
