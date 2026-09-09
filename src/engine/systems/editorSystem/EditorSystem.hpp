@@ -31,7 +31,7 @@ namespace engine::ecs
         struct ComponentInfo {
             std::string displayName;
             bool isIntegral = false;
-            std::function<void(Scene* scene, void* component)> showImGuiComponent;
+            std::function<bool(Scene* scene, void* component)> showImGuiComponent;
          };
 
 
@@ -42,10 +42,28 @@ namespace engine::ecs
             ComponentInfo info;
             info.displayName = std::meta::identifier_of(^^T);
             info.isIntegral = has_annotation<Integral>(^^T);
-            info.showImGuiComponent = [](Scene* scene, void* component) {
-                if (component) {
-                    DrawComponentInspector(*static_cast<T*>(component), scene);
+            info.showImGuiComponent = [](Scene* scene, void* component) -> bool {
+                if (!component) return false;
+                bool shouldRemove = false;
+                constexpr auto typeName = std::meta::identifier_of(^^T);
+                bool open = ImGui::CollapsingHeader(typeName.data());
+                if constexpr (!has_annotation<Integral>(^^T) && !std::is_same_v<T, TransformComponent>) {
+                    if (ImGui::BeginPopupContextItem()) {
+                        if (ImGui::MenuItem("Remove Component")) {
+                            shouldRemove = true;
+                        }
+                        ImGui::EndPopup();
+                    }
                 }
+                if (open) {
+                    auto& comp = *static_cast<T*>(component);
+                    if constexpr (requires { comp.CustomDrawImGui(scene); }) {
+                        comp.CustomDrawImGui(scene);
+                    } else {
+                        DrawComponentFields(comp, scene);
+                    }
+                }
+                return shouldRemove;
             };
             registeredComponentTypes[typeid(T)] = std::move(info);
         }

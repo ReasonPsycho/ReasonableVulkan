@@ -12,6 +12,7 @@
 
 #include "Asset.hpp"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "systems/renderingSystem/componets/LightComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
@@ -110,15 +111,9 @@ void EditorSystem::ImGuiInspector()
 
             if (array->HasComponentUntyped(selectedEntity))
             {
-                registeredComponentTypes[typeIndex].showImGuiComponent(scene, array->GetComponentUntyped(selectedEntity));
-
-                if (ImGui::BeginPopupContextItem())
+                if (registeredComponentTypes[typeIndex].showImGuiComponent(scene, array->GetComponentUntyped(selectedEntity)))
                 {
-                    if (ImGui::MenuItem("Remove Component"))
-                    {
-                        componentToRemove = typeIndex;
-                    }
-                    ImGui::EndPopup();
+                    componentToRemove = typeIndex;
                 }
             }
         }

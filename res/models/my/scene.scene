@@ -140,13 +140,31 @@
         }
       ]
     },
+    "MeshComponent": {
+      "size": 2,
+      "components": [
+        {
+          "entity": 1,
+          "data": {
+            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1"
+          },
+          "active": true
+        },
+        {
+          "entity": 0,
+          "data": {
+            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1"
+          },
+          "active": true
+        }
+      ]
+    },
     "RendererComponent": {
       "size": 2,
       "components": [
         {
           "entity": 1,
           "data": {
-            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1",
             "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452"
           },
           "active": true
@@ -154,7 +172,6 @@
         {
           "entity": 0,
           "data": {
-            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1",
             "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452"
           },
           "active": true

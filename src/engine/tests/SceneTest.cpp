@@ -404,4 +404,25 @@ BOOST_AUTO_TEST_CASE(StaticReflectionAndSerializationTest) {
     // ComponentArray GetName
     BOOST_REQUIRE_EQUAL(scene->GetIntegralComponentArray<NameComponent>()->GetName(), "NameComponent");
     BOOST_REQUIRE_EQUAL(scene->GetComponentArray<TagComponent>()->GetName(), "TagComponent");
+
+    // 9. Test HidenInInspector attribute
+    struct TestInspectorComponent : public Component {
+        [[=HidenInInspector{}]]
+        int hiddenField = 42;
+
+        [[=Range{0.0f, 10.0f, 0.1f}]]
+        float visibleField = 3.14f;
+    };
+
+    static_assert(has_annotation<HidenInInspector>(std::meta::nonstatic_data_members_of(^^TestInspectorComponent, std::meta::access_context::current())[0]));
+    static_assert(is_hiddenInInspector<std::meta::nonstatic_data_members_of(^^TestInspectorComponent, std::meta::access_context::current())[0]>());
+    static_assert(!is_hiddenInInspector<std::meta::nonstatic_data_members_of(^^TestInspectorComponent, std::meta::access_context::current())[1]>());
+
+    TestInspectorComponent inspComp{100, 2.5f};
+    rapidjson::Document inspDoc;
+    inspDoc.SetObject();
+    SerializeTypeToJson(inspComp, inspDoc, inspDoc.GetAllocator());
+    BOOST_REQUIRE(inspDoc.HasMember("hiddenField"));
+    BOOST_REQUIRE_EQUAL(inspDoc["hiddenField"].GetInt(), 100);
+    BOOST_REQUIRE(inspDoc.HasMember("visibleField"));
 }

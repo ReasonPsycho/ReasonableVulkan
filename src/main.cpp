@@ -17,6 +17,7 @@
 #include "engine/Engine.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/LightComponent.hpp"
+#include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "vks/VulkanRenderer.h"
 #include "Config.hpp"
@@ -86,12 +87,14 @@ int main(int argc, char *argv[]) {
 
     auto modelEntity = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity),{1,1,1});
-    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(planeId.value(), pbrShaderId.value()));
+    scene.get()->AddComponent<MeshComponent>(modelEntity,MeshComponent(planeId.value()));
+    scene.get()->AddComponent<RendererComponent>(modelEntity,RendererComponent(pbrShaderId.value()));
     scene.get()->GetComponent<TransformComponent>(modelEntity).position = glm::vec3(0,0,0);
 
     auto modelEntity2 = scene.get()->CreateEntity("Model");
     setLocalScale(scene.get()->GetComponent<TransformComponent>(modelEntity2),{1,-1,1});
-    scene.get()->AddComponent<RendererComponent>(modelEntity2,RendererComponent(planeId.value(), pbrShaderId.value()));
+    scene.get()->AddComponent<MeshComponent>(modelEntity2,MeshComponent(planeId.value()));
+    scene.get()->AddComponent<RendererComponent>(modelEntity2,RendererComponent(pbrShaderId.value()));
     scene.get()->GetComponent<TransformComponent>(modelEntity2).position = glm::vec3(0,0,0);
 
     auto cameraEntity = scene.get()->CreateEntity("Camera");

@@ -8,7 +8,8 @@
 #include "PlatformInterface.hpp"
 #include "assetDatas/ModelData.h"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
-#include"componets/CameraComponent.hpp"
+#include "componets/CameraComponent.hpp"
+#include "componets/MeshComponent.hpp"
 #include "ecs/Scene.h"
 #include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
@@ -18,8 +19,8 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     if (scene->engine.minimized)
         return;
 
-    auto modelArray = scene->GetComponentArray<RendererComponent>().get();
-    auto& models = modelArray->GetComponents();
+    auto rendererArray = scene->GetComponentArray<RendererComponent>().get();
+    auto& renderers = rendererArray->GetComponents();
 
     auto lightArray = scene->GetComponentArray<LightComponent>().get();
     auto& lights = lightArray->GetComponents();
@@ -90,25 +91,29 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     scene->engine.graphicsEngine->setActiveCameraCount(activeCameraCount);
 
     // Only iterate up to the actual size of used components
-    for (ComponentID i = 0; i < modelArray->GetArraySize(); i++)
+    for (ComponentID i = 0; i < rendererArray->GetArraySize(); i++)
     {
-        if (modelArray->IsComponentActive(i))
+        if (rendererArray->IsComponentActive(i))
         {
-            Entity entity = modelArray->ComponentIndexToEntity(i);
-            if (models[i].modelUuid != boost::uuids::nil_uuid())
+            Entity entity = rendererArray->ComponentIndexToEntity(i);
+            if (scene->HasComponent<MeshComponent>(entity))
             {
-                for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
-                    boost::uuids::uuid currentShader = models[i].shaderUuid;
-                    if (inEditMode && camIdx == 0) { // Only override for the editor camera
-                        if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
-                            currentShader = editorSystem->wiremeshShaderId;
-                        } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
-                            currentShader = editorSystem->wiremeshTexturedShaderId;
+                auto& mesh = scene->GetComponent<MeshComponent>(entity);
+                if (mesh.modelUuid != boost::uuids::nil_uuid())
+                {
+                    for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
+                        boost::uuids::uuid currentShader = renderers[i].shaderUuid;
+                        if (inEditMode && camIdx == 0) { // Only override for the editor camera
+                            if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
+                                currentShader = editorSystem->wiremeshShaderId;
+                            } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
+                                currentShader = editorSystem->wiremeshTexturedShaderId;
+                            }
                         }
-                    }
 
-                    scene->engine.graphicsEngine->drawModel(camIdx, models[i].modelUuid, currentShader,
-                                                            transforms[entity].globalMatrix);
+                        scene->engine.graphicsEngine->drawModel(camIdx, mesh.modelUuid, currentShader,
+                                                                transforms[entity].globalMatrix);
+                    }
                 }
             }
         }
@@ -191,11 +196,4 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
 void RenderSystem::OnComponentAdded(ComponentID componentID, std::type_index type)
 {
-  if (type == typeid(RendererComponent))
-  {
-      auto& model = scene->GetComponentArray<RendererComponent>().get()->GetComponent(componentID);
-
-      if (model.modelUuid == boost::uuids::nil_uuid())
-          return;
-  }
 }

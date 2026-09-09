@@ -33,7 +33,7 @@ namespace engine::ecs
         [[=Tooltip{"Skybox Material/Texture UUID"}]]
         boost::uuids::uuid skyboxMaterialId{boost::uuids::nil_uuid()};
 
-        [[=NonSerialized{}, =ReadOnly{}]]
+        [[=NonSerialized{}, =HidenInInspector{}]]
         bool isDirty{true};
 
         [[=Tooltip{"Whether camera is active"}]]
