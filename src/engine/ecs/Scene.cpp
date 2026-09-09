@@ -17,6 +17,8 @@ using namespace engine::ecs;
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
+#include "NameComponent.hpp"
+#include "TagComponent.hpp"
 
 void Scene::AddComponent(Entity entity, std::type_index typeIdx)
 {
@@ -159,6 +161,7 @@ Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
     }
 
     AddComponent<TransformComponent>(entity, transform);
+    AddComponent<NameComponent>(entity, NameComponent{"Entity"});
 
     if (parentEntity == -1)
     {
@@ -168,10 +171,6 @@ Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
         auto parentNode = sceneGraph.find(parentEntity);
         parentNode->second.children.push_back(entity);
     }
-
-    auto signature = Signature{};
-    signature.set(GetComponentTypeID<TransformComponent>());
-    entitySignatures[entity] = signature;
 
     activeEntities.set(entity, true);
     return entity;
@@ -185,11 +184,22 @@ Entity Scene::CreateEntity(std::string entityName, Entity parentEntity)
 Entity Scene::CreateEntity(std::string entityName, TransformComponent transform,  Entity parentEntity)
 {
     auto entity = CreateEntity(transform,parentEntity);
-    GetSystem<engine::ecs::EditorSystem>().get()->SetEntityName(entity,entityName);
+    SetEntityName(entity, entityName);
     return entity;
 }
 
 void Scene::DestroyEntity(Entity entity) {
+    RemoveParent(entity);
+    auto it = sceneGraph.find(entity);
+    if (it != sceneGraph.end()) {
+        for (Entity child : it->second.children) {
+            sceneGraph[child].parent = MAX_ENTITIES;
+            rootEntities.push_back(child);
+        }
+        sceneGraph.erase(it);
+    }
+    rootEntities.erase(std::remove(rootEntities.begin(), rootEntities.end(), entity), rootEntities.end());
+
     Signature signature = entitySignatures[entity]; // Get entity signature
     std::type_index componentIndex(typeid(void)); // Initialize with a dummy type
     for (size_t i = 0; i < signature.size(); ++i) {
@@ -218,6 +228,35 @@ void Scene::SetEntityActive(Entity entity, bool active)
 bool Scene::IsEntityActive(Entity entity) const
 {
     return activeEntities[entity];
+}
+
+std::string Scene::GetEntityName(Entity entity) const
+{
+    auto it = componentArrays.find(std::type_index(typeid(NameComponent)));
+    if (it != componentArrays.end()) {
+        auto nameArray = static_cast<IntegralComponentArray<NameComponent>*>(it->second.get());
+        if (nameArray->HasComponent(entity)) {
+            const auto& comp = nameArray->GetComponentFromEntity(entity);
+            if (!comp.name.empty()) {
+                return comp.name;
+            }
+        }
+    }
+    return "Entity";
+}
+
+void Scene::SetEntityName(Entity entity, const std::string& name)
+{
+    if (HasComponent<NameComponent>(entity)) {
+        GetComponent<NameComponent>(entity).name = name;
+    } else {
+        AddComponent<NameComponent>(entity, NameComponent{name});
+    }
+
+    auto editorSystem = GetSystem<engine::ecs::EditorSystem>();
+    if (editorSystem) {
+        editorSystem->SetEntityName(entity, name);
+    }
 }
 
 std::unordered_map<std::type_index, std::shared_ptr<IComponentArray>> Scene::GetComponentArrays()

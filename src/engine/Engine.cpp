@@ -12,6 +12,8 @@
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/LightComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "ecs/NameComponent.hpp"
+#include "ecs/TagComponent.hpp"
 
 namespace engine {
 

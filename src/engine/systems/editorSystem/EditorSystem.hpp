@@ -30,6 +30,7 @@ namespace engine::ecs
 
         struct ComponentInfo {
             std::string displayName;
+            bool isIntegral = false;
             std::function<void(Scene* scene, void* component)> showImGuiComponent;
          };
 
@@ -40,6 +41,7 @@ namespace engine::ecs
         void RegisterComponentType() {
             ComponentInfo info;
             info.displayName = std::meta::identifier_of(^^T);
+            info.isIntegral = has_annotation<Integral>(^^T);
             info.showImGuiComponent = [](Scene* scene, void* component) {
                 if (component) {
                     DrawComponentInspector(*static_cast<T*>(component), scene);
@@ -51,6 +53,7 @@ namespace engine::ecs
 
         void SetEntityName(Entity entity, const std::string& name);
         std::string GetEntityName(Entity entity) const;
+        std::string GetEntityRawName(Entity entity) const;
 
         Entity GetSelectedEntity() const { return selectedEntity; }
         void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
@@ -87,7 +90,9 @@ namespace engine::ecs
     private:
         std::unordered_map<Entity, std::string> named_entities;
         Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();
-        ;
+        Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
+        char renameBuf[256] = "";
+        bool renameFocusRequested = false;
         std::unordered_map<std::type_index,ComponentInfo> registeredComponentTypes;
         void ImGuiSceneGraph();
         void ImGuiGraphEntity(Entity entity);
