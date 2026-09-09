@@ -5,11 +5,16 @@
 #ifndef SYSTEMBASE_H
 #define SYSTEMBASE_H
 #include <rapidjson/document.h>
+#include <vector>
+#include <string>
+#include <typeindex>
 
 #include "Types.h"
 
 namespace engine::ecs
 {
+    class Scene;
+
     class SystemBase {
     public:
         virtual ~SystemBase() = default;
@@ -23,6 +28,8 @@ namespace engine::ecs
 
         virtual void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const = 0;
         virtual void DeserializeFromJson(const rapidjson::Value& obj) = 0;
+
+        virtual bool DrawSettingsImGui(Scene* scene) = 0;
     };
 }
 #endif //SYSTEMBASE_H

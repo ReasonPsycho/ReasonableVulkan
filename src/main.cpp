@@ -51,8 +51,8 @@ int main(int argc, char *argv[]) {
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/skybox.shaderImport","skyboxShader");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowMap.shaderImport","shadowMapShader");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/shaders/jsons/shadowCubeMap.shaderImport","shadowCubeMapShader");
-    auto skyboxModelId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Skybox\\Skybox.fbx","skyboxModel");
-    auto planeId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\models\\my\\Plane.fbx","planeModel");
+    auto skyboxModelId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\my\\Skybox\\Skybox.fbx","skyboxModel");
+    auto planeId = assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\my\\Plane.fbx","planeModel");
     assetManager.registerAsset("C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/Box.fbx","boxModel");
 
     auto skyboxModelData = assetManager.getAssetData<am::ModelData>(skyboxModelId.value());
@@ -112,6 +112,7 @@ int main(int argc, char *argv[]) {
 
     auto sceneId = assetManager.getAssetUuid("scene");
     engine.LoadScene(sceneId.value());
+    engine.SaveScene();
 
     // 5. Main loop
     bool running = true;

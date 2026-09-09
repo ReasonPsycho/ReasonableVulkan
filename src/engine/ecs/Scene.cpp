@@ -20,10 +20,11 @@ using namespace engine::ecs;
 
 void Scene::AddComponent(Entity entity, std::type_index typeIdx)
 {
+    AddComponent(typeIdx);
     auto componentID = componentArrays[typeIdx]->AddComponentUntyped(entity);
 
     Signature& signature = entitySignatures[entity];
-    signature.set(GetUniqueComponentTypeID(), true);
+    signature.set(engine.GetComponentTypeID(typeIdx), true);
 
     // Check each system
     for (auto& [_, system] : systems)
@@ -46,31 +47,14 @@ size_t Scene::RegisteredComponentsSize() const
 
 std::type_index Scene::GetTypeFromIndex(std::size_t index) const
 {
-    auto it = indexToType.find(index);
-    assert(it != indexToType.end() && "Index not registered.");
-    return it->second;
+    return engine.GetComponentTypeFromID(index);
 }
 
 Scene::Scene(Engine& engine): engine(engine)
 {
-    RegisterSystem<RenderSystem>();
-
-#ifdef EDITOR_ENABLED
-    RegisterSystem<EditorSystem>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<TransformComponent>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<RendererComponent>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<CameraComponent>();
-    GetSystem<EditorSystem>().get()->RegisterComponentType<LightComponent>();
-#endif
-
-    RegisterSystem<GizmoSystem>();
-    RegisterComponent<RendererComponent>(); //For some reason I have to register them in reverse
-    RegisterComponent<CameraComponent>();
-    RegisterComponent<LightComponent>();
-
-    RegisterIntegralComponent<TransformComponent>();
-    RegisterSystem<TransformSystem>();
-    RegisterSystem<CollisionSystem>();
+    ForEachType<EngineSystems>([this]<typename T>() {
+        RegisterSystem<T>();
+    });
 
     sceneId = boost::uuids::nil_uuid();
 }
@@ -296,8 +280,8 @@ void Scene::SerializeEntities(rapidjson::Value& obj, rapidjson::Document::Alloca
 void Scene::SerializeComponents(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
     for (const auto& [typeIndex, componentArray] : componentArrays) {
         rapidjson::Value typeStr;
-        std::string typeName = typeIndex.name();
-        typeStr.SetString(typeName.c_str(), allocator);
+        std::string_view typeName = componentArray->GetName();
+        typeStr.SetString(typeName.data(), static_cast<rapidjson::SizeType>(typeName.size()), allocator);
 
         rapidjson::Value componentObj(rapidjson::kObjectType);
         componentArray->SerializeToJson(componentObj, allocator);
@@ -309,7 +293,7 @@ void Scene::SerializeComponents(rapidjson::Value& obj, rapidjson::Document::Allo
 void Scene::SerializeSystems(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
     for (const auto& [typeIndex, system] : systems) {
         rapidjson::Value typeStr;
-        std::string typeName = typeIndex.name();
+        std::string typeName = system->name;
         typeStr.SetString(typeName.c_str(), allocator);
 
         rapidjson::Value systemObj(rapidjson::kObjectType);
@@ -361,7 +345,6 @@ void Scene::DeserializeFromJson(const rapidjson::Document& doc) {
     freeEntities = std::queue<Entity>{};
     entitySignatures.clear();
     activeEntities.reset();
-    indexToType.clear();
 
     // First, ensure all required components are registered
     if (doc.HasMember("components") && doc["components"].IsObject()) {
@@ -371,16 +354,23 @@ void Scene::DeserializeFromJson(const rapidjson::Document& doc) {
             std::string typeName = it->name.GetString();
             bool found = false;
 
-            // Find and register the component if needed
-            for (const auto& type : registeredComponents) {
-                if (type.name() == typeName) {
-                    // Check if component is already registered in scene
-                    if (componentArrays.find(type) == componentArrays.end()) {
-                        // Register the component using type information
-                        AddComponent(type);
+            // Check if there is a match by clean name in engine
+            auto typeOpt = engine.GetComponentTypeByName(typeName);
+            if (typeOpt.has_value()) {
+                if (componentArrays.find(*typeOpt) == componentArrays.end()) {
+                    AddComponent(*typeOpt);
+                }
+                found = true;
+            } else {
+                // Fallback for legacy mangled names
+                for (const auto& type : registeredComponents) {
+                    if (type.name() == typeName) {
+                        if (componentArrays.find(type) == componentArrays.end()) {
+                            AddComponent(type);
+                        }
+                        found = true;
+                        break;
                     }
-                    found = true;
-                    break;
                 }
             }
 
@@ -399,16 +389,22 @@ void Scene::DeserializeFromJson(const rapidjson::Document& doc) {
             std::string typeName = it->name.GetString();
             bool found = false;
 
-            // Find and register the system if needed
-            for (const auto& type : registeredSystems) {
-                if (type.name() == typeName) {
-                    // Check if system is already registered in scene
-                    if (systems.find(type) == systems.end()) {
-                        // Register the system using type information
-                        RegisterSystem(type);
+            auto typeOpt = engine.GetSystemTypeByName(typeName);
+            if (typeOpt.has_value()) {
+                if (systems.find(*typeOpt) == systems.end()) {
+                    RegisterSystem(*typeOpt);
+                }
+                found = true;
+            } else {
+                // Fallback for legacy mangled names
+                for (const auto& type : registeredSystems) {
+                    if (type.name() == typeName) {
+                        if (systems.find(type) == systems.end()) {
+                            RegisterSystem(type);
+                        }
+                        found = true;
+                        break;
                     }
-                    found = true;
-                    break;
                 }
             }
 
@@ -493,7 +489,7 @@ void Scene::DeserializeComponents(const rapidjson::Value& obj) {
     for (auto it = obj.MemberBegin(); it != obj.MemberEnd(); ++it) {
         std::string typeName = it->name.GetString();
         for (const auto& [typeIndex, componentArray] : componentArrays) {
-            if (typeIndex.name() == typeName) {
+            if (componentArray->GetName() == typeName || typeIndex.name() == typeName) {
                 componentArray->DeserializeFromJson(it->value);
                 break;
             }
@@ -505,7 +501,7 @@ void Scene::DeserializeSystems(const rapidjson::Value& obj) {
     for (auto it = obj.MemberBegin(); it != obj.MemberEnd(); ++it) {
         std::string typeName = it->name.GetString();
         for (const auto& [typeIndex, system] : systems) {
-            if (typeIndex.name() == typeName) {
+            if (system->name == typeName || typeIndex.name() == typeName) {
                 system->DeserializeFromJson(it->value);
                 break;
             }

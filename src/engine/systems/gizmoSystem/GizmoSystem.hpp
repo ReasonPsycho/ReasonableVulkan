@@ -46,12 +46,17 @@ namespace engine::ecs
         void DrawCube(glm::vec3 pos, glm::vec3 scale, glm::vec3 color);
         void DrawCube(glm::vec3 pos, glm::vec3 scale, glm::vec3 color, float duration);
 
+        [[=NonSerialized{}]]
         std::vector<GizmoRenderCommand> gizmoRenderCommandQueue;
 
+        [[=NonSerialized{}]]
         boost::uuids::uuid rayAssetUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
         boost::uuids::uuid cubeAssetUuid = boost::uuids::nil_uuid();
 
+        [[=NonSerialized{}]]
         boost::uuids::uuid rayShaderUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
         boost::uuids::uuid cubeShaderUuid = boost::uuids::nil_uuid();
 
         boost::uuids::uuid ModelUUIDByGizmoType(GizmoType type);

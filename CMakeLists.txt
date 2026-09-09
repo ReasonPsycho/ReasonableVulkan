@@ -9,9 +9,18 @@ if (MSVC) # Caouse windows error
     add_compile_definitions(_AMD64_)
 endif ()
 
-# Set C++23 as the C++ standard for all targets
-set(CMAKE_CXX_STANDARD 23)
+# Set C++26 as the C++ standard for all targets
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_compile_options(-freflection)
+endif ()
+
+# Fix GCC 16 C++26 experimental constexpr exceptions symbol collision with static libstdc++
+if (MINGW)
+    add_compile_definitions(__cpp_lib_constexpr_exceptions=0)
+endif ()
 
 add_compile_definitions(SPDLOG_COMPILED_LIB)
 

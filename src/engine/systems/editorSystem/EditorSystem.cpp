@@ -12,6 +12,9 @@
 
 #include "Asset.hpp"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "systems/renderingSystem/componets/RendererComponent.hpp"
+#include "systems/renderingSystem/componets/LightComponent.hpp"
+#include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "PlatformInterface.hpp"
 #include "assetDatas/MeshData.h"
 #include "assetDatas/ModelData.h"
@@ -33,7 +36,7 @@ void EditorSystem::ImGuiInspector()
         {
             if (array.get()->HasComponentUntyped(selectedEntity))
             {
-                registeredComponentTypes[typeIndex].showImGuiComponent(scene,&array.get()->GetComponentUntyped(selectedEntity));
+                registeredComponentTypes[typeIndex].showImGuiComponent(scene, array.get()->GetComponentUntyped(selectedEntity));
             }
         }
 
@@ -46,7 +49,7 @@ void EditorSystem::ImGuiInspector()
         {
             for (const auto& [typeIndex, info] : registeredComponentTypes)
             {
-                if (info.displayName != boost::core::demangle(typeid(TransformComponent).name()))
+                if (info.displayName != std::meta::identifier_of(^^TransformComponent))
                 {
                     if (ImGui::MenuItem(info.displayName.c_str()))
                     {
@@ -58,6 +61,19 @@ void EditorSystem::ImGuiInspector()
         }
     }
 
+    ImGui::End();
+}
+
+void EditorSystem::ImGuiSystemSettings()
+{
+    ImGui::Begin("System Settings");
+    for (const auto& [typeIndex, system] : scene->GetSystems())
+    {
+        if (ImGui::CollapsingHeader(system->name.c_str()))
+        {
+            system->DrawSettingsImGui(scene);
+        }
+    }
     ImGui::End();
 }
 
@@ -270,6 +286,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
         // Dock the windows
         ImGui::DockBuilderDockWindow("Scene graph", dock_left);
         ImGui::DockBuilderDockWindow("Inspector", dock_right);
+        ImGui::DockBuilderDockWindow("System Settings", dock_right);
         ImGui::DockBuilderDockWindow("Toolbar", dock_top);
         ImGui::DockBuilderDockWindow("Menu", dock_bottom);
 
@@ -391,6 +408,7 @@ void engine::ecs::EditorSystem::Update(float deltaTime)
 
     ImGuiSceneGraph();
     ImGuiInspector();
+    ImGuiSystemSettings();
     ImGuiGizmo();
     ImguiShaderOverrideWindow();
 
@@ -414,6 +432,10 @@ std::string EditorSystem::GetEntityName(Entity entity) const
 
 void EditorSystem::Initialize()
 {
+    ForEachType<EngineComponents>([this]<typename T>() {
+        this->RegisterComponentType<T>();
+    });
+
     SetUpCameraControls();
 
     auto skyboxModelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>("skyboxModel");

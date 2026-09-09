@@ -40,12 +40,12 @@ namespace vks
         config.PixelSnapH = true;
         config.GlyphMinAdvanceX = iconFontSize;
         static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-        io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\fonts\\fa-regular-400.ttf", iconFontSize, &config, iconRanges);
+        io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\fonts\\fa-regular-400.ttf", iconFontSize, &config, iconRanges);
 
         ImFontConfig largeConfig;
         largeConfig.PixelSnapH = true;
         largeConfig.GlyphMinAdvanceX = 48.0f;
-        largeIconFont = io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\fonts\\fa-regular-400.ttf", 48.0f, &largeConfig, iconRanges);
+        largeIconFont = io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\fonts\\fa-regular-400.ttf", 48.0f, &largeConfig, iconRanges);
 
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;

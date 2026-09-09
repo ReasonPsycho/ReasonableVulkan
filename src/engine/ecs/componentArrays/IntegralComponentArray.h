@@ -5,12 +5,17 @@
 #include <array>
 #include <bitset>
 #include <cassert>
+#include <meta>
 #include "IComponentArray.h"
 
 namespace engine::ecs {
     template<typename T>
     class IntegralComponentArray : public IComponentArray {
     public:
+        std::string_view GetName() const override {
+            return std::meta::identifier_of(^^T);
+        }
+
         ComponentID AddComponentToEntity(Entity entity, T component);
         ComponentID RemoveComponentFronEntity(Entity entity);
         T& GetComponentFromEntity(Entity entity);
@@ -22,7 +27,7 @@ namespace engine::ecs {
 
         // Untyped interface overrides
         ComponentID AddComponentUntyped(Entity entity) override;
-        Component& GetComponentUntyped(Entity entity) override;
+        void* GetComponentUntyped(Entity entity) override;
         void RemoveComponentUntyped(Entity entity) override;
         bool HasComponentUntyped(Entity entity) const override;
         void SetComponentActiveUntyped(Entity entity, bool active) override;

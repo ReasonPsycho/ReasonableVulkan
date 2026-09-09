@@ -33,7 +33,7 @@ namespace engine::ecs
     class Scene {
     public:
 
-        explicit Scene(Engine& engine);
+        explicit Scene(::engine::Engine& engine);
 
         void Update(float deltaTime);
 
@@ -117,7 +117,7 @@ namespace engine::ecs
         CameraObject GetActiveCamera();
 
         //Engine
-        engine::Engine& engine;
+        ::engine::Engine& engine;
 
         boost::uuids::uuid sceneId;
     private:
@@ -133,7 +133,6 @@ namespace engine::ecs
         void RegisterIntegralComponent();
 
         std::unordered_map<std::type_index, std::shared_ptr<IComponentArray>> componentArrays;
-        std::unordered_map<ComponentTypeID, std::type_index> indexToType;
 
         //Systems
         std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;

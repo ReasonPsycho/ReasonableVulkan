@@ -8,29 +8,46 @@
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
+#include "systems/renderingSystem/componets/RendererComponent.hpp"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "systems/renderingSystem/componets/LightComponent.hpp"
+#include "systems/transformSystem/componets/TransformComponent.hpp"
 
 namespace engine {
+
+    template <typename Tuple>
+    inline std::shared_ptr<IComponentArray> CreateComponentArrayFromType(const std::type_index& type) {
+        static constexpr auto types = get_template_args_array<Tuple>();
+        template for (constexpr auto t : types) {
+            using Comp = typename [:t:];
+            if (type == std::type_index(typeid(Comp))) {
+                if constexpr (has_annotation<Integral>(t)) {
+                    return std::make_shared<IntegralComponentArray<Comp>>();
+                } else {
+                    return std::make_shared<ComponentArray<Comp>>();
+                }
+            }
+        }
+        throw std::runtime_error("No factory registered for component type: " + std::string(type.name()));
+    }
+
+    template <typename Tuple>
+    inline std::shared_ptr<SystemBase> CreateSystemFromType(const std::type_index& type, Scene* scene) {
+        static constexpr auto types = get_template_args_array<Tuple>();
+        template for (constexpr auto t : types) {
+            using Sys = typename [:t:];
+            if (type == std::type_index(typeid(Sys))) {
+                return std::make_shared<Sys>(scene);
+            }
+        }
+        throw std::runtime_error("No factory registered for system type: " + std::string(type.name()));
+    }
 
 
     Engine::Engine(plt::PlatformInterface* platformInterface, gfx::GraphicsEngine* graphicsEngine,
         am::AssetManagerInterface* assetManagerInterface) : assetManagerInterface(assetManagerInterface), graphicsEngine(graphicsEngine),
                                                             platform(platformInterface)
     {
-        RegisterSystemType<RenderSystem>();
-
-#ifdef EDITOR_ENABLED
-        RegisterSystemType<EditorSystem>();
-#endif
-
-        RegisterSystemType<GizmoSystem>();
-
-        RegisterComponentType<RendererComponent>(); //For some reason I have to register them in reverse
-        RegisterComponentType<CameraComponent>();
-        RegisterComponentType<TransformComponent>();
-        RegisterComponentType<LightComponent>();
-
-        RegisterSystemType<TransformSystem>();
-        RegisterSystemType<CollisionSystem>();
     }
 
     void Engine::Initialize()
@@ -99,20 +116,44 @@ namespace engine {
 
     std::shared_ptr<IComponentArray> Engine::CreateComponentArray(const std::type_index& type) const
     {
-        auto it = componentFactories.find(type);
-        if (it != componentFactories.end()) {
-            return it->second();
-        }
-        throw std::runtime_error("No factory registered for component type: " + std::string(type.name()));
+        return CreateComponentArrayFromType<EngineComponents>(type);
     }
 
     std::shared_ptr<SystemBase> Engine::CreateSystem(const std::type_index& type, Scene* scene) const
     {
-        auto it = systemFactories.find(type);
-        if (it != systemFactories.end()) {
-            return it->second(scene);
-        }
-        throw std::runtime_error("No factory registered for system type: " + std::string(type.name()));
+        return CreateSystemFromType<EngineSystems>(type, scene);
+    }
+
+    const std::set<std::type_index>& Engine::GetRegisteredComponentTypes() const {
+        return GetRegisteredTypesSet<EngineComponents>();
+    }
+
+    const std::set<std::type_index>& Engine::GetRegisteredSystemTypes() const {
+        return GetRegisteredTypesSet<EngineSystems>();
+    }
+
+    std::optional<std::type_index> Engine::GetComponentTypeByName(std::string_view name) const {
+        return GetTypeByName<EngineComponents>(name);
+    }
+
+    std::optional<std::type_index> Engine::GetSystemTypeByName(std::string_view name) const {
+        return GetTypeByName<EngineSystems>(name);
+    }
+
+    std::string_view Engine::GetComponentTypeName(const std::type_index& type) const {
+        return GetTypeName<EngineComponents>(type);
+    }
+
+    std::string_view Engine::GetSystemTypeName(const std::type_index& type) const {
+        return GetTypeName<EngineSystems>(type);
+    }
+
+    ComponentTypeID Engine::GetComponentTypeID(const std::type_index& type) const {
+        return GetTypeIndex<EngineComponents>(type);
+    }
+
+    std::type_index Engine::GetComponentTypeFromID(ComponentTypeID id) const {
+        return GetTypeByIndex<EngineComponents>(id);
     }
 
     void Engine::SaveScene()

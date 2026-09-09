@@ -4,7 +4,8 @@
 
 #ifndef REASONABLEVULKAN_COMPONENT_HPP
 #define REASONABLEVULKAN_COMPONENT_HPP
-#include <rapidjson/document.h>
+
+#include "Reflection.hpp"
 
 namespace engine::ecs
 {
@@ -12,14 +13,6 @@ namespace engine::ecs
 
     struct Component
     {
-    public:
-        virtual ~Component() = default;
-
-        virtual void ShowImGui(Scene* scene, Component* component) const = 0;
-
-        virtual void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const = 0;
-        virtual void DeserializeComponentFromJson(const rapidjson::Value& obj) = 0;
     };
-
 }
 #endif //REASONABLEVULKAN_COMPONENT_HPP

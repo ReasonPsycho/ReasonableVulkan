@@ -15,19 +15,21 @@
 
 namespace engine::ecs
 {
+    class Scene;
+
     struct RendererComponent : public Component
     {
-        boost::uuids::uuid modelUuid;
-        boost::uuids::uuid shaderUuid;
+        [[=Tooltip{"Model asset UUID"}]]
+        boost::uuids::uuid modelUuid{boost::uuids::nil_uuid()};
 
+        [[=Tooltip{"Shader program asset UUID"}]]
+        boost::uuids::uuid shaderUuid{boost::uuids::nil_uuid()};
 
-        RendererComponent() : modelUuid(boost::uuids::nil_uuid()), shaderUuid(boost::uuids::nil_uuid()){}
-        explicit RendererComponent(boost::uuids::uuid modelId, boost::uuids::uuid shaderId = boost::uuids::nil_uuid()) : modelUuid(modelId), shaderUuid(shaderId) {}
+        RendererComponent() = default;
+        explicit RendererComponent(boost::uuids::uuid modelId, boost::uuids::uuid shaderId = boost::uuids::nil_uuid())
+            : modelUuid(modelId), shaderUuid(shaderId) {}
 
-        void ShowImGui(Scene* scene,Component* component) const override;
-
-        void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
-        void DeserializeComponentFromJson(const rapidjson::Value& obj) override;
+        void CustomDrawImGui(Scene* scene);
     };
 }
 
