@@ -16,6 +16,7 @@ using namespace engine::ecs;
 #include "systems/transformSystem/TransformSystem.h"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "NameComponent.hpp"
 #include "TagComponent.hpp"

@@ -8,6 +8,7 @@
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
+#include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/LightComponent.hpp"

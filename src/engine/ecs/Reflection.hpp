@@ -68,6 +68,7 @@ namespace engine::ecs
     struct ReadOnly {};
     struct NonSerialized {};
     struct Integral {};
+    struct HidenInInspector {};
 
     // ==========================================
     // Compile-time Reflection Helpers
@@ -192,6 +193,11 @@ namespace engine::ecs
     template <std::meta::info entity>
     consteval bool is_nonSerialized() {
         return has_annotation<NonSerialized>(entity);
+    }
+
+    template <std::meta::info entity>
+    consteval bool is_hiddenInInspector() {
+        return has_annotation<HidenInInspector>(entity);
     }
 
     template <typename Attr>
@@ -398,16 +404,18 @@ namespace engine::ecs
         bool changed = false;
         static constexpr auto members = get_members_array<T>();
         template for (constexpr auto mem : members) {
-            constexpr auto name = std::meta::identifier_of(mem);
-            constexpr auto tooltipOpt = get_annotation<Tooltip>(mem);
+            if constexpr (!is_hiddenInInspector<mem>()) {
+                constexpr auto name = std::meta::identifier_of(mem);
+                constexpr auto tooltipOpt = get_annotation<Tooltip>(mem);
 
-            if (DrawFieldInspector<mem>(name.data(), component.[:mem:], scene)) {
-                changed = true;
-            }
+                if (DrawFieldInspector<mem>(name.data(), component.[:mem:], scene)) {
+                    changed = true;
+                }
 
-            if constexpr (tooltipOpt.has_value()) {
-                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-                    ImGui::SetTooltip("%s", tooltipOpt->text);
+                if constexpr (tooltipOpt.has_value()) {
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                        ImGui::SetTooltip("%s", tooltipOpt->text);
+                    }
                 }
             }
         }
@@ -531,15 +539,17 @@ namespace engine::ecs
     }
 
     template <typename T>
-    void DrawComponentInspector(T& component, Scene* scene = nullptr) {
+    bool DrawComponentInspector(T& component, Scene* scene = nullptr) {
         constexpr auto typeName = std::meta::identifier_of(^^T);
-        if (ImGui::CollapsingHeader(typeName.data())) {
+        bool open = ImGui::CollapsingHeader(typeName.data());
+        if (open) {
             if constexpr (requires { component.CustomDrawImGui(scene); }) {
                 component.CustomDrawImGui(scene);
             } else {
                 DrawComponentFields(component, scene);
             }
         }
+        return open;
     }
 
 #endif // ENABLE_IMGUI

@@ -26,7 +26,7 @@ namespace engine::ecs
         [[=NonSerialized{}, =ReadOnly{}, =Tooltip{"Global transformation matrix"}]]
         glm::mat4 globalMatrix{1.0f};  // local to world
 
-        [[=NonSerialized{}, =ReadOnly{}]]
+        [[=NonSerialized{}, =HidenInInspector{}]]
         bool isDirty{true};
 
         TransformComponent() = default;

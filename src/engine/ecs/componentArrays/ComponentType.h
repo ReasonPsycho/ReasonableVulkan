@@ -15,6 +15,7 @@ namespace engine::ecs
     using ComponentTypeID = std::size_t;
 
     struct TransformComponent;
+    struct MeshComponent;
     struct RendererComponent;
     struct CameraComponent;
     struct LightComponent;
@@ -31,6 +32,7 @@ namespace engine::ecs
 
     using EngineComponents = std::tuple<
         TransformComponent,
+        MeshComponent,
         RendererComponent,
         CameraComponent,
         LightComponent,
