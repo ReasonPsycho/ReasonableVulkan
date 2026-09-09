@@ -8,11 +8,12 @@
 #include <algorithm>
 #include <vector>
 #include <string>
-#include <boost/core/demangle.hpp>
+#include <meta>
 
 #include "componentArrays/ComponentType.h"
 #include "SystemBase.h"
 #include "Types.h"
+#include "Reflection.hpp"
 
 namespace engine::ecs
 {
@@ -26,7 +27,7 @@ namespace engine::ecs
         explicit System(Scene* scene) : scene(scene)
         {
             registeredComponentTypes = {std::type_index(typeid(Components))...};
-            name = boost::core::demangle(typeid(Derived).name());
+            name = std::meta::identifier_of(^^Derived);
         }
 
         virtual ~System() = default;
@@ -51,32 +52,36 @@ namespace engine::ecs
             nameVal.SetString(name.c_str(), allocator);
             obj.AddMember("name", nameVal, allocator);
 
-            // Allow derived systems to serialize additional data
+            // Serialize reflected member variables of derived system
             rapidjson::Value extraData(rapidjson::kObjectType);
-            static_cast<const Derived*>(this)->SerializeExtraData(extraData, allocator);
+            SerializeTypeToJson(*static_cast<const Derived*>(this), extraData, allocator);
             obj.AddMember("extraData", extraData, allocator);
         }
 
         void DeserializeFromJson(const rapidjson::Value& obj) override {
-
-            // Load extra data from derived system
+            // Deserialize reflected member variables of derived system
             if (obj.HasMember("extraData") && obj["extraData"].IsObject()) {
-                static_cast<Derived*>(this)->DeserializeExtraData(obj["extraData"]);
+                DeserializeTypeFromJson(*static_cast<Derived*>(this), obj["extraData"]);
             }
         }
 
+        bool DrawSettingsImGui(Scene* scenePtr) override {
+#ifdef ENABLE_IMGUI
+            if constexpr (requires { static_cast<Derived*>(this)->CustomDrawSettingsImGui(scenePtr); }) {
+                return static_cast<Derived*>(this)->CustomDrawSettingsImGui(scenePtr);
+            } else {
+                return DrawComponentFields(*static_cast<Derived*>(this), scenePtr);
+            }
+#else
+            return false;
+#endif
+        }
+
     protected:
+        [[=NonSerialized{}]]
         Scene* scene;
         virtual void OnComponentAdded(ComponentID componentID, std::type_index type) = 0;
         virtual void OnEntityRemoved(ComponentID componentID, std::type_index type)  = 0;
-
-        virtual void SerializeExtraData(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
-            // Default implementation does nothing
-        }
-
-        virtual void DeserializeExtraData(const rapidjson::Value& obj) {
-            // Default implementation does nothing
-        }
 
     };
 }

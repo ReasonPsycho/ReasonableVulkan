@@ -318,11 +318,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         RegisterAssetType<PrefabAsset>();
         RegisterAssetType<ConfigAsset>();
 
-        loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
+        loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\metadatas.json");
     }
 
     AssetManager::~AssetManager() {
-        saveRegistryMetadataToFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res\\metadatas.json");
+        saveRegistryMetadataToFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\metadatas.json");
     }
 
     std::string incrementSuffix(const std::string& suffix)

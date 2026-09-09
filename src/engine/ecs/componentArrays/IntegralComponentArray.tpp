@@ -61,10 +61,10 @@ ComponentID IntegralComponentArray<T>::AddComponentUntyped(ComponentID entity)
 }
 
 template <typename T>
-Component& IntegralComponentArray<T>::GetComponentUntyped(Entity entity)
+void* IntegralComponentArray<T>::GetComponentUntyped(Entity entity)
 {
     assert(entity < MAX_ENTITIES);
-    return componentArray[entity];
+    return &componentArray[entity];
 }
 
 // Untyped overrides
@@ -103,7 +103,7 @@ void IntegralComponentArray<T>::SerializeToJson(rapidjson::Value& obj, rapidjson
 
             // Store component data
             rapidjson::Value componentData(rapidjson::kObjectType);
-            componentArray[entity].SerializeComponentToJson(componentData, allocator);
+            SerializeTypeToJson(componentArray[entity], componentData, allocator);
             componentObj.AddMember("data", componentData, allocator);
 
             components.PushBack(componentObj, allocator);
@@ -129,7 +129,7 @@ void IntegralComponentArray<T>::DeserializeFromJson(const rapidjson::Value& obj)
 
                 // Create and deserialize component
                 T component;
-                component.DeserializeComponentFromJson(componentObj["data"]);
+                DeserializeTypeFromJson(component, componentObj["data"]);
 
                 // Store component and mark as active
                 componentArray[entity] = component;

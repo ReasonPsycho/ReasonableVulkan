@@ -8,13 +8,17 @@
 #include <memory>
 #include <set>
 #include <unordered_map>
+#include <optional>
+#include <string_view>
 #include <rapidjson/prettywriter.h>
 #include <spdlog/spdlog.h>
 
 #include "AssetManagerInterface.h"
 #include "GraphicsEngine.hpp"
+#include "ecs/componentArrays/ComponentType.h"
 #include "ecs/componentArrays/IntegralComponentArray.h"
 #include "ecs/componentArrays/ComponentArray.h"
+#include "ecs/SystemBase.h"
 
 namespace engine {
     namespace ecs
@@ -50,10 +54,10 @@ namespace engine {
         bool minimized = false;
 
         template<typename T>
-        void RegisterComponentType();
+        void RegisterComponentType() {}
 
         template <class T>
-        void RegisterSystemType();
+        void RegisterSystemType() {}
 
 
         // Factory getters
@@ -64,22 +68,23 @@ namespace engine {
         void LoadScene(boost::uuids::uuid sceneId);
 
         // Get registered types
-        const std::set<std::type_index>& GetRegisteredComponentTypes() const { return componentTypes; }
-        const std::set<std::type_index>& GetRegisteredSystemTypes() const { return systemTypes; }
+        const std::set<std::type_index>& GetRegisteredComponentTypes() const;
+        const std::set<std::type_index>& GetRegisteredSystemTypes() const;
 
-        std::unordered_map<std::type_index, std::function<std::shared_ptr<IComponentArray>()>> componentFactories;
-        std::unordered_map<std::type_index, std::function<std::shared_ptr<SystemBase>(Scene*)>> systemFactories;
+        // Name-based type lookup
+        std::optional<std::type_index> GetComponentTypeByName(std::string_view name) const;
+        std::optional<std::type_index> GetSystemTypeByName(std::string_view name) const;
+
+        std::string_view GetComponentTypeName(const std::type_index& type) const;
+        std::string_view GetSystemTypeName(const std::type_index& type) const;
+
+        ComponentTypeID GetComponentTypeID(const std::type_index& type) const;
+        std::type_index GetComponentTypeFromID(ComponentTypeID id) const;
 
     private:
-        std::set<std::type_index> componentTypes;
-        std::set<std::type_index> systemTypes;
-
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
         std::shared_ptr<Scene> activeScene = nullptr;
     };
-
-
-#include "Engine.tpp"
 
 } // namespace engine
 

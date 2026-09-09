@@ -10,76 +10,49 @@
 #include "ecs/Scene.h"
 
 
-void RendererComponent::ShowImGui(Scene* scene, Component* component) const
+void RendererComponent::CustomDrawImGui(Scene* scene)
 {
-    auto typed = dynamic_cast<RendererComponent*>(component);
-    if (ImGui::CollapsingHeader("Model"))
+    if (ImGui::Button(modelUuid.is_nil() ? "Select Model" : boost::uuids::to_string(modelUuid).c_str()))
     {
-        if (ImGui::Button(typed->modelUuid.is_nil() ? "Select Model" : boost::uuids::to_string(typed->modelUuid).c_str()))
+        ImGui::OpenPopup("Model List");
+    }
+    
+    if (scene && ImGui::BeginPopup("Model List"))
+    {
+        for (const auto& assetLookUpName : scene->engine.assetManagerInterface->getRegisteredAssetsNames(am::AssetType::Model))
         {
-            ImGui::OpenPopup("Model List");
-        }
-        
-        if (ImGui::BeginPopup("Model List"))
-        {
-            for (const auto& assetLookUpName : scene->engine.assetManagerInterface->getRegisteredAssetsNames(am::AssetType::Model))
+            if (ImGui::MenuItem(assetLookUpName.c_str()))
             {
-                if (ImGui::MenuItem(assetLookUpName.c_str()))
-                {
-                    typed->modelUuid = scene->engine.assetManagerInterface->getAssetUuid(assetLookUpName).value();
-                }
+                modelUuid = scene->engine.assetManagerInterface->getAssetUuid(assetLookUpName).value();
             }
-            ImGui::EndPopup();
         }
-
-        if (ImGui::Button(typed->shaderUuid.is_nil() ? "Select Shader Program" : boost::uuids::to_string(typed->shaderUuid).c_str()))
-        {
-            ImGui::OpenPopup("Shader Program List");
-        }
-
-        if (ImGui::BeginPopup("Shader Program List"))
-        {
-            for (const auto& lookUpName : scene->engine.assetManagerInterface->getRegisteredAssetsNames(am::AssetType::ShaderProgram))
-            {
-                if (ImGui::MenuItem(lookUpName.c_str()))
-                {
-                    typed->shaderUuid = scene->engine.assetManagerInterface->getAssetUuid(lookUpName).value();
-                }
-            }
-            ImGui::EndPopup();
-        }
-
-        auto modelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(typed->modelUuid);
-
-        ImGui::DragVec3("Min bounding box", modelData->boundingBoxMin);
-        ImGui::DragVec3("Max bounding box", modelData->boundingBoxMax);
+        ImGui::EndPopup();
     }
 
-}
-
-void RendererComponent::SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
-{
-    rapidjson::Value modelUuidStr;
-    std::string modelUuidString = boost::uuids::to_string(modelUuid);
-    modelUuidStr.SetString(modelUuidString.c_str(), allocator);
-    obj.AddMember("modelUuid", modelUuidStr, allocator);
-
-    rapidjson::Value shaderUuidStr;
-    std::string shaderUuidString = boost::uuids::to_string(shaderUuid);
-    shaderUuidStr.SetString(shaderUuidString.c_str(), allocator);
-    obj.AddMember("shaderUuid", shaderUuidStr, allocator);
-}
-
-void RendererComponent::DeserializeComponentFromJson(const rapidjson::Value& obj)
-{
-    if (obj.HasMember("modelUuid") && obj["modelUuid"].IsString()) {
-        std::string uuidStr = obj["modelUuid"].GetString();
-        boost::uuids::string_generator gen;
-        modelUuid = gen(uuidStr);
+    if (ImGui::Button(shaderUuid.is_nil() ? "Select Shader Program" : boost::uuids::to_string(shaderUuid).c_str()))
+    {
+        ImGui::OpenPopup("Shader Program List");
     }
-    if (obj.HasMember("shaderUuid") && obj["shaderUuid"].IsString()) {
-        std::string uuidStr = obj["shaderUuid"].GetString();
-        boost::uuids::string_generator gen;
-        shaderUuid = gen(uuidStr);
+
+    if (scene && ImGui::BeginPopup("Shader Program List"))
+    {
+        for (const auto& lookUpName : scene->engine.assetManagerInterface->getRegisteredAssetsNames(am::AssetType::ShaderProgram))
+        {
+            if (ImGui::MenuItem(lookUpName.c_str()))
+            {
+                shaderUuid = scene->engine.assetManagerInterface->getAssetUuid(lookUpName).value();
+            }
+        }
+        ImGui::EndPopup();
+    }
+
+    if (scene && !modelUuid.is_nil())
+    {
+        auto modelData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(modelUuid);
+        if (modelData)
+        {
+            ImGui::DragVec3("Min bounding box", modelData->boundingBoxMin);
+            ImGui::DragVec3("Max bounding box", modelData->boundingBoxMax);
+        }
     }
 }

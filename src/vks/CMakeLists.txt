@@ -2,7 +2,7 @@
 message(STATUS "Running vks cmake")
 cmake_policy(SET CMP0167 NEW)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(ENABLE_IMGUI)

@@ -9,22 +9,41 @@
 namespace engine::ecs
 {
     struct PointLightData {
+        [[=Range{0.1f, 100.0f, 0.1f}, =Tooltip{"Point light radius"}]]
         float radius = 10.0f;
+
+        [[=Range{0.0f, 5.0f, 0.1f}, =Tooltip{"Point light falloff"}]]
         float falloff = 1.0f;
+
+        [[=Range{0.0001f, 0.1f, 0.001f}, =Tooltip{"Shadow bias"}]]
         float shadowBias = 0.005f;
+
+        [[=Range{0.0f, 1.0f, 0.05f}, =Tooltip{"Shadow strength"}]]
         float shadowStrength = 1.0f;
     };
 
     struct SpotLightData {
+        [[=Range{0.0f, 90.0f, 0.5f}, =Tooltip{"Spot inner angle in degrees"}]]
         float innerAngle = 25.0f;
+
+        [[=Range{0.0f, 90.0f, 0.5f}, =Tooltip{"Spot outer angle in degrees"}]]
         float outerAngle = 45.0f;
+
+        [[=Range{0.1f, 200.0f, 0.5f}, =Tooltip{"Spot range"}]]
         float range = 50.0f;
+
+        [[=Range{0.0001f, 0.1f, 0.001f}, =Tooltip{"Shadow bias"}]]
         float shadowBias = 0.005f;
+
+        [[=Range{0.0f, 1.0f, 0.05f}, =Tooltip{"Shadow strength"}]]
         float shadowStrength = 1.0f;
     };
 
     struct DirectionalLightData {
+        [[=Range{0.0001f, 0.1f, 0.001f}, =Tooltip{"Shadow bias"}]]
         float shadowBias = 0.005f;
+
+        [[=Range{0.0f, 1.0f, 0.05f}, =Tooltip{"Shadow strength"}]]
         float shadowStrength = 1.0f;
     };
 
@@ -32,38 +51,48 @@ namespace engine::ecs
     {
         enum class Type { Directional, Point, Spot };
 
+        [[=Tooltip{"Light type"}]]
+        Type type{Type::Point};
+
+        [[=Color{}, =Tooltip{"Light color"}]]
+        glm::vec3 color{1.0f, 1.0f, 1.0f};
+
+        [[=Range{0.0f, 10.0f, 0.1f}, =Tooltip{"Light intensity"}]]
+        float intensity{1.0f};
+
+        [[=Tooltip{"Enable shadows"}]]
+        bool hasShadow{false};
+
+        [[=Tooltip{"Type-specific light settings"}]]
+        std::variant<DirectionalLightData, PointLightData, SpotLightData> data{PointLightData{}};
+
         Type getType() const { return type; }
         void setType(Type t) {
-            if (type == t) return;
             type = t;
             switch (t) {
-                case Type::Point: data = PointLightData{}; break;
-                case Type::Spot: data = SpotLightData{}; break;
-                case Type::Directional: data = DirectionalLightData{}; break;
+                case Type::Point:
+                    if (!std::holds_alternative<PointLightData>(data)) data = PointLightData{};
+                    break;
+                case Type::Spot:
+                    if (!std::holds_alternative<SpotLightData>(data)) data = SpotLightData{};
+                    break;
+                case Type::Directional:
+                    if (!std::holds_alternative<DirectionalLightData>(data)) data = DirectionalLightData{};
+                    break;
             }
         }
-
-        glm::vec3 color;
-        float intensity;
-        bool hasShadow;
-        std::variant<DirectionalLightData, PointLightData, SpotLightData> data;
 
         LightComponent() : type(Type::Point), color(1.0f, 1.0f, 1.0f), intensity(1.0f), hasShadow(false), data(PointLightData{}) {}
 
         explicit LightComponent(Type t, glm::vec3 c, float i, bool hS = false) : type(t), color(c), intensity(i), hasShadow(hS) {
-            switch (t) {
-            case Type::Point: data = PointLightData{}; break;
-            case Type::Spot: data = SpotLightData{}; break;
-            case Type::Directional: data = DirectionalLightData{}; break;
-            }
+            setType(t);
         }
 
-        void ShowImGui(Scene* scene, Component* component) const override;
-        void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
-        void DeserializeComponentFromJson(const rapidjson::Value& obj) override;
+        void PostDeserialize() {
+            setType(type);
+        }
 
-    private:
-        Type type;
+        void CustomDrawImGui(Scene* scene);
     };
 }
 

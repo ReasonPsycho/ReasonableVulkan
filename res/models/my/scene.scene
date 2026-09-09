@@ -3,14 +3,77 @@
     "maxEntityIndex": 4,
     "activeEntities": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111",
     "signatures": {
-      "3": "0000000000001100",
-      "2": "0000000000001010",
+      "0": "0000000000001001",
       "1": "0000000000001001",
-      "0": "0000000000001001"
+      "2": "0000000000001010",
+      "3": "0000000000001100"
     }
   },
   "components": {
-    "N6engine3ecs18TransformComponentE": {
+    "RendererComponent": {
+      "size": 2,
+      "components": [
+        {
+          "entity": 0,
+          "data": {
+            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1",
+            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452"
+          },
+          "active": true
+        },
+        {
+          "entity": 1,
+          "data": {
+            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1",
+            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452"
+          },
+          "active": true
+        }
+      ]
+    },
+    "CameraComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 2,
+          "data": {
+            "fov": 45.0,
+            "aspectRatio": 1.7699999809265137,
+            "nearPlane": 0.10000000149011612,
+            "farPlane": 1000.0,
+            "skyboxMaterialId": "00000000-0000-0000-0000-000000000000",
+            "active": true
+          },
+          "active": true
+        }
+      ]
+    },
+    "LightComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 3,
+          "data": {
+            "type": 1,
+            "color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "intensity": 1.0,
+            "hasShadow": true,
+            "data": {
+              "radius": 10.0,
+              "falloff": 1.0,
+              "shadowBias": 0.004999999888241291,
+              "shadowStrength": 1.0
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    "TransformComponent": {
       "components": [
         {
           "entity": 0,
@@ -97,83 +160,30 @@
           }
         }
       ]
-    },
-    "N6engine3ecs14LightComponentE": {
-      "size": 1,
-      "components": [
-        {
-          "entity": 3,
-          "data": {
-            "lightType": 2,
-            "color": [
-              1.0,
-              1.0,
-              1.0
-            ],
-            "intensity": 1.0,
-            "hasShadow": true,
-            "innerAngle": 25.0,
-            "outerAngle": 45.0,
-            "range": 50.0
-          },
-          "active": true
-        }
-      ]
-    },
-    "N6engine3ecs15CameraComponentE": {
-      "size": 1,
-      "components": [
-        {
-          "entity": 2,
-          "data": {
-            "fov": 45.0,
-            "aspectRatio": 1.7699999809265137,
-            "nearPlane": 0.10000000149011612,
-            "farPlane": 1000.0,
-            "active": true,
-            "skyboxTextureId": "47939726-a955-4d1a-b679-ef77735d6dca"
-          },
-          "active": true
-        }
-      ]
-    },
-    "N6engine3ecs17RendererComponentE": {
-      "size": 2,
-      "components": [
-        {
-          "entity": 1,
-          "data": {
-            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1",
-            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452"
-          },
-          "active": true
-        },
-        {
-          "entity": 0,
-          "data": {
-            "modelUuid": "ccc731c8-3b1c-422d-bc6a-3c091b4b04d1",
-            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452"
-          },
-          "active": true
-        }
-      ]
     }
   },
   "systems": {
-    "N6engine3ecs15CollisionSystemE": {
-      "name": "engine::ecs::CollisionSystem",
+    "CollisionSystem": {
+      "name": "CollisionSystem",
       "extraData": {}
     },
-    "N6engine3ecs15TransformSystemE": {
-      "name": "engine::ecs::TransformSystem",
+    "TransformSystem": {
+      "name": "TransformSystem",
       "extraData": {}
     },
-    "N6engine3ecs12EditorSystemE": {
-      "name": "engine::ecs::EditorSystem",
+    "EditorSystem": {
+      "name": "EditorSystem",
+      "extraData": {
+        "inEditMode": true,
+        "currentShaderOverride": 0
+      }
+    },
+    "GizmoSystem": {
+      "name": "GizmoSystem",
       "extraData": {}
     },
-    "N6engine3ecs12RenderSystemE": {
-      "name": "engine::ecs::RenderSystem",
+    "RenderSystem": {
+      "name": "RenderSystem",
       "extraData": {}
     }
   },

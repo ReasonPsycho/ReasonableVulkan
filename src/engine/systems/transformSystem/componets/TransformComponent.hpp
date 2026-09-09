@@ -9,23 +9,32 @@
 
 namespace engine::ecs
 {
-    struct TransformComponent: public Component
+    struct [[=Integral{}]] TransformComponent: public Component
     {
-        glm::vec3 position;
-        glm::quat rotation ;
-        glm::vec3 scale;
+        [[=Range{-1000.0f, 1000.0f, 0.1f}, =Tooltip{"Local position translation"}]]
+        glm::vec3 position{0.0f};
 
-        glm::mat4 localMatrix;   // local to parent
-        glm::mat4 globalMatrix;  // local to world
+        [[=Tooltip{"Orientation quaternion"}]]
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
 
-        bool isDirty;
+        [[=Range{0.001f, 1000.0f, 0.1f}, =Tooltip{"Local scale"}]]
+        glm::vec3 scale{1.0f};
 
-        TransformComponent(): Component(), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f, 1.0f, 1.0f), localMatrix(1.0f), globalMatrix(1.0f), isDirty(true) {}
+        [[=NonSerialized{}, =ReadOnly{}, =Tooltip{"Local transformation matrix"}]]
+        glm::mat4 localMatrix{1.0f};   // local to parent
 
-        void ShowImGui(Scene* scene,Component* component) const override;
+        [[=NonSerialized{}, =ReadOnly{}, =Tooltip{"Global transformation matrix"}]]
+        glm::mat4 globalMatrix{1.0f};  // local to world
 
-        void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
-        void DeserializeComponentFromJson(const rapidjson::Value& obj) override;
+        [[=NonSerialized{}, =ReadOnly{}]]
+        bool isDirty{true};
+
+        TransformComponent() = default;
+
+        void PostDeserialize()
+        {
+            isDirty = true;
+        }
     };
 
 

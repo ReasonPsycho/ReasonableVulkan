@@ -119,7 +119,7 @@ namespace am {
         void handleFileAddedToFolder(const plt::FileAddedEvent* event);
         void handleFileDropped(const plt::FileDropEvent* event);
 
-        std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res";
+        std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, boost::uuids::uuid> lookupNamesToUUIDs;

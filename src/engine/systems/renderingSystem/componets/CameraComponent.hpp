@@ -11,24 +11,40 @@ namespace engine::ecs
     struct CameraComponent : public Component
     {
         // Camera parameters
-        float fov;
-        float aspectRatio;  // 16:9 by default
-        float nearPlane;
-        float farPlane;
+        [[=Range{1.0f, 179.0f, 0.5f}, =Tooltip{"Field of view in degrees"}]]
+        float fov{45.0f};
+
+        [[=Range{0.01f, 10.0f, 0.01f}, =Tooltip{"Camera aspect ratio"}]]
+        float aspectRatio{1.77f};  // 16:9 by default
+
+        [[=Range{0.001f, 100.0f, 0.01f}, =Tooltip{"Near clipping plane"}]]
+        float nearPlane{0.1f};
+
+        [[=Range{1.0f, 10000.0f, 1.0f}, =Tooltip{"Far clipping plane"}]]
+        float farPlane{1000.0f};
         
         // Cached matrices
-        glm::mat4 projection;
-        glm::mat4 view;
-        boost::uuids::uuid skyboxMaterialId;
+        [[=NonSerialized{}, =ReadOnly{}, =Tooltip{"Projection matrix"}]]
+        glm::mat4 projection{1.0f};
 
-        bool isDirty = true;
-        bool active = false;
-        CameraComponent() : Component(), fov(45.0f), aspectRatio(1.77f), nearPlane(0.1f), farPlane(1000.0f),projection(1.0f), view(1.0f), skyboxMaterialId(boost::uuids::nil_uuid()), active(false) {}
+        [[=NonSerialized{}, =ReadOnly{}, =Tooltip{"View matrix"}]]
+        glm::mat4 view{1.0f};
 
-        void ShowImGui(Scene* scene,Component* component) const override;
+        [[=Tooltip{"Skybox Material/Texture UUID"}]]
+        boost::uuids::uuid skyboxMaterialId{boost::uuids::nil_uuid()};
 
-        void SerializeComponentToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
-        void DeserializeComponentFromJson(const rapidjson::Value& obj) override;
+        [[=NonSerialized{}, =ReadOnly{}]]
+        bool isDirty{true};
+
+        [[=Tooltip{"Whether camera is active"}]]
+        bool active{false};
+
+        CameraComponent() = default;
+
+        void PostDeserialize()
+        {
+            isDirty = true;
+        }
     };
 
 

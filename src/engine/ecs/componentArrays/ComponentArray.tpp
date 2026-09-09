@@ -49,10 +49,10 @@ T& ComponentArray<T>::GetComponent(ComponentID componentID)
 }
 
 template <typename T>
-Component& ComponentArray<T>::GetComponentUntyped(Entity entity) {
+void* ComponentArray<T>::GetComponentUntyped(Entity entity) {
     auto it = entityToIndexMap.find(entity);
     assert(it != entityToIndexMap.end() && "Entity does not have this component");
-    return const_cast<Component&>(reinterpret_cast<const Component&>(componentArray[it->second]));
+    return &componentArray[it->second];
 }
 
 template <typename T>
@@ -142,7 +142,7 @@ void ComponentArray<T>::SerializeToJson(rapidjson::Value& obj, rapidjson::Docume
 
         // Add component data
         rapidjson::Value componentData(rapidjson::kObjectType);
-        componentArray[index].SerializeComponentToJson(componentData, allocator);
+        SerializeTypeToJson(componentArray[index], componentData, allocator);
         componentObj.AddMember("data", componentData, allocator);
 
         // Add active state
@@ -179,7 +179,7 @@ void ComponentArray<T>::DeserializeFromJson(const rapidjson::Value& obj) {
 
                 // Create and deserialize component
                 T component;
-                component.DeserializeComponentFromJson(componentObj["data"]);
+                DeserializeTypeFromJson(component, componentObj["data"]);
 
                 // Store component
                 componentArray[index] = component;

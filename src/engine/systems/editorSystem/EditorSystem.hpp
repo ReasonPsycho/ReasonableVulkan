@@ -30,7 +30,7 @@ namespace engine::ecs
 
         struct ComponentInfo {
             std::string displayName;
-            std::function<void(Scene* scene, Component* component)> showImGuiComponent;
+            std::function<void(Scene* scene, void* component)> showImGuiComponent;
          };
 
 
@@ -39,10 +39,10 @@ namespace engine::ecs
         template<typename T>
         void RegisterComponentType() {
             ComponentInfo info;
-            info.displayName = boost::core::demangle(typeid(T).name());
-            info.showImGuiComponent = [](Scene* scene, Component* component) {
-                if (auto* typedComponent = dynamic_cast<T*>(component)) {
-                    typedComponent->ShowImGui(scene, component);
+            info.displayName = std::meta::identifier_of(^^T);
+            info.showImGuiComponent = [](Scene* scene, void* component) {
+                if (component) {
+                    DrawComponentInspector(*static_cast<T*>(component), scene);
                 }
             };
             registeredComponentTypes[typeid(T)] = std::move(info);
@@ -55,9 +55,12 @@ namespace engine::ecs
         Entity GetSelectedEntity() const { return selectedEntity; }
         void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
 
+        [[=NonSerialized{}]]
         CameraComponent camera = CameraComponent();
+        [[=NonSerialized{}]]
         TransformComponent cameraTransform = TransformComponent();
 
+        [[=Tooltip{"Toggle in-editor editing mode"}]]
         bool inEditMode = true;
 
         void Initialize();
@@ -68,8 +71,11 @@ namespace engine::ecs
             TexturedWiremesh
         };
 
+        [[=Tooltip{"Shader override mode for viewport rendering"}]]
         ShaderOverrideMode currentShaderOverride = ShaderOverrideMode::Default;
+        [[=NonSerialized{}]]
         boost::uuids::uuid wiremeshShaderId = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
         boost::uuids::uuid wiremeshTexturedShaderId = boost::uuids::nil_uuid();
 
         void SetUpCameraControls();
@@ -86,6 +92,7 @@ namespace engine::ecs
         void ImGuiSceneGraph();
         void ImGuiGraphEntity(Entity entity);
         void ImGuiInspector();
+        void ImGuiSystemSettings();
         void ImGuiGizmo();
         void ImguiShaderOverrideWindow();
         void ImguiToolbar();
