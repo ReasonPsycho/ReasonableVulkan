@@ -24,6 +24,7 @@ void engine::ecs::MeshComponent::CustomDrawImGui(Scene* scene)
             if (ImGui::MenuItem(assetLookUpName.c_str()))
             {
                 modelUuid = scene->engine.assetManagerInterface->getAssetUuid(assetLookUpName).value();
+                runtimeModelHandle = gfx::ModelHandle::invalid();
             }
         }
         ImGui::EndPopup();

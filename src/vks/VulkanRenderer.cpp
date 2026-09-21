@@ -71,31 +71,47 @@ namespace vks {
         renderManager->setActiveCameraCount(count);
     }
 
-    void VulkanRenderer::loadModel(boost::uuids::uuid uuid) {
-        descriptorManager->getOrLoadResource<ModelDescriptor>(uuid);
+    gfx::ModelHandle VulkanRenderer::loadModel(boost::uuids::uuid uuid) {
+        return descriptorManager->getOrLoadModel(uuid);
     }
 
-    void VulkanRenderer::loadShader(boost::uuids::uuid uuid) {
-        descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(uuid);
+    gfx::ShaderProgramHandle VulkanRenderer::loadShader(boost::uuids::uuid uuid) {
+        return descriptorManager->getOrLoadShaderProgram(uuid);
     }
 
-    void VulkanRenderer::loadTexture(boost::uuids::uuid uuid) {
-        descriptorManager->getOrLoadResource<TextureDescriptor>(uuid);
+    gfx::TextureHandle VulkanRenderer::loadTexture(boost::uuids::uuid uuid) {
+        return descriptorManager->getOrLoadTexture(uuid);
     }
 
-    void VulkanRenderer::drawModel(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) {
-    if (shaderId.is_nil()){
-        shaderId = pbrShaderId;
+    gfx::MaterialHandle VulkanRenderer::loadMaterial(boost::uuids::uuid uuid) {
+        return descriptorManager->getOrLoadMaterial(uuid);
     }
-    renderManager->submitRenderCommand(cameraIndex, modelId, shaderId, transform);
-}
 
-    void VulkanRenderer::drawSkybox(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId)
-    {
-        if (shaderId.is_nil()){
-            shaderId = skyboxShaderId;
+    gfx::ModelHandle VulkanRenderer::getModelHandle(const std::string& lookUpName) {
+        return descriptorManager->getOrLoadModel(lookUpName);
+    }
+
+    gfx::ShaderProgramHandle VulkanRenderer::getShaderHandle(const std::string& lookUpName) {
+        return descriptorManager->getOrLoadShaderProgram(lookUpName);
+    }
+
+    gfx::MaterialHandle VulkanRenderer::getMaterialHandle(const std::string& lookUpName) {
+        return descriptorManager->getOrLoadMaterial(lookUpName);
+    }
+
+    void VulkanRenderer::drawModel(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle shaderHandle, const glm::mat4& transform) {
+        if (!shaderHandle.isValid()){
+            shaderHandle = pbrShaderHandle;
         }
-        renderManager->submitSkyboxRenderCommand(cameraIndex, modelId, shaderId);
+        renderManager->drawModel(cameraIndex, modelHandle, shaderHandle, transform);
+    }
+
+    void VulkanRenderer::drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle shaderHandle)
+    {
+        if (!shaderHandle.isValid()){
+            shaderHandle = skyboxShaderHandle;
+        }
+        renderManager->drawSkybox(cameraIndex, materialHandle, shaderHandle);
     }
 
 
@@ -180,28 +196,26 @@ namespace vks {
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
         // Load shader programs
-        auto pbrShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("pbrShader");
-        pbrShaderId = pbrShaderProgram->getAssetId();
-        pipelineManager->createGraphicsPipeline(pbrShaderProgram);
+        pbrShaderHandle = descriptorManager->getOrLoadShaderProgram("pbrShader");
+        pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(pbrShaderHandle));
 
-        auto wiremesh = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("wiremeshShader");
-        pipelineManager->createGraphicsPipeline(wiremesh);
+        auto wiremesh = descriptorManager->getOrLoadShaderProgram("wiremeshShader");
+        pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(wiremesh));
 
-        auto wiremesh_textured = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("wiremeshTexturedShader");
-        pipelineManager->createGraphicsPipeline(wiremesh_textured);
+        auto wiremesh_textured = descriptorManager->getOrLoadShaderProgram("wiremeshTexturedShader");
+        pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(wiremesh_textured));
 
-        auto raycast = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("raycastShader");
-        pipelineManager->createGraphicsPipeline(raycast);
+        auto raycast = descriptorManager->getOrLoadShaderProgram("raycastShader");
+        pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(raycast));
 
-        auto skyboxShaderProgram = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("skyboxShader");
-        skyboxShaderId = skyboxShaderProgram->getAssetId();
-        pipelineManager->createGraphicsPipeline(skyboxShaderProgram);
+        skyboxShaderHandle = descriptorManager->getOrLoadShaderProgram("skyboxShader");
+        pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(skyboxShaderHandle));
 
-        auto shadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowMapShader");
-        pipelineManager->createShadowPipeline(shadowMapPipline);
+        auto shadowMapPipeline = descriptorManager->getOrLoadShaderProgram("shadowMapShader");
+        pipelineManager->createShadowPipeline(descriptorManager->getShaderProgram(shadowMapPipeline));
 
-        auto cubeShadowMapPipline = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowCubeMapShader");
-        pipelineManager->createShadowPipeline(cubeShadowMapPipline);
+        auto cubeShadowMapPipeline = descriptorManager->getOrLoadShaderProgram("shadowCubeMapShader");
+        pipelineManager->createShadowPipeline(descriptorManager->getShaderProgram(cubeShadowMapPipeline));
 
         descriptorManager->updateShadowDescriptorSet(
             pipelineManager->directionalShadows.view,
@@ -214,9 +228,7 @@ namespace vks {
         pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
         // Initialize render manager
-        auto shadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowMapShader");
-        auto cubeShadowMapShader = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>("shadowCubeMapShader");
-        renderManager->initialize(pbrShaderId, skyboxShaderId, shadowMapShader->getAssetId(), cubeShadowMapShader->getAssetId(), raycast->getAssetId());
+        renderManager->initialize(pbrShaderHandle, skyboxShaderHandle, shadowMapPipeline, cubeShadowMapPipeline, raycast);
 
 #if ENABLE_IMGUI
         imguiManager.get()->initialize(windowHandle, swapChain->getImageViews());

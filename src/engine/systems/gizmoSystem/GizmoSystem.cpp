@@ -92,8 +92,14 @@ namespace engine::ecs
             cubeAssetUuid = cubeUuidOpt.value();
         }
 
+        rayModelHandle = scene->engine.graphicsEngine->loadModel(rayAssetUuid);
+        cubeModelHandle = scene->engine.graphicsEngine->loadModel(cubeAssetUuid);
+
         rayShaderUuid = scene->engine.assetManagerInterface->getAssetUuid("raycastShader").value();
+        rayShaderHandle = scene->engine.graphicsEngine->loadShader(rayShaderUuid);
+
         cubeShaderUuid = scene->engine.assetManagerInterface->getAssetUuid("wiremeshShader").value();
+        cubeShaderHandle = scene->engine.graphicsEngine->loadShader(cubeShaderUuid);
     }
 
     void GizmoSystem::Update(float deltaTime)
@@ -174,6 +180,32 @@ namespace engine::ecs
             return cubeShaderUuid;
         default:
             return boost::uuids::nil_uuid();
+        }
+    }
+
+    gfx::ModelHandle GizmoSystem::ModelHandleByGizmoType(GizmoType type)
+    {
+        switch (type)
+        {
+            case RAY:
+                return rayModelHandle;
+            case CUBE:
+                return cubeModelHandle;
+            default:
+                return gfx::ModelHandle::invalid();
+        }
+    }
+
+    gfx::ShaderProgramHandle GizmoSystem::ShaderHandleByGizmoType(GizmoType type)
+    {
+        switch (type)
+        {
+        case RAY:
+            return rayShaderHandle;
+        case CUBE:
+            return cubeShaderHandle;
+        default:
+            return gfx::ShaderProgramHandle::invalid();
         }
     }
 } // engine::ecs

@@ -10,6 +10,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+#include "Handle.hpp"
 #include "ecs/Component.hpp"
 
 namespace engine::ecs
@@ -21,9 +22,14 @@ namespace engine::ecs
         [[=Tooltip{"Model asset UUID"}]]
         boost::uuids::uuid modelUuid{boost::uuids::nil_uuid()};
 
+        [[=NonSerialized{}]]
+        gfx::ModelHandle runtimeModelHandle = gfx::ModelHandle::invalid();
+
         MeshComponent() = default;
         explicit MeshComponent(boost::uuids::uuid modelId)
             : modelUuid(modelId) {}
+        explicit MeshComponent(boost::uuids::uuid modelId, gfx::ModelHandle handle)
+            : modelUuid(modelId), runtimeModelHandle(handle) {}
 
         void CustomDrawImGui(Scene* scene);
     };

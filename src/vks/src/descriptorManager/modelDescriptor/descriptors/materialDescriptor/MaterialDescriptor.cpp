@@ -45,11 +45,6 @@ vks::MaterialDescriptor::MaterialDescriptor(const boost::uuids::uuid& assetId, D
     setUpDescriptorSet(assetHandleManager->pbrMaterialLayout, assetHandleManager->pbrMaterialPool, assetHandleManager->defaultImageInfo, assetHandleManager->cubeImageInfo);
 }
 vks::MaterialDescriptor::~MaterialDescriptor() {
-    delete baseColorTexture;
-    delete metallicRoughnessTexture;
-    delete normalTexture;
-    delete occlusionTexture;
-    delete emissiveTexture;
 }
 
 void vks::MaterialDescriptor::setUpDescriptorSet(VkDescriptorSetLayout materialLayout, VkDescriptorPool materialDescriptorPool, VkDescriptorImageInfo defaultImageInfo, VkDescriptorImageInfo defaultCubeImageInfo) {

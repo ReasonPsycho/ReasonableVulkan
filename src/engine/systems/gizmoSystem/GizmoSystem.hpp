@@ -11,6 +11,7 @@
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 
+#include "Handle.hpp"
 #include "ecs/System.h"
 
 namespace engine::ecs
@@ -59,8 +60,21 @@ namespace engine::ecs
         [[=NonSerialized{}]]
         boost::uuids::uuid cubeShaderUuid = boost::uuids::nil_uuid();
 
+        [[=NonSerialized{}]]
+        gfx::ModelHandle rayModelHandle = gfx::ModelHandle::invalid();
+        [[=NonSerialized{}]]
+        gfx::ModelHandle cubeModelHandle = gfx::ModelHandle::invalid();
+
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle rayShaderHandle = gfx::ShaderProgramHandle::invalid();
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle cubeShaderHandle = gfx::ShaderProgramHandle::invalid();
+
         boost::uuids::uuid ModelUUIDByGizmoType(GizmoType type);
         boost::uuids::uuid ShaderUUIDByGizmoType(GizmoType type);
+
+        gfx::ModelHandle ModelHandleByGizmoType(GizmoType type);
+        gfx::ShaderProgramHandle ShaderHandleByGizmoType(GizmoType type);
 
     protected:
         void OnComponentAdded(ComponentID componentID, std::type_index type) override {}
