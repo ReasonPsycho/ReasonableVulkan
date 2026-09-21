@@ -9,6 +9,9 @@ namespace am {
 
     class PrefabAsset : public Asset {
     public:
+        static constexpr AssetType StaticType = AssetType::Prefab;
+        using DataType = rapidjson::Document;
+
         rapidjson::Document prefabData;
 
         explicit PrefabAsset(const boost::uuids::uuid& id, std::string path);

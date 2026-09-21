@@ -53,6 +53,11 @@ namespace am
 
         virtual void ImguiFileBrowser(std::string windowName) = 0;
     };
+
+    inline std::shared_ptr<AssetInfo> ResolveAssetInfo(const boost::uuids::uuid& id, AssetManagerInterface* assetManager) {
+        if (!assetManager) return nullptr;
+        return assetManager->getAssetInfo(id).value_or(nullptr);
+    }
 }
 
 #endif //ASSETMANAGERINTERFACE_H

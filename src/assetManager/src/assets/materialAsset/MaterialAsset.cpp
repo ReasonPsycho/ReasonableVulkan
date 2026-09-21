@@ -38,59 +38,7 @@ am::MaterialAsset::MaterialAsset(const std::string& path, AssetFormat format) : 
             id = boost::uuids::string_generator()(document["uuid"].GetString());
         }
 
-        AssetManager &assetManager = AssetManager::getInstance();
-
-        auto loadTexture = [&](const char* key, std::shared_ptr<AssetInfo>& target) {
-            if (document.HasMember(key) && document[key].IsString()) {
-                std::string textureUuidStr = document[key].GetString();
-                try {
-                    boost::uuids::uuid textureId = boost::uuids::string_generator()(textureUuidStr);
-                    target = assetManager.getAssetInfo(textureId).value_or(nullptr);
-                    if (!target) {
-                        spdlog::warn("Texture asset with UUID {} not found for material {}", textureUuidStr.c_str(), path.c_str());
-                    }
-                } catch (const std::exception& e) {
-                    spdlog::error("Failed to parse texture UUID {} for material {}: {}", textureUuidStr.c_str(), path.c_str(), e.what());
-                }
-            }
-        };
-
-        loadTexture("baseColorTexture", data.baseColorTexture);
-        loadTexture("diffuseTexture", data.diffuseTexture);
-        loadTexture("metallicRoughnessTexture", data.metallicRoughnessTexture);
-        loadTexture("specularGlossinessTexture", data.specularGlossinessTexture);
-        loadTexture("normalTexture", data.normalTexture);
-        loadTexture("occlusionTexture", data.occlusionTexture);
-        loadTexture("emissiveTexture", data.emissiveTexture);
-
-        auto loadVec4 = [&](const char* key, glm::vec4& vec) {
-            if (document.HasMember(key) && document[key].IsArray() && document[key].Size() == 4) {
-                vec.x = document[key][0].GetFloat();
-                vec.y = document[key][1].GetFloat();
-                vec.z = document[key][2].GetFloat();
-                vec.w = document[key][3].GetFloat();
-            }
-        };
-
-        auto loadVec3 = [&](const char* key, glm::vec3& vec) {
-            if (document.HasMember(key) && document[key].IsArray() && document[key].Size() == 3) {
-                vec.x = document[key][0].GetFloat();
-                vec.y = document[key][1].GetFloat();
-                vec.z = document[key][2].GetFloat();
-            }
-        };
-
-        loadVec4("baseColorFactor", data.baseColorFactor);
-        if (document.HasMember("metallicFactor") && document["metallicFactor"].IsNumber()) data.metallicFactor = document["metallicFactor"].GetFloat();
-        if (document.HasMember("roughnessFactor") && document["roughnessFactor"].IsNumber()) data.roughnessFactor = document["roughnessFactor"].GetFloat();
-        loadVec3("specularFactor", data.specularFactor);
-        loadVec3("diffuseFactor", data.diffuseFactor);
-        if (document.HasMember("glossinessFactor") && document["glossinessFactor"].IsNumber()) data.glossinessFactor = document["glossinessFactor"].GetFloat();
-        if (document.HasMember("occlusionStrength") && document["occlusionStrength"].IsNumber()) data.occlusionStrength = document["occlusionStrength"].GetFloat();
-        loadVec3("emissiveFactor", data.emissiveFactor);
-        if (document.HasMember("alphaCutoff") && document["alphaCutoff"].IsNumber()) data.alphaCutoff = document["alphaCutoff"].GetFloat();
-        if (document.HasMember("isOpaque") && document["isOpaque"].IsBool()) data.isOpaque = document["isOpaque"].GetBool();
-        if (document.HasMember("useSpecularGlossiness") && document["useSpecularGlossiness"].IsBool()) data.useSpecularGlossiness = document["useSpecularGlossiness"].GetBool();
+        DeserializeAssetData(data, document, &AssetManager::getInstance());
     }
 }
 
@@ -170,70 +118,18 @@ void am::MaterialAsset::extractPBRData(const aiMaterial* aiMaterial,ImportContex
     }
 }
 
-    void am::MaterialAsset::SaveAssetToJson(rapidjson::Document& document) {
+void am::MaterialAsset::SaveAssetToJson(rapidjson::Document& document) {
     auto& allocator = document.GetAllocator();
     if (!document.IsObject()) {
         document.SetObject();
     }
 
     document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
-
-    auto addTexture = [&](const char* key, std::shared_ptr<AssetInfo>& texture) {
-        if (texture) {
-            std::string uuidStr = boost::uuids::to_string(texture->id);
-            document.AddMember(rapidjson::StringRef(key), rapidjson::Value(uuidStr.c_str(), allocator), allocator);
-        }
-    };
-
-    addTexture("baseColorTexture", data.baseColorTexture);
-    addTexture("diffuseTexture", data.diffuseTexture);
-    addTexture("metallicRoughnessTexture", data.metallicRoughnessTexture);
-    addTexture("specularGlossinessTexture", data.specularGlossinessTexture);
-    addTexture("normalTexture", data.normalTexture);
-    addTexture("occlusionTexture", data.occlusionTexture);
-    addTexture("emissiveTexture", data.emissiveTexture);
-
-    auto addVec4 = [&](const char* key, const glm::vec4& vec) {
-        rapidjson::Value array(rapidjson::kArrayType);
-        array.PushBack(vec.x, allocator);
-        array.PushBack(vec.y, allocator);
-        array.PushBack(vec.z, allocator);
-        array.PushBack(vec.w, allocator);
-        document.AddMember(rapidjson::StringRef(key), array, allocator);
-    };
-
-    auto addVec3 = [&](const char* key, const glm::vec3& vec) {
-        rapidjson::Value array(rapidjson::kArrayType);
-        array.PushBack(vec.x, allocator);
-        array.PushBack(vec.y, allocator);
-        array.PushBack(vec.z, allocator);
-        document.AddMember(rapidjson::StringRef(key), array, allocator);
-    };
-
-    addVec4("baseColorFactor", data.baseColorFactor);
-    document.AddMember("metallicFactor", data.metallicFactor, allocator);
-    document.AddMember("roughnessFactor", data.roughnessFactor, allocator);
-    addVec3("specularFactor", data.specularFactor);
-    addVec3("diffuseFactor", data.diffuseFactor);
-    document.AddMember("glossinessFactor", data.glossinessFactor, allocator);
-    document.AddMember("occlusionStrength", data.occlusionStrength, allocator);
-    addVec3("emissiveFactor", data.emissiveFactor);
-    document.AddMember("alphaCutoff", data.alphaCutoff, allocator);
-    document.AddMember("isOpaque", data.isOpaque, allocator);
-    document.AddMember("useSpecularGlossiness", data.useSpecularGlossiness, allocator);
+    SerializeAssetData(data, document, allocator);
 }
 
-
 size_t am::MaterialAsset::calculateContentHash() const {
-    size_t hash = 0;
-
-    if (data.baseColorTexture) {
-        hash ^= data.baseColorTexture->contentHash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-    }
-    if (data.metallicRoughnessTexture) {
-        hash ^= data.metallicRoughnessTexture->contentHash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-    }
-    return hash;
+    return CalculateReflectedContentHash(data);
 }
 
 am::AssetType am::MaterialAsset::getType() const {

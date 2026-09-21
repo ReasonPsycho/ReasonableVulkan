@@ -29,6 +29,28 @@
 #include <rapidjson/ostreamwrapper.h>
 
 namespace am {
+    class MaterialAsset;
+    class TextureAsset;
+    class ShaderAsset;
+    class ShaderProgramAsset;
+    class ModelAsset;
+    class MeshAsset;
+    class SceneAsset;
+    class PrefabAsset;
+    class ConfigAsset;
+
+    using SupportedAssets = std::tuple<
+        MaterialAsset,
+        TextureAsset,
+        ShaderAsset,
+        ShaderProgramAsset,
+        ModelAsset,
+        MeshAsset,
+        SceneAsset,
+        PrefabAsset,
+        ConfigAsset
+    >;
+
     class AssetManager : public AssetManagerInterface {
         using AssetCreator = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, std::string)>;
         using AssetImporter = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, am::ImportContext &)>;

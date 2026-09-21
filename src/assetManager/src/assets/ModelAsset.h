@@ -24,6 +24,9 @@ namespace am {
 
     class ModelAsset : public Asset {
     public:
+        static constexpr AssetType StaticType = AssetType::Model;
+        using DataType = ModelData;
+
         // model data
         ModelData data;
 

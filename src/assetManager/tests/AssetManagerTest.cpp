@@ -27,6 +27,10 @@ public:
         return am::AssetType::Other;
     }
 
+    void SaveAssetToJson(rapidjson::Document& document) override {}
+    void SaveAssetMetadata(rapidjson::Document& document) override {}
+    void LoadAssetMetadata(rapidjson::Document& document) override {}
+
     std::any getAssetData() override { return &data; }
 
     MockData data;

@@ -31,6 +31,8 @@ using namespace std;
 namespace am {
     class MeshAsset : public Asset {
     public:
+        static constexpr AssetType StaticType = AssetType::Mesh;
+        using DataType = MeshData;
 
         explicit MeshAsset(const boost::uuids::uuid& id, std::string path);
         explicit MeshAsset(const boost::uuids::uuid& id, const ImportContext& assetFactoryData);

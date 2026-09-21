@@ -28,20 +28,7 @@ namespace am {
         }
 
         document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
-
-        auto addStage = [&](const char* key, std::shared_ptr<AssetInfo>& asset) {
-            if (asset) {
-                std::string uuidStr = boost::uuids::to_string(asset->id);
-                document.AddMember(rapidjson::StringRef(key), rapidjson::Value(uuidStr.c_str(), allocator), allocator);
-            }
-        };
-
-        addStage("vertex", data.vertexShader);
-        addStage("fragment", data.fragmentShader);
-        addStage("compute", data.computeShader);
-        addStage("geometry", data.geometryShader);
-        addStage("tessellationControl", data.tessellationControlShader);
-        addStage("tessellationEvaluation", data.tessellationEvaluationShader);
+        SerializeAssetData(data, document, allocator);
     }
 
 
@@ -82,47 +69,11 @@ namespace am {
             id = boost::uuids::string_generator()(savedUuidStr);
         }
 
-        AssetManager &assetManager = AssetManager::getInstance();
-
-        auto loadStage = [&](const char* key, std::shared_ptr<AssetInfo>& target) {
-            if (doc.HasMember(key) && doc[key].IsString()) {
-                std::string value = doc[key].GetString();
-                try {
-                    boost::uuids::uuid shaderId = boost::uuids::string_generator()(value);
-                    target = assetManager.getAssetInfo(shaderId).value_or(nullptr);
-                    if (!target) {
-                        spdlog::warn("Shader asset with UUID {} not found for program {}", value, path);
-                    }
-                } catch (const std::exception& e) {
-                    spdlog::error("Failed to parse shader UUID {} for program {}: {}", value, path, std::string(e.what()));
-                }
-            }
-        };
-
-        loadStage("vertex", data.vertexShader);
-        loadStage("fragment", data.fragmentShader);
-        loadStage("compute", data.computeShader);
-        loadStage("geometry", data.geometryShader);
-        loadStage("tessellationControl", data.tessellationControlShader);
-        loadStage("tessellationEvaluation", data.tessellationEvaluationShader);
+        DeserializeAssetData(data, doc, &AssetManager::getInstance());
     }
 
     size_t ShaderProgramAsset::calculateContentHash() const {
-        size_t hash = 0;
-        auto combineHash = [&](const std::shared_ptr<AssetInfo>& asset) {
-            if (asset) {
-                hash ^= asset->contentHash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-            }
-        };
-
-        combineHash(data.vertexShader);
-        combineHash(data.fragmentShader);
-        combineHash(data.computeShader);
-        combineHash(data.geometryShader);
-        combineHash(data.tessellationControlShader);
-        combineHash(data.tessellationEvaluationShader);
-
-        return hash;
+        return CalculateReflectedContentHash(data);
     }
 
     AssetType ShaderProgramAsset::getType() const {

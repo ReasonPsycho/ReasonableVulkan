@@ -9,6 +9,9 @@ namespace am {
 
     class SceneAsset : public Asset {
     public:
+        static constexpr AssetType StaticType = AssetType::Scene;
+        using DataType = rapidjson::Document;
+
         rapidjson::Document sceneData;
 
         explicit SceneAsset(const boost::uuids::uuid& id, std::string path);

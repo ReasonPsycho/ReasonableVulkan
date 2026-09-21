@@ -9,6 +9,9 @@ namespace am {
 
     class ConfigAsset : public Asset {
     public:
+        static constexpr AssetType StaticType = AssetType::Config;
+        using DataType = rapidjson::Document;
+
         rapidjson::Document configData;
 
         explicit ConfigAsset(const boost::uuids::uuid& id, std::string path);
