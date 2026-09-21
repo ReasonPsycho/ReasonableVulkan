@@ -2,6 +2,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+#include "Handle.hpp"
 #include "LightData.hpp"
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../swapChainManager/SwapChainManager.hpp"
@@ -22,16 +23,16 @@ namespace vks {
     struct RenderCommand
     {
         uint32_t cameraIndex;
-        boost::uuids::uuid modelId;
-        boost::uuids::uuid renderProgramId;
+        gfx::ModelHandle modelHandle;
+        gfx::ShaderProgramHandle renderProgramHandle;
         glm::mat4 transform;
     };
 
     struct SkyboxRenderCommand
     {
         uint32_t cameraIndex;
-        boost::uuids::uuid modelId;
-        boost::uuids::uuid renderProgramId;
+        gfx::MaterialHandle skyboxMaterialHandle;
+        gfx::ShaderProgramHandle renderProgramHandle;
     };
 
     class RenderManager {
@@ -59,16 +60,18 @@ private:
                      DescriptorManager* descriptorManager);
         ~RenderManager();
 
-        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost
-                        ::uuids::uuid raycastShaderId);
+        void initialize(gfx::ShaderProgramHandle pbrShader, gfx::ShaderProgramHandle skyboxShader, gfx::ShaderProgramHandle shadowShader, gfx::ShaderProgramHandle cubeShadowShader, gfx::ShaderProgramHandle raycastShader);
+        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost::uuids::uuid raycastShaderId);
         #ifdef ENABLE_IMGUI
         void initializeImgui(ImguiManager* manager);
         #endif
         void cleanup();
 
         // Core rendering functions
-        void submitRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform);
-        void submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId);
+        void drawModel(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform);
+        void drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
+        void submitRenderCommand(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform);
+        void submitSkyboxRenderCommand(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
@@ -95,14 +98,14 @@ private:
         void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     private:
-        void bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines);
-        void bindMeshDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines);
+        void bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines);
+        void bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines);
 
-        boost::uuids::uuid pbrShaderId;
-        boost::uuids::uuid skyboxShaderId;
-        boost::uuids::uuid shadowShaderId;
-        boost::uuids::uuid cubeShadowShaderId;
-        boost::uuids::uuid raycastShaderId;
+        gfx::ShaderProgramHandle pbrShaderHandle{gfx::ShaderProgramHandle::invalid()};
+        gfx::ShaderProgramHandle skyboxShaderHandle{gfx::ShaderProgramHandle::invalid()};
+        gfx::ShaderProgramHandle shadowShaderHandle{gfx::ShaderProgramHandle::invalid()};
+        gfx::ShaderProgramHandle cubeShadowShaderHandle{gfx::ShaderProgramHandle::invalid()};
+        gfx::ShaderProgramHandle raycastShaderHandle{gfx::ShaderProgramHandle::invalid()};
 
     private:
         std::vector<RenderCommand> renderQueue;
@@ -130,8 +133,8 @@ private:
         void createSyncObjects();
 
         //Render helper functions
-        void renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId);
-        void renderLightNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId, int lightIndex, int lightType);
+        void renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle);
+        void renderLightNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle, int lightIndex, int lightType);
     };
 
 } // namespace vks

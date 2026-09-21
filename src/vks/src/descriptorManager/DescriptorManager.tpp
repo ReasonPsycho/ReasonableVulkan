@@ -1,129 +1,36 @@
 #pragma once
 #include "DescriptorManager.h"
 
-
+// Template getOrLoadResource for backward-compatibility
 template <typename T>
-T* vks::DescriptorManager::getOrLoadResource(const boost::uuids::uuid& assetId)
+T* DescriptorManager::getOrLoadResource(const boost::uuids::uuid& assetId)
 {
-    if (isResourceLoaded(assetId))
-        return (T*)(loadedResources[assetId].get());
-
-    return (T*)(loadResource(assetId));
+    if constexpr (std::is_same_v<T, ModelDescriptor>) {
+        return getModel(getOrLoadModel(assetId));
+    } else if constexpr (std::is_same_v<T, ShaderProgramDescriptor>) {
+        return getShaderProgram(getOrLoadShaderProgram(assetId));
+    } else if constexpr (std::is_same_v<T, ShaderDescriptor>) {
+        return getShader(getOrLoadShader(assetId));
+    } else if constexpr (std::is_same_v<T, TextureDescriptor>) {
+        return getTexture(getOrLoadTexture(assetId));
+    } else if constexpr (std::is_same_v<T, MaterialDescriptor>) {
+        return getMaterial(getOrLoadMaterial(assetId));
+    } else if constexpr (std::is_same_v<T, MeshDescriptor>) {
+        return getMesh(getOrLoadMesh(assetId));
+    } else {
+        static_assert(!sizeof(T*), "Unsupported descriptor type");
+    }
 }
 
 template <typename T>
-T* vks::DescriptorManager::getOrLoadResource(std::string lookUpName)
+T* DescriptorManager::getOrLoadResource(std::string lookUpName)
 {
     auto id = assetManager->getAssetUuid(lookUpName);
     if (id.has_value())
     {
-        return (T*)(loadResource(id.value()));
-    }else
-    {
-        spdlog::error("Asset not found");
+        return getOrLoadResource<T>(id.value());
+    } else {
+        spdlog::error("Asset not found: {}", lookUpName);
         throw std::runtime_error("Asset not found");
     }
-
-}
-
-inline vks::IVulkanDescriptor* vks::DescriptorManager::loadResource(const boost::uuids::uuid& assetId)
-{
-    if (isResourceLoaded(assetId))
-    {
-         return dynamic_cast<IVulkanDescriptor*>(loadedResources[assetId].get());
-    }
-
-    auto assetInfo = assetManager->getAssetInfo(assetId);
-    if (assetInfo.has_value())
-    {
-        auto assetPtr = assetInfo->get()->getAsset();
-        switch (assetPtr->getType())
-        {
-        case am::AssetType::Mesh:
-            {
-                auto mesh = std::make_unique<MeshDescriptor>(assetId, this,
-                                                         *assetPtr->getAssetDataAs<am::MeshData>(), glm::mat4(1),
-                                                        *context);
-                loadedResources[assetId] = std::move(mesh);
-                return loadedResources[assetId].get();
-                break;
-            }
-
-        case am::AssetType::Model:
-            {
-                auto model = std::make_unique<vks::ModelDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::ModelData>(),
-                                                          *context);
-                loadedResources[assetId] = std::move(model);
-                return loadedResources[assetId].get();
-                break;
-            }
-
-        case am::AssetType::Texture:
-            {
-                auto texture = std::make_unique<TextureDescriptor>(
-                  assetId, this, *assetPtr->getAssetDataAs<am::TextureData>(),*context);
-                loadedResources[assetId] = std::move(texture);
-                return loadedResources[assetId].get();
-                break;
-            }
-
-        case am::AssetType::Material:
-            {
-                auto material = std::make_unique<MaterialDescriptor>(assetId, this,
-                    *assetPtr->getAssetDataAs<am::MaterialData>(),
-                   *context);
-                loadedResources[assetId] = std::move(material);
-                return loadedResources[assetId].get();
-                break;
-            }
-
-        case am::AssetType::Shader:
-            {
-                auto shader = std::make_unique<ShaderDescriptor>(
-                    assetId, *assetPtr->getAssetDataAs<am::ShaderData>(),*context);
-                loadedResources[assetId] = std::move(shader);
-                return loadedResources[assetId].get();
-                break;
-            }
-
-        case am::AssetType::ShaderProgram:
-            {
-                auto shaderProgram = std::make_unique<ShaderProgramDescriptor>(
-                    assetId, *assetPtr->getAssetDataAs<am::ShaderProgramData>(), this, *context);
-                loadedResources[assetId] = std::move(shaderProgram);
-                return loadedResources[assetId].get();
-                break;
-            }
-
-        case am::AssetType::Animation:
-            {
-                // Handle animation asset loading
-                throw std::runtime_error("Animation loading not yet implemented");
-                break;
-            }
-
-        case am::AssetType::Animator:
-            {
-                // Handle animator asset loading
-                throw std::runtime_error("Animator loading not yet implemented");
-                break;
-            }
-
-        case am::AssetType::Other:
-            {
-                // Handle other/generic asset loading
-                throw std::runtime_error("Generic asset loading not yet implemented");
-                break;
-            }
-
-        default:
-            throw std::runtime_error("Asset type not supported");
-        }
-    }
-    else
-    {
-        throw std::runtime_error("Asset not found");
-    }
-
-    return nullptr; // This should never be reached due to exceptions above
 }

@@ -571,12 +571,13 @@ void EditorSystem::Initialize()
     auto skyboxMeshData = scene->engine.assetManagerInterface->getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
 
     camera.skyboxMaterialId = skyboxMeshData->material.get()->id;
+    camera.runtimeSkyboxMaterialHandle = scene->engine.graphicsEngine->loadMaterial(camera.skyboxMaterialId);
 
     wiremeshShaderId = scene->engine.assetManagerInterface->getAssetUuid("wiremeshShader").value();
-    scene->engine.graphicsEngine->loadShader(wiremeshShaderId);
+    wiremeshShaderHandle = scene->engine.graphicsEngine->loadShader(wiremeshShaderId);
 
     wiremeshTexturedShaderId = scene->engine.assetManagerInterface->getAssetUuid("wiremeshTexturedShader").value();
-    scene->engine.graphicsEngine->loadShader(wiremeshTexturedShaderId);
+    wiremeshTexturedShaderHandle = scene->engine.graphicsEngine->loadShader(wiremeshTexturedShaderId);
 }
 
 void EditorSystem::SetUpCameraControls()

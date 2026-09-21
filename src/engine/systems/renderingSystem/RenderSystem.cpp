@@ -52,7 +52,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         scene->engine.graphicsEngine->setCameraData(0, editorSystem->camera.projection, editorSystem->camera.view,
                                                     editorSystem->cameraTransform.position);
         if (editorSystem->camera.skyboxMaterialId != boost::uuids::nil_uuid()) {
-            scene->engine.graphicsEngine->drawSkybox(0, editorSystem->camera.skyboxMaterialId, boost::uuids::nil_uuid());
+            if (!editorSystem->camera.runtimeSkyboxMaterialHandle.isValid()) {
+                editorSystem->camera.runtimeSkyboxMaterialHandle = scene->engine.graphicsEngine->loadMaterial(editorSystem->camera.skyboxMaterialId);
+            }
+            scene->engine.graphicsEngine->drawSkybox(0, editorSystem->camera.runtimeSkyboxMaterialHandle, gfx::ShaderProgramHandle::invalid());
         }
         activeCameraCount = 1;
 
@@ -68,7 +71,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                 scene->engine.graphicsEngine->setCameraData(1, cameras[i].projection, cameras[i].view,
                                                             cameraTransforms[cameraEntity].position);
                 if (cameras[i].skyboxMaterialId != boost::uuids::nil_uuid()) {
-                    scene->engine.graphicsEngine->drawSkybox(1, cameras[i].skyboxMaterialId, boost::uuids::nil_uuid());
+                    if (!cameras[i].runtimeSkyboxMaterialHandle.isValid()) {
+                        cameras[i].runtimeSkyboxMaterialHandle = scene->engine.graphicsEngine->loadMaterial(cameras[i].skyboxMaterialId);
+                    }
+                    scene->engine.graphicsEngine->drawSkybox(1, cameras[i].runtimeSkyboxMaterialHandle, gfx::ShaderProgramHandle::invalid());
                 }
                 activeCameraCount = 2;
                 break;
@@ -83,7 +89,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                                                     cameraObject.transform->position);
 
         if (cameraObject.camera->skyboxMaterialId != boost::uuids::nil_uuid()) {
-            scene->engine.graphicsEngine->drawSkybox(0, cameraObject.camera->skyboxMaterialId, boost::uuids::nil_uuid());
+            if (!cameraObject.camera->runtimeSkyboxMaterialHandle.isValid()) {
+                cameraObject.camera->runtimeSkyboxMaterialHandle = scene->engine.graphicsEngine->loadMaterial(cameraObject.camera->skyboxMaterialId);
+            }
+            scene->engine.graphicsEngine->drawSkybox(0, cameraObject.camera->runtimeSkyboxMaterialHandle, gfx::ShaderProgramHandle::invalid());
         }
         activeCameraCount = 1;
     }
@@ -101,17 +110,26 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                 auto& mesh = scene->GetComponent<MeshComponent>(entity);
                 if (mesh.modelUuid != boost::uuids::nil_uuid())
                 {
+                    if (!mesh.runtimeModelHandle.isValid()) {
+                        mesh.runtimeModelHandle = scene->engine.graphicsEngine->loadModel(mesh.modelUuid);
+                    }
+
+                    auto& renderer = renderers[i];
+                    if (renderer.shaderUuid != boost::uuids::nil_uuid() && !renderer.runtimeShaderHandle.isValid()) {
+                        renderer.runtimeShaderHandle = scene->engine.graphicsEngine->loadShader(renderer.shaderUuid);
+                    }
+
                     for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
-                        boost::uuids::uuid currentShader = renderers[i].shaderUuid;
+                        gfx::ShaderProgramHandle currentShader = renderer.runtimeShaderHandle;
                         if (inEditMode && camIdx == 0) { // Only override for the editor camera
                             if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
-                                currentShader = editorSystem->wiremeshShaderId;
+                                currentShader = editorSystem->wiremeshShaderHandle;
                             } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
-                                currentShader = editorSystem->wiremeshTexturedShaderId;
+                                currentShader = editorSystem->wiremeshTexturedShaderHandle;
                             }
                         }
 
-                        scene->engine.graphicsEngine->drawModel(camIdx, mesh.modelUuid, currentShader,
+                        scene->engine.graphicsEngine->drawModel(camIdx, mesh.runtimeModelHandle, currentShader,
                                                                 transforms[entity].globalMatrix);
                     }
                 }
@@ -123,10 +141,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     if (gizmoSystem != nullptr)
     {
         for (auto& command : gizmoSystem->gizmoRenderCommandQueue) {
-            boost::uuids::uuid modelUuid = gizmoSystem->ModelUUIDByGizmoType(command.type);
-            boost::uuids::uuid shaderUuid = gizmoSystem->ShaderUUIDByGizmoType(command.type);
+            gfx::ModelHandle modelHandle = gizmoSystem->ModelHandleByGizmoType(command.type);
+            gfx::ShaderProgramHandle shaderHandle = gizmoSystem->ShaderHandleByGizmoType(command.type);
             for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
-                scene->engine.graphicsEngine->drawModel(camIdx, modelUuid, shaderUuid,
+                scene->engine.graphicsEngine->drawModel(camIdx, modelHandle, shaderHandle,
                                                         command.transform);
             }
         }

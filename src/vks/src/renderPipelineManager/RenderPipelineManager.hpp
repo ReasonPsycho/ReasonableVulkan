@@ -3,6 +3,8 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
+#include <boost/uuid/nil_generator.hpp>
+
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../descriptorManager/DescriptorManager.h"
 
@@ -33,7 +35,8 @@ namespace vks {
 
         // Pipeline structure to hold pipeline data
         struct Pipeline {
-            boost::uuids::uuid id;
+            boost::uuids::uuid id{boost::uuids::nil_uuid()};
+            gfx::ShaderProgramHandle handleId{gfx::ShaderProgramHandle::invalid()};
             VkPipeline handle{VK_NULL_HANDLE};
             VkPipelineLayout layout{VK_NULL_HANDLE};
         };
@@ -42,12 +45,15 @@ namespace vks {
         VkRenderPass getRenderPass() const { return renderPass; }
         VkRenderPass getShadowRenderPass() const { return shadowRenderPass; }
         VkRenderPass getShadowRenderPassMultiview() const { return shadowRenderPassMultiview; }
+        VkPipeline getPipeline(gfx::ShaderProgramHandle pipelineHandle) const;
         VkPipeline getPipeline(const boost::uuids::uuid& pipelineId) const;
+        VkPipelineLayout getPipelineLayout(gfx::ShaderProgramHandle pipelineHandle) const;
         VkPipelineLayout getPipelineLayout(const boost::uuids::uuid& pipelineId) const;
         VkFramebuffer getFramebuffer(uint32_t cameraIndex, uint32_t imageIndex) const;
         VkFramebuffer getDirectionalShadowFramebuffer(uint32_t index) const { return directionalShadowFramebuffers[index]; }
         VkFramebuffer getPointShadowFramebuffer(uint32_t index) const { return pointShadowFramebuffers[index]; }
         VkFramebuffer getSpotShadowFramebuffer(uint32_t index) const { return spotShadowFramebuffers[index]; }
+        bool hasPipeline(gfx::ShaderProgramHandle pipelineHandle) const { return findPipeline(pipelineHandle) != nullptr; }
         bool hasPipeline(const boost::uuids::uuid& pipelineId) const { return findPipeline(pipelineId) != nullptr; }
 
         // Offscreen resources
@@ -100,6 +106,7 @@ namespace vks {
 
         // Helper methods
         void createPipelineCache();
+        const Pipeline* findPipeline(gfx::ShaderProgramHandle pipelineHandle) const;
         const Pipeline* findPipeline(const boost::uuids::uuid& pipelineId) const;
     };
 }

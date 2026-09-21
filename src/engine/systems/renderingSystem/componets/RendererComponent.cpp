@@ -24,6 +24,7 @@ void engine::ecs::RendererComponent::CustomDrawImGui(Scene* scene)
             if (ImGui::MenuItem(lookUpName.c_str()))
             {
                 shaderUuid = scene->engine.assetManagerInterface->getAssetUuid(lookUpName).value();
+                runtimeShaderHandle = gfx::ShaderProgramHandle::invalid();
             }
         }
         ImGui::EndPopup();

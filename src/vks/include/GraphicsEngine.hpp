@@ -5,7 +5,9 @@
 #include <boost/uuid/uuid.hpp>
 #include <glm/fwd.hpp>
 #include <glm/detail/type_mat4x4.hpp>
+#include <string>
 
+#include "Handle.hpp"
 #include "LightData.hpp"
 
 
@@ -30,14 +32,23 @@ namespace gfx {
 
         virtual void setCameraData(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) = 0;
         virtual void setActiveCameraCount(uint32_t count) = 0;
-        virtual void drawModel(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) = 0;
-        virtual void drawSkybox(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId) = 0;
+
+        // Rendering commands using Handles
+        virtual void drawModel(uint32_t cameraIndex, ModelHandle modelHandle, ShaderProgramHandle shaderHandle, const glm::mat4& transform) = 0;
+        virtual void drawSkybox(uint32_t cameraIndex, MaterialHandle materialHandle, ShaderProgramHandle shaderHandle) = 0;
         virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(DirectionalLightData directionalLightData, const glm::mat4& transform) = 0;
-        virtual void loadModel(boost::uuids::uuid uuid) = 0;
-        virtual void loadShader(boost::uuids::uuid uuid) = 0;
-        virtual void loadTexture(boost::uuids::uuid uuid) = 0;
+
+        // Asset registration / handle acquisition
+        virtual ModelHandle loadModel(boost::uuids::uuid uuid) = 0;
+        virtual ShaderProgramHandle loadShader(boost::uuids::uuid uuid) = 0;
+        virtual TextureHandle loadTexture(boost::uuids::uuid uuid) = 0;
+        virtual MaterialHandle loadMaterial(boost::uuids::uuid uuid) = 0;
+
+        virtual ModelHandle getModelHandle(const std::string& lookUpName) = 0;
+        virtual ShaderProgramHandle getShaderHandle(const std::string& lookUpName) = 0;
+        virtual MaterialHandle getMaterialHandle(const std::string& lookUpName) = 0;
 
         virtual void beginFrame() = 0;
         virtual void renderFrame() = 0;

@@ -21,11 +21,28 @@ namespace vks
         cleanup();
     }
 
+    const RenderPipelineManager::Pipeline* RenderPipelineManager::findPipeline(gfx::ShaderProgramHandle pipelineHandle) const
+    {
+        if (!pipelineHandle.isValid()) return nullptr;
+        auto it = std::find_if(pipelines.begin(), pipelines.end(),
+                              [&pipelineHandle](const Pipeline& p) { return p.handleId == pipelineHandle; });
+        return (it != pipelines.end()) ? &(*it) : nullptr;
+    }
+
     const RenderPipelineManager::Pipeline* RenderPipelineManager::findPipeline(const boost::uuids::uuid& pipelineId) const
     {
         auto it = std::find_if(pipelines.begin(), pipelines.end(),
                               [&pipelineId](const Pipeline& p) { return p.id == pipelineId; });
         return (it != pipelines.end()) ? &(*it) : nullptr;
+    }
+
+    VkPipeline RenderPipelineManager::getPipeline(gfx::ShaderProgramHandle pipelineHandle) const
+    {
+        const Pipeline* pipeline = findPipeline(pipelineHandle);
+        if (!pipeline) {
+            throw std::runtime_error("Pipeline not found for handle: index " + std::to_string(pipelineHandle.index));
+        }
+        return pipeline->handle;
     }
 
     VkPipeline RenderPipelineManager::getPipeline(const boost::uuids::uuid& pipelineId) const
@@ -35,6 +52,15 @@ namespace vks
             throw std::runtime_error("Pipeline not found: " + boost::uuids::to_string(pipelineId));
         }
         return pipeline->handle;
+    }
+
+    VkPipelineLayout RenderPipelineManager::getPipelineLayout(gfx::ShaderProgramHandle pipelineHandle) const
+    {
+        const Pipeline* pipeline = findPipeline(pipelineHandle);
+        if (!pipeline) {
+            throw std::runtime_error("Pipeline layout not found for handle: index " + std::to_string(pipelineHandle.index));
+        }
+        return pipeline->layout;
     }
 
     VkPipelineLayout RenderPipelineManager::getPipelineLayout(const boost::uuids::uuid& pipelineId) const
@@ -829,7 +855,7 @@ namespace vks
 
         VkPipelineDepthStencilStateCreateInfo depthStencilState = base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
-        VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(shadowPipelineLayout, shadowRenderPass, 0);
+        VkGraphicsPipelineCreateInfo pipelineCI = base::initializers::pipelineCreateInfo(shadowPipelineLayout, shadowRenderPass, 0);
         
         // Use multiview render pass for point shadow shaders (which use multiple views)
         bool isMultiview = std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::ENABLE_MULTVIEW) != combinedDefines.end();
@@ -857,7 +883,8 @@ namespace vks
             throw std::runtime_error("failed to create shadow graphics pipeline!");
         }
 
-        pipelines.push_back(Pipeline{pipelineId, pipelineHandle, shadowPipelineLayout});
+        gfx::ShaderProgramHandle handleId = descriptorManager->getShaderProgramHandle(pipelineId);
+        pipelines.push_back(Pipeline{pipelineId, handleId, pipelineHandle, shadowPipelineLayout});
     }
 
      void RenderPipelineManager::createGraphicsPipeline(ShaderProgramDescriptor* shaderProgramDescriptor)
@@ -995,7 +1022,7 @@ namespace vks
         }
 
         // Create mesh pipeline
-        VkGraphicsPipelineCreateInfo pipelineCI = vks::base::initializers::pipelineCreateInfo(
+        VkGraphicsPipelineCreateInfo pipelineCI = base::initializers::pipelineCreateInfo(
             meshPipelineLayout, renderPass, 0);
         pipelineCI.pInputAssemblyState = &inputAssemblyState;
         pipelineCI.pViewportState = &viewportState;
@@ -1039,7 +1066,8 @@ namespace vks
         }
 
         // Add pipeline to vector
-        pipelines.push_back(Pipeline{pipelineId, pipelineHandle, meshPipelineLayout});
+        gfx::ShaderProgramHandle handleId = descriptorManager->getShaderProgramHandle(pipelineId);
+        pipelines.push_back(Pipeline{pipelineId, handleId, pipelineHandle, meshPipelineLayout});
     }
 
     void RenderPipelineManager::createPipelineCache()

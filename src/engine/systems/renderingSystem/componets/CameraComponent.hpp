@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <boost/uuid/nil_generator.hpp>
+#include "Handle.hpp"
 #include "ecs/Component.hpp"
 
 namespace engine::ecs
@@ -32,6 +33,9 @@ namespace engine::ecs
 
         [[=Tooltip{"Skybox Material/Texture UUID"}]]
         boost::uuids::uuid skyboxMaterialId{boost::uuids::nil_uuid()};
+
+        [[=NonSerialized{}]]
+        gfx::MaterialHandle runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
 
         [[=NonSerialized{}, =HidenInInspector{}]]
         bool isDirty{true};

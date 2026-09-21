@@ -28,6 +28,7 @@
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/nil_generator.hpp>
 #include <rapidjson/document.h>
+#include "Handle.hpp"
 
 #ifdef ENABLE_IMGUI
 #include <imgui.h>
@@ -259,6 +260,13 @@ namespace engine::ecs
     inline constexpr bool is_variant_v = is_variant<T>::value;
 
     template <typename T>
+    struct is_handle : std::false_type {};
+    template <typename Tag>
+    struct is_handle<gfx::Handle<Tag>> : std::true_type {};
+    template <typename T>
+    inline constexpr bool is_handle_v = is_handle<std::decay_t<T>>::value;
+
+    template <typename T>
     void SerializeValueToJson(const T& val, rapidjson::Value& outVal, rapidjson::Document::AllocatorType& allocator) {
         using RawT = std::decay_t<T>;
         if constexpr (std::is_same_v<RawT, float>) {
@@ -280,6 +288,10 @@ namespace engine::ecs
         } else if constexpr (std::is_same_v<RawT, boost::uuids::uuid>) {
             std::string str = boost::uuids::to_string(val);
             outVal.SetString(str.c_str(), static_cast<rapidjson::SizeType>(str.size()), allocator);
+        } else if constexpr (is_handle_v<RawT>) {
+            outVal.SetObject();
+            outVal.AddMember("index", static_cast<uint32_t>(val.index), allocator);
+            outVal.AddMember("generation", static_cast<uint32_t>(val.generation), allocator);
         } else if constexpr (std::is_same_v<RawT, glm::vec2>) {
             outVal.SetArray();
             outVal.PushBack(val.x, allocator).PushBack(val.y, allocator);
@@ -355,6 +367,11 @@ namespace engine::ecs
                 } catch (...) {
                     val = boost::uuids::nil_uuid();
                 }
+            }
+        } else if constexpr (is_handle_v<RawT>) {
+            if (inVal.IsObject() && inVal.HasMember("index") && inVal.HasMember("generation")) {
+                val.index = inVal["index"].GetUint();
+                val.generation = inVal["generation"].GetUint();
             }
         } else if constexpr (std::is_same_v<RawT, glm::vec2>) {
             if (inVal.IsArray() && inVal.Size() >= 2) {
@@ -503,6 +520,13 @@ namespace engine::ecs
         } else if constexpr (std::is_same_v<RawT, boost::uuids::uuid>) {
             std::string idStr = boost::uuids::to_string(value);
             ImGui::LabelText(name, "%s", idStr.c_str());
+        } else if constexpr (is_handle_v<RawT>) {
+            if constexpr (isReadOnly) ImGui::BeginDisabled();
+            ImGui::LabelText(name, "Index: %u, Gen: %u (%s)",
+                static_cast<unsigned int>(value.index),
+                static_cast<unsigned int>(value.generation),
+                value.isValid() ? "Valid" : "Invalid");
+            if constexpr (isReadOnly) ImGui::EndDisabled();
         } else if constexpr (std::is_same_v<RawT, std::string>) {
             if constexpr (isReadOnly) ImGui::BeginDisabled();
             char buffer[256];

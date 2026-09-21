@@ -98,6 +98,10 @@ namespace engine::ecs
         boost::uuids::uuid wiremeshShaderId = boost::uuids::nil_uuid();
         [[=NonSerialized{}]]
         boost::uuids::uuid wiremeshTexturedShaderId = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle wiremeshShaderHandle = gfx::ShaderProgramHandle::invalid();
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle wiremeshTexturedShaderHandle = gfx::ShaderProgramHandle::invalid();
 
         void SetUpCameraControls();
 

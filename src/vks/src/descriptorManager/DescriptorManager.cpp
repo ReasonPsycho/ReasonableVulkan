@@ -1,7 +1,14 @@
 #include "DescriptorManager.h"
 #include <stdexcept>
 
+#include "assetDatas/ModelData.h"
+#include "assetDatas/MeshData.h"
+#include "assetDatas/TextureData.h"
+#include "assetDatas/MaterialData.h"
+#include "assetDatas/ShaderData.h"
+#include "assetDatas/ShaderProgramData.h"
 #include "buffers/LightBufferData.hpp"
+#include "../base/VulkanTools.h"
 
 
 namespace vks
@@ -99,8 +106,20 @@ namespace vks
             defaultSampler = VK_NULL_HANDLE;
         }
 
-        // Clear resource cache
-        loadedResources.clear();
+        // Clear resource pools and UUID mappings
+        modelPool.clear();
+        shaderProgramPool.clear();
+        shaderPool.clear();
+        texturePool.clear();
+        materialPool.clear();
+        meshResourcePool.clear();
+
+        uuidToModelMap.clear();
+        uuidToShaderProgramMap.clear();
+        uuidToShaderMap.clear();
+        uuidToTextureMap.clear();
+        uuidToMaterialMap.clear();
+        uuidToMeshMap.clear();
 
         // Destroy descriptor sets layouts
         if (pbrMaterialLayout != VK_NULL_HANDLE)
@@ -706,7 +725,12 @@ namespace vks
 
     bool DescriptorManager::isResourceLoaded(const boost::uuids::uuid& assetId)
     {
-        return loadedResources.find(assetId) != loadedResources.end();
+        return uuidToModelMap.find(assetId) != uuidToModelMap.end() ||
+               uuidToShaderProgramMap.find(assetId) != uuidToShaderProgramMap.end() ||
+               uuidToShaderMap.find(assetId) != uuidToShaderMap.end() ||
+               uuidToTextureMap.find(assetId) != uuidToTextureMap.end() ||
+               uuidToMaterialMap.find(assetId) != uuidToMaterialMap.end() ||
+               uuidToMeshMap.find(assetId) != uuidToMeshMap.end();
     }
 
 
@@ -1045,5 +1069,186 @@ namespace vks
             }
         }
         return layouts;
+    }
+
+    ModelDescriptor* DescriptorManager::getModel(gfx::ModelHandle handle) const {
+        return modelPool.get(handle);
+    }
+
+    ShaderProgramDescriptor* DescriptorManager::getShaderProgram(gfx::ShaderProgramHandle handle) const {
+        return shaderProgramPool.get(handle);
+    }
+
+    ShaderDescriptor* DescriptorManager::getShader(gfx::ShaderHandle handle) const {
+        return shaderPool.get(handle);
+    }
+
+    TextureDescriptor* DescriptorManager::getTexture(gfx::TextureHandle handle) const {
+        return texturePool.get(handle);
+    }
+
+    MaterialDescriptor* DescriptorManager::getMaterial(gfx::MaterialHandle handle) const {
+        return materialPool.get(handle);
+    }
+
+    MeshDescriptor* DescriptorManager::getMesh(gfx::MeshHandle handle) const {
+        return meshResourcePool.get(handle);
+    }
+
+    gfx::ModelHandle DescriptorManager::getModelHandle(const boost::uuids::uuid& assetId) const {
+        auto it = uuidToModelMap.find(assetId);
+        return (it != uuidToModelMap.end()) ? it->second : gfx::ModelHandle::invalid();
+    }
+
+    gfx::ShaderProgramHandle DescriptorManager::getShaderProgramHandle(const boost::uuids::uuid& assetId) const {
+        auto it = uuidToShaderProgramMap.find(assetId);
+        return (it != uuidToShaderProgramMap.end()) ? it->second : gfx::ShaderProgramHandle::invalid();
+    }
+
+    gfx::ShaderHandle DescriptorManager::getShaderHandle(const boost::uuids::uuid& assetId) const {
+        auto it = uuidToShaderMap.find(assetId);
+        return (it != uuidToShaderMap.end()) ? it->second : gfx::ShaderHandle::invalid();
+    }
+
+    gfx::TextureHandle DescriptorManager::getTextureHandle(const boost::uuids::uuid& assetId) const {
+        auto it = uuidToTextureMap.find(assetId);
+        return (it != uuidToTextureMap.end()) ? it->second : gfx::TextureHandle::invalid();
+    }
+
+    gfx::MaterialHandle DescriptorManager::getMaterialHandle(const boost::uuids::uuid& assetId) const {
+        auto it = uuidToMaterialMap.find(assetId);
+        return (it != uuidToMaterialMap.end()) ? it->second : gfx::MaterialHandle::invalid();
+    }
+
+    gfx::MeshHandle DescriptorManager::getMeshHandle(const boost::uuids::uuid& assetId) const {
+        auto it = uuidToMeshMap.find(assetId);
+        return (it != uuidToMeshMap.end()) ? it->second : gfx::MeshHandle::invalid();
+    }
+
+    gfx::MeshHandle DescriptorManager::getOrLoadMesh(const boost::uuids::uuid& assetId) {
+        auto it = uuidToMeshMap.find(assetId);
+        if (it != uuidToMeshMap.end()) return it->second;
+
+        auto assetInfo = assetManager->getAssetInfo(assetId);
+        if (!assetInfo.has_value()) throw std::runtime_error("Mesh asset not found");
+        auto assetPtr = assetInfo->get()->getAsset();
+
+        auto mesh = std::make_unique<MeshDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::MeshData>(), glm::mat4(1), *context);
+        gfx::MeshHandle handle = meshResourcePool.insert(std::move(mesh));
+        uuidToMeshMap[assetId] = handle;
+        return handle;
+    }
+
+    gfx::ModelHandle DescriptorManager::getOrLoadModel(const boost::uuids::uuid& assetId) {
+        auto it = uuidToModelMap.find(assetId);
+        if (it != uuidToModelMap.end()) return it->second;
+
+        auto assetInfo = assetManager->getAssetInfo(assetId);
+        if (!assetInfo.has_value()) throw std::runtime_error("Model asset not found");
+        auto assetPtr = assetInfo->get()->getAsset();
+
+        auto model = std::make_unique<vks::ModelDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::ModelData>(), *context);
+        gfx::ModelHandle handle = modelPool.insert(std::move(model));
+        uuidToModelMap[assetId] = handle;
+        return handle;
+    }
+
+    gfx::TextureHandle DescriptorManager::getOrLoadTexture(const boost::uuids::uuid& assetId) {
+        auto it = uuidToTextureMap.find(assetId);
+        if (it != uuidToTextureMap.end()) return it->second;
+
+        auto assetInfo = assetManager->getAssetInfo(assetId);
+        if (!assetInfo.has_value()) throw std::runtime_error("Texture asset not found");
+        auto assetPtr = assetInfo->get()->getAsset();
+
+        auto texture = std::make_unique<TextureDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::TextureData>(), *context);
+        gfx::TextureHandle handle = texturePool.insert(std::move(texture));
+        uuidToTextureMap[assetId] = handle;
+        return handle;
+    }
+
+    gfx::MaterialHandle DescriptorManager::getOrLoadMaterial(const boost::uuids::uuid& assetId) {
+        auto it = uuidToMaterialMap.find(assetId);
+        if (it != uuidToMaterialMap.end()) return it->second;
+
+        auto assetInfo = assetManager->getAssetInfo(assetId);
+        if (!assetInfo.has_value()) throw std::runtime_error("Material asset not found");
+        auto assetPtr = assetInfo->get()->getAsset();
+
+        auto material = std::make_unique<MaterialDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::MaterialData>(), *context);
+        gfx::MaterialHandle handle = materialPool.insert(std::move(material));
+        uuidToMaterialMap[assetId] = handle;
+        return handle;
+    }
+
+    gfx::ShaderHandle DescriptorManager::getOrLoadShader(const boost::uuids::uuid& assetId) {
+        auto it = uuidToShaderMap.find(assetId);
+        if (it != uuidToShaderMap.end()) return it->second;
+
+        auto assetInfo = assetManager->getAssetInfo(assetId);
+        if (!assetInfo.has_value()) throw std::runtime_error("Shader asset not found");
+        auto assetPtr = assetInfo->get()->getAsset();
+
+        auto shader = std::make_unique<ShaderDescriptor>(assetId, *assetPtr->getAssetDataAs<am::ShaderData>(), *context);
+        gfx::ShaderHandle handle = shaderPool.insert(std::move(shader));
+        uuidToShaderMap[assetId] = handle;
+        return handle;
+    }
+
+    gfx::ShaderProgramHandle DescriptorManager::getOrLoadShaderProgram(const boost::uuids::uuid& assetId) {
+        auto it = uuidToShaderProgramMap.find(assetId);
+        if (it != uuidToShaderProgramMap.end()) return it->second;
+
+        auto assetInfo = assetManager->getAssetInfo(assetId);
+        if (!assetInfo.has_value()) throw std::runtime_error("ShaderProgram asset not found");
+        auto assetPtr = assetInfo->get()->getAsset();
+
+        auto shaderProgram = std::make_unique<ShaderProgramDescriptor>(assetId, *assetPtr->getAssetDataAs<am::ShaderProgramData>(), this, *context);
+        gfx::ShaderProgramHandle handle = shaderProgramPool.insert(std::move(shaderProgram));
+        uuidToShaderProgramMap[assetId] = handle;
+        return handle;
+    }
+
+    // Name-based overloads
+    gfx::ModelHandle DescriptorManager::getOrLoadModel(const std::string& lookUpName) {
+        auto id = assetManager->getAssetUuid(lookUpName);
+        if (id.has_value()) return getOrLoadModel(id.value());
+        spdlog::error("Asset not found: {}", lookUpName);
+        throw std::runtime_error("Asset not found");
+    }
+
+    gfx::ShaderProgramHandle DescriptorManager::getOrLoadShaderProgram(const std::string& lookUpName) {
+        auto id = assetManager->getAssetUuid(lookUpName);
+        if (id.has_value()) return getOrLoadShaderProgram(id.value());
+        spdlog::error("Asset not found: {}", lookUpName);
+        throw std::runtime_error("Asset not found");
+    }
+
+    gfx::ShaderHandle DescriptorManager::getOrLoadShader(const std::string& lookUpName) {
+        auto id = assetManager->getAssetUuid(lookUpName);
+        if (id.has_value()) return getOrLoadShader(id.value());
+        spdlog::error("Asset not found: {}", lookUpName);
+        throw std::runtime_error("Asset not found");
+    }
+
+    gfx::TextureHandle DescriptorManager::getOrLoadTexture(const std::string& lookUpName) {
+        auto id = assetManager->getAssetUuid(lookUpName);
+        if (id.has_value()) return getOrLoadTexture(id.value());
+        spdlog::error("Asset not found: {}", lookUpName);
+        throw std::runtime_error("Asset not found");
+    }
+
+    gfx::MaterialHandle DescriptorManager::getOrLoadMaterial(const std::string& lookUpName) {
+        auto id = assetManager->getAssetUuid(lookUpName);
+        if (id.has_value()) return getOrLoadMaterial(id.value());
+        spdlog::error("Asset not found: {}", lookUpName);
+        throw std::runtime_error("Asset not found");
+    }
+
+    gfx::MeshHandle DescriptorManager::getOrLoadMesh(const std::string& lookUpName) {
+        auto id = assetManager->getAssetUuid(lookUpName);
+        if (id.has_value()) return getOrLoadMesh(id.value());
+        spdlog::error("Asset not found: {}", lookUpName);
+        throw std::runtime_error("Asset not found");
     }
 } // namespace vks
