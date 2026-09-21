@@ -9,18 +9,19 @@
 #include <rapidjson/writer.h>
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>  // For to_string
+#include "AssetTypes.hpp"
+#include "AssetReflection.hpp"
 
 namespace am {
     class Asset; // Forward declaration
     class AssetManager;
-    enum class AssetType;
 
     struct ImportContext {
-        std::string importPath;
-        AssetType assetType;
-        int assimpIndex;
+        [[=JsonName{"importPath"}]] std::string importPath;
+        [[=JsonName{"assetType"}]]  AssetType assetType = AssetType::Other;
+        [[=JsonName{"assimpIndex"}]] int assimpIndex = 0;
 
-        // Constructor to initialize the reference and other members
+        ImportContext() = default;
         ImportContext(std::string p, AssetType type, int assimpIndex = 0)
             :
                importPath(std::move(p))
@@ -75,11 +76,19 @@ namespace am {
             other.isLoaded = false;
         }
 
-    void SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
 
         // Add this static method for deserialization
-    static AssetInfo DeserializeAssetInfoFromJson(const rapidjson::Value& obj);
+        static AssetInfo DeserializeAssetInfoFromJson(const rapidjson::Value& obj);
     };
+
+    inline boost::uuids::uuid GetAssetInfoId(const std::shared_ptr<AssetInfo>& info) {
+        return info ? info->id : boost::uuids::uuid{};
+    }
+
+    inline size_t GetAssetInfoContentHash(const std::shared_ptr<AssetInfo>& info) {
+        return info ? info->contentHash : 0;
+    }
 }
 
 

@@ -42,6 +42,8 @@ bool am::AssetInfo::isAssetLoaded() const {
 
 void am::AssetInfo::SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const
 {
+    if (!obj.IsObject()) obj.SetObject();
+
     // Convert UUID to string
     std::string uuidStr = boost::uuids::to_string(id);
 
@@ -51,12 +53,9 @@ void am::AssetInfo::SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::D
     obj.AddMember("lookUpName", rapidjson::Value(lookUpName.c_str(), allocator), allocator);
     obj.AddMember("contentHash", rapidjson::Value(static_cast<uint64_t>(contentHash)), allocator);
 
-    // Add AssetFactoryData
+    // Add AssetFactoryData using reflection
     rapidjson::Value factoryDataObj(rapidjson::kObjectType);
-    factoryDataObj.AddMember("importPath", rapidjson::Value(importContext.importPath.c_str(), allocator), allocator);
-    factoryDataObj.AddMember("assetType", rapidjson::Value(AssetTypeToString(importContext.assetType).c_str(), allocator), allocator);
-    factoryDataObj.AddMember("assimpIndex", rapidjson::Value(importContext.assimpIndex), allocator);
-
+    SerializeAssetData(importContext, factoryDataObj, allocator);
     obj.AddMember("assetFactoryData", factoryDataObj, allocator);
 }
 
@@ -70,12 +69,10 @@ am::AssetInfo am::AssetInfo::DeserializeAssetInfoFromJson(const rapidjson::Value
     std::string lookUpName = obj["lookUpName"].GetString();
     size_t contentHash = obj["contentHash"].GetUint64();
 
-    const auto& factoryData = obj["assetFactoryData"];
-    ImportContext assetFactoryData(
-        factoryData["importPath"].GetString(),
-        StringToAssetType(factoryData["assetType"].GetString()),
-        factoryData["assimpIndex"].GetInt()
-    );
+    ImportContext assetFactoryData("", AssetType::Other, 0);
+    if (obj.HasMember("assetFactoryData")) {
+        DeserializeAssetData(assetFactoryData, obj["assetFactoryData"]);
+    }
 
     AssetInfo info(id, path, type, contentHash, assetFactoryData, lookUpName);
     info.isLoaded = false;

@@ -16,6 +16,8 @@
 #include "assets/engineAssets/SceneAsset.h"
 #include "assets/engineAssets/PrefabAsset.h"
 #include "assets/configAsset/ConfigAsset.h"
+#include "assets/meshAsset/MeshAsset.h"
+#include "assets/textureAsset/TextureAsset.h"
 #include "JsonHelpers.hpp"
 
 namespace am {
@@ -308,15 +310,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     AssetManager::AssetManager() : AssetManagerInterface()
     {
         currentPath = resourceFolder;
-        RegisterAssetType<MaterialAsset>();
-        RegisterAssetType<TextureAsset>();
-        RegisterAssetType<ShaderAsset>();
-        RegisterAssetType<ShaderProgramAsset>();
-        RegisterAssetType<ModelAsset>();
-        RegisterAssetType<MeshAsset>();
-        RegisterAssetType<SceneAsset>();
-        RegisterAssetType<PrefabAsset>();
-        RegisterAssetType<ConfigAsset>();
+
+        // Auto-register all supported engine assets at compile time using reflection
+        ForEachType<SupportedAssets>([this]<typename T>() {
+            this->RegisterAssetType<T>();
+        });
 
         loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\metadatas.json");
     }
@@ -695,29 +693,17 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     
     std::type_index AssetManager::getTypeIndex(AssetType type) const
     {
-        switch (type) {
-        case AssetType::Mesh:
-            return std::type_index(typeid(MeshAsset));
-        case AssetType::Model:
-            return std::type_index(typeid(ModelAsset));
-        case AssetType::Texture:
-            return std::type_index(typeid(TextureAsset));
-        case AssetType::Shader:
-            return std::type_index(typeid(ShaderAsset));
-        case AssetType::ShaderProgram:
-            return std::type_index(typeid(ShaderProgramAsset));
-        case AssetType::Material:
-            return std::type_index(typeid(MaterialAsset));
-        case AssetType::Scene:
-            return std::type_index(typeid(SceneAsset));
-        case AssetType::Prefab:
-            return std::type_index(typeid(PrefabAsset));
-        case AssetType::Config:
-            return std::type_index(typeid(ConfigAsset));
-        default:
-            spdlog::error("Failed to get type_index for AssetType");
-            throw std::runtime_error("Failed to get type_index for AssetType!");
+        std::optional<std::type_index> result;
+        ForEachType<SupportedAssets>([&]<typename T>() {
+            if (T::StaticType == type) {
+                result = std::type_index(typeid(T));
+            }
+        });
+        if (result.has_value()) {
+            return result.value();
         }
+        spdlog::error("Failed to get type_index for AssetType");
+        throw std::runtime_error("Failed to get type_index for AssetType!");
     }
 
 
