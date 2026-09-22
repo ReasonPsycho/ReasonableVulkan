@@ -123,7 +123,11 @@ namespace engine::ecs
         ::engine::Engine& engine;
 
         boost::uuids::uuid sceneId;
+
+        uint32_t GetTargetViewportIndex() const { return targetViewportIndex; }
+        void SetTargetViewportIndex(uint32_t index) { targetViewportIndex = index; }
     private:
+        uint32_t targetViewportIndex = 0;
 
         //Entities
         uint32_t maxEntityIndex = 0;
