@@ -6,6 +6,7 @@
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_vulkan.h>
 #include <stdexcept>
+#include <filesystem>
 #include <SDL3/SDL_video.h>
 #include <ImGuizmo.h>
 
@@ -35,17 +36,32 @@ namespace vks
         float baseFontSize = 13.0f; // 13.0f is the size of the default font. Change to the font size you use.
         float iconFontSize = baseFontSize * 2.0f / 3.0f; // FontAwesome fonts need to have their sizes reduced by 2.0f/3.0f in order to align correctly
 
+        std::string regularFontPath = "res/fonts/fa-regular-400.ttf";
+        if (!std::filesystem::exists(regularFontPath)) {
+            regularFontPath = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\fonts\\fa-regular-400.ttf";
+        }
+        std::string solidFontPath = "res/fonts/fa-solid-900.ttf";
+        if (!std::filesystem::exists(solidFontPath)) {
+            solidFontPath = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\fonts\\fa-solid-900.ttf";
+        }
+
         ImFontConfig config;
         config.MergeMode = true;
         config.PixelSnapH = true;
         config.GlyphMinAdvanceX = iconFontSize;
         static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-        io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\fonts\\fa-regular-400.ttf", iconFontSize, &config, iconRanges);
+        io.Fonts->AddFontFromFileTTF(regularFontPath.c_str(), iconFontSize, &config, iconRanges);
+        io.Fonts->AddFontFromFileTTF(solidFontPath.c_str(), iconFontSize, &config, iconRanges);
 
         ImFontConfig largeConfig;
         largeConfig.PixelSnapH = true;
         largeConfig.GlyphMinAdvanceX = 48.0f;
-        largeIconFont = io.Fonts->AddFontFromFileTTF("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\fonts\\fa-regular-400.ttf", 48.0f, &largeConfig, iconRanges);
+        largeIconFont = io.Fonts->AddFontFromFileTTF(regularFontPath.c_str(), 48.0f, &largeConfig, iconRanges);
+        ImFontConfig largeSolidConfig;
+        largeSolidConfig.MergeMode = true;
+        largeSolidConfig.PixelSnapH = true;
+        largeSolidConfig.GlyphMinAdvanceX = 48.0f;
+        io.Fonts->AddFontFromFileTTF(solidFontPath.c_str(), 48.0f, &largeSolidConfig, iconRanges);
 
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;

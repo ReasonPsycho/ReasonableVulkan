@@ -91,6 +91,22 @@ namespace am {
         }
     };
 
+    struct AssetIcon {
+        char icon[16]{};
+
+        constexpr AssetIcon() = default;
+        constexpr explicit AssetIcon(const char* str) {
+            if (str) {
+                int i = 0;
+                while (str[i] && i < 15) {
+                    icon[i] = str[i];
+                    ++i;
+                }
+                icon[i] = '\0';
+            }
+        }
+    };
+
     // ==========================================
     // MetaInfoArray & Reflection Primitives
     // ==========================================

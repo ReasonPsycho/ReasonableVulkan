@@ -565,7 +565,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                             currentPath = path;
                         }
                     } else {
-                        ImGui::Button(ICON_FA_FILE, ImVec2(iconSize, iconSize));
+                        ImGui::Button(GetAssetIcon(path), ImVec2(iconSize, iconSize));
                     }
 
                     if (pushedFont)

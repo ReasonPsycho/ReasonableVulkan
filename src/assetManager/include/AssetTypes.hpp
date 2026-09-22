@@ -7,6 +7,7 @@
 #include <filesystem>
 #include "AssetReflection.hpp"
 #include "assetDatas/ShaderData.h"
+#include "IconsFontAwesome6.h"
 
 namespace am {
     enum class AssetFormat {
@@ -21,18 +22,18 @@ namespace am {
     };
 
     enum class AssetType {
-        Mesh [[=AssetExtension{".mesh"}, =SavesToBinary{true}]],
-        Model [[=AssetExtension{".model"}, =SavesToBinary{false}]],
-        Texture [[=AssetExtension{".texture"}, =SavesToBinary{true}]],
-        Shader [[=AssetExtension{".shader"}, =SavesToBinary{true}]],
-        ShaderProgram [[=AssetExtension{".shaderprogram"}, =SavesToBinary{false}]],
-        Animation [[=AssetExtension{".animation"}, =SavesToBinary{true}]],
-        Material [[=AssetExtension{".material"}, =SavesToBinary{false}]],
-        Animator [[=AssetExtension{".animator"}, =SavesToBinary{true}]],
-        Scene [[=AssetExtension{".scene"}, =SavesToBinary{false}]],
-        Prefab [[=AssetExtension{".prefab"}, =SavesToBinary{false}]],
-        Config [[=AssetExtension{".config"}, =SavesToBinary{false}]],
-        Other [[=AssetExtension{".other"}, =SavesToBinary{false}]] // Just for testing
+        Mesh [[=AssetExtension{".mesh"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_CUBE}]],
+        Model [[=AssetExtension{".model"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_CUBE}]],
+        Texture [[=AssetExtension{".texture"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_FILE_IMAGE}]],
+        Shader [[=AssetExtension{".shader"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_FILE_CODE}]],
+        ShaderProgram [[=AssetExtension{".shaderprogram"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_FILE_CODE}]],
+        Animation [[=AssetExtension{".animation"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_PERSON_RUNNING}]],
+        Material [[=AssetExtension{".material"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_PALETTE}]],
+        Animator [[=AssetExtension{".animator"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_PERSON_RUNNING}]],
+        Scene [[=AssetExtension{".scene"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_GLOBE}]],
+        Prefab [[=AssetExtension{".prefab"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_BOXES_STACKED}]],
+        Config [[=AssetExtension{".config"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_GEAR}]],
+        Other [[=AssetExtension{".other"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_FILE}]] // Just for testing
     };
 
     inline std::string AssetTypeToString(AssetType type) {
@@ -59,8 +60,10 @@ namespace am {
             ext = "." + ext.substr(lastUnderscore + 1);
         }
         
-        if (ext == ".fbx" || ext == ".png" || ext == ".spv" || ext == ".spdv" ||
-            ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".shaderImport") {
+        if (ext == ".fbx" || ext == ".blend" || ext == ".blend1" || ext == ".obj" || ext == ".gltf" || ext == ".glb" ||
+            ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr" ||
+            ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl" ||
+            ext == ".shaderImport") {
             return AssetOwnership::Import;
         }
 
@@ -96,12 +99,42 @@ namespace am {
             }
         }
 
-        if (ext == ".fbx")          return AssetType::Model;
-        if (ext == ".png")          return AssetType::Texture;
-        if (ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom") return AssetType::Shader;
+        if (ext == ".fbx" || ext == ".blend" || ext == ".blend1" || ext == ".obj" || ext == ".gltf" || ext == ".glb") return AssetType::Model;
+        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr") return AssetType::Texture;
+        if (ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl") return AssetType::Shader;
         if (ext == ".shaderImport") return AssetType::ShaderProgram;
 
         return AssetType::Other;
+    }
+
+    inline const char* GetIconFromAssetType(AssetType type) {
+        static constexpr auto enums = get_enumerators_array<AssetType>();
+        template for (constexpr auto e : enums) {
+            if (type == [:e:]) {
+                static constexpr auto annot = get_annotation<AssetIcon>(e);
+                if constexpr (annot.has_value()) {
+                    return annot->icon;
+                }
+            }
+        }
+        return ICON_FA_FILE;
+    }
+
+    inline const char* GetAssetIcon(const std::filesystem::path& path) {
+        std::string ext = path.extension().string();
+
+        if (ext == ".meta" || ext == ".json" || ext == ".txt" || ext == ".md" || ext == ".log") {
+            return ICON_FA_FILE_LINES;
+        }
+        if (ext == ".fnt" || ext == ".ttf" || ext == ".otf") {
+            return ICON_FA_FONT;
+        }
+        if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac") {
+            return ICON_FA_FILE_AUDIO;
+        }
+
+        AssetType type = GetAssetTypeFromExtension(ext);
+        return GetIconFromAssetType(type);
     }
 
     inline std::string GetExtensionFromAssetType(AssetType type) {
