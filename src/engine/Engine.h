@@ -30,6 +30,17 @@ namespace engine {
 
     using namespace engine::ecs;
 
+    enum class SceneUpdateMode {
+        Active,
+        Paused
+    };
+
+    struct SceneEntry {
+        std::shared_ptr<Scene> scene;
+        SceneUpdateMode updateMode = SceneUpdateMode::Active;
+        uint32_t viewportIndex = 0; // Target offscreen framebuffer / viewport
+    };
+
     class Engine {
     public:
         Engine(plt::PlatformInterface* platformInterface,gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface);
@@ -39,10 +50,17 @@ namespace engine {
 
         // Scene management
         std::shared_ptr<Scene> CreateScene(const std::string& name);
+        std::shared_ptr<Scene> CreateScene(const std::string& name, SceneUpdateMode updateMode, uint32_t viewportIndex = 0);
         std::shared_ptr<Scene> GetScene(const std::string& name);
         void RemoveScene(const std::string& name);
         void SetActiveScene(const std::string& name);
         std::shared_ptr<Scene> GetActiveScene();
+
+        const std::unordered_map<std::string, SceneEntry>& GetScenes() const;
+        std::unordered_map<std::string, SceneEntry>& GetScenes();
+        std::optional<SceneEntry> GetSceneEntry(const std::string& name) const;
+        void SetSceneUpdateMode(const std::string& name, SceneUpdateMode mode);
+        void SetSceneViewportIndex(const std::string& name, uint32_t viewportIndex);
 
 
         // Global update loop
@@ -82,7 +100,7 @@ namespace engine {
         std::type_index GetComponentTypeFromID(ComponentTypeID id) const;
 
     private:
-        std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
+        std::unordered_map<std::string, SceneEntry> activeScenes;
         std::shared_ptr<Scene> activeScene = nullptr;
     };
 

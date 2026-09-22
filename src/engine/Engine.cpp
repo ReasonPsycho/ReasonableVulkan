@@ -67,12 +67,17 @@ namespace engine {
     }
 
     std::shared_ptr<Scene> Engine::CreateScene(const std::string& name) {
-        if (scenes.find(name) != scenes.end()) {
-            return scenes[name]; // Scene already exists, return it
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            return it->second.scene; // Scene already exists, return it
         }
 
-        auto scene = std::make_shared<Scene>(*this);  // Changed from (this) to (*this)
-        scenes[name] = scene;
+        auto scene = std::make_shared<Scene>(*this);
+        SceneEntry entry;
+        entry.scene = scene;
+        entry.updateMode = SceneUpdateMode::Active;
+        entry.viewportIndex = 0;
+        activeScenes[name] = entry;
 
         // Optionally set it active if it's the first one
         if (!activeScene) {
@@ -82,28 +87,54 @@ namespace engine {
         return scene;
     }
 
+    std::shared_ptr<Scene> Engine::CreateScene(const std::string& name, SceneUpdateMode updateMode, uint32_t viewportIndex) {
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            it->second.updateMode = updateMode;
+            it->second.viewportIndex = viewportIndex;
+            if (it->second.scene) {
+                it->second.scene->SetTargetViewportIndex(viewportIndex);
+            }
+            return it->second.scene;
+        }
+
+        auto scene = std::make_shared<Scene>(*this);
+        scene->SetTargetViewportIndex(viewportIndex);
+        SceneEntry entry;
+        entry.scene = scene;
+        entry.updateMode = updateMode;
+        entry.viewportIndex = viewportIndex;
+        activeScenes[name] = entry;
+
+        if (!activeScene) {
+            activeScene = scene;
+        }
+
+        return scene;
+    }
+
     std::shared_ptr<Scene> Engine::GetScene(const std::string& name) {
-        auto it = scenes.find(name);
-        if (it != scenes.end()) {
-            return it->second;
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            return it->second.scene;
         }
         return nullptr;
     }
 
     void Engine::RemoveScene(const std::string& name) {
-        auto it = scenes.find(name);
-        if (it != scenes.end()) {
-            if (activeScene == it->second) {
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            if (activeScene == it->second.scene) {
                 activeScene = nullptr;
             }
-            scenes.erase(it);
+            activeScenes.erase(it);
         }
     }
 
     void Engine::SetActiveScene(const std::string& name) {
-        auto it = scenes.find(name);
-        if (it != scenes.end()) {
-            activeScene = it->second;
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            activeScene = it->second.scene;
         }
     }
 
@@ -111,9 +142,56 @@ namespace engine {
         return activeScene;
     }
 
+    const std::unordered_map<std::string, SceneEntry>& Engine::GetScenes() const {
+        return activeScenes;
+    }
+
+    std::unordered_map<std::string, SceneEntry>& Engine::GetScenes() {
+        return activeScenes;
+    }
+
+    std::optional<SceneEntry> Engine::GetSceneEntry(const std::string& name) const {
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            return it->second;
+        }
+        return std::nullopt;
+    }
+
+    void Engine::SetSceneUpdateMode(const std::string& name, SceneUpdateMode mode) {
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            it->second.updateMode = mode;
+        }
+    }
+
+    void Engine::SetSceneViewportIndex(const std::string& name, uint32_t viewportIndex) {
+        auto it = activeScenes.find(name);
+        if (it != activeScenes.end()) {
+            it->second.viewportIndex = viewportIndex;
+            if (it->second.scene) {
+                it->second.scene->SetTargetViewportIndex(viewportIndex);
+            }
+        }
+    }
+
     void Engine::Update(float deltaTime) {
-        if (activeScene) {
-            activeScene->Update(deltaTime);
+        if (graphicsEngine) {
+            graphicsEngine->beginFrame();
+        }
+
+        // 1. Update all active scenes
+        for (auto& [name, entry] : activeScenes) {
+            if (entry.updateMode != SceneUpdateMode::Paused && entry.scene) {
+                entry.scene->Update(deltaTime);
+            }
+        }
+
+        // 2. Render global editor UI / ImGui (if enabled)
+        // (ImGui dockspace, model preview windows, etc.)
+
+        if (graphicsEngine) {
+            graphicsEngine->endFrame();
         }
     }
 
