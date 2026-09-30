@@ -63,10 +63,12 @@ Scene::Scene(Engine& engine): engine(engine)
 }
 
 void Scene::Update(float deltaTime) {
+    engine.graphicsEngine->beginFrame();
     for (auto& [_, system] : systems) {
-        ZoneTransientN(zoneName,(system->name).c_str(),true);
+    ZoneTransientN(zoneName,(system->name).c_str(),true);
         system->Update(deltaTime);
     }
+    engine.graphicsEngine->endFrame();
 }
 
 Entity Scene::CreateEntity(Entity parentEntity)
