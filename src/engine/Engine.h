@@ -42,8 +42,10 @@ namespace engine {
         std::shared_ptr<Scene> CreateScene(const std::string& name) override;
         std::shared_ptr<Scene> GetScene(const std::string& name) override;
         void RemoveScene(const std::string& name) override;
-        void SetActiveScene(const std::string& name) override;
+        void SetActiveScene(const std::string& name, bool active = true) override;
+        void SetSceneActive(const std::string& name, bool active) override;
         std::shared_ptr<Scene> GetActiveScene() override;
+        std::vector<std::shared_ptr<Scene>> GetActiveScenes() override;
 
 
         // Global update loop
@@ -84,7 +86,6 @@ namespace engine {
 
     private:
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
-        std::shared_ptr<Scene> activeScene = nullptr;
     };
 
 } // namespace engine

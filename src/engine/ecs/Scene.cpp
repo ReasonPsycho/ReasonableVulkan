@@ -62,6 +62,14 @@ Scene::Scene(Engine& engine): engine(engine)
     sceneId = boost::uuids::nil_uuid();
 }
 
+void Scene::SetActive(bool active) {
+    this->active = active;
+}
+
+bool Scene::IsActive() const {
+    return active;
+}
+
 void Scene::Update(float deltaTime) {
     engine.graphicsEngine->beginFrame();
     for (auto& [_, system] : systems) {

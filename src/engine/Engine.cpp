@@ -74,11 +74,6 @@ namespace engine {
         auto scene = std::make_shared<Scene>(*this);  // Changed from (this) to (*this)
         scenes[name] = scene;
 
-        // Optionally set it active if it's the first one
-        if (!activeScene) {
-            activeScene = scene;
-        }
-
         return scene;
     }
 
@@ -93,27 +88,46 @@ namespace engine {
     void Engine::RemoveScene(const std::string& name) {
         auto it = scenes.find(name);
         if (it != scenes.end()) {
-            if (activeScene == it->second) {
-                activeScene = nullptr;
-            }
             scenes.erase(it);
         }
     }
 
-    void Engine::SetActiveScene(const std::string& name) {
+    void Engine::SetActiveScene(const std::string& name, bool active) {
         auto it = scenes.find(name);
         if (it != scenes.end()) {
-            activeScene = it->second;
+            it->second->active = active;
         }
     }
 
+    void Engine::SetSceneActive(const std::string& name, bool active) {
+        SetActiveScene(name, active);
+    }
+
     std::shared_ptr<Scene> Engine::GetActiveScene() {
-        return activeScene;
+        for (const auto& [name, scene] : scenes) {
+            if (scene && scene->active) {
+                return scene;
+            }
+        }
+        return nullptr;
+    }
+
+    std::vector<std::shared_ptr<Scene>> Engine::GetActiveScenes() {
+        std::vector<std::shared_ptr<Scene>> activeScenes;
+        for (const auto& [name, scene] : scenes) {
+            if (scene && scene->active) {
+                activeScenes.push_back(scene);
+            }
+        }
+        return activeScenes;
     }
 
     void Engine::Update(float deltaTime) {
-        if (activeScene) {
-            activeScene->Update(deltaTime);
+        auto activeScenes = GetActiveScenes();
+        for (const auto& scene : activeScenes) {
+            if (scene && scene->active) {
+                scene->Update(deltaTime);
+            }
         }
     }
 
@@ -161,6 +175,13 @@ namespace engine {
 
     void Engine::SaveScene()
     {
+        auto activeScene = GetActiveScene();
+        if (!activeScene)
+        {
+            spdlog::error("No active scene to save.");
+            return;
+        }
+
         am::SceneAsset* sceneAsset = nullptr;
         auto assetInfo = assetManagerInterface->getAssetInfo(activeScene->sceneId);
         if (assetInfo)
@@ -201,9 +222,11 @@ namespace engine {
 
     void Engine::LoadScene(boost::uuids::uuid sceneId)
     {
+        auto activeScene = GetActiveScene();
         if (!activeScene)
         {
             activeScene = CreateScene("scene");
+            activeScene->active = true;
         }
 
         activeScene->sceneId = sceneId;

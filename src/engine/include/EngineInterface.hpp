@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 #include <boost/uuid/uuid.hpp>
 
 namespace plt {
@@ -36,8 +37,10 @@ namespace engine {
         virtual std::shared_ptr<ecs::Scene> CreateScene(const std::string& name) = 0;
         virtual std::shared_ptr<ecs::Scene> GetScene(const std::string& name) = 0;
         virtual void RemoveScene(const std::string& name) = 0;
-        virtual void SetActiveScene(const std::string& name) = 0;
+        virtual void SetActiveScene(const std::string& name, bool active = true) = 0;
+        virtual void SetSceneActive(const std::string& name, bool active) = 0;
         virtual std::shared_ptr<ecs::Scene> GetActiveScene() = 0;
+        virtual std::vector<std::shared_ptr<ecs::Scene>> GetActiveScenes() = 0;
 
         virtual void SaveScene() = 0;
         virtual void LoadScene(boost::uuids::uuid sceneId) = 0;
