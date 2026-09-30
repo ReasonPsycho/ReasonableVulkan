@@ -14,6 +14,7 @@
 #include "platform/include/PlatformInterface.hpp"
 #include "assetManager/src/AssetManager.hpp"
 #include "ecs/Scene.h"
+#include "EngineInterface.hpp"
 #include "engine/Engine.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/LightComponent.hpp"
@@ -64,13 +65,13 @@ int main(int argc, char *argv[]) {
     */
 
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
-    engine::Engine engine = engine::Engine(platform,vulkanRenderer,&assetManager);
-    engine.Initialize();
+    engine::EngineInterface* engine = new engine::Engine(platform, vulkanRenderer, &assetManager);
+    engine->Initialize();
 
 
     int width, height;
     platform->GetWindowSize(width, height);
-    vulkanRenderer->initialize(platform,width, height);
+    vulkanRenderer->initialize(platform, width, height);
 
     /*
     // 3. Initialize the graphics abstraction
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
     */
     // 4. Initialize game systems (ECS, scenes, etc.)
     /*
-    auto scene = engine.CreateScene("Main scene");
+    auto scene = engine->CreateScene("Main scene");
     auto uuid = assetManager.createAsset(am::AssetType::Scene,"C:/Users/redkc/CLionProjects/ReasonableVulkan/res/models/my/scene","scene");
     scene.get()->sceneId = uuid.value();
 
@@ -109,13 +110,15 @@ int main(int argc, char *argv[]) {
     spotLight.hasShadow = true;
     spotLight.setType(LightComponent::Type::Spot);
 
-    engine.SaveScene();
+    engine->SaveScene();
 
     */
 
     auto sceneId = assetManager.getAssetUuid("scene");
-    engine.LoadScene(sceneId.value());
-    engine.SaveScene();
+    if (sceneId) {
+        engine->LoadScene(sceneId.value());
+        engine->SaveScene();
+    }
 
     // 5. Main loop
     bool running = true;
@@ -123,14 +126,17 @@ int main(int argc, char *argv[]) {
         platform->PollEvents(running); // sets `running` to false on quit
 
         float deltaTime = platform->GetDeltaTime();
-        engine.Update(deltaTime);     // game logic
+        engine->Update(deltaTime);     // game logic
     }
 
     // 6. Shutdown
     /*game::Shutdown();
     gfx::Shutdown();
     vulkan::Shutdown();*/
+    delete engine;
+    delete vulkanRenderer;
     platform->Shutdown();
+    delete platform;
 
     return EXIT_SUCCESS;
 }

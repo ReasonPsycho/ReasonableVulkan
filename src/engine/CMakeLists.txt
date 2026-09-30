@@ -44,7 +44,7 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
 # Create the interface target
 add_library(engine_interface INTERFACE)
-target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(engine_interface INTERFACE vks_interface am_interface platform_interface)
 
 # Create static library
@@ -52,6 +52,8 @@ add_library(engine STATIC ${BASE_SRC})
 
 # Configure include directories
 target_include_directories(engine
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

@@ -19,6 +19,7 @@
 #include "ecs/componentArrays/IntegralComponentArray.h"
 #include "ecs/componentArrays/ComponentArray.h"
 #include "ecs/SystemBase.h"
+#include "EngineInterface.hpp"
 
 namespace engine {
     namespace ecs
@@ -30,23 +31,23 @@ namespace engine {
 
     using namespace engine::ecs;
 
-    class Engine {
+    class Engine : public EngineInterface{
     public:
-        Engine(plt::PlatformInterface* platformInterface,gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface);
-        ~Engine() = default;
+        Engine(plt::PlatformInterface* platformInterface, gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface);
+        ~Engine() override = default;
 
-        void Initialize();
+        void Initialize() override;
 
         // Scene management
-        std::shared_ptr<Scene> CreateScene(const std::string& name);
-        std::shared_ptr<Scene> GetScene(const std::string& name);
-        void RemoveScene(const std::string& name);
-        void SetActiveScene(const std::string& name);
-        std::shared_ptr<Scene> GetActiveScene();
+        std::shared_ptr<Scene> CreateScene(const std::string& name) override;
+        std::shared_ptr<Scene> GetScene(const std::string& name) override;
+        void RemoveScene(const std::string& name) override;
+        void SetActiveScene(const std::string& name) override;
+        std::shared_ptr<Scene> GetActiveScene() override;
 
 
         // Global update loop
-        void Update(float deltaTime);
+        void Update(float deltaTime) override;
 
         am::AssetManagerInterface* assetManagerInterface;
         gfx::GraphicsEngine* graphicsEngine;
@@ -64,8 +65,8 @@ namespace engine {
         std::shared_ptr<IComponentArray> CreateComponentArray(const std::type_index& type) const;
         std::shared_ptr<SystemBase> CreateSystem(const std::type_index& type, Scene* scene) const;
 
-        void SaveScene();
-        void LoadScene(boost::uuids::uuid sceneId);
+        void SaveScene() override;
+        void LoadScene(boost::uuids::uuid sceneId) override;
 
         // Get registered types
         const std::set<std::type_index>& GetRegisteredComponentTypes() const;
