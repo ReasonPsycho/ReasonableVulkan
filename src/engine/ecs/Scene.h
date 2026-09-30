@@ -102,13 +102,18 @@ namespace engine::ecs
 
         const      std::unordered_map<std::type_index, std::shared_ptr<SystemBase>>GetSystems();
 
-        //Scene Graph
+        // Scene Graph
         void SetParent(Entity child, Entity parent);
         void RemoveParent(Entity child);
         Entity GetParent(Entity entity) const;
         const std::vector<Entity>& GetChildren(Entity entity) const;
         bool HasParent(Entity entity) const;
         bool IsAncestor(Entity potentialAncestor, Entity entity) const;
+
+        // Active state
+        void SetActive(bool active);
+        bool IsActive() const;
+        bool active = false;
 
         void SerializeToJson(rapidjson::Document& doc) const;
         void DeserializeFromJson(const rapidjson::Document& doc);

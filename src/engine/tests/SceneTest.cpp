@@ -426,3 +426,73 @@ BOOST_AUTO_TEST_CASE(StaticReflectionAndSerializationTest) {
     BOOST_REQUIRE_EQUAL(inspDoc["hiddenField"].GetInt(), 100);
     BOOST_REQUIRE(inspDoc.HasMember("visibleField"));
 }
+
+BOOST_AUTO_TEST_CASE(MultipleActiveScenesTest) {
+    Engine& engine = Engine::GetInstance();
+
+    auto scene1 = engine.CreateScene("Scene1");
+    auto scene2 = engine.CreateScene("Scene2");
+    auto scene3 = engine.CreateScene("Scene3");
+
+    BOOST_REQUIRE(scene1);
+    BOOST_REQUIRE(scene2);
+    BOOST_REQUIRE(scene3);
+
+    // Initial state: inactive
+    BOOST_REQUIRE(!scene1->IsActive());
+    BOOST_REQUIRE(!scene2->IsActive());
+    BOOST_REQUIRE(!scene3->IsActive());
+    BOOST_REQUIRE_EQUAL(engine.GetActiveScenes().size(), 0);
+
+    // Activate scene1 and scene2
+    engine.SetActiveScene("Scene1");
+    scene2->SetActive(true);
+
+    BOOST_REQUIRE(scene1->IsActive());
+    BOOST_REQUIRE(scene2->IsActive());
+    BOOST_REQUIRE(!scene3->IsActive());
+
+    auto activeScenes = engine.GetActiveScenes();
+    BOOST_REQUIRE_EQUAL(activeScenes.size(), 2);
+
+    // Register position component & movement system on scenes
+    scene1->RegisterComponent<Position>();
+    auto moveSys1 = scene1->RegisterSystem<MovementSystem>();
+    Entity e1 = scene1->CreateEntity();
+    scene1->AddComponent<Position>(e1, {10.0f, 20.0f});
+
+    scene2->RegisterComponent<Position>();
+    auto moveSys2 = scene2->RegisterSystem<MovementSystem>();
+    Entity e2 = scene2->CreateEntity();
+    scene2->AddComponent<Position>(e2, {100.0f, 200.0f});
+
+    scene3->RegisterComponent<Position>();
+    auto moveSys3 = scene3->RegisterSystem<MovementSystem>();
+    Entity e3 = scene3->CreateEntity();
+    scene3->AddComponent<Position>(e3, {1.0f, 2.0f});
+
+    // Update active scenes
+    scene1->Update(1.0f);
+    scene2->Update(1.0f);
+    BOOST_REQUIRE_EQUAL(scene1->GetComponent<Position>(e1).x, 11.0f);
+    BOOST_REQUIRE_EQUAL(scene2->GetComponent<Position>(e2).x, 101.0f);
+    BOOST_REQUIRE_EQUAL(scene3->GetComponent<Position>(e3).x, 1.0f); // Inactive scene unchanged
+
+    // Deactivate scene1
+    engine.SetActiveScene("Scene1", false);
+    BOOST_REQUIRE(!scene1->IsActive());
+    BOOST_REQUIRE(scene2->IsActive());
+    BOOST_REQUIRE_EQUAL(engine.GetActiveScenes().size(), 1);
+    BOOST_REQUIRE_EQUAL(engine.GetActiveScenes()[0], scene2);
+
+    // Deactivate scene2 via SetSceneActive
+    engine.SetSceneActive("Scene2", false);
+    BOOST_REQUIRE(!scene2->IsActive());
+    BOOST_REQUIRE_EQUAL(engine.GetActiveScenes().size(), 0);
+    BOOST_REQUIRE(engine.GetActiveScene() == nullptr);
+
+    // Cleanup
+    engine.RemoveScene("Scene1");
+    engine.RemoveScene("Scene2");
+    engine.RemoveScene("Scene3");
+}
