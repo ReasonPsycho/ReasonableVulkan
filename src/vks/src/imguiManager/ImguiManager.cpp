@@ -147,7 +147,10 @@ namespace vks
 
     VkDescriptorSet ImguiManager::getTexture(uint32_t cameraIndex, uint32_t imageIndex)
     {
-        return cameraImguiTextureIDs[cameraIndex][imageIndex];
+        if (cameraIndex < cameraImguiTextureIDs.size() && imageIndex < cameraImguiTextureIDs[cameraIndex].size()) {
+            return cameraImguiTextureIDs[cameraIndex][imageIndex];
+        }
+        return VK_NULL_HANDLE;
     }
 
     VkDescriptorSet ImguiManager::getTexture(uint32_t imageIndex)

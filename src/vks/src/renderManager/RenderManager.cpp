@@ -250,6 +250,7 @@ void RenderManager::createCommandBuffers() {
 }
 
 void RenderManager::beginFrame() {
+    activeCameraCount = 0;
     vkWaitForFences(context->getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     VkResult result = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
@@ -541,7 +542,8 @@ void RenderManager::endFrame() {
         });
 
         // Loop through all active cameras
-        for (uint32_t i = 0; i < activeCameraCount; ++i) {
+        uint32_t cameraCountToRender = std::max(1u, activeCameraCount);
+        for (uint32_t i = 0; i < cameraCountToRender; ++i) {
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderPassInfo.renderPass = pipelineManager->getRenderPass();

@@ -471,9 +471,8 @@ BOOST_AUTO_TEST_CASE(MultipleActiveScenesTest) {
     Entity e3 = scene3->CreateEntity();
     scene3->AddComponent<Position>(e3, {1.0f, 2.0f});
 
-    // Update active scenes
-    scene1->Update(1.0f);
-    scene2->Update(1.0f);
+    // Update active scenes via engine.Update
+    engine.Update(1.0f);
     BOOST_REQUIRE_EQUAL(scene1->GetComponent<Position>(e1).x, 11.0f);
     BOOST_REQUIRE_EQUAL(scene2->GetComponent<Position>(e2).x, 101.0f);
     BOOST_REQUIRE_EQUAL(scene3->GetComponent<Position>(e3).x, 1.0f); // Inactive scene unchanged
@@ -495,4 +494,55 @@ BOOST_AUTO_TEST_CASE(MultipleActiveScenesTest) {
     engine.RemoveScene("Scene1");
     engine.RemoveScene("Scene2");
     engine.RemoveScene("Scene3");
+}
+
+BOOST_AUTO_TEST_CASE(EngineEditorSystemAndMultiSceneTest) {
+    Engine& engine = Engine::GetInstance();
+    engine.Initialize();
+
+    // EditorSystem should belong to engine
+    auto editorSystem = engine.GetEditorSystem();
+    BOOST_REQUIRE(editorSystem != nullptr);
+    BOOST_REQUIRE_EQUAL(editorSystem->engine, &engine);
+
+    // Create multiple scenes
+    auto sceneA = engine.CreateScene("LevelA");
+    auto sceneB = engine.CreateScene("LevelB");
+    BOOST_REQUIRE(sceneA);
+    BOOST_REQUIRE(sceneB);
+    BOOST_REQUIRE_EQUAL(sceneA->GetName(), "LevelA");
+    BOOST_REQUIRE_EQUAL(sceneB->GetName(), "LevelB");
+
+    // EditorSystem should NOT be registered as a per-scene system in scenes
+    auto systemsA = sceneA->GetSystems();
+    bool hasEditorInSceneA = false;
+    for (const auto& [typeIdx, sys] : systemsA) {
+        if (sys->name == "EditorSystem") {
+            hasEditorInSceneA = true;
+        }
+    }
+    BOOST_REQUIRE(!hasEditorInSceneA);
+
+    // Target scene in EditorSystem
+    editorSystem->SetTargetScene(sceneA);
+    BOOST_REQUIRE_EQUAL(editorSystem->GetTargetScene(), sceneA.get());
+
+    Entity ea = sceneA->CreateEntity();
+    editorSystem->SetSelectedEntity(ea);
+    BOOST_REQUIRE_EQUAL(editorSystem->GetSelectedEntity(), ea);
+
+    editorSystem->SetEntityName(ea, "Hero", sceneA.get());
+    BOOST_REQUIRE_EQUAL(editorSystem->GetEntityRawName(ea, sceneA.get()), "Hero");
+
+    // Switch target scene to sceneB
+    editorSystem->SetTargetScene(sceneB);
+    BOOST_REQUIRE_EQUAL(editorSystem->GetTargetScene(), sceneB.get());
+
+    Entity eb = sceneB->CreateEntity();
+    editorSystem->SetEntityName(eb, "Villain", sceneB.get());
+    BOOST_REQUIRE_EQUAL(editorSystem->GetEntityRawName(eb, sceneB.get()), "Villain");
+
+    // Cleanup
+    engine.RemoveScene("LevelA");
+    engine.RemoveScene("LevelB");
 }

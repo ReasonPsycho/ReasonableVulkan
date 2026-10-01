@@ -192,14 +192,14 @@ namespace vks
 
         // Scene pool
         std::vector<VkDescriptorPoolSize> scenePoolSizes = {
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10}, // For camera and lighting uniforms
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 32}, // For camera and lighting uniforms
         };
 
         VkDescriptorPoolCreateInfo scenePoolInfo{};
         scenePoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         scenePoolInfo.poolSizeCount = static_cast<uint32_t>(scenePoolSizes.size());
         scenePoolInfo.pPoolSizes = scenePoolSizes.data();
-        scenePoolInfo.maxSets = 10;
+        scenePoolInfo.maxSets = 32;
 
         if (vkCreateDescriptorPool(context->getDevice(), &scenePoolInfo, nullptr, &scenePool) != VK_SUCCESS)
         {
@@ -736,7 +736,7 @@ namespace vks
 
     void DescriptorManager::createSceneUBO()
     {
-        uint32_t maxCameras = 4; // Scale up to 4 cameras for now
+        uint32_t maxCameras = 16;
         sceneUBOs.resize(maxCameras);
 
         for (uint32_t i = 0; i < maxCameras; i++) {

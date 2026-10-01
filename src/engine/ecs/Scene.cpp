@@ -71,12 +71,10 @@ bool Scene::IsActive() const {
 }
 
 void Scene::Update(float deltaTime) {
-    engine.graphicsEngine->beginFrame();
     for (auto& [_, system] : systems) {
-    ZoneTransientN(zoneName,(system->name).c_str(),true);
+        ZoneTransientN(zoneName,(system->name).c_str(),true);
         system->Update(deltaTime);
     }
-    engine.graphicsEngine->endFrame();
 }
 
 Entity Scene::CreateEntity(Entity parentEntity)
@@ -262,9 +260,9 @@ void Scene::SetEntityName(Entity entity, const std::string& name)
         AddComponent<NameComponent>(entity, NameComponent{name});
     }
 
-    auto editorSystem = GetSystem<engine::ecs::EditorSystem>();
+    auto editorSystem = engine.GetEditorSystem();
     if (editorSystem) {
-        editorSystem->SetEntityName(entity, name);
+        editorSystem->SetEntityName(entity, name, this);
     }
 }
 
@@ -482,9 +480,10 @@ CameraObject Scene::GetActiveCamera()
         static TransformComponent defaultTransform;
         static CameraComponent defaultCamera;
 
-        if (GetSystem<EditorSystem>()->inEditMode)
+        auto editorSystem = engine.GetEditorSystem();
+        if (editorSystem && editorSystem->inEditMode && editorSystem->GetTargetScene() == this)
         {
-            return {&GetSystem<EditorSystem>()->camera, &GetSystem<EditorSystem>()->cameraTransform};
+            return {&editorSystem->camera, &editorSystem->cameraTransform};
         }
         else
         {

@@ -607,7 +607,7 @@ namespace vks
 
     void RenderPipelineManager::createFramebuffers(VkExtent2D swapChainExtent)
     {
-        uint32_t maxCameras = 4;
+        uint32_t maxCameras = 16;
         if (cameraResources.size() < maxCameras) {
             cameraResources.resize(maxCameras);
         }
@@ -654,7 +654,7 @@ namespace vks
     {
         cleanupOffscreenResources();
 
-        uint32_t maxCameras = 4;
+        uint32_t maxCameras = 16;
         cameraResources.resize(maxCameras);
 
         uint32_t imageCount = static_cast<uint32_t>(swapChain->getImageViews().size());
@@ -1090,7 +1090,7 @@ namespace vks
     {
         VkFormat depthFormat = VK_FORMAT_D32_SFLOAT; // Should match the format in createRenderPass
 
-        uint32_t maxCameras = 4;
+        uint32_t maxCameras = 16;
         if (cameraResources.size() < maxCameras) {
             cameraResources.resize(maxCameras);
         }

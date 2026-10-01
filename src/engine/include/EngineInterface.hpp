@@ -24,6 +24,7 @@ namespace am {
 
 namespace engine::ecs {
     class Scene;
+    class EditorSystem;
 }
 
 namespace engine {
@@ -41,6 +42,10 @@ namespace engine {
         virtual void SetSceneActive(const std::string& name, bool active) = 0;
         virtual std::shared_ptr<ecs::Scene> GetActiveScene() = 0;
         virtual std::vector<std::shared_ptr<ecs::Scene>> GetActiveScenes() = 0;
+        virtual const std::unordered_map<std::string, std::shared_ptr<ecs::Scene>>& GetScenes() const = 0;
+        virtual std::unordered_map<std::string, std::shared_ptr<ecs::Scene>>& GetScenes() = 0;
+
+        virtual std::shared_ptr<ecs::EditorSystem> GetEditorSystem() = 0;
 
         virtual void SaveScene() = 0;
         virtual void LoadScene(boost::uuids::uuid sceneId) = 0;
