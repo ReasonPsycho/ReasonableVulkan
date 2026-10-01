@@ -54,6 +54,7 @@ int main(int argc, char *argv[]) {
         engine->LoadScene(sceneId.value());
     }
 
+    assetManager.setEngine(engine);
     // 5. Main loop
     bool running = true;
     while (running) {

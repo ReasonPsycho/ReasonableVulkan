@@ -5,10 +5,14 @@
 #ifndef ASSETMANAGERINTERFACE_H
 #define ASSETMANAGERINTERFACE_H
 #include <any>
+#include <filesystem>
 #include <boost/uuid/uuid.hpp>
 #include "AssetInfo.hpp"
 #include "PlatformInterface.hpp"
 
+namespace engine {
+    class EngineInterface;
+}
 
 namespace am
 {
@@ -16,6 +20,9 @@ namespace am
     public:
         virtual void Initialize(plt::PlatformInterface* platformInterface) = 0;
         virtual ~AssetManagerInterface() = default;
+
+        virtual void setEngine(engine::EngineInterface* engineInterface) = 0;
+        virtual std::optional<boost::uuids::uuid> getAssetUuidByPath(const std::filesystem::path& path) = 0;
 
         virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) = 0;
         virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookUpName) = 0;

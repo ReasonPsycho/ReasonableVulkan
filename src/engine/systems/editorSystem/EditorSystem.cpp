@@ -691,6 +691,7 @@ void EditorSystem::ImGuiSceneGraph()
 
     Scene* targetScene = GetTargetScene();
 
+    std::string sceneToClose;
     for (auto& [sceneName, scn] : engine->GetScenes())
     {
         if (!scn) continue;
@@ -727,6 +728,10 @@ void EditorSystem::ImGuiSceneGraph()
             {
                 scn->SetActive(!isCurrentActive);
             }
+            if (ImGui::MenuItem("Close Scene"))
+            {
+                sceneToClose = sceneName;
+            }
             ImGui::EndPopup();
         }
 
@@ -740,6 +745,20 @@ void EditorSystem::ImGuiSceneGraph()
             ImGui::TreePop();
         }
         ImGui::PopID();
+    }
+
+    if (!sceneToClose.empty())
+    {
+        if (auto currentSelected = selectedScene.lock())
+        {
+            if (currentSelected->GetName() == sceneToClose)
+            {
+                selectedScene.reset();
+                selectedEntity = std::numeric_limits<std::uint32_t>::max();
+                renamingEntity = std::numeric_limits<std::uint32_t>::max();
+            }
+        }
+        engine->CloseScene(sceneToClose);
     }
 
     if (targetScene && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && selectedEntity != std::numeric_limits<std::uint32_t>::max() && renamingEntity == std::numeric_limits<std::uint32_t>::max())

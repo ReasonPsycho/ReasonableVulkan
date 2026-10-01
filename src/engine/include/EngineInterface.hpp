@@ -49,6 +49,8 @@ namespace engine {
 
         virtual void SaveScene() = 0;
         virtual void LoadScene(boost::uuids::uuid sceneId) = 0;
+        virtual void CloseScene(const std::string& name) = 0;
+        virtual void CloseScene(boost::uuids::uuid sceneId) = 0;
 
         // Global update loop
         virtual void Update(float deltaTime) = 0;
