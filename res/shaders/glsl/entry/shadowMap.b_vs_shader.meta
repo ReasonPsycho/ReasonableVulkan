@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "47c405c2-705c-4e21-a781-afe793396ae4",
+  "path": "res/shaders/glsl/entry/shadowMap.b_vs_shader",
+  "type": "Shader",
+  "lookUpName": "shadowMap.shader",
+  "contentHash": 1124843935182183586,
+  "assetFactoryData": {
+    "importPath": "res/shaders/glsl/entry/shadowMap.vert",
+    "assetType": "Shader",
+    "assimpIndex": 0
+  }
+}

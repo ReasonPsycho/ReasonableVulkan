@@ -112,6 +112,7 @@ namespace am {
             lookupNamesToUUIDs.insert(std::make_pair(lookupName, id));
             assets[id] = std::move(newAsset);
             metadata[id]->loadedAsset = assets[id].get();
+            saveAssetMetadata(id);
             return id;
         }
         catch (std::exception& e)
@@ -164,7 +165,7 @@ std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path)
 std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boost::uuids::uuid &id) const {
     auto it = metadata.find(id);
     if (it != metadata.end()) return it->second;
-    spdlog::error("No asset found!");
+    spdlog::error("No asset found with id: {}", boost::uuids::to_string(id));
     return std::nullopt;
 }
 
@@ -213,17 +214,20 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         if (!info)
         {
             spdlog::error("No asset info found with id: {}", boost::uuids::to_string(id));
+            return;
         }
         auto asset = getAsset(id);
         if (!asset)
         {
             spdlog::error("No asset found with id: {}", boost::uuids::to_string(id));
+            return;
         }
 
         if (GetEditorSavesToBin(info.value()->type))
         {
             asset.value()->SaveAssetToBin(info.value()->path);
-        } else {
+        }else
+        {
             rapidjson::Document document;
             document.SetObject();
 
@@ -239,6 +243,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
             saveJsonToFile(info.value()->path, document);
         }
+        saveAssetMetadata(id);
     }
 
     void AssetManager::saveAsset(std::string lookupName)
@@ -249,6 +254,85 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         } else {
             spdlog::error("No asset found with lookup name: {}", lookupName);
             return;
+        }
+    }
+
+    void AssetManager::scanResourceDirectory(const std::filesystem::path& rootPath)
+    {
+        if (!std::filesystem::exists(rootPath)) {
+            spdlog::warn("Resource folder does not exist: {}", rootPath.string());
+            return;
+        }
+
+        metadata.clear();
+        lookupNamesToUUIDs.clear();
+        assets.clear();
+
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(rootPath))
+        {
+            if (!entry.is_regular_file()) continue;
+
+            const auto& path = entry.path();
+            if (path.extension() == ".meta")
+            {
+                rapidjson::Document doc;
+                if (loadJsonFromFile(path.string(), doc))
+                {
+                    if (doc.IsObject() && doc.HasMember("id") && doc.HasMember("type"))
+                    {
+                        auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(doc);
+
+                        std::string metaPathStr = path.lexically_normal().string();
+                        std::string actualAssetPath = metaPathStr.substr(0, metaPathStr.length() - 5);
+
+                        std::error_code ec;
+                        if (std::filesystem::exists(actualAssetPath, ec)) {
+                            assetInfo.path = actualAssetPath;
+                        } else if (assetInfo.path.empty() || !std::filesystem::exists(assetInfo.path, ec)) {
+                            assetInfo.path = actualAssetPath;
+                        } else {
+                            assetInfo.path = std::filesystem::path(assetInfo.path).lexically_normal().string();
+                        }
+
+                        auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+                        metadata[infoPtr->id] = infoPtr;
+                        lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                    }
+                }
+            }
+        }
+        spdlog::info("Scanned resource directory '{}', loaded {} assets.", rootPath.string(), metadata.size());
+    }
+
+    bool AssetManager::saveAssetMetadata(const boost::uuids::uuid& assetId) const
+    {
+        auto it = metadata.find(assetId);
+        if (it == metadata.end()) {
+            spdlog::error("Cannot save metadata: no asset found with id {}", boost::uuids::to_string(assetId));
+            return false;
+        }
+
+        std::string metaPath = it->second->path + ".meta";
+        rapidjson::Document document;
+        document.SetObject();
+        auto& allocator = document.GetAllocator();
+
+        // Add encoding information
+        rapidjson::Value encodingInfo(rapidjson::kObjectType);
+        encodingInfo.AddMember("encoding", "UTF-8", allocator);
+        encodingInfo.AddMember("version", "1.0", allocator);
+        document.AddMember("_meta", encodingInfo, allocator);
+
+        it->second->SerializeAssetInfoToJson(document, allocator);
+
+        return saveJsonToFile(metaPath, document);
+    }
+
+    void AssetManager::saveAllAssetMetadata() const
+    {
+        for (const auto& [id, info] : metadata)
+        {
+            saveAssetMetadata(id);
         }
     }
 
@@ -309,6 +393,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     AssetManager::AssetManager() : AssetManagerInterface()
     {
+        if (std::filesystem::exists("res")) {
+            resourceFolder = std::filesystem::absolute("res").lexically_normal().string();
+        } else if (std::filesystem::exists("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res")) {
+            resourceFolder = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
+        }
         currentPath = resourceFolder;
 
         // Auto-register all supported engine assets at compile time using reflection
@@ -316,11 +405,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             this->RegisterAssetType<T>();
         });
 
-        loadRegistryMetadataFromFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\metadatas.json");
+        scanResourceDirectory(resourceFolder);
     }
 
     AssetManager::~AssetManager() {
-        saveRegistryMetadataToFile("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\metadatas.json");
+        saveAllAssetMetadata();
     }
 
     std::string incrementSuffix(const std::string& suffix)
@@ -375,6 +464,29 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     {
         auto filePath = event->filePath;
         auto ext = std::filesystem::path(filePath).extension().string();
+
+        if (ext == ".meta")
+        {
+            rapidjson::Document doc;
+            if (loadJsonFromFile(filePath, doc))
+            {
+                if (doc.IsObject() && doc.HasMember("id") && doc.HasMember("type"))
+                {
+                    auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(doc);
+                    std::string metaPathStr = std::filesystem::path(filePath).lexically_normal().string();
+                    std::string actualAssetPath = metaPathStr.substr(0, metaPathStr.length() - 5);
+                    std::error_code ec;
+                    if (std::filesystem::exists(actualAssetPath, ec)) {
+                        assetInfo.path = actualAssetPath;
+                    }
+                    auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+                    metadata[infoPtr->id] = infoPtr;
+                    lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                }
+            }
+            return;
+        }
+
         auto assetOwnership = StringToAssetOwnership(ext);
 
         if (assetOwnership == AssetOwnership::Managed)
@@ -491,6 +603,21 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
         if (std::filesystem::exists(normalPath))
         {
+            std::filesystem::path metaPath = normalPath.string() + ".meta";
+            if (std::filesystem::exists(metaPath)) {
+                rapidjson::Document doc;
+                if (loadJsonFromFile(metaPath.string(), doc)) {
+                    if (doc.IsObject() && doc.HasMember("id") && doc.HasMember("type")) {
+                        auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(doc);
+                        assetInfo.path = normalPath.string();
+                        auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+                        metadata[infoPtr->id] = infoPtr;
+                        lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                        return infoPtr->id;
+                    }
+                }
+            }
+
             auto ext = normalPath.extension().string();
             AssetType assetType = GetAssetTypeFromExtension(ext);
             if (assetType == AssetType::Scene)
@@ -504,6 +631,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         auto assetInfo = std::make_shared<AssetInfo>(fileId, normalPath.string(), AssetType::Scene, 0, ImportContext(normalPath.string(), AssetType::Scene, 0), stemName);
                         metadata[fileId] = assetInfo;
                         lookupNamesToUUIDs[stemName] = fileId;
+                        saveAssetMetadata(fileId);
                         return fileId;
                     }
                 }
@@ -610,6 +738,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 for (const auto& entry : std::filesystem::directory_iterator(currentPath))
                 {
                     const auto& path = entry.path();
+                    if (path.extension() == ".meta") {
+                        continue;
+                    }
                     std::string filename = path.filename().string();
 
                     ImGui::PushID(i++);
@@ -795,6 +926,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             assets[id] = std::move(newAsset);
             info->loadedAsset = assets[id].get();
             lookupNamesToUUIDs[lookUpName] = id;
+            saveAssetMetadata(id);
             return id;
         }
         catch (std::exception& e)

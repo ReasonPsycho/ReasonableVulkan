@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "9c3ba401-28db-4815-aeb7-30ab14a0565d",
+  "path": "res/shaders/jsons/raycast.shaderprogram",
+  "type": "ShaderProgram",
+  "lookUpName": "raycastShader",
+  "contentHash": 14789617359017068707,
+  "assetFactoryData": {
+    "importPath": "res/shaders/jsons/raycast.shaderImport",
+    "assetType": "ShaderProgram",
+    "assimpIndex": 0
+  }
+}

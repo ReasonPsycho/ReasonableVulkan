@@ -132,6 +132,11 @@ namespace am {
         template <typename T>
         void RegisterAssetType();
 
+        //Scanning & Metadata
+        void scanResourceDirectory(const std::filesystem::path& rootPath);
+        bool saveAssetMetadata(const boost::uuids::uuid& id) const;
+        void saveAllAssetMetadata() const;
+
         //Json
         bool saveRegistryMetadataToFile(const std::string& filename) const;
         bool loadRegistryMetadataFromFile(const std::string& filename);

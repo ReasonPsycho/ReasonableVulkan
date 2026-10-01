@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "58ece0f4-745f-4010-aabc-898376801d1e",
+  "path": "res/models/my/scene.scene",
+  "type": "Scene",
+  "lookUpName": "scene",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Scene",
+    "assimpIndex": 0
+  }
+}

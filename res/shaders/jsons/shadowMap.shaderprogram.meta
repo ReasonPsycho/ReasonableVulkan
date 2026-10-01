@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "82dc6362-6bf7-4a1c-b71f-3ad89519fceb",
+  "path": "res/shaders/jsons/shadowMap.shaderprogram",
+  "type": "ShaderProgram",
+  "lookUpName": "shadowMapShader",
+  "contentHash": 2571655601188445911,
+  "assetFactoryData": {
+    "importPath": "res/shaders/jsons/shadowMap.shaderImport",
+    "assetType": "ShaderProgram",
+    "assimpIndex": 0
+  }
+}

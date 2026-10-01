@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "087cd864-26dd-4f8d-9c93-127614c0c9ab",
+  "path": "res/shaders/glsl/entry/raycast.b_fs_shader",
+  "type": "Shader",
+  "lookUpName": "raycast.shader",
+  "contentHash": 14484873410992813000,
+  "assetFactoryData": {
+    "importPath": "res/shaders/glsl/entry/raycast.frag",
+    "assetType": "Shader",
+    "assimpIndex": 0
+  }
+}
