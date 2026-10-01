@@ -656,6 +656,26 @@ void EditorSystem::ImGuiSceneGraph()
 
     if (ImGui::BeginMenuBar())
     {
+        if (ImGui::Button("New Scene"))
+        {
+            if (engine)
+            {
+                std::string baseName = "New Scene";
+                std::string sceneName = baseName;
+                int counter = 1;
+                while (engine->GetScenes().find(sceneName) != engine->GetScenes().end())
+                {
+                    sceneName = baseName + " " + std::to_string(counter++);
+                }
+                auto newScene = engine->CreateScene(sceneName);
+                if (newScene)
+                {
+                    newScene->SetActive(true);
+                    selectedScene = newScene;
+                    selectedEntity = std::numeric_limits<std::uint32_t>::max();
+                }
+            }
+        }
         if (ImGui::Button("Save Scene"))
         {
             if (engine) engine->SaveScene();
