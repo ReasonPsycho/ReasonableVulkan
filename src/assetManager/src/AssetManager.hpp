@@ -19,6 +19,7 @@
 
 #include "AssetManagerInterface.h"
 #include "../include/AssetInfo.hpp"
+#include "EngineInterface.hpp"
 
 
 #include <rapidjson/document.h>
@@ -62,6 +63,7 @@ namespace am {
     public:
 
         void Initialize(plt::PlatformInterface* platformInterface) override;
+        void setEngine(engine::EngineInterface* engineInterface) override;
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
         static AssetManager &getInstance();
@@ -103,6 +105,7 @@ namespace am {
 
         //Getters
         std::optional<boost::uuids::uuid> getAssetUuid(std::string lookupName) override;
+        std::optional<boost::uuids::uuid> getAssetUuidByPath(const std::filesystem::path& path) override;
 
         std::any getAssetData(const boost::uuids::uuid& id) override;
         std::any getAssetData(std::string lookupName) override;
@@ -141,6 +144,7 @@ namespace am {
         void handleFileAddedToFolder(const plt::FileAddedEvent* event);
         void handleFileDropped(const plt::FileDropEvent* event);
 
+        engine::EngineInterface* engine = nullptr;
         std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;

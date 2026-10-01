@@ -51,6 +51,9 @@ namespace engine {
         am::AssetManagerInterface* assetManagerInterface) : assetManagerInterface(assetManagerInterface), graphicsEngine(graphicsEngine),
                                                             platform(platformInterface)
     {
+        if (this->assetManagerInterface) {
+            this->assetManagerInterface->setEngine(this);
+        }
     }
 
     void Engine::Initialize()
@@ -278,5 +281,33 @@ namespace engine {
             return;
         }
 
+    }
+
+    void Engine::CloseScene(const std::string& name)
+    {
+        RemoveScene(name);
+    }
+
+    void Engine::CloseScene(boost::uuids::uuid sceneId)
+    {
+        std::string sceneNameToRemove;
+        for (const auto& [name, scene] : scenes) {
+            if (scene && scene->sceneId == sceneId && !sceneId.is_nil()) {
+                sceneNameToRemove = name;
+                break;
+            }
+        }
+        if (sceneNameToRemove.empty() && assetManagerInterface) {
+            auto assetInfo = assetManagerInterface->getAssetInfo(sceneId);
+            if (assetInfo) {
+                auto it = scenes.find(assetInfo->get()->lookUpName);
+                if (it != scenes.end()) {
+                    sceneNameToRemove = it->first;
+                }
+            }
+        }
+        if (!sceneNameToRemove.empty()) {
+            RemoveScene(sceneNameToRemove);
+        }
     }
 } // namespace engine

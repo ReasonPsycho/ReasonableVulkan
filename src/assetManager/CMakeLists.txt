@@ -43,7 +43,7 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
 # Create the interface target
 add_library(am_interface INTERFACE)
-target_include_directories(am_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(am_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include "${CMAKE_SOURCE_DIR}/src/engine/include")
 target_link_libraries(am_interface INTERFACE platform_interface Boost::uuid)
 
 # Configuration for resource directory
@@ -58,6 +58,7 @@ add_library(am STATIC ${BASE_SRC})
 target_include_directories(am
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/engine/include
         ${Stb_INCLUDE_DIR}
 )
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)

@@ -446,6 +446,74 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     }
 
 
+    void AssetManager::setEngine(engine::EngineInterface* engineInterface)
+    {
+        this->engine = engineInterface;
+    }
+
+    std::optional<boost::uuids::uuid> AssetManager::getAssetUuidByPath(const std::filesystem::path& path)
+    {
+        std::filesystem::path normalPath = path.lexically_normal();
+
+        for (const auto& [id, info] : metadata)
+        {
+            if (std::filesystem::path(info->path).lexically_normal() == normalPath)
+            {
+                return id;
+            }
+        }
+
+        for (const auto& [id, info] : metadata)
+        {
+            std::error_code ec;
+            if (std::filesystem::exists(info->path, ec) && std::filesystem::exists(normalPath, ec))
+            {
+                if (std::filesystem::equivalent(info->path, normalPath, ec))
+                {
+                    return id;
+                }
+            }
+        }
+
+        std::string lookUpName = normalPath.filename().string();
+        auto it = lookupNamesToUUIDs.find(lookUpName);
+        if (it != lookupNamesToUUIDs.end())
+        {
+            return it->second;
+        }
+
+        std::string stemName = normalPath.stem().string();
+        it = lookupNamesToUUIDs.find(stemName);
+        if (it != lookupNamesToUUIDs.end())
+        {
+            return it->second;
+        }
+
+        if (std::filesystem::exists(normalPath))
+        {
+            auto ext = normalPath.extension().string();
+            AssetType assetType = GetAssetTypeFromExtension(ext);
+            if (assetType == AssetType::Scene)
+            {
+                rapidjson::Document doc;
+                if (loadJsonFromFile(normalPath.string(), doc))
+                {
+                    if (doc.HasMember("uuid") && doc["uuid"].IsString())
+                    {
+                        boost::uuids::uuid fileId = boost::uuids::string_generator()(doc["uuid"].GetString());
+                        auto assetInfo = std::make_shared<AssetInfo>(fileId, normalPath.string(), AssetType::Scene, 0, ImportContext(normalPath.string(), AssetType::Scene, 0), stemName);
+                        metadata[fileId] = assetInfo;
+                        lookupNamesToUUIDs[stemName] = fileId;
+                        return fileId;
+                    }
+                }
+                return registerAsset(normalPath.string());
+            }
+        }
+
+        return std::nullopt;
+    }
+
     std::optional<boost::uuids::uuid> AssetManager::getAssetUuid(std::string lookupName)
     {
         auto uuid = lookupNamesToUUIDs.find(lookupName);
@@ -565,7 +633,17 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                             currentPath = path;
                         }
                     } else {
-                        ImGui::Button(GetAssetIcon(path), ImVec2(iconSize, iconSize));
+                        bool clicked = ImGui::Button(GetAssetIcon(path), ImVec2(iconSize, iconSize));
+                        bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
+                        if (clicked || doubleClicked) {
+                            AssetType type = GetAssetTypeFromExtension(path.extension().string());
+                            if (type == AssetType::Scene && engine) {
+                                auto sceneUuid = getAssetUuidByPath(path);
+                                if (sceneUuid) {
+                                    engine->LoadScene(sceneUuid.value());
+                                }
+                            }
+                        }
                     }
 
                     if (pushedFont)
@@ -588,9 +666,44 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         ImGui::Text("%s", filename.c_str());
                     }
 
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                        if (entry.is_directory()) {
+                            currentPath = path;
+                        } else {
+                            AssetType type = GetAssetTypeFromExtension(path.extension().string());
+                            if (type == AssetType::Scene && engine) {
+                                auto sceneUuid = getAssetUuidByPath(path);
+                                if (sceneUuid) {
+                                    engine->LoadScene(sceneUuid.value());
+                                }
+                            }
+                        }
+                    }
+
                     ImGui::EndGroup();
 
                     float lastButtonX2 = ImGui::GetItemRectMax().x;
+
+                    if (!entry.is_directory()) {
+                        AssetType type = GetAssetTypeFromExtension(path.extension().string());
+                        if (type == AssetType::Scene && engine) {
+                            if (ImGui::BeginPopupContextItem("##SceneContext")) {
+                                auto sceneUuid = getAssetUuidByPath(path);
+                                if (ImGui::MenuItem("Open Scene")) {
+                                    if (sceneUuid) {
+                                        engine->LoadScene(sceneUuid.value());
+                                    }
+                                }
+                                if (ImGui::MenuItem("Close Scene")) {
+                                    if (sceneUuid) {
+                                        engine->CloseScene(sceneUuid.value());
+                                    }
+                                }
+                                ImGui::EndPopup();
+                            }
+                        }
+                    }
+
                     float nextButtonX2 = lastButtonX2 + padding + cellSize;
                     if (nextButtonX2 < windowVisibleX2)
                         ImGui::SameLine(0, padding);

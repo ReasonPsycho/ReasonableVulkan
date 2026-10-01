@@ -74,6 +74,8 @@ namespace engine {
 
         void SaveScene() override;
         void LoadScene(boost::uuids::uuid sceneId) override;
+        void CloseScene(const std::string& name) override;
+        void CloseScene(boost::uuids::uuid sceneId) override;
 
         // Get registered types
         const std::set<std::type_index>& GetRegisteredComponentTypes() const;
