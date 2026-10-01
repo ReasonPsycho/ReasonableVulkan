@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "7bec3220-31ed-4dba-ab7b-ff8ca14c1cad",
+  "path": "res/models/my/Skybox/Skybox.b_mesh",
+  "type": "Mesh",
+  "lookUpName": "Skybox_0.mesh",
+  "contentHash": 11043026994859389112,
+  "assetFactoryData": {
+    "importPath": "res/models/my/Skybox/Skybox.fbx",
+    "assetType": "Mesh",
+    "assimpIndex": 0
+  }
+}

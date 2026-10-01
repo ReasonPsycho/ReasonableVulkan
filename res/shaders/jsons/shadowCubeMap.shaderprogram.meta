@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "1f5d4c63-94e7-4042-af56-cdd8df04dba6",
+  "path": "res/shaders/jsons/shadowCubeMap.shaderprogram",
+  "type": "ShaderProgram",
+  "lookUpName": "shadowCubeMapShader",
+  "contentHash": 13520377098133461889,
+  "assetFactoryData": {
+    "importPath": "res/shaders/jsons/shadowCubeMap.shaderImport",
+    "assetType": "ShaderProgram",
+    "assimpIndex": 0
+  }
+}

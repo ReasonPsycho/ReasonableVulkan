@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "a2423c9b-eb44-4d78-8183-c5d32d4cd7f4",
+  "path": "res/models/my/Sphere.fbm/rock-wall-mortar_albedo.b_texture",
+  "type": "Texture",
+  "lookUpName": "rock-wall-mortar_albedo_0.texture",
+  "contentHash": 14155052396331108522,
+  "assetFactoryData": {
+    "importPath": "res/models/my/Sphere.fbm/rock-wall-mortar_albedo.png",
+    "assetType": "Texture",
+    "assimpIndex": 0
+  }
+}

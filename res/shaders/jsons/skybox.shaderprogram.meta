@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "fa53801f-2e4d-4f6e-b211-5db9fca57e4f",
+  "path": "res/shaders/jsons/skybox.shaderprogram",
+  "type": "ShaderProgram",
+  "lookUpName": "skyboxShader",
+  "contentHash": 3914405969793702240,
+  "assetFactoryData": {
+    "importPath": "res/shaders/jsons/skybox.shaderImport",
+    "assetType": "ShaderProgram",
+    "assimpIndex": 0
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "10f18d68-9941-4202-af0b-7332fd19c989",
+  "path": "res/models/my/Box.b_mesh",
+  "type": "Mesh",
+  "lookUpName": "Box_0.mesh",
+  "contentHash": 14574799872376708562,
+  "assetFactoryData": {
+    "importPath": "res/models/my/Box.fbx",
+    "assetType": "Mesh",
+    "assimpIndex": 0
+  }
+}

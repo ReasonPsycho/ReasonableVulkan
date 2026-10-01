@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "5c40fcd0-42cb-4098-8372-ad76faaba452",
+  "path": "res/shaders/jsons/pbr.shaderprogram",
+  "type": "ShaderProgram",
+  "lookUpName": "pbrShader",
+  "contentHash": 14525977998531044010,
+  "assetFactoryData": {
+    "importPath": "res/shaders/jsons/pbr.shaderImport",
+    "assetType": "ShaderProgram",
+    "assimpIndex": 0
+  }
+}

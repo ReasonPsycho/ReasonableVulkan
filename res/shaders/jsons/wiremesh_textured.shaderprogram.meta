@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "34af6297-3529-42eb-9335-56602739269d",
+  "path": "res/shaders/jsons/wiremesh_textured.shaderprogram",
+  "type": "ShaderProgram",
+  "lookUpName": "wiremeshTexturedShader",
+  "contentHash": 4437362203882087122,
+  "assetFactoryData": {
+    "importPath": "res/shaders/jsons/wiremesh_textured.shaderImport",
+    "assetType": "ShaderProgram",
+    "assimpIndex": 0
+  }
+}
