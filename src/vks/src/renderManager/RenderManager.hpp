@@ -83,7 +83,7 @@ private:
         void updateSyncObjects();
 
         size_t getCurrentFrame() const { return currentFrame; }
-        void setActiveCameraCount(uint32_t count) { activeCameraCount = count; }
+        void setActiveCameraCount(uint32_t count) { activeCameraCount = std::max(activeCameraCount, count); }
 
 
         // Command buffer management

@@ -27,6 +27,7 @@ namespace engine {
         class SystemBase;
         struct TransformComponent;
         class Scene;
+        class EditorSystem;
     }
 
     using namespace engine::ecs;
@@ -46,6 +47,10 @@ namespace engine {
         void SetSceneActive(const std::string& name, bool active) override;
         std::shared_ptr<Scene> GetActiveScene() override;
         std::vector<std::shared_ptr<Scene>> GetActiveScenes() override;
+        const std::unordered_map<std::string, std::shared_ptr<Scene>>& GetScenes() const override { return scenes; }
+        std::unordered_map<std::string, std::shared_ptr<Scene>>& GetScenes() override { return scenes; }
+
+        std::shared_ptr<ecs::EditorSystem> GetEditorSystem() override;
 
 
         // Global update loop
@@ -86,6 +91,7 @@ namespace engine {
 
     private:
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
+        std::shared_ptr<ecs::EditorSystem> editorSystem = nullptr;
     };
 
 } // namespace engine

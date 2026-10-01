@@ -26,9 +26,6 @@ namespace engine::ecs
     class GizmoSystem;
     class TransformSystem;
     class CollisionSystem;
-#ifdef EDITOR_ENABLED
-    class EditorSystem;
-#endif
 
     using EngineComponents = std::tuple<
         TransformComponent,
@@ -45,9 +42,6 @@ namespace engine::ecs
         GizmoSystem,
         TransformSystem,
         CollisionSystem
-#ifdef EDITOR_ENABLED
-        , EditorSystem
-#endif
     >;
 
     template<typename T>

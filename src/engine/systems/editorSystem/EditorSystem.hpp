@@ -10,33 +10,37 @@
 #include <unordered_map>
 #include <glm/glm.hpp>
 #include <utility>
-#include "ecs/System.h"
+#include <memory>
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "ecs/Types.h"
 
 namespace plt
 {
     class PlatformInterface;
 }
+namespace engine
+{
+    class Engine;
+}
 namespace engine::ecs
 {
     struct Component;
+    class Scene;
 
-    class EditorSystem :  public System<EditorSystem>
+    class EditorSystem
     {
     public:
-        explicit EditorSystem(Scene* scene);
-        void Update(float deltaTime) override;
+        explicit EditorSystem(::engine::Engine* engine);
+        void Update(float deltaTime);
 
         struct ComponentInfo {
             std::string displayName;
             bool isIntegral = false;
             std::function<bool(Scene* scene, void* component)> showImGuiComponent;
-         };
-
+        };
 
         // Register component type with a display name and ImGui renderer
-
         template<typename T>
         void RegisterComponentType() {
             ComponentInfo info;
@@ -68,13 +72,15 @@ namespace engine::ecs
             registeredComponentTypes[typeid(T)] = std::move(info);
         }
 
-
-        void SetEntityName(Entity entity, const std::string& name);
-        std::string GetEntityName(Entity entity) const;
-        std::string GetEntityRawName(Entity entity) const;
+        void SetEntityName(Entity entity, const std::string& name, Scene* targetScene = nullptr);
+        std::string GetEntityName(Entity entity, Scene* targetScene = nullptr) const;
+        std::string GetEntityRawName(Entity entity, Scene* targetScene = nullptr) const;
 
         Entity GetSelectedEntity() const { return selectedEntity; }
         void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
+
+        Scene* GetTargetScene() const;
+        void SetTargetScene(std::shared_ptr<Scene> scene) { selectedScene = scene; }
 
         [[=NonSerialized{}]]
         CameraComponent camera = CameraComponent();
@@ -105,11 +111,10 @@ namespace engine::ecs
 
         void SetUpCameraControls();
 
-    protected:
-        void OnComponentAdded(ComponentID componentID, std::type_index type) override {}
-        void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
+        ::engine::Engine* engine = nullptr;
 
     private:
+        std::weak_ptr<Scene> selectedScene;
         std::unordered_map<Entity, std::string> named_entities;
         Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();
         Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
@@ -117,7 +122,7 @@ namespace engine::ecs
         bool renameFocusRequested = false;
         std::unordered_map<std::type_index,ComponentInfo> registeredComponentTypes;
         void ImGuiSceneGraph();
-        void ImGuiGraphEntity(Entity entity);
+        void ImGuiGraphEntity(Scene* currentScene, Entity entity);
         void ImGuiInspector();
         void ImGuiSystemSettings();
         void ImGuiGizmo();

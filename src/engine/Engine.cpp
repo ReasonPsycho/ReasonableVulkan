@@ -55,15 +55,24 @@ namespace engine {
 
     void Engine::Initialize()
     {
-        platform->SubscribeToEvent(plt::EventType::WindowMinimize,
-      [this](const void* /*data*/) {
-          minimized = true;
-      });
+        if (platform) {
+            platform->SubscribeToEvent(plt::EventType::WindowMinimize,
+          [this](const void* /*data*/) {
+              minimized = true;
+          });
 
-        platform->SubscribeToEvent(plt::EventType::WindowRestored,
-            [this](const void* /*data*/) {
-                minimized = false;
-            });
+            platform->SubscribeToEvent(plt::EventType::WindowRestored,
+                [this](const void* /*data*/) {
+                    minimized = false;
+                });
+        }
+
+        editorSystem = std::make_shared<ecs::EditorSystem>(this);
+        editorSystem->Initialize();
+    }
+
+    std::shared_ptr<ecs::EditorSystem> Engine::GetEditorSystem() {
+        return editorSystem;
     }
 
     std::shared_ptr<Scene> Engine::CreateScene(const std::string& name) {
@@ -72,6 +81,7 @@ namespace engine {
         }
 
         auto scene = std::make_shared<Scene>(*this);  // Changed from (this) to (*this)
+        scene->SetName(name);
         scenes[name] = scene;
 
         return scene;
@@ -123,11 +133,20 @@ namespace engine {
     }
 
     void Engine::Update(float deltaTime) {
+        if (graphicsEngine) {
+            graphicsEngine->beginFrame();
+        }
         auto activeScenes = GetActiveScenes();
         for (const auto& scene : activeScenes) {
             if (scene && scene->active) {
                 scene->Update(deltaTime);
             }
+        }
+        if (editorSystem) {
+            editorSystem->Update(deltaTime);
+        }
+        if (graphicsEngine) {
+            graphicsEngine->endFrame();
         }
     }
 

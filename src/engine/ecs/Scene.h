@@ -115,6 +115,10 @@ namespace engine::ecs
         bool IsActive() const;
         bool active = false;
 
+        const std::string& GetName() const { return name; }
+        void SetName(const std::string& sceneName) { name = sceneName; }
+        std::string name;
+
         void SerializeToJson(rapidjson::Document& doc) const;
         void DeserializeFromJson(const rapidjson::Document& doc);
         void AddComponent(const std::type_index& type);
