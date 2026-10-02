@@ -20,10 +20,17 @@
 #include "assets/textureAsset/TextureAsset.h"
 #include "JsonHelpers.hpp"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 namespace am {
 
     void AssetManager::Initialize(plt::PlatformInterface* platformInterface)
     {
+        this->platform = platformInterface;
         platformInterface->SubscribeToEvent(plt::EventType::FileAddedToFolder,
                    [this](const void* data) {
                        const auto* event = static_cast<const plt::FileAddedEvent*>(data);
@@ -461,7 +468,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             int thumbH = 128;
             std::vector<uint8_t> thumbPixels(thumbW * thumbH * 4);
 
-            // 1. Try loading from original source image (e.g. .png, .jpg) via importPath
+            // 1. Try loading from original source image (e.g. .png, .jpg) via importPath or info->path
             std::filesystem::path importPath = info->importContext.importPath;
             if (!std::filesystem::exists(importPath, ec)) {
                 std::filesystem::path p1 = std::filesystem::path(resourceFolder) / importPath;
@@ -476,7 +483,20 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 }
             }
 
+            if (!std::filesystem::exists(importPath, ec) || importPath.extension() == ".b_texture") {
+                std::filesystem::path infoP = info->path;
+                if (std::filesystem::exists(infoP, ec) && infoP.extension() != ".b_texture") {
+                    importPath = infoP;
+                } else {
+                    std::filesystem::path p1 = std::filesystem::path(resourceFolder) / infoP;
+                    if (std::filesystem::exists(p1, ec) && p1.extension() != ".b_texture") {
+                        importPath = p1;
+                    }
+                }
+            }
+
             if (std::filesystem::exists(importPath, ec) && importPath.extension() != ".b_texture") {
+                stbi_set_flip_vertically_on_load(false);
                 int width = 0, height = 0, channels = 0;
                 unsigned char* pixels = stbi_load(importPath.string().c_str(), &width, &height, &channels, 4);
                 if (pixels) {
@@ -550,6 +570,23 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             return engine->GetThumbnailTexture(id, thumbPath);
         }
 
+        return nullptr;
+    }
+
+    void* AssetManager::getThumbnailTexture(const std::filesystem::path& path)
+    {
+        auto uuidOpt = getAssetUuidByPath(path);
+        if (uuidOpt) {
+            return getThumbnailTexture(uuidOpt.value());
+        }
+
+        std::string ext = path.extension().string();
+        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
+            auto regId = registerAsset(path.string());
+            if (regId) {
+                return getThumbnailTexture(regId.value());
+            }
+        }
         return nullptr;
     }
 
@@ -784,6 +821,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     {
         std::filesystem::path normalPath = path.lexically_normal();
 
+        // 1. Direct match on info->path
         for (const auto& [id, info] : metadata)
         {
             if (std::filesystem::path(info->path).lexically_normal() == normalPath)
@@ -792,6 +830,31 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             }
         }
 
+        // 2. Direct match or relative match on info->importContext.importPath
+        for (const auto& [id, info] : metadata)
+        {
+            if (!info->importContext.importPath.empty())
+            {
+                std::filesystem::path impPath = std::filesystem::path(info->importContext.importPath).lexically_normal();
+                if (impPath == normalPath)
+                {
+                    return id;
+                }
+                std::filesystem::path relImpPath = (std::filesystem::path(resourceFolder) / info->importContext.importPath).lexically_normal();
+                if (relImpPath == normalPath)
+                {
+                    return id;
+                }
+                if (info->importContext.importPath.rfind("res/", 0) == 0 || info->importContext.importPath.rfind("res\\", 0) == 0) {
+                    std::filesystem::path subImp = (std::filesystem::path(resourceFolder) / info->importContext.importPath.substr(4)).lexically_normal();
+                    if (subImp == normalPath) {
+                        return id;
+                    }
+                }
+            }
+        }
+
+        // 3. Equivalent path on info->path or importPath
         for (const auto& [id, info] : metadata)
         {
             std::error_code ec;
@@ -802,8 +865,27 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     return id;
                 }
             }
+            if (!info->importContext.importPath.empty())
+            {
+                if (std::filesystem::exists(info->importContext.importPath, ec) && std::filesystem::exists(normalPath, ec))
+                {
+                    if (std::filesystem::equivalent(info->importContext.importPath, normalPath, ec))
+                    {
+                        return id;
+                    }
+                }
+                std::filesystem::path relImpPath = std::filesystem::path(resourceFolder) / info->importContext.importPath;
+                if (std::filesystem::exists(relImpPath, ec) && std::filesystem::exists(normalPath, ec))
+                {
+                    if (std::filesystem::equivalent(relImpPath, normalPath, ec))
+                    {
+                        return id;
+                    }
+                }
+            }
         }
 
+        // 4. Match by lookup name or stem
         std::string lookUpName = normalPath.filename().string();
         auto it = lookupNamesToUUIDs.find(lookUpName);
         if (it != lookupNamesToUUIDs.end())
@@ -818,6 +900,23 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             return it->second;
         }
 
+        // 5. Match by stem and parent path against metadata
+        for (const auto& [id, info] : metadata)
+        {
+            std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
+            if (infoP.stem() == normalPath.stem() && infoP.parent_path() == normalPath.parent_path())
+            {
+                return id;
+            }
+            if (!info->importContext.importPath.empty()) {
+                std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
+                if (impP.stem() == normalPath.stem() && impP.parent_path() == normalPath.parent_path())
+                {
+                    return id;
+                }
+            }
+        }
+
         if (std::filesystem::exists(normalPath))
         {
             std::filesystem::path metaPath = normalPath.string() + ".meta";
@@ -827,6 +926,20 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     if (doc.IsObject() && doc.HasMember("id") && doc.HasMember("type")) {
                         auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(doc);
                         assetInfo.path = normalPath.string();
+                        auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+                        metadata[infoPtr->id] = infoPtr;
+                        lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                        return infoPtr->id;
+                    }
+                }
+            }
+
+            std::filesystem::path bTexMeta = normalPath.parent_path() / (normalPath.stem().string() + ".b_texture.meta");
+            if (std::filesystem::exists(bTexMeta)) {
+                rapidjson::Document doc;
+                if (loadJsonFromFile(bTexMeta.string(), doc)) {
+                    if (doc.IsObject() && doc.HasMember("id") && doc.HasMember("type")) {
+                        auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(doc);
                         auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                         metadata[infoPtr->id] = infoPtr;
                         lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
@@ -852,6 +965,10 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         return fileId;
                     }
                 }
+                return registerAsset(normalPath.string());
+            }
+            else if (assetType == AssetType::Texture || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga")
+            {
                 return registerAsset(normalPath.string());
             }
         }
@@ -926,6 +1043,47 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         return result;
     }
 
+    void AssetManager::openAssetFile(const std::filesystem::path& path)
+    {
+        AssetType type = GetAssetTypeFromExtension(path.extension().string());
+        if (type == AssetType::Scene && engine) {
+            auto sceneUuid = getAssetUuidByPath(path);
+            if (sceneUuid) {
+                engine->LoadScene(sceneUuid.value());
+                return;
+            }
+        } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
+            auto modelUuid = getAssetUuidByPath(path);
+            if (modelUuid) {
+                engine->OpenModelPreviewScene(modelUuid.value());
+                return;
+            }
+        }
+
+        openFileWithDefaultApp(path);
+    }
+
+    bool AssetManager::openFileWithDefaultApp(const std::filesystem::path& path)
+    {
+        if (path.empty()) return false;
+        std::filesystem::path absPath = std::filesystem::absolute(path);
+
+        if (platform) {
+            return platform->OpenFileInDefaultApp(absPath.string());
+        }
+
+#ifdef _WIN32
+        HINSTANCE result = ShellExecuteW(NULL, L"open", absPath.wstring().c_str(), NULL, NULL, SW_SHOWNORMAL);
+        return reinterpret_cast<intptr_t>(result) > 32;
+#elif defined(__APPLE__)
+        std::string cmd = "open \"" + absPath.string() + "\"";
+        return system(cmd.c_str()) == 0;
+#else
+        std::string cmd = "xdg-open \"" + absPath.string() + "\"";
+        return system(cmd.c_str()) == 0;
+#endif
+    }
+
     void AssetManager::ImguiFileBrowser(std::string windowName)
     {
         ImGui::Begin(windowName.c_str());
@@ -970,28 +1128,14 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
                     void* thumbTex = nullptr;
                     if (!entry.is_directory()) {
-                        auto uuidOpt = getAssetUuidByPath(path);
-                        if (uuidOpt) {
-                            thumbTex = getThumbnailTexture(uuidOpt.value());
-                        }
+                        thumbTex = getThumbnailTexture(path);
                     }
 
                     if (thumbTex != nullptr) {
                         bool clicked = ImGui::ImageButton("##thumb", (ImTextureID)thumbTex, ImVec2(iconSize, iconSize));
                         bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
                         if (clicked || doubleClicked) {
-                            AssetType type = GetAssetTypeFromExtension(path.extension().string());
-                            if (type == AssetType::Scene && engine) {
-                                auto sceneUuid = getAssetUuidByPath(path);
-                                if (sceneUuid) {
-                                    engine->LoadScene(sceneUuid.value());
-                                }
-                            } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
-                                auto modelUuid = getAssetUuidByPath(path);
-                                if (modelUuid) {
-                                    engine->OpenModelPreviewScene(modelUuid.value());
-                                }
-                            }
+                            openAssetFile(path);
                         }
                     } else {
                         // Use large icon font if available (it's the second font we loaded)
@@ -1010,18 +1154,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                             bool clicked = ImGui::Button(GetAssetIcon(path), ImVec2(iconSize, iconSize));
                             bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
                             if (clicked || doubleClicked) {
-                                AssetType type = GetAssetTypeFromExtension(path.extension().string());
-                                if (type == AssetType::Scene && engine) {
-                                    auto sceneUuid = getAssetUuidByPath(path);
-                                    if (sceneUuid) {
-                                        engine->LoadScene(sceneUuid.value());
-                                    }
-                                } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
-                                    auto modelUuid = getAssetUuidByPath(path);
-                                    if (modelUuid) {
-                                        engine->OpenModelPreviewScene(modelUuid.value());
-                                    }
-                                }
+                                openAssetFile(path);
                             }
                         }
 
@@ -1050,18 +1183,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         if (entry.is_directory()) {
                             currentPath = path;
                         } else {
-                            AssetType type = GetAssetTypeFromExtension(path.extension().string());
-                            if (type == AssetType::Scene && engine) {
-                                auto sceneUuid = getAssetUuidByPath(path);
-                                if (sceneUuid) {
-                                    engine->LoadScene(sceneUuid.value());
-                                }
-                            } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
-                                auto modelUuid = getAssetUuidByPath(path);
-                                if (modelUuid) {
-                                    engine->OpenModelPreviewScene(modelUuid.value());
-                                }
-                            }
+                            openAssetFile(path);
                         }
                     }
 
@@ -1069,7 +1191,14 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
                     float lastButtonX2 = ImGui::GetItemRectMax().x;
 
-                    if (!entry.is_directory()) {
+                    if (entry.is_directory()) {
+                        if (ImGui::BeginPopupContextItem("##FolderContext")) {
+                            if (ImGui::MenuItem("Open in System File Explorer")) {
+                                openFileWithDefaultApp(path);
+                            }
+                            ImGui::EndPopup();
+                        }
+                    } else {
                         AssetType type = GetAssetTypeFromExtension(path.extension().string());
                         if (type == AssetType::Scene && engine) {
                             if (ImGui::BeginPopupContextItem("##SceneContext")) {
@@ -1083,6 +1212,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                     if (sceneUuid) {
                                         engine->CloseScene(sceneUuid.value());
                                     }
+                                }
+                                if (ImGui::MenuItem("Open in System Default")) {
+                                    openFileWithDefaultApp(path);
                                 }
                                 ImGui::EndPopup();
                             }
@@ -1098,6 +1230,24 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                     if (modelUuid) {
                                         generateThumbnail(modelUuid.value());
                                     }
+                                }
+                                if (ImGui::MenuItem("Open in System Default")) {
+                                    openFileWithDefaultApp(path);
+                                }
+                                ImGui::EndPopup();
+                            }
+                        } else {
+                            if (ImGui::BeginPopupContextItem("##FileContext")) {
+                                if (type == AssetType::Texture || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp") {
+                                    if (ImGui::MenuItem("Regenerate Thumbnail")) {
+                                        auto texUuid = getAssetUuidByPath(path);
+                                        if (texUuid) {
+                                            generateThumbnail(texUuid.value());
+                                        }
+                                    }
+                                }
+                                if (ImGui::MenuItem("Open in System Default")) {
+                                    openFileWithDefaultApp(path);
                                 }
                                 ImGui::EndPopup();
                             }

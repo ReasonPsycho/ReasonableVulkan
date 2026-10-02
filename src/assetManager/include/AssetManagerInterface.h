@@ -63,6 +63,7 @@ namespace am
         virtual std::string getThumbnailPath(const boost::uuids::uuid& id) const = 0;
         virtual bool generateThumbnail(const boost::uuids::uuid& id) = 0;
         virtual void* getThumbnailTexture(const boost::uuids::uuid& id) = 0;
+        virtual void* getThumbnailTexture(const std::filesystem::path& path) = 0;
 
         virtual bool saveMetaCache(const std::string& cachePath = "") const = 0;
         virtual bool loadMetaCache(const std::string& cachePath = "") = 0;
@@ -74,6 +75,9 @@ namespace am
         virtual std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const = 0;
 
         virtual void ImguiFileBrowser(std::string windowName) = 0;
+
+        virtual bool openFileWithDefaultApp(const std::filesystem::path& path) = 0;
+        virtual void openAssetFile(const std::filesystem::path& path) = 0;
     };
 
     inline std::shared_ptr<AssetInfo> ResolveAssetInfo(const boost::uuids::uuid& id, AssetManagerInterface* assetManager) {

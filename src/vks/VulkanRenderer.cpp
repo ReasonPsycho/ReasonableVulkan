@@ -296,6 +296,7 @@ namespace vks {
         }
 
         int width = 0, height = 0, channels = 0;
+        stbi_set_flip_vertically_on_load(false);
         unsigned char* pixels = stbi_load(resolvedPath.string().c_str(), &width, &height, &channels, 4);
         if (!pixels) {
             return nullptr;

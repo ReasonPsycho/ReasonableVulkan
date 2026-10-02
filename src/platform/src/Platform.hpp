@@ -12,6 +12,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
 #endif
 
 #include "PlatformInterface.hpp"
@@ -53,6 +54,9 @@ public:
     bool IsKeyPressed(int keyCode) const override;
     bool IsMouseButtonPressed(uint8_t button) const override;
     void GetMousePosition(float& x, float& y) const override;
+
+    // System utility functions
+    bool OpenFileInDefaultApp(const std::string& path) override;
 
 private:
     SDL_Window* window = nullptr;

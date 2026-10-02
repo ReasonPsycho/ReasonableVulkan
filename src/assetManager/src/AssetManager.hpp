@@ -121,6 +121,9 @@ namespace am {
         void ImguiFileBrowser(std::string windowName) override;
         std::filesystem::path currentPath;
 
+        bool openFileWithDefaultApp(const std::filesystem::path& path) override;
+        void openAssetFile(const std::filesystem::path& path) override;
+
         std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
         std::optional<Asset*> getAsset(const boost::uuids::uuid& id) override;
 
@@ -130,6 +133,7 @@ namespace am {
         std::string getThumbnailPath(const boost::uuids::uuid& id) const override;
         bool generateThumbnail(const boost::uuids::uuid& id) override;
         void* getThumbnailTexture(const boost::uuids::uuid& id) override;
+        void* getThumbnailTexture(const std::filesystem::path& path) override;
 
         bool saveMetaCache(const std::string& cachePath = "") const override;
         bool loadMetaCache(const std::string& cachePath = "") override;
@@ -159,6 +163,7 @@ namespace am {
         void handleFileDropped(const plt::FileDropEvent* event);
 
         engine::EngineInterface* engine = nullptr;
+        plt::PlatformInterface* platform = nullptr;
         std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
