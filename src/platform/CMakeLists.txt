@@ -39,6 +39,10 @@ target_link_libraries(platform
         RapidJSON
 )
 
+if (WIN32)
+    target_link_libraries(platform PRIVATE ws2_32)
+endif()
+
 # Configure tests
 if (PLATFORM_ENABLE_TESTS)
     message(STATUS "Configuring Platform tests")

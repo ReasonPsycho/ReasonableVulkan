@@ -5,6 +5,13 @@
 #include <filesystem>
 #ifdef _WIN32
 #include <shellapi.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 #endif
 
 namespace  plt
@@ -410,6 +417,103 @@ namespace  plt
 #else
         std::string cmd = "xdg-open \"" + absPath.string() + "\"";
         return system(cmd.c_str()) == 0;
+#endif
+    }
+
+    bool Platform::OpenFileInIDE(const std::string& path) {
+        if (path.empty()) return false;
+        std::filesystem::path absPath = std::filesystem::absolute(path);
+        std::string pathStr = absPath.string();
+
+#ifdef _WIN32
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            return false;
+        }
+
+        SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (sock == INVALID_SOCKET) {
+            WSACleanup();
+            return false;
+        }
+
+        DWORD timeout = 500;
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+
+        sockaddr_in serverAddr{};
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(63456);
+        inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+        if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+            closesocket(sock);
+            WSACleanup();
+            return false;
+        }
+
+        std::string body = pathStr;
+        std::string request = "POST /open HTTP/1.1\r\n"
+                              "Host: 127.0.0.1:63456\r\n"
+                              "Content-Type: text/plain\r\n"
+                              "Content-Length: " + std::to_string(body.length()) + "\r\n"
+                              "Connection: close\r\n\r\n" + body;
+
+        send(sock, request.c_str(), static_cast<int>(request.length()), 0);
+
+        char buffer[256];
+        int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        bool success = false;
+        if (bytesReceived > 0) {
+            buffer[bytesReceived] = '\0';
+            if (strstr(buffer, "200 OK") != nullptr) {
+                success = true;
+            }
+        }
+
+        closesocket(sock);
+        WSACleanup();
+        return success;
+#else
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) return false;
+
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = 500000;
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+
+        sockaddr_in serverAddr{};
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(63456);
+        inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+        if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+            close(sock);
+            return false;
+        }
+
+        std::string body = pathStr;
+        std::string request = "POST /open HTTP/1.1\r\n"
+                              "Host: 127.0.0.1:63456\r\n"
+                              "Content-Type: text/plain\r\n"
+                              "Content-Length: " + std::to_string(body.length()) + "\r\n"
+                              "Connection: close\r\n\r\n" + body;
+
+        send(sock, request.c_str(), request.length(), 0);
+
+        char buffer[256];
+        int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        bool success = false;
+        if (bytesReceived > 0) {
+            buffer[bytesReceived] = '\0';
+            if (strstr(buffer, "200 OK") != nullptr) {
+                success = true;
+            }
+        }
+        close(sock);
+        return success;
 #endif
     }
 

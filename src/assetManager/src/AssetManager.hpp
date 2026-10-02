@@ -122,6 +122,7 @@ namespace am {
         std::filesystem::path currentPath;
 
         bool openFileWithDefaultApp(const std::filesystem::path& path) override;
+        bool openFileInIDE(const std::filesystem::path& path) override;
         void openAssetFile(const std::filesystem::path& path) override;
 
         std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
