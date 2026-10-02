@@ -276,6 +276,8 @@ void Scene::SerializeToJson(rapidjson::Document& doc) const {
     doc.SetObject();
     auto& allocator = doc.GetAllocator();
 
+    doc.AddMember("isEditable", isEditable, allocator);
+
     // Entities
     rapidjson::Value entitiesObj(rapidjson::kObjectType);
     SerializeEntities(entitiesObj, allocator);
@@ -382,6 +384,12 @@ void Scene::SerializeSceneGraph(rapidjson::Value& obj, rapidjson::Document::Allo
 }
 
 void Scene::DeserializeFromJson(const rapidjson::Document& doc) {
+
+    if (doc.HasMember("isEditable") && doc["isEditable"].IsBool()) {
+        isEditable = doc["isEditable"].GetBool();
+    } else {
+        isEditable = true;
+    }
 
     //TODO here are going to be problems if there are different systems
     sceneGraph.clear();

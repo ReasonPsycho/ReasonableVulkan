@@ -986,6 +986,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                 if (sceneUuid) {
                                     engine->LoadScene(sceneUuid.value());
                                 }
+                            } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
+                                auto modelUuid = getAssetUuidByPath(path);
+                                if (modelUuid) {
+                                    engine->OpenModelPreviewScene(modelUuid.value());
+                                }
                             }
                         }
                     } else {
@@ -1010,6 +1015,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                     auto sceneUuid = getAssetUuidByPath(path);
                                     if (sceneUuid) {
                                         engine->LoadScene(sceneUuid.value());
+                                    }
+                                } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
+                                    auto modelUuid = getAssetUuidByPath(path);
+                                    if (modelUuid) {
+                                        engine->OpenModelPreviewScene(modelUuid.value());
                                     }
                                 }
                             }
@@ -1046,6 +1056,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                 if (sceneUuid) {
                                     engine->LoadScene(sceneUuid.value());
                                 }
+                            } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
+                                auto modelUuid = getAssetUuidByPath(path);
+                                if (modelUuid) {
+                                    engine->OpenModelPreviewScene(modelUuid.value());
+                                }
                             }
                         }
                     }
@@ -1067,6 +1082,21 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                 if (ImGui::MenuItem("Close Scene")) {
                                     if (sceneUuid) {
                                         engine->CloseScene(sceneUuid.value());
+                                    }
+                                }
+                                ImGui::EndPopup();
+                            }
+                        } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
+                            if (ImGui::BeginPopupContextItem("##ModelContext")) {
+                                auto modelUuid = getAssetUuidByPath(path);
+                                if (ImGui::MenuItem("Open in Preview Scene")) {
+                                    if (modelUuid) {
+                                        engine->OpenModelPreviewScene(modelUuid.value());
+                                    }
+                                }
+                                if (ImGui::MenuItem("Regenerate Thumbnail")) {
+                                    if (modelUuid) {
+                                        generateThumbnail(modelUuid.value());
                                     }
                                 }
                                 ImGui::EndPopup();

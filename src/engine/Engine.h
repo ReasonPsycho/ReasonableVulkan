@@ -49,6 +49,8 @@ namespace engine {
         std::vector<std::shared_ptr<Scene>> GetActiveScenes() override;
         const std::unordered_map<std::string, std::shared_ptr<Scene>>& GetScenes() const override { return scenes; }
         std::unordered_map<std::string, std::shared_ptr<Scene>>& GetScenes() override { return scenes; }
+        const std::vector<std::string>& GetSceneOrder() const override { return sceneOrder; }
+        std::shared_ptr<Scene> GetTopEditableScene() override;
 
         std::shared_ptr<ecs::EditorSystem> GetEditorSystem() override;
 
@@ -79,6 +81,7 @@ namespace engine {
 
         void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
         bool CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath) override;
+        std::shared_ptr<ecs::Scene> OpenModelPreviewScene(const boost::uuids::uuid& modelOrMeshId) override;
 
         // Get registered types
         const std::set<std::type_index>& GetRegisteredComponentTypes() const;
@@ -96,6 +99,7 @@ namespace engine {
 
     private:
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
+        std::vector<std::string> sceneOrder;
         std::shared_ptr<ecs::EditorSystem> editorSystem = nullptr;
     };
 

@@ -115,6 +115,11 @@ namespace engine::ecs
         bool IsActive() const;
         bool active = false;
 
+        // Editable state
+        bool IsEditable() const { return isEditable; }
+        void SetEditable(bool editable) { isEditable = editable; }
+        bool isEditable = true;
+
         const std::string& GetName() const { return name; }
         void SetName(const std::string& sceneName) { name = sceneName; }
         std::string name;

@@ -1148,7 +1148,23 @@ namespace vks
         if (!assetInfo.has_value()) throw std::runtime_error("Model asset not found");
         auto assetPtr = assetInfo->get()->getAsset();
 
-        auto model = std::make_unique<vks::ModelDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::ModelData>(), *context);
+        if (assetInfo->get()->type == am::AssetType::Mesh) {
+            auto meshData = assetPtr->getAssetDataAs<am::MeshData>();
+            am::ModelData modelData;
+            modelData.boundingBoxMin = meshData ? meshData->boundingBoxMin : glm::vec3(-1.0f);
+            modelData.boundingBoxMax = meshData ? meshData->boundingBoxMax : glm::vec3(1.0f);
+            modelData.rootNode.mName = assetInfo->get()->lookUpName;
+            modelData.rootNode.mTransformation = glm::mat4(1.0f);
+            modelData.rootNode.meshes.push_back(assetInfo.value());
+            auto model = std::make_unique<vks::ModelDescriptor>(assetId, this, modelData, *context);
+            gfx::ModelHandle handle = modelPool.insert(std::move(model));
+            uuidToModelMap[assetId] = handle;
+            return handle;
+        }
+
+        auto modelData = assetPtr->getAssetDataAs<am::ModelData>();
+        if (!modelData) throw std::runtime_error("Invalid model data");
+        auto model = std::make_unique<vks::ModelDescriptor>(assetId, this, *modelData, *context);
         gfx::ModelHandle handle = modelPool.insert(std::move(model));
         uuidToModelMap[assetId] = handle;
         return handle;

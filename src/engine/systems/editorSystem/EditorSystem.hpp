@@ -80,6 +80,7 @@ namespace engine::ecs
         void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
 
         Scene* GetTargetScene() const;
+        std::shared_ptr<Scene> GetSelectedScene() const { return selectedScene.lock(); }
         void SetTargetScene(std::shared_ptr<Scene> scene) { selectedScene = scene; }
 
         [[=NonSerialized{}]]
@@ -110,11 +111,33 @@ namespace engine::ecs
         gfx::ShaderProgramHandle wiremeshTexturedShaderHandle = gfx::ShaderProgramHandle::invalid();
 
         void SetUpCameraControls();
+        void FocusCameraOnBounds(const glm::vec3& center, float distance, Scene* scene = nullptr);
+
+        struct EditorCameraState {
+            CameraComponent camera = CameraComponent();
+            TransformComponent cameraTransform = TransformComponent();
+            float cameraDistance = 5.0f;
+            float cameraYaw = 0.0f;
+            float cameraPitch = 45.0f;
+            glm::vec3 cameraTarget = glm::vec3(0.0f);
+            bool isRightMousePressed = false;
+            bool isMiddleMousePressed = false;
+            ImVec2 lastViewportSize = { 0, 0 };
+            ImVec2 lastViewportPos = { 0, 0 };
+
+            void UpdateCameraPosition();
+        };
+
+        EditorCameraState& GetEditorCameraState(Scene* scene);
+        EditorCameraState& GetEditorCameraState(const std::string& sceneName);
+
+        void UpdateCameraPosition();
 
         ::engine::Engine* engine = nullptr;
 
     private:
         std::weak_ptr<Scene> selectedScene;
+        std::unordered_map<std::string, EditorCameraState> sceneEditorCameras;
         std::unordered_map<Entity, std::string> named_entities;
         Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();
         Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
@@ -125,8 +148,8 @@ namespace engine::ecs
         void ImGuiGraphEntity(Scene* currentScene, Entity entity);
         void ImGuiInspector();
         void ImGuiSystemSettings();
-        void ImGuiGizmo();
-        void ImguiShaderOverrideWindow();
+        void ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState, const ImVec2& viewportPos, const ImVec2& viewportSize);
+        void ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize);
         void ImguiToolbar();
 
         bool isRightMousePressed = false;
@@ -137,7 +160,6 @@ namespace engine::ecs
         float cameraPitch = 45.0f;
         glm::vec3 cameraTarget = glm::vec3(0.0f);
 
-        void UpdateCameraPosition();
         ImVec2 lastViewportSize = { 0, 0 };
         ImVec2 lastViewportPos = { 0, 0 };
     };

@@ -33,8 +33,13 @@ Scene* EditorSystem::GetTargetScene() const
         return scn.get();
     }
     if (engine) {
-        auto active = engine->GetActiveScene();
-        if (active) return active.get();
+        auto topEditable = engine->GetTopEditableScene();
+        if (topEditable) return topEditable.get();
+
+        auto activeScenes = engine->GetActiveScenes();
+        if (!activeScenes.empty() && activeScenes[0]) {
+            return activeScenes[0].get();
+        }
     }
     return nullptr;
 }
@@ -50,6 +55,14 @@ void EditorSystem::ImGuiInspector()
             selectedEntity = std::numeric_limits<std::uint32_t>::max();
             ImGui::End();
             return;
+        }
+
+        bool isEditable = scene->IsEditable();
+        if (!isEditable)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "Non-Editable Scene (Read-Only)");
+            ImGui::Separator();
+            ImGui::BeginDisabled(true);
         }
 
         // 1. Entity Header: Active toggle, Name, Entity ID
@@ -183,6 +196,11 @@ void EditorSystem::ImGuiInspector()
 
             ImGui::EndPopup();
         }
+
+        if (!isEditable)
+        {
+            ImGui::EndDisabled();
+        }
     }
     else
     {
@@ -213,10 +231,13 @@ void EditorSystem::ImGuiSystemSettings()
     ImGui::End();
 }
 
-void EditorSystem::ImGuiGizmo()
+void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState, const ImVec2& viewportPos, const ImVec2& viewportSize)
 {
-    Scene* scene = GetTargetScene();
-    if (scene && selectedEntity != std::numeric_limits<std::uint32_t>::max() && scene->HasComponent<TransformComponent>(selectedEntity))
+    if (!scene || !scene->IsEditable())
+    {
+        return;
+    }
+    if (selectedEntity != std::numeric_limits<std::uint32_t>::max() && scene->HasComponent<TransformComponent>(selectedEntity))
     {
         auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(selectedEntity);
 
@@ -240,7 +261,7 @@ void EditorSystem::ImGuiGizmo()
         {
             const float PADDING = 1.0f;
 
-            ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportSize.x - PADDING, lastViewportPos.y + PADDING + 37);
+            ImVec2 window_pos = ImVec2(viewportPos.x + viewportSize.x - PADDING, viewportPos.y + PADDING + 37);
             ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
             ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
             ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
@@ -300,13 +321,14 @@ void EditorSystem::ImGuiGizmo()
             snap = glm::vec3(0.1f); // Snap every 0.1 units for scale
 
         // Get the viewport bounds for ImGuizmo
-        ImGuizmo::SetRect(lastViewportPos.x, lastViewportPos.y, lastViewportSize.x, lastViewportSize.y);
+        ImGuizmo::SetRect(viewportPos.x, viewportPos.y, viewportSize.x, viewportSize.y);
 
         // Convert glm matrices to float arrays for ImGuizmo
         float viewMatrix[16], projMatrix[16], modelMatrix[16];
 
-        memcpy(viewMatrix, &camera.view[0][0], sizeof(float) * 16);
-        memcpy(projMatrix, &camera.projection[0][0], sizeof(float) * 16);
+        memcpy(viewMatrix, &camState.camera.view[0][0], sizeof(float) * 16);
+        memcpy(projMatrix, &camState.camera.projection[0][0], sizeof(float) * 16);
+        projMatrix[5] *= -1.0f; // Invert Y back for ImGuizmo (since Vulkan Y was inverted in projection)
         memcpy(modelMatrix, &transform.globalMatrix[0][0], sizeof(float) * 16);
 
         // Manipulate the transform
@@ -352,11 +374,11 @@ EditorSystem::EditorSystem(::engine::Engine* engine) : engine(engine)
 {
 }
 
-void EditorSystem::ImguiShaderOverrideWindow()
+void EditorSystem::ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize)
 {
     const float PADDING = 1.0f;
 
-    ImVec2 window_pos = ImVec2(lastViewportPos.x + lastViewportSize.x - PADDING, lastViewportPos.y + PADDING );
+    ImVec2 window_pos = ImVec2(viewportPos.x + viewportSize.x - PADDING, viewportPos.y + PADDING );
     ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
     ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
@@ -418,53 +440,82 @@ void EditorSystem::Update(float deltaTime)
         ImGui::DockBuilderDockWindow("System Settings", dock_right);
         ImGui::DockBuilderDockWindow("Toolbar", dock_top);
         ImGui::DockBuilderDockWindow("Menu", dock_bottom);
+        ImGui::DockBuilderDockWindow("Editor", dock_main_id);
+        ImGui::DockBuilderDockWindow("Game", dock_main_id);
+
+        if (engine) {
+            auto currentActiveScenes = engine->GetActiveScenes();
+            for (const auto& scn : currentActiveScenes) {
+                if (scn) {
+                    ImGui::DockBuilderDockWindow(("Editor (" + scn->GetName() + ")").c_str(), dock_main_id);
+                }
+            }
+        }
 
         ImGui::DockBuilderFinish(dockspace_id);
     }
 
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-    ImGui::Begin("Editor");
-    ImGuizmo::SetDrawlist();
-    ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-    ImVec2 viewportPos = ImGui::GetWindowPos();
-    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-    viewportPos.x += contentMin.x;
-    viewportPos.y += contentMin.y;
-    lastViewportPos = viewportPos;
+    // 1. Render all Editor windows (one per active scene)
+    auto activeScenes = engine->GetActiveScenes();
+    for (size_t sceneIdx = 0; sceneIdx < activeScenes.size(); ++sceneIdx) {
+        auto currentScene = activeScenes[sceneIdx];
+        if (!currentScene) continue;
 
-    if (viewportPanelSize.x != lastViewportSize.x || viewportPanelSize.y != lastViewportSize.y)
-    {
-        lastViewportSize = viewportPanelSize;
-    }
+        std::string windowTitle = (activeScenes.size() == 1) ? "Editor" : ("Editor (" + currentScene->GetName() + ")");
+        ImGuiDockNode* centralNode = ImGui::DockBuilderGetCentralNode(dockspace_id);
+        ImGuiID centerId = centralNode ? centralNode->ID : dockspace_id;
+        ImGui::SetNextWindowDockID(centerId, ImGuiCond_FirstUseEver);
+        ImGui::Begin(windowTitle.c_str());
+        ImGuizmo::SetDrawlist();
+        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+        ImVec2 viewportPos = ImGui::GetWindowPos();
+        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+        viewportPos.x += contentMin.x;
+        viewportPos.y += contentMin.y;
 
-    void* textureId = engine->graphicsEngine ? engine->graphicsEngine->getViewportTexturePointer(0) : nullptr;
-    if (textureId) {
-        ImGui::Image((ImTextureID)textureId, viewportPanelSize);
+        auto& camState = GetEditorCameraState(currentScene.get());
+        camState.lastViewportPos = viewportPos;
+        lastViewportPos = viewportPos;
 
-        ImGuiIO& io = ImGui::GetIO();
-        bool isHovered = ImGui::IsItemHovered();
-
-        // Zoom
-        if (isHovered && io.MouseWheel != 0.0f) {
-            float zoomSensitivity = 0.1f;
-            cameraDistance = glm::max(0.1f, cameraDistance - io.MouseWheel * zoomSensitivity);
-            UpdateCameraPosition();
+        if (viewportPanelSize.x != camState.lastViewportSize.x || viewportPanelSize.y != camState.lastViewportSize.y)
+        {
+            camState.lastViewportSize = viewportPanelSize;
+            lastViewportSize = viewportPanelSize;
         }
 
-        // Selection (Left Click)
-        if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
-            Scene* targetScene = GetTargetScene();
-            if (targetScene) {
-                auto* collisionSystem = targetScene->GetSystem<CollisionSystem>().get();
+        uint32_t camIdx = static_cast<uint32_t>(sceneIdx);
+        void* textureId = engine->graphicsEngine ? engine->graphicsEngine->getViewportTexturePointer(camIdx) : nullptr;
+        if (textureId) {
+            ImGui::Image((ImTextureID)textureId, viewportPanelSize);
+
+            ImGuiIO& io = ImGui::GetIO();
+            bool isHovered = ImGui::IsItemHovered();
+
+            if (isHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle))) {
+                selectedScene = currentScene;
+            }
+
+            // Zoom
+            if (isHovered && io.MouseWheel != 0.0f) {
+                float zoomSensitivity = 0.1f;
+                camState.cameraDistance = glm::max(0.1f, camState.cameraDistance - io.MouseWheel * zoomSensitivity);
+                camState.UpdateCameraPosition();
+            }
+
+            // Selection (Left Click)
+            if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
+                selectedScene = currentScene;
+                auto* collisionSystem = currentScene->GetSystem<CollisionSystem>().get();
                 if (collisionSystem) {
                     ImVec2 mousePos = ImGui::GetMousePos();
-                    Ray ray = collisionSystem->ScreenToWorldRay(camera, mousePos.x - viewportPos.x,
+                    Ray ray = collisionSystem->ScreenToWorldRay(camState.camera, mousePos.x - viewportPos.x,
                                                                 mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
 
-                    auto gizmoSystem = targetScene->GetSystem<GizmoSystem>();
+                    auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
                     if (gizmoSystem) {
-                        gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f),5);
+                        gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f), 5);
                     }
 
                     auto hit = collisionSystem->RayCastClosest(ray);
@@ -475,65 +526,71 @@ void EditorSystem::Update(float deltaTime)
                     }
                 }
             }
+
+            // Orbit/Pan Start
+            if (isHovered) {
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) camState.isRightMousePressed = true;
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) camState.isMiddleMousePressed = true;
+            }
+
+            // Orbit/Pan Stop
+            if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) camState.isRightMousePressed = false;
+            if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) camState.isMiddleMousePressed = false;
+
+            // Orbit camera
+            if (camState.isRightMousePressed) {
+                float sensitivity = 0.3f;
+                camState.cameraYaw += io.MouseDelta.x * sensitivity;
+                camState.cameraPitch += -io.MouseDelta.y * sensitivity;
+                camState.cameraPitch = glm::clamp(camState.cameraPitch, -89.0f, 89.0f);
+                camState.UpdateCameraPosition();
+            }
+
+            // Pan camera
+            if (camState.isMiddleMousePressed) {
+                float sensitivity = 0.001f * camState.cameraDistance;
+                glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0, 1, 0),
+                    camState.cameraTransform.position - camState.cameraTarget));
+                glm::vec3 up = glm::cross(right, camState.cameraTransform.position - camState.cameraTarget);
+
+                camState.cameraTarget += right * (-io.MouseDelta.x * sensitivity);
+                camState.cameraTarget += up * (io.MouseDelta.y * sensitivity);
+
+                camState.UpdateCameraPosition();
+            }
+
+            // Gizmos for this scene if target
+            if (currentScene.get() == GetTargetScene()) {
+                ImGuiGizmoForScene(currentScene.get(), camState, viewportPos, viewportPanelSize);
+                ImguiShaderOverrideWindow(viewportPos, viewportPanelSize);
+            }
         }
-
-        // Orbit/Pan Start
-        if (isHovered) {
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) isRightMousePressed = true;
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) isMiddleMousePressed = true;
-        }
-
-        // Orbit/Pan Stop
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) isRightMousePressed = false;
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) isMiddleMousePressed = false;
-
-        // Orbit camera
-        if (isRightMousePressed) {
-            float sensitivity = 0.3f;
-            cameraYaw += io.MouseDelta.x * sensitivity;
-            cameraPitch += -io.MouseDelta.y * sensitivity;
-            cameraPitch = glm::clamp(cameraPitch, -89.0f, 89.0f);
-            UpdateCameraPosition();
-        }
-
-        // Pan camera
-        if (isMiddleMousePressed) {
-            float sensitivity = 0.001f * cameraDistance;
-            glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0, 1, 0),
-                cameraTransform.position - cameraTarget));
-            glm::vec3 up = glm::cross(right, cameraTransform.position - cameraTarget);
-
-            cameraTarget += right * (-io.MouseDelta.x * sensitivity);
-            cameraTarget += up * (io.MouseDelta.y * sensitivity);
-
-            UpdateCameraPosition();
-        }
+        ImGui::End();
     }
-    ImGui::End();
 
-    // Render game viewports for all active scenes
-    auto activeScenes = engine->GetActiveScenes();
-    for (size_t sceneIdx = 0; sceneIdx < activeScenes.size(); ++sceneIdx) {
-        auto currentScene = activeScenes[sceneIdx];
-        if (!currentScene) continue;
-
-        auto cameraArray = currentScene->GetComponentArray<CameraComponent>();
-        if (!cameraArray) continue;
-        auto& cameras = cameraArray->GetComponents();
+    // 2. Render ONE Game window for the top editable active scene
+    auto topEditableScene = engine->GetTopEditableScene();
+    if (topEditableScene) {
+        auto cameraArray = topEditableScene->GetComponentArray<CameraComponent>();
         bool foundActive = false;
-        for (int i = 0; i < cameraArray->GetArraySize(); i++) {
-            if (cameraArray->IsComponentActive(i) && cameras[i].active) {
-                foundActive = true;
-                break;
+        if (cameraArray) {
+            auto& cameras = cameraArray->GetComponents();
+            for (int i = 0; i < cameraArray->GetArraySize(); i++) {
+                if (cameraArray->IsComponentActive(i) && cameras[i].active) {
+                    foundActive = true;
+                    break;
+                }
             }
         }
 
         if (foundActive) {
-            std::string windowTitle = (activeScenes.size() == 1) ? "Game" : ("Game (" + currentScene->GetName() + ")");
-            ImGui::Begin(windowTitle.c_str());
+            ImGuiDockNode* centralNode = ImGui::DockBuilderGetCentralNode(dockspace_id);
+            ImGuiID centerId = centralNode ? centralNode->ID : dockspace_id;
+            ImGui::SetNextWindowDockID(centerId, ImGuiCond_FirstUseEver);
+            ImGui::Begin("Game");
             ImVec2 gameViewportPanelSize = ImGui::GetContentRegionAvail();
-            uint32_t camIdx = static_cast<uint32_t>(1 + sceneIdx);
-            void* gameTextureId = engine->graphicsEngine ? engine->graphicsEngine->getViewportTexturePointer(camIdx) : nullptr;
+            uint32_t gameCamIdx = static_cast<uint32_t>(activeScenes.size());
+            void* gameTextureId = engine->graphicsEngine ? engine->graphicsEngine->getViewportTexturePointer(gameCamIdx) : nullptr;
             if (gameTextureId) {
                 ImGui::Image((ImTextureID)gameTextureId, gameViewportPanelSize);
             }
@@ -550,8 +607,6 @@ void EditorSystem::Update(float deltaTime)
     ImGuiSceneGraph();
     ImGuiInspector();
     ImGuiSystemSettings();
-    ImGuiGizmo();
-    ImguiShaderOverrideWindow();
 
     ImGui::End();
 }
@@ -630,24 +685,75 @@ void EditorSystem::SetUpCameraControls()
     UpdateCameraPosition();
 }
 
-void EditorSystem::UpdateCameraPosition()
+void EditorSystem::EditorCameraState::UpdateCameraPosition()
 {
-    // Calculate camera position based on spherical coordinates
-    float x = cameraDistance * cos(glm::radians(cameraPitch)) * cos(glm::radians(cameraYaw));
-    float y = cameraDistance * sin(glm::radians(cameraPitch));
-    float z = cameraDistance * cos(glm::radians(cameraPitch)) * sin(glm::radians(cameraYaw));
+    float yawRad = glm::radians(cameraYaw);
+    float pitchRad = glm::radians(cameraPitch);
+    cameraTransform.position.x = cameraTarget.x + cameraDistance * cos(pitchRad) * sin(yawRad);
+    cameraTransform.position.y = cameraTarget.y + cameraDistance * sin(pitchRad);
+    cameraTransform.position.z = cameraTarget.z + cameraDistance * cos(pitchRad) * cos(yawRad);
+    glm::vec3 direction = glm::normalize(cameraTarget - cameraTransform.position);
+    cameraTransform.rotation = glm::quatLookAt(direction, glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // Update camera transform
-    cameraTransform.position = cameraTarget + glm::vec3(x, y, z);
-    cameraTransform.rotation = glm::quatLookAt(
-        glm::normalize(cameraTarget - cameraTransform.position),
-        glm::vec3(0, 1, 0)
-    );
-
-    // Update camera matrices
     computeLocalMatrix(cameraTransform);
     cameraTransform.globalMatrix = cameraTransform.localMatrix;
     updateViewMatrix(camera, cameraTransform.globalMatrix);
+}
+
+EditorSystem::EditorCameraState& EditorSystem::GetEditorCameraState(Scene* scene)
+{
+    std::string name = scene ? scene->GetName() : "";
+    return GetEditorCameraState(name);
+}
+
+EditorSystem::EditorCameraState& EditorSystem::GetEditorCameraState(const std::string& sceneName)
+{
+    auto it = sceneEditorCameras.find(sceneName);
+    if (it == sceneEditorCameras.end()) {
+        EditorCameraState state;
+        state.cameraDistance = 5.0f;
+        state.cameraYaw = 0.0f;
+        state.cameraPitch = 45.0f;
+        state.cameraTarget = glm::vec3(0.0f);
+        state.UpdateCameraPosition();
+        sceneEditorCameras[sceneName] = state;
+        return sceneEditorCameras[sceneName];
+    }
+    return it->second;
+}
+
+void EditorSystem::FocusCameraOnBounds(const glm::vec3& center, float distance, Scene* scene)
+{
+    Scene* targetScene = scene ? scene : GetTargetScene();
+    std::string sName = targetScene ? targetScene->GetName() : "";
+    auto& camState = GetEditorCameraState(sName);
+    camState.cameraTarget = center;
+    camState.cameraDistance = std::max(0.5f, distance);
+    camState.cameraPitch = 30.0f;
+    camState.cameraYaw = 45.0f;
+    camState.UpdateCameraPosition();
+
+    camera = camState.camera;
+    cameraTransform = camState.cameraTransform;
+    cameraDistance = camState.cameraDistance;
+    cameraPitch = camState.cameraPitch;
+    cameraYaw = camState.cameraYaw;
+    cameraTarget = camState.cameraTarget;
+}
+
+void EditorSystem::UpdateCameraPosition()
+{
+    Scene* targetScene = GetTargetScene();
+    std::string sName = targetScene ? targetScene->GetName() : "";
+    auto& camState = GetEditorCameraState(sName);
+    camState.cameraDistance = cameraDistance;
+    camState.cameraYaw = cameraYaw;
+    camState.cameraPitch = cameraPitch;
+    camState.cameraTarget = cameraTarget;
+    camState.UpdateCameraPosition();
+
+    camera = camState.camera;
+    cameraTransform = camState.cameraTransform;
 }
 
 void EditorSystem::ImGuiSceneGraph()
@@ -692,8 +798,9 @@ void EditorSystem::ImGuiSceneGraph()
     Scene* targetScene = GetTargetScene();
 
     std::string sceneToClose;
-    for (auto& [sceneName, scn] : engine->GetScenes())
+    for (const auto& sceneName : engine->GetSceneOrder())
     {
+        auto scn = engine->GetScene(sceneName);
         if (!scn) continue;
         ImGui::PushID(sceneName.c_str());
         bool isCurrentActive = scn->IsActive();
@@ -710,7 +817,8 @@ void EditorSystem::ImGuiSceneGraph()
             sceneFlags |= ImGuiTreeNodeFlags_Selected;
         }
 
-        bool sceneNodeOpen = ImGui::TreeNodeEx((void*)scn.get(), sceneFlags, "%s", sceneName.c_str());
+        std::string displayName = sceneName + (scn->IsEditable() ? "" : " (Read-Only)");
+        bool sceneNodeOpen = ImGui::TreeNodeEx((void*)scn.get(), sceneFlags, "%s", displayName.c_str());
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
         {
             selectedScene = scn;
@@ -719,10 +827,13 @@ void EditorSystem::ImGuiSceneGraph()
         // Context menu for the scene
         if (ImGui::BeginPopupContextItem())
         {
-            if (ImGui::MenuItem("Create Entity"))
+            if (scn->IsEditable())
             {
-                selectedScene = scn;
-                scn->CreateEntity();
+                if (ImGui::MenuItem("Create Entity"))
+                {
+                    selectedScene = scn;
+                    scn->CreateEntity();
+                }
             }
             if (ImGui::MenuItem(isCurrentActive ? "Deactivate Scene" : "Activate Scene"))
             {
@@ -761,7 +872,7 @@ void EditorSystem::ImGuiSceneGraph()
         engine->CloseScene(sceneToClose);
     }
 
-    if (targetScene && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && selectedEntity != std::numeric_limits<std::uint32_t>::max() && renamingEntity == std::numeric_limits<std::uint32_t>::max())
+    if (targetScene && targetScene->IsEditable() && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && selectedEntity != std::numeric_limits<std::uint32_t>::max() && renamingEntity == std::numeric_limits<std::uint32_t>::max())
     {
         if (ImGui::IsKeyPressed(ImGuiKey_F2))
         {
@@ -772,7 +883,7 @@ void EditorSystem::ImGuiSceneGraph()
     }
 
     // Handle dropping onto empty space (to make an entity a root)
-    if (targetScene && ImGui::BeginDragDropTarget())
+    if (targetScene && targetScene->IsEditable() && ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
         {
@@ -783,7 +894,7 @@ void EditorSystem::ImGuiSceneGraph()
     }
 
     // Context menu on empty area
-    if (targetScene && ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    if (targetScene && targetScene->IsEditable() && ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
     {
         if (ImGui::MenuItem("Create Entity"))
         {
@@ -815,7 +926,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     }
 
-    bool isRenaming = (renamingEntity == entity && currentScene == targetScene);
+    bool isRenaming = (renamingEntity == entity && currentScene == targetScene && currentScene->IsEditable());
     bool nodeOpen = false;
 
     if (isRenaming)
@@ -860,44 +971,51 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     // Context menu on entity
     if (ImGui::BeginPopupContextItem())
     {
-        if (ImGui::MenuItem("Rename", "F2"))
+        if (currentScene->IsEditable())
         {
-            renamingEntity = entity;
-            std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(entity, currentScene).c_str());
-            renameFocusRequested = true;
-        }
-        if (ImGui::MenuItem("Create Child Entity"))
-        {
-            currentScene->CreateEntity("Child Entity", entity);
-        }
-        if (ImGui::MenuItem(isActive ? "Disable Entity" : "Enable Entity"))
-        {
-            currentScene->SetEntityActive(entity, !isActive);
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Delete Entity"))
-        {
-            currentScene->DestroyEntity(entity);
-            if (selectedEntity == entity)
+            if (ImGui::MenuItem("Rename", "F2"))
             {
-                selectedEntity = std::numeric_limits<std::uint32_t>::max();
+                renamingEntity = entity;
+                std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(entity, currentScene).c_str());
+                renameFocusRequested = true;
             }
-            if (renamingEntity == entity)
+            if (ImGui::MenuItem("Create Child Entity"))
             {
-                renamingEntity = std::numeric_limits<std::uint32_t>::max();
+                currentScene->CreateEntity("Child Entity", entity);
             }
-            ImGui::EndPopup();
-            if (nodeOpen)
+            if (ImGui::MenuItem(isActive ? "Disable Entity" : "Enable Entity"))
             {
-                ImGui::TreePop();
+                currentScene->SetEntityActive(entity, !isActive);
             }
-            return;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Delete Entity"))
+            {
+                currentScene->DestroyEntity(entity);
+                if (selectedEntity == entity)
+                {
+                    selectedEntity = std::numeric_limits<std::uint32_t>::max();
+                }
+                if (renamingEntity == entity)
+                {
+                    renamingEntity = std::numeric_limits<std::uint32_t>::max();
+                }
+                ImGui::EndPopup();
+                if (nodeOpen)
+                {
+                    ImGui::TreePop();
+                }
+                return;
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled("Scene is Read-Only");
         }
         ImGui::EndPopup();
     }
 
     // Start drag operation
-    if (!isRenaming && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+    if (currentScene->IsEditable() && !isRenaming && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
         // Set payload to carry the entity index
         ImGui::SetDragDropPayload("SCENE_ENTITY", &entity, sizeof(Entity));
@@ -906,7 +1024,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     }
 
     // Handle incoming drag
-    if (ImGui::BeginDragDropTarget())
+    if (currentScene->IsEditable() && ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
         {

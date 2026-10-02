@@ -44,6 +44,8 @@ namespace engine {
         virtual std::vector<std::shared_ptr<ecs::Scene>> GetActiveScenes() = 0;
         virtual const std::unordered_map<std::string, std::shared_ptr<ecs::Scene>>& GetScenes() const = 0;
         virtual std::unordered_map<std::string, std::shared_ptr<ecs::Scene>>& GetScenes() = 0;
+        virtual const std::vector<std::string>& GetSceneOrder() const { static const std::vector<std::string> empty; return empty; }
+        virtual std::shared_ptr<ecs::Scene> GetTopEditableScene() { return nullptr; }
 
         virtual std::shared_ptr<ecs::EditorSystem> GetEditorSystem() = 0;
 
@@ -54,6 +56,7 @@ namespace engine {
 
         virtual void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) { return nullptr; }
         virtual bool CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath) { return false; }
+        virtual std::shared_ptr<ecs::Scene> OpenModelPreviewScene(const boost::uuids::uuid& modelOrMeshId) { return nullptr; }
 
         // Global update loop
         virtual void Update(float deltaTime) = 0;
