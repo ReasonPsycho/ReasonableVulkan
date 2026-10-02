@@ -2,6 +2,10 @@
 #include <imgui_impl_sdl3.h>
 #include "AssetManagerInterface.h"
 #include <rapidjson/document.h>
+#include <filesystem>
+#ifdef _WIN32
+#include <shellapi.h>
+#endif
 
 namespace  plt
 {
@@ -394,6 +398,21 @@ namespace  plt
         // Non-windows implementation placeholder
 #endif
     }
+    bool Platform::OpenFileInDefaultApp(const std::string& path) {
+        if (path.empty()) return false;
+        std::filesystem::path absPath = std::filesystem::absolute(path);
+#ifdef _WIN32
+        HINSTANCE result = ShellExecuteW(NULL, L"open", absPath.wstring().c_str(), NULL, NULL, SW_SHOWNORMAL);
+        return reinterpret_cast<intptr_t>(result) > 32;
+#elif defined(__APPLE__)
+        std::string cmd = "open \"" + absPath.string() + "\"";
+        return system(cmd.c_str()) == 0;
+#else
+        std::string cmd = "xdg-open \"" + absPath.string() + "\"";
+        return system(cmd.c_str()) == 0;
+#endif
+    }
+
     Platform::~Platform() {
         Shutdown();
     }

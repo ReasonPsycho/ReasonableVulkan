@@ -100,6 +100,9 @@ namespace  plt
         virtual bool IsMouseButtonPressed(uint8_t button) const = 0;
         virtual void GetMousePosition(float& x, float& y) const = 0;
 
+        // System utility functions
+        virtual bool OpenFileInDefaultApp(const std::string& path) = 0;
+
     protected:
         PlatformInterface() = default;
     };
