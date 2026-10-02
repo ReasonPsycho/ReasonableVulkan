@@ -451,39 +451,68 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
         auto& info = it->second;
         if (info->type == AssetType::Texture) {
-            std::filesystem::path sourcePath = info->path;
-            if (!std::filesystem::exists(sourcePath)) {
-                sourcePath = info->importContext.importPath;
-            }
-            if (!std::filesystem::exists(sourcePath)) {
-                sourcePath = std::filesystem::path(resourceFolder) / info->path;
-            }
-            if (!std::filesystem::exists(sourcePath)) {
-                return false;
-            }
-
             std::filesystem::path thumbDir = std::filesystem::path(resourceFolder) / ".cache" / "thumbnails";
             std::error_code ec;
             std::filesystem::create_directories(thumbDir, ec);
 
             std::filesystem::path destPath = thumbDir / (boost::uuids::to_string(id) + ".png");
 
-            int width = 0, height = 0, channels = 0;
-            unsigned char* pixels = stbi_load(sourcePath.string().c_str(), &width, &height, &channels, 4);
-            if (!pixels) {
-                return false;
-            }
-
             int thumbW = 128;
             int thumbH = 128;
             std::vector<uint8_t> thumbPixels(thumbW * thumbH * 4);
-            stbir_resize_uint8_linear(pixels, width, height, 0, thumbPixels.data(), thumbW, thumbH, 0, STBIR_RGBA);
-            stbi_image_free(pixels);
 
-            if (stbi_write_png(destPath.string().c_str(), thumbW, thumbH, 4, thumbPixels.data(), thumbW * 4)) {
-                info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
-                saveAssetMetadata(id);
-                return true;
+            // 1. Try loading from original source image (e.g. .png, .jpg) via importPath
+            std::filesystem::path importPath = info->importContext.importPath;
+            if (!std::filesystem::exists(importPath, ec)) {
+                std::filesystem::path p1 = std::filesystem::path(resourceFolder) / importPath;
+                if (std::filesystem::exists(p1, ec)) {
+                    importPath = p1;
+                } else if (importPath.string().rfind("res/", 0) == 0 || importPath.string().rfind("res\\", 0) == 0) {
+                    std::filesystem::path subPath = importPath.string().substr(4);
+                    std::filesystem::path p2 = std::filesystem::path(resourceFolder) / subPath;
+                    if (std::filesystem::exists(p2, ec)) {
+                        importPath = p2;
+                    }
+                }
+            }
+
+            if (std::filesystem::exists(importPath, ec) && importPath.extension() != ".b_texture") {
+                int width = 0, height = 0, channels = 0;
+                unsigned char* pixels = stbi_load(importPath.string().c_str(), &width, &height, &channels, 4);
+                if (pixels) {
+                    stbir_resize_uint8_linear(pixels, width, height, 0, thumbPixels.data(), thumbW, thumbH, 0, STBIR_RGBA);
+                    stbi_image_free(pixels);
+
+                    if (stbi_write_png(destPath.string().c_str(), thumbW, thumbH, 4, thumbPixels.data(), thumbW * 4)) {
+                        info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
+                        saveAssetMetadata(id);
+                        return true;
+                    }
+                }
+            }
+
+            // 2. If original image is not directly readable via stbi_load (or asset is binary .b_texture), load the TextureAsset
+            auto assetOpt = getAsset(id);
+            if (assetOpt.has_value() && assetOpt.value()) {
+                auto* texData = assetOpt.value()->getAssetDataAs<TextureData>();
+                if (texData && !texData->pixels.empty() && texData->width > 0 && texData->height > 0) {
+                    stbir_resize_uint8_linear(
+                        reinterpret_cast<const unsigned char*>(texData->pixels.data()),
+                        texData->width,
+                        texData->height,
+                        0,
+                        thumbPixels.data(),
+                        thumbW,
+                        thumbH,
+                        0,
+                        STBIR_RGBA);
+
+                    if (stbi_write_png(destPath.string().c_str(), thumbW, thumbH, 4, thumbPixels.data(), thumbW * 4)) {
+                        info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
+                        saveAssetMetadata(id);
+                        return true;
+                    }
+                }
             }
         }
         return false;
