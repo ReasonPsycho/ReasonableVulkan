@@ -60,6 +60,18 @@ namespace vks {
 		void* getViewportTexturePointer(uint32_t cameraIndex) override;
 
 		void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) override;
+		bool captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth = 128, int targetHeight = 128) override;
+		bool renderAndCaptureModelThumbnail(
+			const boost::uuids::uuid& modelId,
+			const std::string& outputPath,
+			int targetWidth,
+			int targetHeight,
+			const glm::mat4& viewMatrix,
+			const glm::mat4& projMatrix,
+			const glm::vec3& camPos,
+			const glm::vec3& lightDir,
+			const glm::vec3& lightColor,
+			float lightIntensity) override;
 
 		void cleanup();
 		void waitIdle();

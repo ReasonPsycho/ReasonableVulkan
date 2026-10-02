@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <SDL3/SDL_vulkan.h>
 #include <stb_image.h>
+#include <stb_image_write.h>
+#include <stb_image_resize2.h>
 #include <filesystem>
 #include <boost/uuid/uuid_io.hpp>
 
@@ -421,6 +423,154 @@ namespace vks {
 #else
         return nullptr;
 #endif
+    }
+
+    bool VulkanRenderer::renderAndCaptureModelThumbnail(
+        const boost::uuids::uuid& modelId,
+        const std::string& outputPath,
+        int targetWidth,
+        int targetHeight,
+        const glm::mat4& viewMatrix,
+        const glm::mat4& projMatrix,
+        const glm::vec3& camPos,
+        const glm::vec3& lightDir,
+        const glm::vec3& lightColor,
+        float lightIntensity)
+    {
+        if (!renderManager) {
+            return false;
+        }
+        return renderManager->renderAndCaptureModelThumbnail(
+            modelId, outputPath, targetWidth, targetHeight,
+            viewMatrix, projMatrix, camPos,
+            lightDir, lightColor, lightIntensity
+        );
+    }
+
+    bool VulkanRenderer::captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth, int targetHeight) {
+        waitIdle();
+
+        if (!pipelineManager || !swapChain || !context) {
+            return false;
+        }
+
+        uint32_t imageIndex = swapChain->getCurrentImageIndex();
+        const auto& cameraRes = pipelineManager->cameraResources;
+        if (cameraIndex >= cameraRes.size() || imageIndex >= cameraRes[cameraIndex].offscreenTargets.size()) {
+            return false;
+        }
+
+        VkImage srcImage = cameraRes[cameraIndex].offscreenTargets[imageIndex].image;
+        if (srcImage == VK_NULL_HANDLE) {
+            return false;
+        }
+
+        VkExtent2D extent = swapChain->getSwapChainExtent();
+        uint32_t width = extent.width;
+        uint32_t height = extent.height;
+        if (width == 0 || height == 0) {
+            return false;
+        }
+
+        VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
+
+        VkBuffer stagingBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+        context->createBuffer(
+            imageSize,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            stagingBuffer,
+            stagingMemory
+        );
+
+        VkCommandBuffer cmd = context->beginSingleTimeCommands(QueueType::Graphics);
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = srcImage;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            cmd,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {width, height, 1};
+
+        vkCmdCopyImageToBuffer(cmd, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer, 1, &region);
+
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            cmd,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+
+        context->endSingleTimeCommands(cmd, QueueType::Graphics);
+
+        void* mappedData = nullptr;
+        if (vkMapMemory(context->getDevice(), stagingMemory, 0, imageSize, 0, &mappedData) == VK_SUCCESS) {
+            std::filesystem::path outPath(outputPath);
+            std::error_code ec;
+            std::filesystem::create_directories(outPath.parent_path(), ec);
+
+            std::vector<uint8_t> thumbPixels(targetWidth * targetHeight * 4);
+            stbir_resize_uint8_linear(
+                reinterpret_cast<const unsigned char*>(mappedData),
+                width,
+                height,
+                0,
+                thumbPixels.data(),
+                targetWidth,
+                targetHeight,
+                0,
+                STBIR_RGBA
+            );
+
+            stbi_write_png(outputPath.c_str(), targetWidth, targetHeight, 4, thumbPixels.data(), targetWidth * 4);
+            vkUnmapMemory(context->getDevice(), stagingMemory);
+
+            vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
+            vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+            return true;
+        }
+
+        vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
+        vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+        return false;
     }
 
     void VulkanRenderer::cleanup() {

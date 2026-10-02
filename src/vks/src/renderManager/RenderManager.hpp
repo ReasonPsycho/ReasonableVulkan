@@ -76,11 +76,23 @@ private:
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
 
-    void beginFrame();
+        void beginFrame();
         void renderFrame();
         void endFrame();
         void waitIdle();
         void updateSyncObjects();
+
+        bool renderAndCaptureModelThumbnail(
+            const boost::uuids::uuid& modelId,
+            const std::string& outputPath,
+            int targetWidth,
+            int targetHeight,
+            const glm::mat4& viewMatrix,
+            const glm::mat4& projMatrix,
+            const glm::vec3& camPos,
+            const glm::vec3& lightDir,
+            const glm::vec3& lightColor,
+            float lightIntensity);
 
         size_t getCurrentFrame() const { return currentFrame; }
         void setActiveCameraCount(uint32_t count) { activeCameraCount = std::max(activeCameraCount, count); }

@@ -36,14 +36,22 @@ namespace am
 
         template<typename T>
         T* getAssetData(const boost::uuids::uuid& id) {
-            return std::any_cast<T*>(getAssetData(id));
+            std::any data = getAssetData(id);
+            if (auto* ptr = std::any_cast<T*>(&data)) {
+                return *ptr;
+            }
+            return nullptr;
         }
 
         virtual std::any getAssetData(std::string lookupName) = 0;
 
         template<typename T>
         T* getAssetData(std::string lookupName) {
-            return std::any_cast<T*>(getAssetData(lookupName));
+            std::any data = getAssetData(lookupName);
+            if (auto* ptr = std::any_cast<T*>(&data)) {
+                return *ptr;
+            }
+            return nullptr;
         }
 
         virtual std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid& id) const = 0;

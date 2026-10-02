@@ -8,6 +8,7 @@
   "type": "Model",
   "lookUpName": "boxModel",
   "contentHash": 17319882714742782225,
+  "thumbnailPath": ".cache/thumbnails/59d03120-7230-403c-81af-16dd0802a753.png",
   "assetFactoryData": {
     "importPath": "res/models/my/Box.fbx",
     "assetType": "Model",

@@ -9,6 +9,9 @@
 #endif
 
 #include <boost/uuid/nil_generator.hpp>
+#include <filesystem>
+#include <stb_image_write.h>
+#include <stb_image_resize2.h>
 
 #include "../descriptorManager/buffers/LightModelPushConstant.hpp"
 #include "../descriptorManager/buffers/ModelPushConstant.hpp"
@@ -757,7 +760,7 @@ void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::Shad
             pipelineManager->getPipelineLayout(renderProgramHandle), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
     }
 
-    // Bind material descriptor set at set index 1
+        // Bind material descriptor set at set index 1
     if (hasMaterial) {
         auto materialDescriptorSet = mesh->material->descriptorSet;
         if (materialDescriptorSet != VK_NULL_HANDLE) {
@@ -765,6 +768,279 @@ void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::Shad
                 pipelineManager->getPipelineLayout(renderProgramHandle), 1, 1, &materialDescriptorSet, 0, nullptr);
         }
     }
+}
+
+bool RenderManager::renderAndCaptureModelThumbnail(
+    const boost::uuids::uuid& modelId,
+    const std::string& outputPath,
+    int targetWidth,
+    int targetHeight,
+    const glm::mat4& viewMatrix,
+    const glm::mat4& projMatrix,
+    const glm::vec3& camPos,
+    const glm::vec3& lightDir,
+    const glm::vec3& lightColor,
+    float lightIntensity)
+{
+    waitIdle();
+
+    if (!pipelineManager || !swapChain || !context || !descriptorManager) {
+        return false;
+    }
+
+    auto wiremeshHandle = descriptorManager->getOrLoadShaderProgram("wiremeshShader");
+    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(wiremeshHandle);
+    if (!shaderProgramDescriptor) {
+        return false;
+    }
+
+    VkPipeline pipeline = pipelineManager->getPipeline(wiremeshHandle);
+    VkPipelineLayout layout = pipelineManager->getPipelineLayout(wiremeshHandle);
+    if (pipeline == VK_NULL_HANDLE || layout == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    auto assetInfoOpt = descriptorManager->assetManager->getAssetInfo(modelId);
+    if (!assetInfoOpt.has_value()) {
+        return false;
+    }
+
+    auto assetType = assetInfoOpt.value()->type;
+
+    vks::ModelDescriptor* modelDescriptor = nullptr;
+    vks::MeshDescriptor* meshDescriptor = nullptr;
+
+    if (assetType == am::AssetType::Model) {
+        auto modelHandle = descriptorManager->getOrLoadModel(modelId);
+        modelDescriptor = descriptorManager->getModel(modelHandle);
+        if (!modelDescriptor || modelDescriptor->nodes.empty()) {
+            return false;
+        }
+    } else if (assetType == am::AssetType::Mesh) {
+        auto meshHandle = descriptorManager->getOrLoadMesh(modelId);
+        meshDescriptor = descriptorManager->getMesh(meshHandle);
+        if (!meshDescriptor) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    uint32_t thumbCameraIndex = std::min(15u, static_cast<uint32_t>(pipelineManager->cameraResources.size() - 1));
+    uint32_t imageIndex = 0;
+    if (thumbCameraIndex >= pipelineManager->cameraResources.size() ||
+        imageIndex >= pipelineManager->cameraResources[thumbCameraIndex].offscreenTargets.size()) {
+        return false;
+    }
+
+    VkFramebuffer framebuffer = pipelineManager->getFramebuffer(thumbCameraIndex, imageIndex);
+    VkImage offscreenImage = pipelineManager->cameraResources[thumbCameraIndex].offscreenTargets[imageIndex].image;
+    if (framebuffer == VK_NULL_HANDLE || offscreenImage == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    // 1. Update Camera UBO for thumbnail camera
+    glm::mat4 proj = projMatrix;
+    proj[1][1] *= -1.0f; // Vulkan clip space inverted Y
+    descriptorManager->updateSceneUBO(thumbCameraIndex, proj, viewMatrix, camPos);
+
+    // 2. Update Lights Data
+    DirectionalLightBufferData dirLight{};
+    dirLight.direction = lightDir;
+    dirLight.color = lightColor;
+    dirLight.intensity = lightIntensity;
+    descriptorManager->updateLightsData({dirLight}, {}, {}, 25.0f);
+
+    // 3. Prepare Staging Buffer for Readback
+    VkExtent2D extent = swapChain->getSwapChainExtent();
+    uint32_t width = extent.width;
+    uint32_t height = extent.height;
+    if (width == 0 || height == 0) {
+        return false;
+    }
+
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+    context->createBuffer(
+        imageSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingMemory
+    );
+
+    // 4. Record and execute rendering in single-time command buffer
+    VkCommandBuffer cmd = beginSingleTimeCommands();
+
+    // Barrier for UBOs
+    std::vector<VkBufferMemoryBarrier> bufferBarriers;
+    for (auto& sceneUBO : descriptorManager->sceneUBOs) {
+        VkBufferMemoryBarrier bufferBarrier{};
+        bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        bufferBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+        bufferBarrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+        bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bufferBarrier.buffer = sceneUBO.buffer.buffer;
+        bufferBarrier.offset = 0;
+        bufferBarrier.size = sizeof(SceneUBO::UniformBlock);
+        bufferBarriers.push_back(bufferBarrier);
+    }
+
+    vkCmdPipelineBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_HOST_BIT,
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+        0,
+        0, nullptr,
+        static_cast<uint32_t>(bufferBarriers.size()), bufferBarriers.data(),
+        0, nullptr
+    );
+
+    // Begin render pass
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = pipelineManager->getRenderPass();
+    renderPassInfo.framebuffer = framebuffer;
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = extent;
+
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.12f, 0.12f, 0.14f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(width);
+    viewport.height = static_cast<float>(height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = extent;
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
+    const auto& defines = shaderProgramDescriptor->getDefines();
+    bindPipelineDescriptors(cmd, wiremeshHandle, thumbCameraIndex, defines);
+
+    if (modelDescriptor) {
+        renderNode(modelDescriptor->nodes[0], cmd, glm::mat4(1.0f), wiremeshHandle);
+    } else if (meshDescriptor) {
+        bool hasModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
+        if (hasModelPushConstants) {
+            ModelPushConstant push_m;
+            push_m.model = glm::mat4(1.0f);
+            vkCmdPushConstants(
+                cmd,
+                layout,
+                VK_SHADER_STAGE_VERTEX_BIT,
+                0,
+                sizeof(ModelPushConstant),
+                &push_m
+            );
+        }
+        bindMeshDescriptors(cmd, wiremeshHandle, meshDescriptor, defines);
+        vkCmdDrawIndexed(cmd, meshDescriptor->indices.count, 1, 0, 0, 0);
+    }
+
+    vkCmdEndRenderPass(cmd);
+
+    // 5. Image memory barrier: transition offscreen image from SHADER_READ_ONLY to TRANSFER_SRC
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = offscreenImage;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
+
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {width, height, 1};
+
+    vkCmdCopyImageToBuffer(cmd, offscreenImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer, 1, &region);
+
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
+
+    endSingleTimeCommands(cmd);
+
+    // 6. Map and save PNG
+    void* mappedData = nullptr;
+    bool success = false;
+    if (vkMapMemory(context->getDevice(), stagingMemory, 0, imageSize, 0, &mappedData) == VK_SUCCESS) {
+        std::filesystem::path outPath(outputPath);
+        std::error_code ec;
+        std::filesystem::create_directories(outPath.parent_path(), ec);
+
+        std::vector<uint8_t> thumbPixels(targetWidth * targetHeight * 4);
+        stbir_resize_uint8_linear(
+            reinterpret_cast<const unsigned char*>(mappedData),
+            width,
+            height,
+            0,
+            thumbPixels.data(),
+            targetWidth,
+            targetHeight,
+            0,
+            STBIR_RGBA
+        );
+
+        if (stbi_write_png(outputPath.c_str(), targetWidth, targetHeight, 4, thumbPixels.data(), targetWidth * 4)) {
+            success = true;
+        }
+        vkUnmapMemory(context->getDevice(), stagingMemory);
+    }
+
+    vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+    return success;
 }
 
 } // namespace vks
