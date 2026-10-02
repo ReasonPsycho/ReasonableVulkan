@@ -8,6 +8,7 @@
   "type": "Mesh",
   "lookUpName": "Plane_0.mesh",
   "contentHash": 17222296131364895489,
+  "thumbnailPath": ".cache/thumbnails/e0898068-6ef8-421e-930f-200a434e68c5.png",
   "assetFactoryData": {
     "importPath": "res/models/my/Plane.fbx",
     "assetType": "Mesh",

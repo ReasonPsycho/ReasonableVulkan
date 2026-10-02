@@ -8,6 +8,7 @@
   "type": "Mesh",
   "lookUpName": "Skybox_0.mesh",
   "contentHash": 11043026994859389112,
+  "thumbnailPath": ".cache/thumbnails/7bec3220-31ed-4dba-ab7b-ff8ca14c1cad.png",
   "assetFactoryData": {
     "importPath": "res/models/my/Skybox/Skybox.fbx",
     "assetType": "Mesh",

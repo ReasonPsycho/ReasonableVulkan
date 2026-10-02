@@ -8,6 +8,7 @@
   "type": "Mesh",
   "lookUpName": "Box_0.mesh",
   "contentHash": 14574799872376708562,
+  "thumbnailPath": ".cache/thumbnails/10f18d68-9941-4202-af0b-7332fd19c989.png",
   "assetFactoryData": {
     "importPath": "res/models/my/Box.fbx",
     "assetType": "Mesh",

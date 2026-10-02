@@ -15,6 +15,10 @@
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "ecs/NameComponent.hpp"
 #include "ecs/TagComponent.hpp"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include "../assetManager/include/assetDatas/ModelData.h"
+#include "../assetManager/include/assetDatas/MeshData.h"
 
 namespace engine {
 
@@ -317,5 +321,60 @@ namespace engine {
             return graphicsEngine->getThumbnailTexture(assetId, thumbnailPath);
         }
         return nullptr;
+    }
+
+    bool Engine::CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath)
+    {
+        if (!graphicsEngine || !assetManagerInterface) {
+            return false;
+        }
+
+        auto assetOpt = assetManagerInterface->getAsset(modelId);
+        if (!assetOpt.has_value() || !assetOpt.value()) {
+            return false;
+        }
+
+        am::AssetType type = assetOpt.value()->getType();
+        if (type != am::AssetType::Model && type != am::AssetType::Mesh) {
+            return false;
+        }
+
+        glm::vec3 bMin(-1.0f);
+        glm::vec3 bMax(1.0f);
+        if (auto* modelData = assetOpt.value()->getAssetDataAs<am::ModelData>()) {
+            bMin = modelData->boundingBoxMin;
+            bMax = modelData->boundingBoxMax;
+        } else if (auto* meshData = assetOpt.value()->getAssetDataAs<am::MeshData>()) {
+            bMin = meshData->boundingBoxMin;
+            bMax = meshData->boundingBoxMax;
+        }
+
+        glm::vec3 center = (bMin + bMax) * 0.5f;
+        glm::vec3 size = bMax - bMin;
+        float maxDim = std::max({size.x, size.y, size.z});
+        if (maxDim <= 0.001f) {
+            maxDim = 2.0f;
+        }
+
+        float fov = 45.0f;
+        float distance = (maxDim * 0.5f) / std::sin(glm::radians(fov * 0.5f)) * 1.5f;
+
+        // Camera at ~45 degrees to the side and above the model
+        glm::vec3 camDir = glm::normalize(glm::vec3(1.0f, 0.8f, 1.0f));
+        glm::vec3 camPos = center + camDir * distance;
+        glm::vec3 camTarget = center;
+        glm::vec3 camUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+        glm::mat4 viewMatrix = glm::lookAt(camPos, camTarget, camUp);
+        glm::mat4 projMatrix = glm::perspective(glm::radians(fov), 1.0f, std::max(0.01f, distance * 0.01f), distance * 100.0f);
+
+        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f));
+        glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        float lightIntensity = 2.5f;
+
+        return graphicsEngine->renderAndCaptureModelThumbnail(
+            modelId, outputPath, 128, 128,
+            viewMatrix, projMatrix, camPos,
+            lightDir, lightColor, lightIntensity);
     }
 } // namespace engine

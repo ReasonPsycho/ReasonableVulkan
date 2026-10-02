@@ -515,6 +515,21 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 }
             }
         }
+        else if (info->type == AssetType::Model || info->type == AssetType::Mesh) {
+            std::filesystem::path thumbDir = std::filesystem::path(resourceFolder) / ".cache" / "thumbnails";
+            std::error_code ec;
+            std::filesystem::create_directories(thumbDir, ec);
+
+            std::filesystem::path destPath = thumbDir / (boost::uuids::to_string(id) + ".png");
+
+            if (engine) {
+                if (engine->CaptureModelThumbnail(id, destPath.string())) {
+                    info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
+                    saveAssetMetadata(id);
+                    return true;
+                }
+            }
+        }
         return false;
     }
 

@@ -1134,6 +1134,7 @@ namespace vks
         auto assetPtr = assetInfo->get()->getAsset();
 
         auto mesh = std::make_unique<MeshDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::MeshData>(), glm::mat4(1), *context);
+        mesh->setUpDescriptorSet(meshUniformLayout, meshPool);
         gfx::MeshHandle handle = meshResourcePool.insert(std::move(mesh));
         uuidToMeshMap[assetId] = handle;
         return handle;

@@ -8,6 +8,7 @@
   "type": "Model",
   "lookUpName": "skyboxModel",
   "contentHash": 43590915286374941,
+  "thumbnailPath": ".cache/thumbnails/4a6d624b-5530-458d-bd8f-0e4ced4aa466.png",
   "assetFactoryData": {
     "importPath": "res/models/my/Skybox/Skybox.fbx",
     "assetType": "Model",

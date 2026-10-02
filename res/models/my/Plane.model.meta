@@ -8,6 +8,7 @@
   "type": "Model",
   "lookUpName": "planeModel",
   "contentHash": 2234112481858389971,
+  "thumbnailPath": ".cache/thumbnails/ccc731c8-3b1c-422d-bc6a-3c091b4b04d1.png",
   "assetFactoryData": {
     "importPath": "res/models/my/Plane.fbx",
     "assetType": "Model",
