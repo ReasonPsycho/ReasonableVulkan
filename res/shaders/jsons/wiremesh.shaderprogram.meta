@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "aac54cbf-0145-4e07-8ce5-af96255494b2",
-  "path": "res/shaders/jsons/wiremesh.shaderprogram",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\wiremesh.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "wiremeshShader",
   "contentHash": 14789617359017068707,

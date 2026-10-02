@@ -11,6 +11,9 @@
 #include "src/descriptorManager/modelDescriptor/descriptors/textureDescriptor/TextureDescriptor.h"
 #include <stdexcept>
 #include <SDL3/SDL_vulkan.h>
+#include <stb_image.h>
+#include <filesystem>
+#include <boost/uuid/uuid_io.hpp>
 
 #include "src/imguiManager/ImguiManager.hpp"
 
@@ -265,8 +268,181 @@ namespace vks {
 #endif
     }
 
+    void* VulkanRenderer::getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath)
+    {
+#if ENABLE_IMGUI
+        if (!imguiManager || !descriptorManager || !context) {
+            return nullptr;
+        }
+
+        auto it = thumbnailCache.find(id);
+        if (it != thumbnailCache.end()) {
+            return (void*)it->second.descriptorSet;
+        }
+
+        std::filesystem::path resolvedPath = thumbnailPath;
+        if (resolvedPath.empty() || !std::filesystem::exists(resolvedPath)) {
+            std::filesystem::path p1 = "res/.cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
+            std::filesystem::path p2 = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
+            if (std::filesystem::exists(p1)) {
+                resolvedPath = p1;
+            } else if (std::filesystem::exists(p2)) {
+                resolvedPath = p2;
+            } else {
+                return nullptr;
+            }
+        }
+
+        int width = 0, height = 0, channels = 0;
+        unsigned char* pixels = stbi_load(resolvedPath.string().c_str(), &width, &height, &channels, 4);
+        if (!pixels) {
+            return nullptr;
+        }
+
+        VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
+        VkBuffer stagingBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+        context->createBuffer(
+            imageSize,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            stagingBuffer,
+            stagingMemory);
+
+        void* data = nullptr;
+        vkMapMemory(context->getDevice(), stagingMemory, 0, imageSize, 0, &data);
+        memcpy(data, pixels, imageSize);
+        vkUnmapMemory(context->getDevice(), stagingMemory);
+        stbi_image_free(pixels);
+
+        VkImageCreateInfo imageCreateInfo{};
+        imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+        imageCreateInfo.extent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
+        imageCreateInfo.mipLevels = 1;
+        imageCreateInfo.arrayLayers = 1;
+        imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        VkImage thumbnailImage = VK_NULL_HANDLE;
+        if (vkCreateImage(context->getDevice(), &imageCreateInfo, nullptr, &thumbnailImage) != VK_SUCCESS) {
+            vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
+            vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+            return nullptr;
+        }
+
+        VkMemoryRequirements memReqs;
+        vkGetImageMemoryRequirements(context->getDevice(), thumbnailImage, &memReqs);
+
+        VkMemoryAllocateInfo memAllocInfo{};
+        memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        memAllocInfo.allocationSize = memReqs.size;
+        memAllocInfo.memoryTypeIndex = context->findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VkDeviceMemory thumbnailMemory = VK_NULL_HANDLE;
+        if (vkAllocateMemory(context->getDevice(), &memAllocInfo, nullptr, &thumbnailMemory) != VK_SUCCESS) {
+            vkDestroyImage(context->getDevice(), thumbnailImage, nullptr);
+            vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
+            vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+            return nullptr;
+        }
+
+        vkBindImageMemory(context->getDevice(), thumbnailImage, thumbnailMemory, 0);
+
+        VkCommandBuffer cmd = context->beginSingleTimeCommands(QueueType::Graphics);
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = thumbnailImage;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
+
+        vkCmdCopyBufferToImage(cmd, stagingBuffer, thumbnailImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+        context->endSingleTimeCommands(cmd, QueueType::Graphics);
+
+        vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
+        vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = thumbnailImage;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        VkImageView thumbnailView = VK_NULL_HANDLE;
+        if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &thumbnailView) != VK_SUCCESS) {
+            vkDestroyImage(context->getDevice(), thumbnailImage, nullptr);
+            vkFreeMemory(context->getDevice(), thumbnailMemory, nullptr);
+            return nullptr;
+        }
+
+        VkDescriptorSet descriptorSet = imguiManager->addTexture(thumbnailView, descriptorManager->defaultSampler);
+        thumbnailCache[id] = {thumbnailImage, thumbnailMemory, thumbnailView, descriptorSet};
+        return (void*)descriptorSet;
+#else
+        return nullptr;
+#endif
+    }
+
     void VulkanRenderer::cleanup() {
         waitIdle();
+
+#if ENABLE_IMGUI
+        for (auto& [thumbId, res] : thumbnailCache) {
+            if (res.descriptorSet != VK_NULL_HANDLE && imguiManager) {
+                imguiManager->removeTexture(res.descriptorSet);
+            }
+            if (res.view != VK_NULL_HANDLE) {
+                vkDestroyImageView(context->getDevice(), res.view, nullptr);
+            }
+            if (res.image != VK_NULL_HANDLE) {
+                vkDestroyImage(context->getDevice(), res.image, nullptr);
+            }
+            if (res.memory != VK_NULL_HANDLE) {
+                vkFreeMemory(context->getDevice(), res.memory, nullptr);
+            }
+        }
+        thumbnailCache.clear();
+#endif
 
         renderManager.release();
         pipelineManager.release();

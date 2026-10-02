@@ -52,6 +52,13 @@ namespace am
         virtual void saveAsset(boost::uuids::uuid id) = 0;
         virtual void saveAsset(std::string lookupName) = 0;
 
+        virtual std::string getThumbnailPath(const boost::uuids::uuid& id) const = 0;
+        virtual bool generateThumbnail(const boost::uuids::uuid& id) = 0;
+        virtual void* getThumbnailTexture(const boost::uuids::uuid& id) = 0;
+
+        virtual bool saveMetaCache(const std::string& cachePath = "") const = 0;
+        virtual bool loadMetaCache(const std::string& cachePath = "") = 0;
+
         virtual std::vector<std::string> getRegisteredAssetsNames() const = 0;
         virtual std::vector<std::string> getRegisteredAssetsNames(AssetType type) const = 0;
 

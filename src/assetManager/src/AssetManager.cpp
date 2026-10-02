@@ -264,10 +264,17 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             return;
         }
 
+        resourceFolder = rootPath.lexically_normal().string();
+
         metadata.clear();
         lookupNamesToUUIDs.clear();
         assets.clear();
 
+        // 1. Attempt to load from metadata cache for fast startup
+        std::filesystem::path cacheFile = std::filesystem::path(resourceFolder) / ".cache" / "metadata_cache.json";
+        bool cacheLoaded = loadMetaCache(cacheFile.string());
+
+        // 2. Scan all .meta sidecars to discover newly added or modified assets
         for (const auto& entry : std::filesystem::recursive_directory_iterator(rootPath))
         {
             if (!entry.is_regular_file()) continue;
@@ -301,7 +308,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 }
             }
         }
-        spdlog::info("Scanned resource directory '{}', loaded {} assets.", rootPath.string(), metadata.size());
+
+        // 3. Save updated metadata cache
+        saveMetaCache(cacheFile.string());
+
+        spdlog::info("Scanned resource directory '{}', loaded {} assets (cache: {}).", rootPath.string(), metadata.size(), cacheLoaded ? "loaded" : "built");
     }
 
     bool AssetManager::saveAssetMetadata(const boost::uuids::uuid& assetId) const
@@ -325,7 +336,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
         it->second->SerializeAssetInfoToJson(document, allocator);
 
-        return saveJsonToFile(metaPath, document);
+        bool saved = saveJsonToFile(metaPath, document);
+        if (saved) {
+            saveMetaCache();
+        }
+        return saved;
     }
 
     void AssetManager::saveAllAssetMetadata() const
@@ -334,6 +349,164 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         {
             saveAssetMetadata(id);
         }
+        saveMetaCache();
+    }
+
+    bool AssetManager::saveMetaCache(const std::string& cachePath) const
+    {
+        std::filesystem::path targetPath = cachePath.empty()
+            ? (std::filesystem::path(resourceFolder) / ".cache" / "metadata_cache.json")
+            : std::filesystem::path(cachePath);
+
+        std::error_code ec;
+        std::filesystem::create_directories(targetPath.parent_path(), ec);
+
+        rapidjson::Document document;
+        document.SetObject();
+        auto& allocator = document.GetAllocator();
+
+        rapidjson::Value encodingInfo(rapidjson::kObjectType);
+        encodingInfo.AddMember("encoding", "UTF-8", allocator);
+        encodingInfo.AddMember("version", "1.0", allocator);
+        document.AddMember("_meta", encodingInfo, allocator);
+
+        rapidjson::Value metadataArray(rapidjson::kArrayType);
+        for (const auto& [uuid, info] : metadata) {
+            rapidjson::Value assetInfoObj(rapidjson::kObjectType);
+            info->SerializeAssetInfoToJson(assetInfoObj, allocator);
+            metadataArray.PushBack(assetInfoObj, allocator);
+        }
+        document.AddMember("metadata", metadataArray, allocator);
+
+        return saveJsonToFile(targetPath.string(), document);
+    }
+
+    bool AssetManager::loadMetaCache(const std::string& cachePath)
+    {
+        std::filesystem::path targetPath = cachePath.empty()
+            ? (std::filesystem::path(resourceFolder) / ".cache" / "metadata_cache.json")
+            : std::filesystem::path(cachePath);
+
+        if (!std::filesystem::exists(targetPath)) {
+            return false;
+        }
+
+        rapidjson::Document doc;
+        if (!loadJsonFromFile(targetPath.string(), doc) || !doc.IsObject() || !doc.HasMember("metadata")) {
+            return false;
+        }
+
+        const auto& array = doc["metadata"];
+        if (!array.IsArray()) {
+            return false;
+        }
+
+        for (rapidjson::SizeType i = 0; i < array.Size(); i++) {
+            const auto& obj = array[i];
+            if (obj.IsObject() && obj.HasMember("id") && obj.HasMember("type")) {
+                auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(obj);
+                std::string actualAssetPath = assetInfo.path;
+                std::error_code ec;
+                if (!std::filesystem::exists(actualAssetPath, ec)) {
+                    continue;
+                }
+                auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+                metadata[infoPtr->id] = infoPtr;
+                lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+            }
+        }
+        return !metadata.empty();
+    }
+
+    std::string AssetManager::getThumbnailPath(const boost::uuids::uuid& id) const
+    {
+        auto it = metadata.find(id);
+        if (it != metadata.end() && !it->second->thumbnailPath.empty()) {
+            std::filesystem::path p = it->second->thumbnailPath;
+            if (p.is_relative()) {
+                std::filesystem::path fullPath = std::filesystem::path(resourceFolder) / p;
+                if (std::filesystem::exists(fullPath)) {
+                    return fullPath.string();
+                }
+            }
+            if (std::filesystem::exists(p)) {
+                return p.string();
+            }
+        }
+
+        std::filesystem::path defaultCachePath = std::filesystem::path(resourceFolder) / ".cache" / "thumbnails" / (boost::uuids::to_string(id) + ".png");
+        if (std::filesystem::exists(defaultCachePath)) {
+            return defaultCachePath.string();
+        }
+
+        return "";
+    }
+
+    bool AssetManager::generateThumbnail(const boost::uuids::uuid& id)
+    {
+        auto it = metadata.find(id);
+        if (it == metadata.end()) {
+            return false;
+        }
+
+        auto& info = it->second;
+        if (info->type == AssetType::Texture) {
+            std::filesystem::path sourcePath = info->path;
+            if (!std::filesystem::exists(sourcePath)) {
+                sourcePath = info->importContext.importPath;
+            }
+            if (!std::filesystem::exists(sourcePath)) {
+                sourcePath = std::filesystem::path(resourceFolder) / info->path;
+            }
+            if (!std::filesystem::exists(sourcePath)) {
+                return false;
+            }
+
+            std::filesystem::path thumbDir = std::filesystem::path(resourceFolder) / ".cache" / "thumbnails";
+            std::error_code ec;
+            std::filesystem::create_directories(thumbDir, ec);
+
+            std::filesystem::path destPath = thumbDir / (boost::uuids::to_string(id) + ".png");
+
+            int width = 0, height = 0, channels = 0;
+            unsigned char* pixels = stbi_load(sourcePath.string().c_str(), &width, &height, &channels, 4);
+            if (!pixels) {
+                return false;
+            }
+
+            int thumbW = 128;
+            int thumbH = 128;
+            std::vector<uint8_t> thumbPixels(thumbW * thumbH * 4);
+            stbir_resize_uint8_linear(pixels, width, height, 0, thumbPixels.data(), thumbW, thumbH, 0, STBIR_RGBA);
+            stbi_image_free(pixels);
+
+            if (stbi_write_png(destPath.string().c_str(), thumbW, thumbH, 4, thumbPixels.data(), thumbW * 4)) {
+                info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
+                saveAssetMetadata(id);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void* AssetManager::getThumbnailTexture(const boost::uuids::uuid& id)
+    {
+        if (!engine) {
+            return nullptr;
+        }
+
+        std::string thumbPath = getThumbnailPath(id);
+        if (thumbPath.empty() || !std::filesystem::exists(thumbPath)) {
+            if (generateThumbnail(id)) {
+                thumbPath = getThumbnailPath(id);
+            }
+        }
+
+        if (!thumbPath.empty() && std::filesystem::exists(thumbPath)) {
+            return engine->GetThumbnailTexture(id, thumbPath);
+        }
+
+        return nullptr;
     }
 
     bool AssetManager::saveRegistryMetadataToFile(const std::string& filename) const {
@@ -751,20 +924,16 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
 
-                    // Use large icon font if available (it's the second font we loaded)
-                    bool pushedFont = false;
-                    if (ImGui::GetIO().Fonts->Fonts.Size > 1) {
-                        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]);
-                        pushedFont = true;
+                    void* thumbTex = nullptr;
+                    if (!entry.is_directory()) {
+                        auto uuidOpt = getAssetUuidByPath(path);
+                        if (uuidOpt) {
+                            thumbTex = getThumbnailTexture(uuidOpt.value());
+                        }
                     }
 
-                    if (entry.is_directory()) {
-                        ImGui::Button(ICON_FA_FOLDER, ImVec2(iconSize, iconSize));
-                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                            currentPath = path;
-                        }
-                    } else {
-                        bool clicked = ImGui::Button(GetAssetIcon(path), ImVec2(iconSize, iconSize));
+                    if (thumbTex != nullptr) {
+                        bool clicked = ImGui::ImageButton("##thumb", (ImTextureID)thumbTex, ImVec2(iconSize, iconSize));
                         bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
                         if (clicked || doubleClicked) {
                             AssetType type = GetAssetTypeFromExtension(path.extension().string());
@@ -775,11 +944,37 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                 }
                             }
                         }
-                    }
+                    } else {
+                        // Use large icon font if available (it's the second font we loaded)
+                        bool pushedFont = false;
+                        if (ImGui::GetIO().Fonts->Fonts.Size > 1) {
+                            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]);
+                            pushedFont = true;
+                        }
 
-                    if (pushedFont)
-                    {
-                        ImGui::PopFont();
+                        if (entry.is_directory()) {
+                            ImGui::Button(ICON_FA_FOLDER, ImVec2(iconSize, iconSize));
+                            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                                currentPath = path;
+                            }
+                        } else {
+                            bool clicked = ImGui::Button(GetAssetIcon(path), ImVec2(iconSize, iconSize));
+                            bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
+                            if (clicked || doubleClicked) {
+                                AssetType type = GetAssetTypeFromExtension(path.extension().string());
+                                if (type == AssetType::Scene && engine) {
+                                    auto sceneUuid = getAssetUuidByPath(path);
+                                    if (sceneUuid) {
+                                        engine->LoadScene(sceneUuid.value());
+                                    }
+                                }
+                            }
+                        }
+
+                        if (pushedFont)
+                        {
+                            ImGui::PopFont();
+                        }
                     }
 
                     ImGui::PopStyleColor(3);

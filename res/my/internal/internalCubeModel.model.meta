@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "f45229cd-4a2f-4458-8f14-e5168d859236",
-  "path": "res/my/internal/internalCubeModel.model",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\my\\internal\\internalCubeModel.model",
   "type": "Model",
   "lookUpName": "internalCubeModel",
   "contentHash": 0,

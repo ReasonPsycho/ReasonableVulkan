@@ -145,6 +145,13 @@ namespace vks
         return ImGui_ImplVulkan_AddTexture(sampler, imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
+    void ImguiManager::removeTexture(VkDescriptorSet descriptorSet)
+    {
+        if (descriptorSet != VK_NULL_HANDLE) {
+            ImGui_ImplVulkan_RemoveTexture(descriptorSet);
+        }
+    }
+
     VkDescriptorSet ImguiManager::getTexture(uint32_t cameraIndex, uint32_t imageIndex)
     {
         if (cameraIndex < cameraImguiTextureIDs.size() && imageIndex < cameraImguiTextureIDs[cameraIndex].size()) {

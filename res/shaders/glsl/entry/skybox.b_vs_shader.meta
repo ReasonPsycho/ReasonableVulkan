@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "fb2c7ed8-3ffe-43d1-bf76-825928121632",
-  "path": "res/shaders/glsl/entry/skybox.b_vs_shader",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\skybox.b_vs_shader",
   "type": "Shader",
   "lookUpName": "skybox.shader",
   "contentHash": 13283475067344067819,

@@ -3,6 +3,8 @@
 
 #include <typeindex>
 #include "stb_image.h"
+#include "stb_image_write.h"
+#include "stb_image_resize2.h"
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -124,6 +126,13 @@ namespace am {
 
         void saveAsset(boost::uuids::uuid id) override;
         void saveAsset(std::string lookupName) override;
+
+        std::string getThumbnailPath(const boost::uuids::uuid& id) const override;
+        bool generateThumbnail(const boost::uuids::uuid& id) override;
+        void* getThumbnailTexture(const boost::uuids::uuid& id) override;
+
+        bool saveMetaCache(const std::string& cachePath = "") const override;
+        bool loadMetaCache(const std::string& cachePath = "") override;
 
         //UUIDS
         template <typename T>
