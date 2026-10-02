@@ -77,6 +77,7 @@ namespace am
         virtual void ImguiFileBrowser(std::string windowName) = 0;
 
         virtual bool openFileWithDefaultApp(const std::filesystem::path& path) = 0;
+        virtual bool openFileInIDE(const std::filesystem::path& path) = 0;
         virtual void openAssetFile(const std::filesystem::path& path) = 0;
     };
 

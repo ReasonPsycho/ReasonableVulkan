@@ -102,6 +102,7 @@ namespace  plt
 
         // System utility functions
         virtual bool OpenFileInDefaultApp(const std::string& path) = 0;
+        virtual bool OpenFileInIDE(const std::string& path) = 0;
 
     protected:
         PlatformInterface() = default;

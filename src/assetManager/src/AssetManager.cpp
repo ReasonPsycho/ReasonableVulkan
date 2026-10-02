@@ -1060,7 +1060,22 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             }
         }
 
+        if (openFileInIDE(path)) {
+            return;
+        }
+
         openFileWithDefaultApp(path);
+    }
+
+    bool AssetManager::openFileInIDE(const std::filesystem::path& path)
+    {
+        if (path.empty()) return false;
+        std::filesystem::path absPath = std::filesystem::absolute(path);
+
+        if (platform) {
+            return platform->OpenFileInIDE(absPath.string());
+        }
+        return false;
     }
 
     bool AssetManager::openFileWithDefaultApp(const std::filesystem::path& path)
@@ -1213,6 +1228,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                         engine->CloseScene(sceneUuid.value());
                                     }
                                 }
+                                if (ImGui::MenuItem("Open in IDE")) {
+                                    openFileInIDE(path);
+                                }
                                 if (ImGui::MenuItem("Open in System Default")) {
                                     openFileWithDefaultApp(path);
                                 }
@@ -1231,6 +1249,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                         generateThumbnail(modelUuid.value());
                                     }
                                 }
+                                if (ImGui::MenuItem("Open in IDE")) {
+                                    openFileInIDE(path);
+                                }
                                 if (ImGui::MenuItem("Open in System Default")) {
                                     openFileWithDefaultApp(path);
                                 }
@@ -1245,6 +1266,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                                             generateThumbnail(texUuid.value());
                                         }
                                     }
+                                }
+                                if (ImGui::MenuItem("Open in IDE")) {
+                                    openFileInIDE(path);
                                 }
                                 if (ImGui::MenuItem("Open in System Default")) {
                                     openFileWithDefaultApp(path);
