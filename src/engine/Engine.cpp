@@ -310,4 +310,12 @@ namespace engine {
             RemoveScene(sceneNameToRemove);
         }
     }
+
+    void* Engine::GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath)
+    {
+        if (graphicsEngine) {
+            return graphicsEngine->getThumbnailTexture(assetId, thumbnailPath);
+        }
+        return nullptr;
+    }
 } // namespace engine

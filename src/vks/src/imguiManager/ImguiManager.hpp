@@ -43,6 +43,7 @@ namespace vks
         void createDescriptorSets(std::vector<VkImageView> swapChainImagesViews);
         void createFramebuffers(std::vector<VkImageView> swapChainImagesViews);
         VkDescriptorSet addTexture(VkImageView imageView, VkSampler sampler);
+        void removeTexture(VkDescriptorSet descriptorSet);
         VkDescriptorSet getTexture(uint32_t cameraIndex, uint32_t imageIndex);
         VkDescriptorSet getTexture(uint32_t imageIndex);
         std::vector<std::vector<VkDescriptorSet>> cameraImguiTextureIDs;

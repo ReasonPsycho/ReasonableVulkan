@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "5edc6086-7a82-4ebe-9afc-e0bf079224a2",
-  "path": "res/shaders/glsl/entry/wiremesh_textured.b_fs_shader",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\wiremesh_textured.b_fs_shader",
   "type": "Shader",
   "lookUpName": "wiremesh_textured.shader",
   "contentHash": 15684069207013809655,

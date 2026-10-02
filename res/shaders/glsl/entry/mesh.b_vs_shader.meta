@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "a70be68f-ada2-45b4-abd7-4828d5a09100",
-  "path": "res/shaders/glsl/entry/mesh.b_vs_shader",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\mesh.b_vs_shader",
   "type": "Shader",
   "lookUpName": "mesh.shader",
   "contentHash": 4069165301351927497,

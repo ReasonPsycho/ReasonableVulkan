@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "9cd3142c-1d8e-4211-8903-e4b21a7d9e00",
-  "path": "res/config/platform.config",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\config\\platform.config",
   "type": "Config",
   "lookUpName": "platformConfig",
   "contentHash": 8183757397731711187,

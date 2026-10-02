@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "1c5e4045-c36b-4f98-aee1-ced329e28b2f",
-  "path": "res/my/internal/materialOfmeshOfinternalRayModel.material",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\my\\internal\\materialOfmeshOfinternalRayModel.material",
   "type": "Material",
   "lookUpName": "materialOfmeshOfinternalRayModel.material",
   "contentHash": 0,

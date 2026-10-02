@@ -5,6 +5,8 @@
 #include <string>
 #include <glm/detail/type_mat4x4.hpp>
 #include <vulkan/vulkan_core.h>
+#include <unordered_map>
+#include <boost/functional/hash.hpp>
 
 #include "include/GraphicsEngine.hpp"
 #include "src/imguiManager/ImguiManager.hpp"
@@ -57,6 +59,8 @@ namespace vks {
 		void* getViewportTexturePointer() override;
 		void* getViewportTexturePointer(uint32_t cameraIndex) override;
 
+		void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) override;
+
 		void cleanup();
 		void waitIdle();
 		void handleWindowResize(uint32_t width, uint32_t height);
@@ -75,5 +79,13 @@ namespace vks {
 #endif
 		gfx::ShaderProgramHandle pbrShaderHandle{gfx::ShaderProgramHandle::invalid()};
 		gfx::ShaderProgramHandle skyboxShaderHandle{gfx::ShaderProgramHandle::invalid()};
+
+		struct ThumbnailTextureResource {
+			VkImage image = VK_NULL_HANDLE;
+			VkDeviceMemory memory = VK_NULL_HANDLE;
+			VkImageView view = VK_NULL_HANDLE;
+			VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+		};
+		std::unordered_map<boost::uuids::uuid, ThumbnailTextureResource, boost::hash<boost::uuids::uuid>> thumbnailCache;
 	};
 }

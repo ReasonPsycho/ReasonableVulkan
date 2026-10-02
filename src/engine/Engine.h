@@ -77,6 +77,8 @@ namespace engine {
         void CloseScene(const std::string& name) override;
         void CloseScene(boost::uuids::uuid sceneId) override;
 
+        void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
+
         // Get registered types
         const std::set<std::type_index>& GetRegisteredComponentTypes() const;
         const std::set<std::type_index>& GetRegisteredSystemTypes() const;

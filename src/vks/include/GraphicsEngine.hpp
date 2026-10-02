@@ -50,6 +50,8 @@ namespace gfx {
         virtual ShaderProgramHandle getShaderHandle(const std::string& lookUpName) = 0;
         virtual MaterialHandle getMaterialHandle(const std::string& lookUpName) = 0;
 
+        virtual void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) { return nullptr; }
+
         virtual void beginFrame() = 0;
         virtual void renderFrame() = 0;
         virtual void endFrame() = 0;

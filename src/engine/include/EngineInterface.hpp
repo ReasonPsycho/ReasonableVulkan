@@ -52,6 +52,8 @@ namespace engine {
         virtual void CloseScene(const std::string& name) = 0;
         virtual void CloseScene(boost::uuids::uuid sceneId) = 0;
 
+        virtual void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) { return nullptr; }
+
         // Global update loop
         virtual void Update(float deltaTime) = 0;
 

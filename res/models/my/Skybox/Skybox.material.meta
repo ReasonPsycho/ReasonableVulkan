@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "47939726-a955-4d1a-b679-ef77735d6dca",
-  "path": "res/models/my/Skybox/Skybox.material",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\my\\Skybox\\Skybox.material",
   "type": "Material",
   "lookUpName": "Skybox_0.material",
   "contentHash": 5159174313567201401,

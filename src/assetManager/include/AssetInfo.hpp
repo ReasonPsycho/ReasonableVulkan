@@ -40,6 +40,7 @@ namespace am {
         std::string lookUpName;
         size_t contentHash;
         ImportContext importContext;
+        std::string thumbnailPath;
         bool isLoaded = false;
         Asset *loadedAsset = nullptr;
 
@@ -49,13 +50,15 @@ namespace am {
                   AssetType t,
                   size_t hash,
                   ImportContext factoryData,
-                  std::string lookUpName)
+                  std::string lookUpName,
+                  std::string thumbPath = "")
             : id(uuid)
               , path(std::move(p))
               , type(t)
               , contentHash(hash)
               , importContext(std::move(factoryData))
-              , lookUpName(std::move(lookUpName)) {
+              , lookUpName(std::move(lookUpName))
+              , thumbnailPath(std::move(thumbPath)) {
         }
 
         // Method to get or load asset
@@ -63,12 +66,17 @@ namespace am {
 
         bool isAssetLoaded() const;
 
+        AssetInfo(const AssetInfo& other) = default;
+        AssetInfo& operator=(const AssetInfo& other) = default;
+        AssetInfo& operator=(AssetInfo&& other) noexcept = default;
+
         AssetInfo(AssetInfo &&other) noexcept
             : id(other.id)
               , path(std::move(other.path))
               , type(other.type)
               , contentHash(other.contentHash)
               , importContext(std::move(other.importContext))
+              , thumbnailPath(std::move(other.thumbnailPath))
               , loadedAsset(other.loadedAsset)
               , lookUpName(other.lookUpName)
               , isLoaded(other.isLoaded) {

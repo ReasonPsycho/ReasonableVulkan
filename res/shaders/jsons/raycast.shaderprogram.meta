@@ -1,10 +1,10 @@
-{
+﻿{
   "_meta": {
     "encoding": "UTF-8",
     "version": "1.0"
   },
   "id": "9c3ba401-28db-4815-aeb7-30ab14a0565d",
-  "path": "res/shaders/jsons/raycast.shaderprogram",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\raycast.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "raycastShader",
   "contentHash": 14789617359017068707,

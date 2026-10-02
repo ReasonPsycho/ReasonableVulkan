@@ -53,6 +53,10 @@ void am::AssetInfo::SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::D
     obj.AddMember("lookUpName", rapidjson::Value(lookUpName.c_str(), allocator), allocator);
     obj.AddMember("contentHash", rapidjson::Value(static_cast<uint64_t>(contentHash)), allocator);
 
+    if (!thumbnailPath.empty()) {
+        obj.AddMember("thumbnailPath", rapidjson::Value(thumbnailPath.c_str(), allocator), allocator);
+    }
+
     // Add AssetFactoryData using reflection
     rapidjson::Value factoryDataObj(rapidjson::kObjectType);
     SerializeAssetData(importContext, factoryDataObj, allocator);
@@ -75,6 +79,9 @@ am::AssetInfo am::AssetInfo::DeserializeAssetInfoFromJson(const rapidjson::Value
     }
 
     AssetInfo info(id, path, type, contentHash, assetFactoryData, lookUpName);
+    if (obj.HasMember("thumbnailPath") && obj["thumbnailPath"].IsString()) {
+        info.thumbnailPath = obj["thumbnailPath"].GetString();
+    }
     info.isLoaded = false;
 
     return info;
