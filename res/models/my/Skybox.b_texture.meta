@@ -8,6 +8,7 @@
   "type": "Texture",
   "lookUpName": "Skybox_0.texture",
   "contentHash": 5159174310912765632,
+  "thumbnailPath": ".cache/thumbnails/20b1cc30-adc8-4b45-8ae5-06ae25394708.png",
   "assetFactoryData": {
     "importPath": "res/models/my/Skybox.png",
     "assetType": "Texture",
