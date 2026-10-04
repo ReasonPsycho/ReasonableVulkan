@@ -43,7 +43,7 @@ void RenderManager::initialize(gfx::ShaderProgramHandle pbrShader, gfx::ShaderPr
     createSyncObjects();
 
     // Load a default box model for skybox rendering
-    descriptorManager->getOrLoadResource<ModelDescriptor>("boxModel");
+    descriptorManager->getOrLoadResource<ModelDescriptor>("internalCubeModel");
 }
 
 void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost::uuids::uuid raycastShaderId) {

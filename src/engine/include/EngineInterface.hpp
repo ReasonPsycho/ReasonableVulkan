@@ -54,6 +54,9 @@ namespace engine {
         virtual void CloseScene(const std::string& name) = 0;
         virtual void CloseScene(boost::uuids::uuid sceneId) = 0;
 
+        virtual void SaveConfig() {}
+        virtual void LoadConfig() {}
+
         virtual void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) { return nullptr; }
         virtual bool CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath) { return false; }
         virtual std::shared_ptr<ecs::Scene> OpenModelPreviewScene(const boost::uuids::uuid& modelOrMeshId) { return nullptr; }

@@ -25,11 +25,21 @@ namespace engine::ecs
         [[=NonSerialized{}]]
         gfx::ShaderProgramHandle runtimeShaderHandle = gfx::ShaderProgramHandle::invalid();
 
+        [[=Tooltip{"Material asset UUID"}]]
+        boost::uuids::uuid materialUuid{boost::uuids::nil_uuid()};
+
+        [[=NonSerialized{}]]
+        gfx::MaterialHandle runtimeMaterialHandle = gfx::MaterialHandle::invalid();
+
         RendererComponent() = default;
         explicit RendererComponent(boost::uuids::uuid shaderId)
             : shaderUuid(shaderId) {}
         explicit RendererComponent(boost::uuids::uuid shaderId, gfx::ShaderProgramHandle handle)
             : shaderUuid(shaderId), runtimeShaderHandle(handle) {}
+        explicit RendererComponent(boost::uuids::uuid shaderId, boost::uuids::uuid materialId)
+            : shaderUuid(shaderId), materialUuid(materialId) {}
+        explicit RendererComponent(boost::uuids::uuid shaderId, gfx::ShaderProgramHandle handle, boost::uuids::uuid materialId, gfx::MaterialHandle matHandle)
+            : shaderUuid(shaderId), runtimeShaderHandle(handle), materialUuid(materialId), runtimeMaterialHandle(matHandle) {}
 
         void CustomDrawImGui(Scene* scene);
     };

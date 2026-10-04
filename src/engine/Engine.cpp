@@ -17,6 +17,10 @@
 #include "ecs/TagComponent.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <boost/uuid/string_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/nil_generator.hpp>
+#include <rapidjson/document.h>
 #include "../assetManager/include/assetDatas/ModelData.h"
 #include "../assetManager/include/assetDatas/MeshData.h"
 
@@ -60,6 +64,11 @@ namespace engine {
         }
     }
 
+    Engine::~Engine()
+    {
+        SaveConfig();
+    }
+
     void Engine::Initialize()
     {
         if (platform) {
@@ -76,6 +85,8 @@ namespace engine {
 
         editorSystem = std::make_shared<ecs::EditorSystem>(this);
         editorSystem->Initialize();
+
+        LoadConfig();
     }
 
     std::shared_ptr<ecs::EditorSystem> Engine::GetEditorSystem() {
@@ -109,6 +120,7 @@ namespace engine {
             scenes.erase(it);
         }
         std::erase(sceneOrder, name);
+        SaveConfig();
     }
 
     void Engine::SetActiveScene(const std::string& name, bool active) {
@@ -229,23 +241,63 @@ namespace engine {
         }
 
         am::SceneAsset* sceneAsset = nullptr;
-        auto assetInfo = assetManagerInterface->getAssetInfo(activeScene->sceneId);
-        if (assetInfo)
+        std::optional<std::shared_ptr<am::AssetInfo>> assetInfo = std::nullopt;
+        if (!activeScene->sceneId.is_nil())
         {
-            sceneAsset = dynamic_cast<am::SceneAsset*>(assetInfo->get()->getAsset());
-            if (!sceneAsset)
+            assetInfo = assetManagerInterface->getAssetInfo(activeScene->sceneId);
+            if (assetInfo)
             {
-                spdlog::error("Failed to cast asset to SceneAsset for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
-                return;
+                sceneAsset = dynamic_cast<am::SceneAsset*>(assetInfo->get()->getAsset());
+                if (!sceneAsset)
+                {
+                    spdlog::error("Failed to cast asset to SceneAsset for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
+                    return;
+                }
             }
         }
-        else
+
+        if (!assetInfo || !sceneAsset)
         {
-            assetManagerInterface->createAsset(am::AssetType::Scene, "activeScene");
+            std::string savePath;
+            if (platform)
+            {
+                std::string defaultName = activeScene->GetName() + ".scene";
+                std::string defaultPath = (std::filesystem::path("res") / defaultName).string();
+                auto chosenPath = platform->SaveFileDialog(defaultPath, "Scene Files", "*.scene");
+                if (chosenPath.has_value() && !chosenPath.value().empty())
+                {
+                    savePath = chosenPath.value();
+                }
+                else
+                {
+                    spdlog::info("Save scene cancelled by user.");
+                    return;
+                }
+            }
+            else
+            {
+                savePath = (std::filesystem::path("res") / (activeScene->GetName() + ".scene")).string();
+            }
+
+            auto newAssetId = assetManagerInterface->createAsset(am::AssetType::Scene, savePath);
+            if (!newAssetId.has_value() || newAssetId.value().is_nil())
+            {
+                spdlog::error("Failed to create scene asset at path: {}", savePath);
+                return;
+            }
+
+            activeScene->sceneId = newAssetId.value();
             assetInfo = assetManagerInterface->getAssetInfo(activeScene->sceneId);
             if (!assetInfo)
             {
-                spdlog::error("Failed to create scene asset for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
+                spdlog::error("Failed to get asset info for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
+                return;
+            }
+
+            sceneAsset = dynamic_cast<am::SceneAsset*>(assetInfo->get()->getAsset());
+            if (!sceneAsset)
+            {
+                spdlog::error("Failed to cast newly created asset to SceneAsset for scene ID: {}", boost::uuids::to_string(activeScene->sceneId).c_str());
                 return;
             }
         }
@@ -261,6 +313,7 @@ namespace engine {
         {
             activeScene->SerializeToJson(*document);
             assetManagerInterface->saveAsset(assetInfo->get()->id);
+            SaveConfig();
         } catch (const std::exception& e) {
             spdlog::error("Error saving scene to file: {}", e.what());
         }
@@ -268,14 +321,19 @@ namespace engine {
 
     void Engine::LoadScene(boost::uuids::uuid sceneId)
     {
-        auto activeScene = GetActiveScene();
-        if (!activeScene)
-        {
-            activeScene = CreateScene("scene");
-            activeScene->active = true;
-        }
+        if (sceneId.is_nil()) return;
 
-        activeScene->sceneId = sceneId;
+        // If a scene with this ID is already loaded, activate and select it
+        for (const auto& [name, scn] : scenes) {
+            if (scn && scn->sceneId == sceneId) {
+                scn->SetActive(true);
+                if (editorSystem) {
+                    editorSystem->SetTargetScene(scn);
+                }
+                SaveConfig();
+                return;
+            }
+        }
 
         auto assetInfo = assetManagerInterface->getAssetInfo(sceneId);
         if (!assetInfo) {
@@ -289,17 +347,32 @@ namespace engine {
             return;
         }
 
+        std::string sceneName = assetInfo->get()->lookUpName;
+        if (sceneName.ends_with(".scene")) {
+            sceneName = sceneName.substr(0, sceneName.length() - 6);
+        }
+
+        auto targetScene = GetScene(sceneName);
+        if (!targetScene) {
+            targetScene = CreateScene(sceneName);
+        }
+
+        targetScene->sceneId = sceneId;
+        targetScene->SetActive(true);
+
         try {
-
-
             rapidjson::Document* document = sceneAsset->getAssetDataAs<rapidjson::Document>();
             if (document) {
-                activeScene->DeserializeFromJson(*document);
+                targetScene->DeserializeFromJson(*document);
             } else {
                 spdlog::error("Scene asset data is null for scene ID: {}", boost::uuids::to_string(sceneId).c_str());
             }
 
-            return ;
+            if (editorSystem) {
+                editorSystem->SetTargetScene(targetScene);
+            }
+            SaveConfig();
+            return;
         } catch (const std::exception& e) {
             spdlog::error("Error loading scene from file: {}", e.what());
             return;
@@ -503,6 +576,160 @@ namespace engine {
             editorSystem->FocusCameraOnBounds(glm::vec3(0.0f), distance, scene.get());
         }
 
+        SaveConfig();
+
         return scene;
+    }
+
+    void Engine::SaveConfig()
+    {
+        if (!assetManagerInterface || configLookupName.empty()) return;
+
+        auto uuid = assetManagerInterface->getAssetUuid(configLookupName);
+        if (!uuid) {
+            std::filesystem::path configPath = "res/.cache/config/engine.config";
+            try {
+                uuid = assetManagerInterface->createAsset(am::AssetType::Config, configPath.string(), configLookupName);
+            } catch (...) {
+                return;
+            }
+        }
+        if (!uuid) return;
+
+        auto configData = assetManagerInterface->getAssetData<rapidjson::Document>(uuid.value());
+        if (!configData) return;
+
+        configData->SetObject();
+        auto& allocator = configData->GetAllocator();
+
+        rapidjson::Value openedScenesArray(rapidjson::kArrayType);
+
+        for (const auto& sceneName : sceneOrder) {
+            auto it = scenes.find(sceneName);
+            if (it == scenes.end() || !it->second) continue;
+            auto& scn = it->second;
+
+            rapidjson::Value itemObj(rapidjson::kObjectType);
+            itemObj.AddMember("name", rapidjson::Value(scn->GetName().c_str(), allocator), allocator);
+            itemObj.AddMember("active", scn->IsActive(), allocator);
+
+            if (scn->IsEditable() && !scn->sceneId.is_nil()) {
+                itemObj.AddMember("type", "Scene", allocator);
+                std::string idStr = boost::uuids::to_string(scn->sceneId);
+                itemObj.AddMember("uuid", rapidjson::Value(idStr.c_str(), allocator), allocator);
+                openedScenesArray.PushBack(itemObj, allocator);
+            } else if (!scn->IsEditable()) {
+                boost::uuids::uuid previewAssetId = boost::uuids::nil_uuid();
+                auto meshArray = scn->GetComponentArray<MeshComponent>();
+                if (meshArray) {
+                    for (int i = 0; i < meshArray->GetArraySize(); ++i) {
+                        if (meshArray->IsComponentActive(i)) {
+                            previewAssetId = meshArray->GetComponents()[i].modelUuid;
+                            break;
+                        }
+                    }
+                }
+                if (!previewAssetId.is_nil()) {
+                    itemObj.AddMember("type", "ModelPreview", allocator);
+                    std::string idStr = boost::uuids::to_string(previewAssetId);
+                    itemObj.AddMember("uuid", rapidjson::Value(idStr.c_str(), allocator), allocator);
+                    openedScenesArray.PushBack(itemObj, allocator);
+                }
+            } else {
+                itemObj.AddMember("type", "NewScene", allocator);
+                openedScenesArray.PushBack(itemObj, allocator);
+            }
+        }
+
+        configData->AddMember("openedScenes", openedScenesArray, allocator);
+
+        if (editorSystem && editorSystem->GetTargetScene()) {
+            std::string selName = editorSystem->GetTargetScene()->GetName();
+            configData->AddMember("selectedScene", rapidjson::Value(selName.c_str(), allocator), allocator);
+        }
+
+        assetManagerInterface->saveAsset(uuid.value());
+    }
+
+    void Engine::LoadConfig()
+    {
+        if (!assetManagerInterface || configLookupName.empty()) return;
+
+        auto uuid = assetManagerInterface->getAssetUuid(configLookupName);
+        if (!uuid) return;
+
+        auto configData = assetManagerInterface->getAssetData<rapidjson::Document>(uuid.value());
+        if (!configData || !configData->IsObject()) return;
+
+        bool loadedAny = false;
+
+        if (configData->HasMember("openedScenes") && (*configData)["openedScenes"].IsArray()) {
+            const auto& arr = (*configData)["openedScenes"].GetArray();
+            for (const auto& item : arr) {
+                if (item.IsObject()) {
+                    std::string type = item.HasMember("type") && item["type"].IsString() ? item["type"].GetString() : "Scene";
+                    std::string idStr = item.HasMember("uuid") && item["uuid"].IsString() ? item["uuid"].GetString() : "";
+                    std::string name = item.HasMember("name") && item["name"].IsString() ? item["name"].GetString() : "";
+                    bool active = !item.HasMember("active") || !item["active"].IsBool() || item["active"].GetBool();
+
+                    if (type == "Scene" && !idStr.empty()) {
+                        try {
+                            auto sceneUuid = boost::uuids::string_generator()(idStr);
+                            if (!sceneUuid.is_nil()) {
+                                LoadScene(sceneUuid);
+                                for (auto& [sName, s] : scenes) {
+                                    if (s && s->sceneId == sceneUuid) {
+                                        s->SetActive(active);
+                                        break;
+                                    }
+                                }
+                                loadedAny = true;
+                            }
+                        } catch (...) {}
+                    } else if (type == "ModelPreview" && !idStr.empty()) {
+                        try {
+                            auto modelUuid = boost::uuids::string_generator()(idStr);
+                            if (!modelUuid.is_nil()) {
+                                auto scn = OpenModelPreviewScene(modelUuid);
+                                if (scn) {
+                                    scn->SetActive(active);
+                                    loadedAny = true;
+                                }
+                            }
+                        } catch (...) {}
+                    } else if (type == "NewScene" && !name.empty()) {
+                        auto scn = CreateScene(name);
+                        if (scn) {
+                            scn->SetActive(active);
+                            loadedAny = true;
+                        }
+                    }
+                } else if (item.IsString()) {
+                    std::string idStr = item.GetString();
+                    try {
+                        auto sceneUuid = boost::uuids::string_generator()(idStr);
+                        if (!sceneUuid.is_nil()) {
+                            LoadScene(sceneUuid);
+                            loadedAny = true;
+                        }
+                    } catch (...) {}
+                }
+            }
+        }
+
+        if (configData->HasMember("selectedScene") && (*configData)["selectedScene"].IsString()) {
+            std::string selName = (*configData)["selectedScene"].GetString();
+            auto scn = GetScene(selName);
+            if (scn && editorSystem) {
+                editorSystem->SetTargetScene(scn);
+            }
+        }
+
+        if (!loadedAny && scenes.empty()) {
+            auto defaultSceneId = assetManagerInterface->getAssetUuid("scene");
+            if (defaultSceneId) {
+                LoadScene(defaultSceneId.value());
+            }
+        }
     }
 } // namespace engine

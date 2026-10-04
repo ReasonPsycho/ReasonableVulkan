@@ -29,4 +29,23 @@ void engine::ecs::RendererComponent::CustomDrawImGui(Scene* scene)
         }
         ImGui::EndPopup();
     }
+
+    std::string materialButtonText = (materialUuid.is_nil() ? "Select Material" : boost::uuids::to_string(materialUuid)) + "##RendererMaterial";
+    if (ImGui::Button(materialButtonText.c_str()))
+    {
+        ImGui::OpenPopup("Material List");
+    }
+
+    if (scene && ImGui::BeginPopup("Material List"))
+    {
+        for (const auto& lookUpName : scene->engine.assetManagerInterface->getRegisteredAssetsNames(am::AssetType::Material))
+        {
+            if (ImGui::MenuItem(lookUpName.c_str()))
+            {
+                materialUuid = scene->engine.assetManagerInterface->getAssetUuid(lookUpName).value();
+                runtimeMaterialHandle = gfx::MaterialHandle::invalid();
+            }
+        }
+        ImGui::EndPopup();
+    }
 }

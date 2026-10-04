@@ -65,7 +65,7 @@ namespace am
             ifs.read(reinterpret_cast<char*>(&pixelCount), sizeof(pixelCount));
             data.pixels.resize(pixelCount);
             if (pixelCount > 0) {
-                ifs.read(reinterpret_cast<char*>(data.pixels.data()), pixelCount * sizeof(std::uint32_t));
+                ifs.read(reinterpret_cast<char*>(data.pixels.data()), pixelCount * sizeof(std::uint8_t));
             }
 
             ifs.close();
@@ -120,7 +120,7 @@ namespace am
         size_t pixelCount = data.pixels.size();
         ofs.write(reinterpret_cast<const char*>(&pixelCount), sizeof(pixelCount));
         if (pixelCount > 0) {
-            ofs.write(reinterpret_cast<const char*>(data.pixels.data()), pixelCount * sizeof(std::uint32_t));
+            ofs.write(reinterpret_cast<const char*>(data.pixels.data()), pixelCount * sizeof(std::uint8_t));
         }
 
         ofs.close();
@@ -173,7 +173,7 @@ namespace am
 
         // Hash pixel data in chunks to improve performance
         const size_t chunkSize = 1024; // Process 1KB at a time
-        const uint32_t* pixels = data.pixels.data();
+        const uint8_t* pixels = data.pixels.data();
         const size_t totalSize = data.pixels.size();
 
         for (size_t i = 0; i < totalSize; i += chunkSize)

@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "70bc2427-e1e3-4c12-9e83-026b459bc0da",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\alley-brick-wall_albedo.b_texture",
+  "type": "Texture",
+  "lookUpName": "alley-brick-wall_albedo.texture",
+  "contentHash": 5876403154067738325,
+  "thumbnailPath": ".cache/thumbnails/70bc2427-e1e3-4c12-9e83-026b459bc0da.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\alley-brick-wall_albedo.png",
+    "assetType": "Texture",
+    "assimpIndex": 0
+  }
+}

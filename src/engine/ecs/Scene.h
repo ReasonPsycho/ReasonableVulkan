@@ -136,7 +136,7 @@ namespace engine::ecs
         //Engine
         ::engine::Engine& engine;
 
-        boost::uuids::uuid sceneId;
+        boost::uuids::uuid sceneId{boost::uuids::nil_uuid()};
     private:
 
         //Entities

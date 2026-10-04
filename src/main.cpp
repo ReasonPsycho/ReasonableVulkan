@@ -42,17 +42,13 @@ int main(int argc, char *argv[]) {
     assetManager.Initialize(platform);
 
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
-    engine::EngineInterface* engine = new engine::Engine(platform, vulkanRenderer, &assetManager);
-    engine->Initialize();
 
     int width, height;
     platform->GetWindowSize(width, height);
     vulkanRenderer->initialize(platform, width, height);
 
-    auto sceneId = assetManager.getAssetUuid("scene");
-    if (sceneId) {
-        engine->LoadScene(sceneId.value());
-    }
+    engine::EngineInterface* engine = new engine::Engine(platform, vulkanRenderer, &assetManager);
+    engine->Initialize();
 
     assetManager.setEngine(engine);
     // 5. Main loop

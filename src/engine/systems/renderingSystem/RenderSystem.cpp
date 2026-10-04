@@ -141,6 +141,9 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                     if (renderer.shaderUuid != boost::uuids::nil_uuid() && !renderer.runtimeShaderHandle.isValid()) {
                         renderer.runtimeShaderHandle = scene->engine.graphicsEngine->loadShader(renderer.shaderUuid);
                     }
+                    if (renderer.materialUuid != boost::uuids::nil_uuid() && !renderer.runtimeMaterialHandle.isValid()) {
+                        renderer.runtimeMaterialHandle = scene->engine.graphicsEngine->loadMaterial(renderer.materialUuid);
+                    }
 
                     for (uint32_t camIdx : targetCameraIndices) {
                         gfx::ShaderProgramHandle currentShader = renderer.runtimeShaderHandle;

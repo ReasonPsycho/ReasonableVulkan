@@ -35,7 +35,7 @@ namespace engine {
     class Engine : public EngineInterface{
     public:
         Engine(plt::PlatformInterface* platformInterface, gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface);
-        ~Engine() override = default;
+        ~Engine() override;
 
         void Initialize() override;
 
@@ -78,6 +78,10 @@ namespace engine {
         void LoadScene(boost::uuids::uuid sceneId) override;
         void CloseScene(const std::string& name) override;
         void CloseScene(boost::uuids::uuid sceneId) override;
+
+        void SaveConfig() override;
+        void LoadConfig() override;
+        std::string configLookupName = "engineConfig";
 
         void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
         bool CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath) override;
