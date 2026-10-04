@@ -18,6 +18,7 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 message(STATUS "Searching for platform library dependencies")
 find_package(SDL3 CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 # Create platform static library
 add_library(platform STATIC ${BASE_SRC})
@@ -36,12 +37,12 @@ target_link_libraries(platform
         PRIVATE
         SDL3::SDL3
         am
-        RapidJSON
+        imgui::imgui
 )
 
 if (WIN32)
-    target_link_libraries(platform PRIVATE ws2_32)
-endif()
+    target_link_libraries(platform PRIVATE comdlg32 ws2_32)
+endif ()
 
 # Configure tests
 if (PLATFORM_ENABLE_TESTS)

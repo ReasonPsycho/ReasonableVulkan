@@ -15,6 +15,7 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <shellapi.h>
+#include <commdlg.h>
 #endif
 
 #include "PlatformInterface.hpp"
@@ -60,6 +61,7 @@ public:
     // System utility functions
     bool OpenFileInDefaultApp(const std::string& path) override;
     bool OpenFileInIDE(const std::string& path) override;
+    std::optional<std::string> SaveFileDialog(const std::string& defaultPath = "", const std::string& filterName = "", const std::string& filterExtension = "") override;
 
 private:
     SDL_Window* window = nullptr;

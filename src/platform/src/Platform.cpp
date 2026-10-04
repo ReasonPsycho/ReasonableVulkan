@@ -517,6 +517,84 @@ namespace  plt
 #endif
     }
 
+    std::optional<std::string> Platform::SaveFileDialog(const std::string& defaultPath, const std::string& filterName, const std::string& filterExtension) {
+#ifdef _WIN32
+        OPENFILENAMEW ofn;
+        wchar_t szFile[MAX_PATH] = { 0 };
+
+        std::filesystem::path defP = defaultPath;
+        std::wstring initialDir;
+        std::wstring defaultFilename;
+
+        if (!defaultPath.empty()) {
+            std::error_code ec;
+            if (std::filesystem::is_directory(defP, ec)) {
+                initialDir = defP.wstring();
+            } else {
+                if (defP.has_parent_path()) {
+                    initialDir = defP.parent_path().wstring();
+                }
+                defaultFilename = defP.filename().wstring();
+                wcsncpy_s(szFile, defaultFilename.c_str(), _TRUNCATE);
+            }
+        }
+
+        // Build filter string with double null terminator
+        std::vector<wchar_t> filterBuf;
+        if (!filterName.empty() && !filterExtension.empty()) {
+            std::wstring wFilterName(filterName.begin(), filterName.end());
+            std::wstring wFilterExt(filterExtension.begin(), filterExtension.end());
+            if (!wFilterExt.empty() && wFilterExt[0] != L'*' && wFilterExt[0] != L'.') {
+                wFilterExt = L"*." + wFilterExt;
+            } else if (!wFilterExt.empty() && wFilterExt[0] == L'.') {
+                wFilterExt = L"*" + wFilterExt;
+            }
+            std::wstring desc = wFilterName + L" (" + wFilterExt + L")";
+            filterBuf.insert(filterBuf.end(), desc.begin(), desc.end());
+            filterBuf.push_back(L'\0');
+            filterBuf.insert(filterBuf.end(), wFilterExt.begin(), wFilterExt.end());
+            filterBuf.push_back(L'\0');
+        }
+        std::wstring allFilesDesc = L"All Files (*.*)";
+        std::wstring allFilesExt = L"*.*";
+        filterBuf.insert(filterBuf.end(), allFilesDesc.begin(), allFilesDesc.end());
+        filterBuf.push_back(L'\0');
+        filterBuf.insert(filterBuf.end(), allFilesExt.begin(), allFilesExt.end());
+        filterBuf.push_back(L'\0');
+        filterBuf.push_back(L'\0');
+
+        ZeroMemory(&ofn, sizeof(ofn));
+        ofn.lStructSize = sizeof(ofn);
+        HWND hwnd = NULL;
+        if (window) {
+            hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        }
+        ofn.hwndOwner = hwnd;
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile) / sizeof(szFile[0]);
+        ofn.lpstrFilter = filterBuf.data();
+        ofn.nFilterIndex = 1;
+        ofn.lpstrInitialDir = initialDir.empty() ? NULL : initialDir.c_str();
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
+        std::wstring defExt;
+        if (!filterExtension.empty()) {
+            defExt = std::wstring(filterExtension.begin(), filterExtension.end());
+            if (!defExt.empty() && defExt[0] == L'*') defExt.erase(0, 1);
+            if (!defExt.empty() && defExt[0] == L'.') defExt.erase(0, 1);
+            ofn.lpstrDefExt = defExt.c_str();
+        }
+
+        if (GetSaveFileNameW(&ofn) == TRUE) {
+            std::filesystem::path resultPath(ofn.lpstrFile);
+            return resultPath.lexically_normal().string();
+        }
+        return std::nullopt;
+#else
+        return std::nullopt;
+#endif
+    }
+
     Platform::~Platform() {
         Shutdown();
     }
@@ -525,6 +603,14 @@ namespace  plt
         if (!assetManager || configLookupName.empty() || !window) return;
 
         auto uuid = assetManager->getAssetUuid(configLookupName);
+        if (!uuid) {
+            std::filesystem::path configPath = "res/.cache/config/platform.config";
+            try {
+                uuid = assetManager->createAsset(am::AssetType::Config, configPath.string(), configLookupName);
+            } catch (...) {
+                return;
+            }
+        }
         if (!uuid) return;
 
         auto configData = assetManager->getAssetData<rapidjson::Document>(uuid.value());

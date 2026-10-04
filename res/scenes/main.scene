@@ -1,0 +1,51 @@
+﻿{
+  "isEditable": true,
+  "entities": {
+    "maxEntityIndex": 0,
+    "activeEntities": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "signatures": {}
+  },
+  "components": {
+    "CameraComponent": {
+      "size": 0,
+      "components": []
+    },
+    "LightComponent": {
+      "size": 0,
+      "components": []
+    },
+    "RendererComponent": {
+      "size": 0,
+      "components": []
+    },
+    "TransformComponent": {
+      "components": []
+    }
+  },
+  "systems": {
+    "CollisionSystem": {
+      "name": "CollisionSystem",
+      "extraData": {}
+    },
+    "TransformSystem": {
+      "name": "TransformSystem",
+      "extraData": {}
+    },
+    "GizmoSystem": {
+      "name": "GizmoSystem",
+      "extraData": {}
+    },
+    "RenderSystem": {
+      "name": "RenderSystem",
+      "extraData": {}
+    }
+  },
+  "sceneGraph": {
+    "rootEntities": [],
+    "nodes": {}
+  },
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  }
+}

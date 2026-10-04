@@ -92,6 +92,8 @@ namespace am {
         MetadataSaver getMetadataSaver(std::type_index type) const;
 
 
+        using AssetManagerInterface::getAssetData;
+
         //Creators
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) override;
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookupName) override;
@@ -119,11 +121,18 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
         void ImguiFileBrowser(std::string windowName) override;
+        void saveFileBrowserConfig();
+        void loadFileBrowserConfig();
+        float fileBrowserScale = 1.0f;
+        std::string fileBrowserConfigLookupName = "fileBrowserConfig";
         std::filesystem::path currentPath;
 
         bool openFileWithDefaultApp(const std::filesystem::path& path) override;
         bool openFileInIDE(const std::filesystem::path& path) override;
         void openAssetFile(const std::filesystem::path& path) override;
+
+        bool reimportAsset(const boost::uuids::uuid& id) override;
+        bool reimportAsset(const std::filesystem::path& path) override;
 
         std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
         std::optional<Asset*> getAsset(const boost::uuids::uuid& id) override;

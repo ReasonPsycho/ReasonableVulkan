@@ -79,6 +79,9 @@ namespace am
         virtual bool openFileWithDefaultApp(const std::filesystem::path& path) = 0;
         virtual bool openFileInIDE(const std::filesystem::path& path) = 0;
         virtual void openAssetFile(const std::filesystem::path& path) = 0;
+
+        virtual bool reimportAsset(const boost::uuids::uuid& id) = 0;
+        virtual bool reimportAsset(const std::filesystem::path& path) = 0;
     };
 
     inline std::shared_ptr<AssetInfo> ResolveAssetInfo(const boost::uuids::uuid& id, AssetManagerInterface* assetManager) {

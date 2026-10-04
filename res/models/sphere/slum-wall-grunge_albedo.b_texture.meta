@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "fdc51f0e-2ad4-4fc9-af8c-09e410217765",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\slum-wall-grunge_albedo.b_texture",
+  "type": "Texture",
+  "lookUpName": "slum-wall-grunge_albedo.texture",
+  "contentHash": 15382402069177264414,
+  "thumbnailPath": ".cache/thumbnails/fdc51f0e-2ad4-4fc9-af8c-09e410217765.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\slum-wall-grunge_albedo.png",
+    "assetType": "Texture",
+    "assimpIndex": 0
+  }
+}

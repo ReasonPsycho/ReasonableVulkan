@@ -217,6 +217,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     
     void AssetManager::saveAsset(const boost::uuids::uuid id) //TODO prob i should also save the depended assets
     {
+        if (id.is_nil())
+        {
+            spdlog::error("Cannot save asset with nil id");
+            return;
+        }
         auto info = getAssetInfo(id);
         if (!info)
         {
@@ -242,11 +247,13 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
             auto& allocator = document.GetAllocator();
 
-            // Add encoding information
-            rapidjson::Value encodingInfo(rapidjson::kObjectType);
-            encodingInfo.AddMember("encoding", "UTF-8", allocator);
-            encodingInfo.AddMember("version", "1.0", allocator);
-            document.AddMember("_meta", encodingInfo, allocator);
+            // Add encoding information if not present
+            if (!document.HasMember("_meta")) {
+                rapidjson::Value encodingInfo(rapidjson::kObjectType);
+                encodingInfo.AddMember("encoding", "UTF-8", allocator);
+                encodingInfo.AddMember("version", "1.0", allocator);
+                document.AddMember("_meta", encodingInfo, allocator);
+            }
 
             saveJsonToFile(info.value()->path, document);
         }
@@ -660,9 +667,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         });
 
         scanResourceDirectory(resourceFolder);
+        loadFileBrowserConfig();
     }
 
     AssetManager::~AssetManager() {
+        saveFileBrowserConfig();
         saveAllAssetMetadata();
     }
 
@@ -1099,202 +1108,6 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 #endif
     }
 
-    void AssetManager::ImguiFileBrowser(std::string windowName)
-    {
-        ImGui::Begin(windowName.c_str());
-
-        if (currentPath != resourceFolder)
-        {
-            if (ImGui::Button(".."))
-            {
-                currentPath = currentPath.parent_path();
-            }
-            ImGui::SameLine();
-        }
-        ImGui::Text("Current Path: %s", currentPath.string().c_str());
-
-        ImGui::Separator();
-
-        if (ImGui::BeginChild("FileBrowserScroll"))
-        {
-            float iconSize = 64.0f;
-            float padding = 16.0f;
-            float cellSize = iconSize + padding;
-
-            float windowVisibleX2 = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
-
-            try {
-                int i = 0;
-                for (const auto& entry : std::filesystem::directory_iterator(currentPath))
-                {
-                    const auto& path = entry.path();
-                    if (path.extension() == ".meta") {
-                        continue;
-                    }
-                    std::string filename = path.filename().string();
-
-                    ImGui::PushID(i++);
-                    ImGui::BeginGroup();
-
-                    // Dummy "icon"
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
-
-                    void* thumbTex = nullptr;
-                    if (!entry.is_directory()) {
-                        thumbTex = getThumbnailTexture(path);
-                    }
-
-                    if (thumbTex != nullptr) {
-                        bool clicked = ImGui::ImageButton("##thumb", (ImTextureID)thumbTex, ImVec2(iconSize, iconSize));
-                        bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
-                        if (clicked || doubleClicked) {
-                            openAssetFile(path);
-                        }
-                    } else {
-                        // Use large icon font if available (it's the second font we loaded)
-                        bool pushedFont = false;
-                        if (ImGui::GetIO().Fonts->Fonts.Size > 1) {
-                            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]);
-                            pushedFont = true;
-                        }
-
-                        if (entry.is_directory()) {
-                            ImGui::Button(ICON_FA_FOLDER, ImVec2(iconSize, iconSize));
-                            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                                currentPath = path;
-                            }
-                        } else {
-                            bool clicked = ImGui::Button(GetAssetIcon(path), ImVec2(iconSize, iconSize));
-                            bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0);
-                            if (clicked || doubleClicked) {
-                                openAssetFile(path);
-                            }
-                        }
-
-                        if (pushedFont)
-                        {
-                            ImGui::PopFont();
-                        }
-                    }
-
-                    ImGui::PopStyleColor(3);
-
-                    // Centered text below icon
-                    float textWidth = ImGui::CalcTextSize(filename.c_str()).x;
-                    if (textWidth > iconSize) {
-                        // Truncate text if too long
-                        std::string truncated = filename.substr(0, 8) + "...";
-                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (iconSize - ImGui::CalcTextSize(truncated.c_str()).x) * 0.5f);
-                        ImGui::Text("%s", truncated.c_str());
-                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", filename.c_str());
-                    } else {
-                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (iconSize - textWidth) * 0.5f);
-                        ImGui::Text("%s", filename.c_str());
-                    }
-
-                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                        if (entry.is_directory()) {
-                            currentPath = path;
-                        } else {
-                            openAssetFile(path);
-                        }
-                    }
-
-                    ImGui::EndGroup();
-
-                    float lastButtonX2 = ImGui::GetItemRectMax().x;
-
-                    if (entry.is_directory()) {
-                        if (ImGui::BeginPopupContextItem("##FolderContext")) {
-                            if (ImGui::MenuItem("Open in System File Explorer")) {
-                                openFileWithDefaultApp(path);
-                            }
-                            ImGui::EndPopup();
-                        }
-                    } else {
-                        AssetType type = GetAssetTypeFromExtension(path.extension().string());
-                        if (type == AssetType::Scene && engine) {
-                            if (ImGui::BeginPopupContextItem("##SceneContext")) {
-                                auto sceneUuid = getAssetUuidByPath(path);
-                                if (ImGui::MenuItem("Open Scene")) {
-                                    if (sceneUuid) {
-                                        engine->LoadScene(sceneUuid.value());
-                                    }
-                                }
-                                if (ImGui::MenuItem("Close Scene")) {
-                                    if (sceneUuid) {
-                                        engine->CloseScene(sceneUuid.value());
-                                    }
-                                }
-                                if (ImGui::MenuItem("Open in IDE")) {
-                                    openFileInIDE(path);
-                                }
-                                if (ImGui::MenuItem("Open in System Default")) {
-                                    openFileWithDefaultApp(path);
-                                }
-                                ImGui::EndPopup();
-                            }
-                        } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
-                            if (ImGui::BeginPopupContextItem("##ModelContext")) {
-                                auto modelUuid = getAssetUuidByPath(path);
-                                if (ImGui::MenuItem("Open in Preview Scene")) {
-                                    if (modelUuid) {
-                                        engine->OpenModelPreviewScene(modelUuid.value());
-                                    }
-                                }
-                                if (ImGui::MenuItem("Regenerate Thumbnail")) {
-                                    if (modelUuid) {
-                                        generateThumbnail(modelUuid.value());
-                                    }
-                                }
-                                if (ImGui::MenuItem("Open in IDE")) {
-                                    openFileInIDE(path);
-                                }
-                                if (ImGui::MenuItem("Open in System Default")) {
-                                    openFileWithDefaultApp(path);
-                                }
-                                ImGui::EndPopup();
-                            }
-                        } else {
-                            if (ImGui::BeginPopupContextItem("##FileContext")) {
-                                if (type == AssetType::Texture || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp") {
-                                    if (ImGui::MenuItem("Regenerate Thumbnail")) {
-                                        auto texUuid = getAssetUuidByPath(path);
-                                        if (texUuid) {
-                                            generateThumbnail(texUuid.value());
-                                        }
-                                    }
-                                }
-                                if (ImGui::MenuItem("Open in IDE")) {
-                                    openFileInIDE(path);
-                                }
-                                if (ImGui::MenuItem("Open in System Default")) {
-                                    openFileWithDefaultApp(path);
-                                }
-                                ImGui::EndPopup();
-                            }
-                        }
-                    }
-
-                    float nextButtonX2 = lastButtonX2 + padding + cellSize;
-                    if (nextButtonX2 < windowVisibleX2)
-                        ImGui::SameLine(0, padding);
-
-                    ImGui::PopID();
-                }
-            } catch (const std::exception& e) {
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: %s", e.what());
-                if (ImGui::Button("Reset to Resource Folder")) {
-                    currentPath = resourceFolder;
-                }
-            }
-            ImGui::EndChild();
-        }
-
-        ImGui::End();
-    }
 
     std::optional<boost::uuids::uuid> AssetManager::importAsset(ImportContext importContext, std::string lookUpName)
     {
@@ -1463,5 +1276,107 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         throw std::runtime_error("Failed to get metadata saver!");
     }
 
+    bool AssetManager::reimportAsset(const boost::uuids::uuid& id)
+    {
+        auto it = metadata.find(id);
+        if (it == metadata.end()) {
+            spdlog::error("Cannot reimport asset: UUID not found in metadata");
+            return false;
+        }
+
+        auto info = it->second;
+        ImportContext context = info->importContext;
+
+        if (context.importPath.empty()) {
+            context.importPath = info->path;
+        }
+        if (context.assetType == AssetType::Other) {
+            context.assetType = info->type;
+        }
+
+        std::filesystem::path importP(context.importPath);
+        std::error_code ec;
+        if (!std::filesystem::exists(importP, ec)) {
+            if (std::filesystem::exists(std::filesystem::path(resourceFolder) / importP, ec)) {
+                importP = std::filesystem::path(resourceFolder) / importP;
+            }
+        }
+        context.importPath = importP.lexically_normal().string();
+
+        try
+        {
+            auto factory = getImporter(getTypeIndex(context.assetType));
+            if (!factory) {
+                spdlog::error("No importer factory registered for asset type {}", static_cast<int>(context.assetType));
+                return false;
+            }
+
+            std::unique_ptr<Asset> newAsset = factory(id, context);
+            if (!newAsset) {
+                spdlog::error("Failed to reimport asset {}", boost::uuids::to_string(id));
+                return false;
+            }
+
+            size_t contentHash = newAsset->calculateContentHash();
+            info->contentHash = contentHash;
+            info->isLoaded = true;
+            info->importContext = context;
+
+            std::filesystem::path p = std::filesystem::path(context.importPath).lexically_normal();
+            std::string baseName = p.stem().string();
+
+            if (GetEditorSavesToBin(context.assetType))
+            {
+                std::string additionalSufix = "";
+                if (info->type == AssetType::Shader)
+                {
+                    additionalSufix = GetShaderSufix(newAsset->getAssetDataAs<ShaderData>()->stage);
+                }
+                std::string filename = info->path.empty() ? GetBinPath((p.parent_path() / (baseName + GetExtensionFromAssetType(context.assetType))).string(), additionalSufix) : info->path;
+                info->path = filename;
+                newAsset->SaveAssetToBin(filename);
+            } else {
+                std::string filename = info->path.empty() ? (p.parent_path() / (baseName + GetExtensionFromAssetType(context.assetType))).string() : info->path;
+                info->path = filename;
+                auto jsonSaver = getJsonSaver(getTypeIndex(context.assetType));
+                if (jsonSaver) {
+                    rapidjson::Document document;
+                    document.SetObject();
+                    auto& allocator = document.GetAllocator();
+
+                    rapidjson::Value encodingInfo(rapidjson::kObjectType);
+                    encodingInfo.AddMember("encoding", "UTF-8", allocator);
+                    encodingInfo.AddMember("version", "1.0", allocator);
+                    document.AddMember("_meta", encodingInfo, allocator);
+
+                    jsonSaver(*newAsset, document);
+                    saveJsonToFile(filename, document);
+                }
+            }
+
+            assets[id] = std::move(newAsset);
+            info->loadedAsset = assets[id].get();
+            saveAssetMetadata(id);
+            generateThumbnail(id);
+            spdlog::info("Successfully reimported asset {} from {}", boost::uuids::to_string(id), context.importPath);
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            spdlog::error("Failed to reimport asset {}: {}", boost::uuids::to_string(id), e.what());
+            return false;
+        }
+    }
+
+    bool AssetManager::reimportAsset(const std::filesystem::path& path)
+    {
+        auto uuidOpt = getAssetUuidByPath(path);
+        if (uuidOpt) {
+            return reimportAsset(uuidOpt.value());
+        }
+
+        auto regOpt = registerAsset(path.string());
+        return regOpt.has_value();
+    }
 
 }
