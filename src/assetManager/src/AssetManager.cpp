@@ -586,14 +586,6 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         if (uuidOpt) {
             return getThumbnailTexture(uuidOpt.value());
         }
-
-        std::string ext = path.extension().string();
-        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
-            auto regId = registerAsset(path.string());
-            if (regId) {
-                return getThumbnailTexture(regId.value());
-            }
-        }
         return nullptr;
     }
 
@@ -974,11 +966,6 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         return fileId;
                     }
                 }
-                return registerAsset(normalPath.string());
-            }
-            else if (assetType == AssetType::Texture || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga")
-            {
-                return registerAsset(normalPath.string());
             }
         }
 

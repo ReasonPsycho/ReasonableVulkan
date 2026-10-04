@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "b518308d-c35f-4254-b14c-3d5e4d094d25",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.b_mesh",
+  "type": "Mesh",
+  "lookUpName": "Plane_0.mesh",
+  "contentHash": 17222296131364895489,
+  "thumbnailPath": ".cache/thumbnails/b518308d-c35f-4254-b14c-3d5e4d094d25.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.fbx",
+    "assetType": "Mesh",
+    "assimpIndex": 0
+  }
+}

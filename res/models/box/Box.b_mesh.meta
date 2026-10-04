@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "a3e8da86-d71b-44e1-9c38-79b9375b1699",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\box\\Box.b_mesh",
+  "type": "Mesh",
+  "lookUpName": "Box_0.mesh",
+  "contentHash": 7320509236250218016,
+  "thumbnailPath": ".cache/thumbnails/a3e8da86-d71b-44e1-9c38-79b9375b1699.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\box\\Box.fbx",
+    "assetType": "Mesh",
+    "assimpIndex": 0
+  }
+}

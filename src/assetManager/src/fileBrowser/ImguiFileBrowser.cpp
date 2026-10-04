@@ -195,22 +195,27 @@ namespace am {
                             ImGui::EndPopup();
                         }
                     } else {
+                        auto fileUuid = getAssetUuidByPath(path);
+                        bool isRegistered = fileUuid.has_value();
+                        bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
                         AssetType type = GetAssetTypeFromExtension(path.extension().string());
+
                         if (type == AssetType::Scene && engine) {
                             if (ImGui::BeginPopupContextItem("##SceneContext")) {
-                                auto sceneUuid = getAssetUuidByPath(path);
-                                if (ImGui::MenuItem("Open Scene")) {
-                                    if (sceneUuid) {
-                                        engine->LoadScene(sceneUuid.value());
+                                if (isRegistered) {
+                                    if (ImGui::MenuItem("Open Scene")) {
+                                        engine->LoadScene(fileUuid.value());
                                     }
-                                }
-                                if (ImGui::MenuItem("Close Scene")) {
-                                    if (sceneUuid) {
-                                        engine->CloseScene(sceneUuid.value());
+                                    if (ImGui::MenuItem("Close Scene")) {
+                                        engine->CloseScene(fileUuid.value());
                                     }
-                                }
-                                if (ImGui::MenuItem("Reimport")) {
-                                    reimportAsset(path);
+                                    if (ImGui::MenuItem("Reimport")) {
+                                        reimportAsset(path);
+                                    }
+                                } else if (canImport) {
+                                    if (ImGui::MenuItem("Import")) {
+                                        registerAsset(path.string());
+                                    }
                                 }
                                 if (ImGui::MenuItem("Open in IDE")) {
                                     openFileInIDE(path);
@@ -222,19 +227,20 @@ namespace am {
                             }
                         } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
                             if (ImGui::BeginPopupContextItem("##ModelContext")) {
-                                auto modelUuid = getAssetUuidByPath(path);
-                                if (ImGui::MenuItem("Open in Preview Scene")) {
-                                    if (modelUuid) {
-                                        engine->OpenModelPreviewScene(modelUuid.value());
+                                if (isRegistered) {
+                                    if (ImGui::MenuItem("Open in Preview Scene")) {
+                                        engine->OpenModelPreviewScene(fileUuid.value());
                                     }
-                                }
-                                if (ImGui::MenuItem("Regenerate Thumbnail")) {
-                                    if (modelUuid) {
-                                        generateThumbnail(modelUuid.value());
+                                    if (ImGui::MenuItem("Regenerate Thumbnail")) {
+                                        generateThumbnail(fileUuid.value());
                                     }
-                                }
-                                if (ImGui::MenuItem("Reimport")) {
-                                    reimportAsset(path);
+                                    if (ImGui::MenuItem("Reimport")) {
+                                        reimportAsset(path);
+                                    }
+                                } else if (canImport) {
+                                    if (ImGui::MenuItem("Import")) {
+                                        registerAsset(path.string());
+                                    }
                                 }
                                 if (ImGui::MenuItem("Open in IDE")) {
                                     openFileInIDE(path);
@@ -246,16 +252,19 @@ namespace am {
                             }
                         } else {
                             if (ImGui::BeginPopupContextItem("##FileContext")) {
-                                if (type == AssetType::Texture || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp") {
-                                    if (ImGui::MenuItem("Regenerate Thumbnail")) {
-                                        auto texUuid = getAssetUuidByPath(path);
-                                        if (texUuid) {
-                                            generateThumbnail(texUuid.value());
+                                if (isRegistered) {
+                                    if (type == AssetType::Texture || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp") {
+                                        if (ImGui::MenuItem("Regenerate Thumbnail")) {
+                                            generateThumbnail(fileUuid.value());
                                         }
                                     }
-                                }
-                                if (ImGui::MenuItem("Reimport")) {
-                                    reimportAsset(path);
+                                    if (ImGui::MenuItem("Reimport")) {
+                                        reimportAsset(path);
+                                    }
+                                } else if (canImport) {
+                                    if (ImGui::MenuItem("Import")) {
+                                        registerAsset(path.string());
+                                    }
                                 }
                                 if (ImGui::MenuItem("Open in IDE")) {
                                     openFileInIDE(path);

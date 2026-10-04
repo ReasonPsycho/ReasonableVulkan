@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "2d4d0e92-dbaf-4e85-af96-9937c688b74f",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.model",
+  "type": "Model",
+  "lookUpName": "Plane.model",
+  "contentHash": 15800662026085711703,
+  "thumbnailPath": ".cache/thumbnails/2d4d0e92-dbaf-4e85-af96-9937c688b74f.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.fbx",
+    "assetType": "Model",
+    "assimpIndex": 0
+  }
+}
