@@ -122,12 +122,31 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
         void ImguiFileBrowser(std::string windowName) override;
+        void ImguiFileInspector(std::string windowName = "File Inspector") override;
+        void setSelectedFile(const std::filesystem::path& path) override;
+        std::filesystem::path getSelectedFile() const override;
+
+        void copyFileToClipboard(const std::filesystem::path& path) override;
+        void cutFileToClipboard(const std::filesystem::path& path) override;
+        bool pasteFileFromClipboard(const std::filesystem::path& targetDir) override;
+        bool duplicateFile(const std::filesystem::path& path) override;
+        bool deleteFile(const std::filesystem::path& path) override;
+        bool copyFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) override;
+        bool moveFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) override;
+        std::filesystem::path getUniqueCopyPath(const std::filesystem::path& targetPath) const override;
+        std::filesystem::path getClipboardPath() const override;
+        bool isClipboardCut() const override;
+
         void saveFileBrowserConfig();
         void loadFileBrowserConfig();
         float fileBrowserScale = 1.0f;
         float fileBrowserLetterScale = 1.0f;
         std::string fileBrowserConfigLookupName = "fileBrowserConfig";
         std::filesystem::path currentPath;
+        std::filesystem::path selectedFile;
+        std::filesystem::path clipboardPath;
+        bool clipboardIsCut = false;
+        bool focusFileInspectorRequested = false;
 
         bool openFileWithDefaultApp(const std::filesystem::path& path) override;
         bool openFileInIDE(const std::filesystem::path& path) override;
