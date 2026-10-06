@@ -108,6 +108,7 @@ namespace am {
         std::optional<boost::uuids::uuid> initializeAsset(AssetType assetType, std::string path, std::string lookupName);
 
         //Getters
+        std::optional<boost::uuids::uuid> findAssetByImportContext(const ImportContext& importContext) const;
         std::optional<boost::uuids::uuid> getAssetUuid(std::string lookupName) override;
         std::optional<boost::uuids::uuid> getAssetUuidByPath(const std::filesystem::path& path) override;
 
@@ -124,6 +125,7 @@ namespace am {
         void saveFileBrowserConfig();
         void loadFileBrowserConfig();
         float fileBrowserScale = 1.0f;
+        float fileBrowserLetterScale = 1.0f;
         std::string fileBrowserConfigLookupName = "fileBrowserConfig";
         std::filesystem::path currentPath;
 

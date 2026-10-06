@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "15384cac-6bb8-445b-be59-15e402bb8d46",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\Sphere.b_mesh",
+  "type": "Mesh",
+  "lookUpName": "Sphere_0.mesh",
+  "contentHash": 2445748381561150866,
+  "thumbnailPath": ".cache/thumbnails/15384cac-6bb8-445b-be59-15e402bb8d46.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\Sphere.fbx",
+    "assetType": "Mesh",
+    "assimpIndex": 0
+  }
+}

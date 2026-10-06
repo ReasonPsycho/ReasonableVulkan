@@ -9,7 +9,7 @@
   "lookUpName": "mesh.shader",
   "contentHash": 4069165301351927497,
   "assetFactoryData": {
-    "importPath": "res/shaders/glsl/entry/mesh.vert",
+    "importPath": "res\\shaders\\glsl\\entry\\mesh.vert",
     "assetType": "Shader",
     "assimpIndex": 0
   }

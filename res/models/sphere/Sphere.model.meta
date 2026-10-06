@@ -3,14 +3,14 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "c9cc814a-d042-4dfc-96bb-45065b0f2326",
+  "id": "1ff82aae-f5f6-4f26-9c16-c29b8af49c78",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\Sphere.model",
   "type": "Model",
   "lookUpName": "Sphere.model",
-  "contentHash": 8735525204890131017,
-  "thumbnailPath": ".cache/thumbnails/c9cc814a-d042-4dfc-96bb-45065b0f2326.png",
+  "contentHash": 4358168100305630176,
+  "thumbnailPath": ".cache/thumbnails/1ff82aae-f5f6-4f26-9c16-c29b8af49c78.png",
   "assetFactoryData": {
-    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\Sphere.blend",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\Sphere.fbx",
     "assetType": "Model",
     "assimpIndex": 0
   }

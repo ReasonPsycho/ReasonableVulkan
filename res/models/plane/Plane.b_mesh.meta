@@ -3,12 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "b518308d-c35f-4254-b14c-3d5e4d094d25",
+  "id": "363e7ca8-4f14-4825-a688-b19bd446053f",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.b_mesh",
   "type": "Mesh",
-  "lookUpName": "Plane_0.mesh",
+  "lookUpName": "Plane_0a.mesh",
   "contentHash": 17222296131364895489,
-  "thumbnailPath": ".cache/thumbnails/b518308d-c35f-4254-b14c-3d5e4d094d25.png",
+  "thumbnailPath": ".cache/thumbnails/363e7ca8-4f14-4825-a688-b19bd446053f.png",
   "assetFactoryData": {
     "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.fbx",
     "assetType": "Mesh",

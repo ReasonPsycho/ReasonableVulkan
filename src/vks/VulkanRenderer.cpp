@@ -18,6 +18,7 @@
 #include <boost/uuid/uuid_io.hpp>
 
 #include "src/imguiManager/ImguiManager.hpp"
+#include "RenderDocManager.hpp"
 
 
 namespace vks {
@@ -80,6 +81,10 @@ namespace vks {
         return descriptorManager->getOrLoadModel(uuid);
     }
 
+    gfx::MeshHandle VulkanRenderer::loadMesh(boost::uuids::uuid uuid) {
+        return descriptorManager->getOrLoadMesh(uuid);
+    }
+
     gfx::ShaderProgramHandle VulkanRenderer::loadShader(boost::uuids::uuid uuid) {
         return descriptorManager->getOrLoadShaderProgram(uuid);
     }
@@ -96,6 +101,10 @@ namespace vks {
         return descriptorManager->getOrLoadModel(lookUpName);
     }
 
+    gfx::MeshHandle VulkanRenderer::getMeshHandle(const std::string& lookUpName) {
+        return descriptorManager->getOrLoadMesh(lookUpName);
+    }
+
     gfx::ShaderProgramHandle VulkanRenderer::getShaderHandle(const std::string& lookUpName) {
         return descriptorManager->getOrLoadShaderProgram(lookUpName);
     }
@@ -104,11 +113,11 @@ namespace vks {
         return descriptorManager->getOrLoadMaterial(lookUpName);
     }
 
-    void VulkanRenderer::drawModel(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle shaderHandle, const glm::mat4& transform) {
+    void VulkanRenderer::drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle shaderHandle, const glm::mat4& transform) {
         if (!shaderHandle.isValid()){
             shaderHandle = pbrShaderHandle;
         }
-        renderManager->drawModel(cameraIndex, modelHandle, shaderHandle, transform);
+        renderManager->drawModel(cameraIndex, meshHandle, materialHandle, shaderHandle, transform);
     }
 
     void VulkanRenderer::drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle shaderHandle)
@@ -139,6 +148,7 @@ namespace vks {
     void VulkanRenderer::beginFrame() {
         if (!minimized)
         {
+            rd::RenderDocManager::getInstance().onFrameBegin();
             renderManager->beginFrame();
         }
     }
@@ -152,6 +162,7 @@ namespace vks {
         {
             renderManager->renderFrame();
             renderManager->endFrame();
+            rd::RenderDocManager::getInstance().onFrameEnd();
         }
     }
 

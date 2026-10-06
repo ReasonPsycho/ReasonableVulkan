@@ -49,6 +49,7 @@ target_include_directories(platform_interface INTERFACE ${CMAKE_SOURCE_DIR}/src/
 
 # Add subdirectories containing other CMake projects
 message(STATUS "Adding subdirectories")
+add_subdirectory(src/renderDocManager)
 add_subdirectory(src/assetManager)
 add_subdirectory(src/platform)
 add_subdirectory(src/vks)
@@ -71,7 +72,7 @@ add_definitions(-DGLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 engine_interface vks_interface am_interface platform_interface engine vks am platform)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 engine_interface vks_interface am_interface platform_interface engine vks am platform renderDocManager)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder
@@ -100,6 +101,7 @@ if (ENABLE_INTEGRATION_TESTS)
             vks
             am
             platform
+            renderDocManager
             Boost::unit_test_framework
     )
 

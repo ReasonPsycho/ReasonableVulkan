@@ -19,17 +19,17 @@ namespace engine::ecs
 
     struct MeshComponent : public Component
     {
-        [[=Tooltip{"Model asset UUID"}]]
-        boost::uuids::uuid modelUuid{boost::uuids::nil_uuid()};
+        [[=Tooltip{"Mesh asset UUID"}]]
+        boost::uuids::uuid meshUuid{boost::uuids::nil_uuid()};
 
         [[=NonSerialized{}]]
-        gfx::ModelHandle runtimeModelHandle = gfx::ModelHandle::invalid();
+        gfx::MeshHandle runtimeMeshHandle = gfx::MeshHandle::invalid();
 
         MeshComponent() = default;
-        explicit MeshComponent(boost::uuids::uuid modelId)
-            : modelUuid(modelId) {}
-        explicit MeshComponent(boost::uuids::uuid modelId, gfx::ModelHandle handle)
-            : modelUuid(modelId), runtimeModelHandle(handle) {}
+        explicit MeshComponent(boost::uuids::uuid meshId)
+            : meshUuid(meshId) {}
+        explicit MeshComponent(boost::uuids::uuid meshId, gfx::MeshHandle handle)
+            : meshUuid(meshId), runtimeMeshHandle(handle) {}
 
         void CustomDrawImGui(Scene* scene);
     };

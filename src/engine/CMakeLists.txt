@@ -75,6 +75,7 @@ target_link_libraries(engine PUBLIC
         spdlog::spdlog
         imgui::imgui
         imguizmo::imguizmo
+        renderDocManager
 )
 
 # Enable tests in Debug mode by default or when explicitly enabled

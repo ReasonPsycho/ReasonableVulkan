@@ -22,7 +22,7 @@ layout(binding = 6, set = 3) uniform texture2DArray spotShadowMaps;
 layout(binding = 7, set = 3) uniform sampler shadowSampler;
 
 const float SHININESS = 32.0;
-const vec3 AMBIENT_LIGHT = vec3(0.2, 0.2, 0.2);
+const vec3 AMBIENT_LIGHT = vec3(0.3, 0.3, 0.3);
 
 float CalculateDirectionalShadow(vec4 fragPosLightSpace, int shadowMapIndex, float bias, float shadowStrength) {
     // perform perspective divide

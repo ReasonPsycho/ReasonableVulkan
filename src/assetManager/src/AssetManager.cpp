@@ -136,6 +136,18 @@ namespace am {
         std::string normalizedPath = p.string();
 
         std::string extension = p.extension().string();
+        AssetType assetType = GetAssetTypeFromExtension(extension);
+
+        ImportContext assetFactoryData(normalizedPath, assetType, 0);
+
+        auto existingUuid = findAssetByImportContext(assetFactoryData);
+        if (!existingUuid.has_value()) {
+            existingUuid = getAssetUuidByPath(p);
+        }
+        if (existingUuid.has_value()) {
+            reimportAsset(existingUuid.value());
+            return existingUuid.value();
+        }
 
         if (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
         {
@@ -143,31 +155,42 @@ namespace am {
             throw std::runtime_error("Lookup name already exists");
         }
 
-        ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
         return importAsset(assetFactoryData, lookUpName);
     }
 
-std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path)
-{
-    std::filesystem::path p = std::filesystem::path(path).lexically_normal();
-    std::string normalizedPath = p.string();
-
-    std::string baseName = p.stem().string();
-    std::string extension = p.extension().string();
-
-    std::string lookUpName = baseName + GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
-
-    int counter = 1;
-
-    while (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
+    std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path)
     {
-        lookUpName = baseName + "_" + std::to_string(counter) +  GetExtensionFromAssetType(GetAssetTypeFromExtension(extension));
-        counter++;
-    }
+        std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        std::string normalizedPath = p.string();
 
-    ImportContext assetFactoryData(normalizedPath, GetAssetTypeFromExtension(extension), 0);
-    return importAsset(assetFactoryData, lookUpName);
-}
+        std::string extension = p.extension().string();
+        AssetType assetType = GetAssetTypeFromExtension(extension);
+
+        ImportContext assetFactoryData(normalizedPath, assetType, 0);
+
+        auto existingUuid = findAssetByImportContext(assetFactoryData);
+        if (!existingUuid.has_value()) {
+            existingUuid = getAssetUuidByPath(p);
+        }
+        if (existingUuid.has_value()) {
+            reimportAsset(existingUuid.value());
+            return existingUuid.value();
+        }
+
+        std::string baseName = p.stem().string();
+
+        std::string lookUpName = baseName + GetExtensionFromAssetType(assetType);
+
+        int counter = 1;
+
+        while (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
+        {
+            lookUpName = baseName + "_" + std::to_string(counter) +  GetExtensionFromAssetType(assetType);
+            counter++;
+        }
+
+        return importAsset(assetFactoryData, lookUpName);
+    }
 
 std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boost::uuids::uuid &id) const {
     auto it = metadata.find(id);
@@ -693,6 +716,14 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     std::optional<boost::uuids::uuid> AssetManager::registerAsset(ImportContext importContext)
     {
         importContext.importPath = std::filesystem::path(importContext.importPath).lexically_normal().string();
+
+        auto existingUuid = findAssetByImportContext(importContext);
+        if (existingUuid.has_value())
+        {
+            reimportAsset(existingUuid.value());
+            return existingUuid.value();
+        }
+
         std::filesystem::path p(importContext.importPath);
 
         std::string baseName = p.stem().string();
@@ -818,14 +849,108 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         this->engine = engineInterface;
     }
 
+    static bool isSamePath(const std::string& pathA, const std::string& pathB, const std::string& resourceFolder)
+    {
+        if (pathA.empty() && pathB.empty()) return true;
+        if (pathA.empty() || pathB.empty()) return false;
+
+        std::filesystem::path pA = std::filesystem::path(pathA).lexically_normal();
+        std::filesystem::path pB = std::filesystem::path(pathB).lexically_normal();
+
+        auto normalizePathStr = [](const std::filesystem::path& p) -> std::string {
+            std::string s = p.string();
+            for (char& c : s) {
+                if (c == '/') c = '\\';
+#ifdef _WIN32
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+#endif
+            }
+            return s;
+        };
+
+        if (normalizePathStr(pA) == normalizePathStr(pB)) {
+            return true;
+        }
+
+        auto resolveFull = [&](const std::filesystem::path& p) -> std::filesystem::path {
+            if (p.is_absolute()) {
+                return p.lexically_normal();
+            }
+            std::string pStr = p.string();
+            if (pStr.rfind("res/", 0) == 0 || pStr.rfind("res\\", 0) == 0) {
+                return (std::filesystem::path(resourceFolder) / pStr.substr(4)).lexically_normal();
+            }
+            return (std::filesystem::path(resourceFolder) / p).lexically_normal();
+        };
+
+        std::filesystem::path fullA = resolveFull(pA);
+        std::filesystem::path fullB = resolveFull(pB);
+
+        if (normalizePathStr(fullA) == normalizePathStr(fullB)) {
+            return true;
+        }
+
+        std::error_code ec;
+        if (std::filesystem::exists(fullA, ec) && std::filesystem::exists(fullB, ec)) {
+            if (std::filesystem::equivalent(fullA, fullB, ec)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    std::optional<boost::uuids::uuid> AssetManager::findAssetByImportContext(const ImportContext& importContext) const
+    {
+        if (importContext.importPath.empty() && importContext.assetType == AssetType::Other) {
+            return std::nullopt;
+        }
+
+        for (const auto& [id, info] : metadata)
+        {
+            if (info->type != importContext.assetType && info->importContext.assetType != importContext.assetType) {
+                continue;
+            }
+
+            if (info->importContext.assimpIndex != importContext.assimpIndex) {
+                continue;
+            }
+
+            if (!info->importContext.importPath.empty() && isSamePath(info->importContext.importPath, importContext.importPath, resourceFolder)) {
+                return id;
+            }
+
+            if (info->importContext.importPath.empty() && !info->path.empty() && isSamePath(info->path, importContext.importPath, resourceFolder)) {
+                return id;
+            }
+
+            if (!info->path.empty() && isSamePath(info->path, importContext.importPath, resourceFolder)) {
+                return id;
+            }
+        }
+
+        return std::nullopt;
+    }
+
     std::optional<boost::uuids::uuid> AssetManager::getAssetUuidByPath(const std::filesystem::path& path)
     {
         std::filesystem::path normalPath = path.lexically_normal();
+        std::string normalPathStr = normalPath.string();
+        auto ext = normalPath.extension().string();
+        AssetType expectedType = GetAssetTypeFromExtension(ext);
 
         // 1. Direct match on info->path
         for (const auto& [id, info] : metadata)
         {
-            if (std::filesystem::path(info->path).lexically_normal() == normalPath)
+            if (expectedType != AssetType::Other && info->type != expectedType) continue;
+            if (isSamePath(info->path, normalPathStr, resourceFolder))
+            {
+                return id;
+            }
+        }
+        for (const auto& [id, info] : metadata)
+        {
+            if (isSamePath(info->path, normalPathStr, resourceFolder))
             {
                 return id;
             }
@@ -834,64 +959,36 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         // 2. Direct match or relative match on info->importContext.importPath
         for (const auto& [id, info] : metadata)
         {
-            if (!info->importContext.importPath.empty())
+            if (expectedType != AssetType::Other && info->type != expectedType && info->importContext.assetType != expectedType) continue;
+            if (!info->importContext.importPath.empty() && isSamePath(info->importContext.importPath, normalPathStr, resourceFolder))
             {
-                std::filesystem::path impPath = std::filesystem::path(info->importContext.importPath).lexically_normal();
-                if (impPath == normalPath)
-                {
-                    return id;
-                }
-                std::filesystem::path relImpPath = (std::filesystem::path(resourceFolder) / info->importContext.importPath).lexically_normal();
-                if (relImpPath == normalPath)
-                {
-                    return id;
-                }
-                if (info->importContext.importPath.rfind("res/", 0) == 0 || info->importContext.importPath.rfind("res\\", 0) == 0) {
-                    std::filesystem::path subImp = (std::filesystem::path(resourceFolder) / info->importContext.importPath.substr(4)).lexically_normal();
-                    if (subImp == normalPath) {
-                        return id;
-                    }
-                }
+                return id;
             }
         }
-
-        // 3. Equivalent path on info->path or importPath
         for (const auto& [id, info] : metadata)
         {
-            std::error_code ec;
-            if (std::filesystem::exists(info->path, ec) && std::filesystem::exists(normalPath, ec))
+            if (!info->importContext.importPath.empty() && isSamePath(info->importContext.importPath, normalPathStr, resourceFolder))
             {
-                if (std::filesystem::equivalent(info->path, normalPath, ec))
-                {
-                    return id;
-                }
-            }
-            if (!info->importContext.importPath.empty())
-            {
-                if (std::filesystem::exists(info->importContext.importPath, ec) && std::filesystem::exists(normalPath, ec))
-                {
-                    if (std::filesystem::equivalent(info->importContext.importPath, normalPath, ec))
-                    {
-                        return id;
-                    }
-                }
-                std::filesystem::path relImpPath = std::filesystem::path(resourceFolder) / info->importContext.importPath;
-                if (std::filesystem::exists(relImpPath, ec) && std::filesystem::exists(normalPath, ec))
-                {
-                    if (std::filesystem::equivalent(relImpPath, normalPath, ec))
-                    {
-                        return id;
-                    }
-                }
+                return id;
             }
         }
 
-        // 4. Match by lookup name or stem
+        // 3. Match by lookup name or stem
         std::string lookUpName = normalPath.filename().string();
         auto it = lookupNamesToUUIDs.find(lookUpName);
         if (it != lookupNamesToUUIDs.end())
         {
             return it->second;
+        }
+
+        if (expectedType != AssetType::Other)
+        {
+            std::string typedLookUpName = normalPath.stem().string() + GetExtensionFromAssetType(expectedType);
+            it = lookupNamesToUUIDs.find(typedLookUpName);
+            if (it != lookupNamesToUUIDs.end())
+            {
+                return it->second;
+            }
         }
 
         std::string stemName = normalPath.stem().string();
@@ -901,23 +998,40 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             return it->second;
         }
 
-        // 5. Match by stem and parent path against metadata
+        // 4. Match by stem and parent path against metadata
         for (const auto& [id, info] : metadata)
         {
+            if (expectedType != AssetType::Other && info->type != expectedType) continue;
             std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
-            if (infoP.stem() == normalPath.stem() && infoP.parent_path() == normalPath.parent_path())
+            if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
             {
                 return id;
             }
             if (!info->importContext.importPath.empty()) {
                 std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
-                if (impP.stem() == normalPath.stem() && impP.parent_path() == normalPath.parent_path())
+                if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+                {
+                    return id;
+                }
+            }
+        }
+        for (const auto& [id, info] : metadata)
+        {
+            std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
+            if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+            {
+                return id;
+            }
+            if (!info->importContext.importPath.empty()) {
+                std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
+                if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
                 {
                     return id;
                 }
             }
         }
 
+        // 5. Check .meta sidecar
         if (std::filesystem::exists(normalPath))
         {
             std::filesystem::path metaPath = normalPath.string() + ".meta";
@@ -949,9 +1063,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 }
             }
 
-            auto ext = normalPath.extension().string();
-            AssetType assetType = GetAssetTypeFromExtension(ext);
-            if (assetType == AssetType::Scene)
+            if (expectedType == AssetType::Scene)
             {
                 rapidjson::Document doc;
                 if (loadJsonFromFile(normalPath.string(), doc))

@@ -28,6 +28,12 @@ namespace am {
                 fileBrowserScale = 1.0f;
             }
         }
+        if (configData->HasMember("letterScale") && (*configData)["letterScale"].IsNumber()) {
+            fileBrowserLetterScale = (*configData)["letterScale"].GetFloat();
+            if (fileBrowserLetterScale <= 0.0f) {
+                fileBrowserLetterScale = 1.0f;
+            }
+        }
     }
 
     void AssetManager::saveFileBrowserConfig()
@@ -49,6 +55,7 @@ namespace am {
         configData->SetObject();
         auto& allocator = configData->GetAllocator();
         configData->AddMember("scale", fileBrowserScale, allocator);
+        configData->AddMember("letterScale", fileBrowserLetterScale, allocator);
 
         saveAsset(uuid.value());
     }
@@ -69,20 +76,35 @@ namespace am {
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(120.0f);
-        if (ImGui::SliderFloat("##ScaleSlider", &fileBrowserScale, 0.5f, 2.0f, "Scale: %.2f")) {
+        if (ImGui::SliderFloat("##ScaleSlider", &fileBrowserScale, 0.5f, 2.0f, "Icons: %.2f")) {
             if (fileBrowserScale < 0.2f) fileBrowserScale = 0.2f;
         }
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             saveFileBrowserConfig();
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Scale icons and text");
+            ImGui::SetTooltip("Scale icons");
+        }
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(120.0f);
+        if (ImGui::SliderFloat("##LetterScaleSlider", &fileBrowserLetterScale, 0.5f, 2.0f, "Letters: %.2f")) {
+            if (fileBrowserLetterScale < 0.2f) fileBrowserLetterScale = 0.2f;
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            saveFileBrowserConfig();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Scale letters");
         }
 
         ImGui::Separator();
 
         if (fileBrowserScale <= 0.0f) {
             fileBrowserScale = 1.0f;
+        }
+        if (fileBrowserLetterScale <= 0.0f) {
+            fileBrowserLetterScale = 1.0f;
         }
 
         if (ImGui::BeginChild("FileBrowserScroll"))
@@ -94,8 +116,6 @@ namespace am {
             float cellSize = iconSize + padding;
 
             float windowVisibleX2 = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
-
-            ImGui::SetWindowFontScale(fileBrowserScale);
 
             try {
                 int i = 0;
@@ -117,6 +137,8 @@ namespace am {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
+
+                    ImGui::SetWindowFontScale(fileBrowserScale);
 
                     void* thumbTex = nullptr;
                     if (!entry.is_directory()) {
@@ -157,6 +179,8 @@ namespace am {
                     }
 
                     ImGui::PopStyleColor(3);
+
+                    ImGui::SetWindowFontScale(fileBrowserLetterScale);
 
                     // Centered text below icon
                     float textWidth = ImGui::CalcTextSize(filename.c_str()).x;

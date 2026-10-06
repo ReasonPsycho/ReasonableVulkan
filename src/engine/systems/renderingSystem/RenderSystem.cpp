@@ -131,10 +131,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
             if (scene->HasComponent<MeshComponent>(entity))
             {
                 auto& mesh = scene->GetComponent<MeshComponent>(entity);
-                if (mesh.modelUuid != boost::uuids::nil_uuid())
+                if (mesh.meshUuid != boost::uuids::nil_uuid())
                 {
-                    if (!mesh.runtimeModelHandle.isValid()) {
-                        mesh.runtimeModelHandle = scene->engine.graphicsEngine->loadModel(mesh.modelUuid);
+                    if (!mesh.runtimeMeshHandle.isValid()) {
+                        mesh.runtimeMeshHandle = scene->engine.graphicsEngine->loadMesh(mesh.meshUuid);
                     }
 
                     auto& renderer = renderers[i];
@@ -155,7 +155,7 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                             }
                         }
 
-                        scene->engine.graphicsEngine->drawModel(camIdx, mesh.runtimeModelHandle, currentShader,
+                        scene->engine.graphicsEngine->drawModel(camIdx, mesh.runtimeMeshHandle, renderer.runtimeMaterialHandle, currentShader,
                                                                 transforms[entity].globalMatrix);
                     }
                 }
@@ -167,10 +167,10 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     if (gizmoSystem != nullptr)
     {
         for (auto& command : gizmoSystem->gizmoRenderCommandQueue) {
-            gfx::ModelHandle modelHandle = gizmoSystem->ModelHandleByGizmoType(command.type);
+            gfx::MeshHandle meshHandle = gizmoSystem->MeshHandleByGizmoType(command.type);
             gfx::ShaderProgramHandle shaderHandle = gizmoSystem->ShaderHandleByGizmoType(command.type);
             if (inEditMode) {
-                scene->engine.graphicsEngine->drawModel(sceneIndex, modelHandle, shaderHandle,
+                scene->engine.graphicsEngine->drawModel(sceneIndex, meshHandle, gfx::MaterialHandle::invalid(), shaderHandle,
                                                         command.transform);
             }
         }
