@@ -7,9 +7,9 @@
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\pbr.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "pbrShader",
-  "contentHash": 14525977998531044010,
+  "contentHash": 18377935246399891327,
   "assetFactoryData": {
-    "importPath": "res/shaders/jsons/pbr.shaderImport",
+    "importPath": "res\\shaders\\jsons\\pbr.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

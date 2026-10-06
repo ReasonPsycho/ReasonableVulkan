@@ -85,7 +85,7 @@ void RenderManager::createSyncObjects() {
 }
 
 
-void RenderManager::renderNode(NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle)
+void RenderManager::renderNode(NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle, MaterialDescriptor* materialOverride)
 {
     auto shaderProgramDescriptor = descriptorManager->getShaderProgram(renderProgramHandle);
     if (!shaderProgramDescriptor) return;
@@ -110,10 +110,10 @@ void RenderManager::renderNode(NodeDescriptorStruct* mainNode, VkCommandBuffer c
         }
 
         for (const auto& mesh : node->meshes) {
-            bindMeshDescriptors(commandBuffer, renderProgramHandle, mesh, defines);
+            bindMeshDescriptors(commandBuffer, renderProgramHandle, mesh, defines, materialOverride);
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
         }
-        renderNode(node, commandBuffer, matrix, renderProgramHandle);
+        renderNode(node, commandBuffer, matrix, renderProgramHandle, materialOverride);
     }
 }
 
@@ -164,9 +164,9 @@ void RenderManager::cleanup() {
     vkDestroyCommandPool(context->getDevice(), context->getGraphicsCommandPool(), nullptr);
 }
 
-void RenderManager::drawModel(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform)
+void RenderManager::drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform)
 {
-    renderQueue.push_back(RenderCommand{cameraIndex, modelHandle, renderProgramHandle, transform});
+    renderQueue.push_back(RenderCommand{cameraIndex, meshHandle, materialHandle, renderProgramHandle, transform});
 }
 
 void RenderManager::drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle)
@@ -174,9 +174,9 @@ void RenderManager::drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxM
     skyboxRenderQueue.push_back(SkyboxRenderCommand{cameraIndex, skyboxMaterialHandle, renderProgramHandle});
 }
 
-void RenderManager::submitRenderCommand(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform)
+void RenderManager::submitRenderCommand(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform)
 {
-    renderQueue.push_back(RenderCommand{cameraIndex, modelHandle, renderProgramHandle, transform});
+    renderQueue.push_back(RenderCommand{cameraIndex, meshHandle, materialHandle, renderProgramHandle, transform});
 }
 
 void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle)
@@ -387,9 +387,27 @@ void RenderManager::endFrame() {
                     }
 
                     for (auto& command : renderQueue) {
-                        auto modelDescriptor = descriptorManager->getModel(command.modelHandle);
-                        if (modelDescriptor) {
-                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, shadowShaderHandle, light.shadowMapIndex, 0);
+                        auto meshDescriptor = descriptorManager->getMesh(command.meshHandle);
+                        if (meshDescriptor) {
+                            auto currentShadowDescriptor = descriptorManager->getShaderProgram(shadowShaderHandle);
+                            const auto& defines = currentShadowDescriptor ? currentShadowDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                            bool hasLightModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+                            if (hasLightModelPushConstants) {
+                                LightModelPushConstant push_lm;
+                                push_lm.model = command.transform;
+                                push_lm.lightIndex = light.shadowMapIndex;
+                                push_lm.lightType = 0;
+                                vkCmdPushConstants(
+                                    commandBuffer,
+                                    pipelineManager->getPipelineLayout(shadowShaderHandle),
+                                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    0,
+                                    sizeof(LightModelPushConstant),
+                                    &push_lm
+                                );
+                            }
+                            bindMeshDescriptors(commandBuffer, shadowShaderHandle, meshDescriptor, defines);
+                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
                         }
                     }
 
@@ -445,9 +463,27 @@ void RenderManager::endFrame() {
                     }
 
                     for (auto& command : renderQueue) {
-                        auto modelDescriptor = descriptorManager->getModel(command.modelHandle);
-                        if (modelDescriptor) {
-                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, cubeShadowShaderHandle, light.shadowMapIndex, 1);
+                        auto meshDescriptor = descriptorManager->getMesh(command.meshHandle);
+                        if (meshDescriptor) {
+                            auto currentCubeShadowDescriptor = descriptorManager->getShaderProgram(cubeShadowShaderHandle);
+                            const auto& defines = currentCubeShadowDescriptor ? currentCubeShadowDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                            bool hasLightModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+                            if (hasLightModelPushConstants) {
+                                LightModelPushConstant push_lm;
+                                push_lm.model = command.transform;
+                                push_lm.lightIndex = light.shadowMapIndex;
+                                push_lm.lightType = 1;
+                                vkCmdPushConstants(
+                                    commandBuffer,
+                                    pipelineManager->getPipelineLayout(cubeShadowShaderHandle),
+                                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    0,
+                                    sizeof(LightModelPushConstant),
+                                    &push_lm
+                                );
+                            }
+                            bindMeshDescriptors(commandBuffer, cubeShadowShaderHandle, meshDescriptor, defines);
+                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
                         }
                     }
 
@@ -496,9 +532,27 @@ void RenderManager::endFrame() {
                     }
 
                     for (auto& command : renderQueue) {
-                        auto modelDescriptor = descriptorManager->getModel(command.modelHandle);
-                        if (modelDescriptor) {
-                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, shadowShaderHandle, light.shadowMapIndex, 2);
+                        auto meshDescriptor = descriptorManager->getMesh(command.meshHandle);
+                        if (meshDescriptor) {
+                            auto currentSpotShadowDescriptor = descriptorManager->getShaderProgram(shadowShaderHandle);
+                            const auto& defines = currentSpotShadowDescriptor ? currentSpotShadowDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                            bool hasLightModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+                            if (hasLightModelPushConstants) {
+                                LightModelPushConstant push_lm;
+                                push_lm.model = command.transform;
+                                push_lm.lightIndex = light.shadowMapIndex;
+                                push_lm.lightType = 2;
+                                vkCmdPushConstants(
+                                    commandBuffer,
+                                    pipelineManager->getPipelineLayout(shadowShaderHandle),
+                                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    0,
+                                    sizeof(LightModelPushConstant),
+                                    &push_lm
+                                );
+                            }
+                            bindMeshDescriptors(commandBuffer, shadowShaderHandle, meshDescriptor, defines);
+                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
                         }
                     }
 
@@ -635,13 +689,13 @@ void RenderManager::endFrame() {
                 }
             }
 
-            // Process model render queue for this camera
+            // Process model & mesh render queue for this camera
             gfx::ShaderProgramHandle lastProgramHandle = gfx::ShaderProgramHandle::invalid();
             for (auto& cmd : renderQueue) {
                 if (cmd.cameraIndex != i) continue;
 
-                auto modelDescriptor = descriptorManager->getModel(cmd.modelHandle);
-                if (!modelDescriptor) continue;
+                auto meshDescriptor = descriptorManager->getMesh(cmd.meshHandle);
+                if (!meshDescriptor) continue;
 
                 if (cmd.renderProgramHandle != lastProgramHandle) {
                     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramHandle));
@@ -654,7 +708,28 @@ void RenderManager::endFrame() {
                     lastProgramHandle = cmd.renderProgramHandle;
                 }
 
-                renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform, cmd.renderProgramHandle);
+                MaterialDescriptor* materialDescriptor = nullptr;
+                if (cmd.materialHandle.isValid()) {
+                    materialDescriptor = descriptorManager->getMaterial(cmd.materialHandle);
+                }
+
+                auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
+                const auto& defines = shaderProgramDescriptor ? shaderProgramDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                bool hasModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
+                if (hasModelPushConstants) {
+                    ModelPushConstant push_m;
+                    push_m.model = cmd.transform;
+                    vkCmdPushConstants(
+                        commandBuffer,
+                        pipelineManager->getPipelineLayout(cmd.renderProgramHandle),
+                        VK_SHADER_STAGE_VERTEX_BIT,
+                        0,
+                        sizeof(ModelPushConstant),
+                        &push_m
+                    );
+                }
+                bindMeshDescriptors(commandBuffer, cmd.renderProgramHandle, meshDescriptor, defines, materialDescriptor);
+                vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
             }
 
             vkCmdEndRenderPass(commandBuffer);
@@ -745,7 +820,7 @@ void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::
     }
 }
 
-void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines) {
+void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines, MaterialDescriptor* materialOverride) {
     bool hasMeshUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != defines.end();
     bool hasMaterial = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_PBR_GLSL) != defines.end();
 
@@ -760,12 +835,17 @@ void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::Shad
             pipelineManager->getPipelineLayout(renderProgramHandle), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
     }
 
-        // Bind material descriptor set at set index 1
+    // Bind material descriptor set at set index 1
     if (hasMaterial) {
-        auto materialDescriptorSet = mesh->material->descriptorSet;
-        if (materialDescriptorSet != VK_NULL_HANDLE) {
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipelineManager->getPipelineLayout(renderProgramHandle), 1, 1, &materialDescriptorSet, 0, nullptr);
+        MaterialDescriptor* mat = materialOverride ? materialOverride : mesh->material;
+        if (mat) {
+            if (mat->descriptorSet == VK_NULL_HANDLE) {
+                mat->setUpDescriptorSet(descriptorManager->pbrMaterialLayout, descriptorManager->pbrMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
+            }
+            if (mat->descriptorSet != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineManager->getPipelineLayout(renderProgramHandle), 1, 1, &mat->descriptorSet, 0, nullptr);
+            }
         }
     }
 }
@@ -785,18 +865,6 @@ bool RenderManager::renderAndCaptureModelThumbnail(
     waitIdle();
 
     if (!pipelineManager || !swapChain || !context || !descriptorManager) {
-        return false;
-    }
-
-    auto wiremeshHandle = descriptorManager->getOrLoadShaderProgram("wiremeshShader");
-    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(wiremeshHandle);
-    if (!shaderProgramDescriptor) {
-        return false;
-    }
-
-    VkPipeline pipeline = pipelineManager->getPipeline(wiremeshHandle);
-    VkPipelineLayout layout = pipelineManager->getPipelineLayout(wiremeshHandle);
-    if (pipeline == VK_NULL_HANDLE || layout == VK_NULL_HANDLE) {
         return false;
     }
 
@@ -824,6 +892,25 @@ bool RenderManager::renderAndCaptureModelThumbnail(
         }
     } else {
         return false;
+    }
+
+    auto shaderHandle = (assetType == am::AssetType::Mesh)
+        ? descriptorManager->getOrLoadShaderProgram("wiremeshShader")
+        : (pbrShaderHandle.isValid() ? pbrShaderHandle : descriptorManager->getOrLoadShaderProgram("pbrShader"));
+    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(shaderHandle);
+    if (!shaderProgramDescriptor) {
+        return false;
+    }
+
+    VkPipeline pipeline = pipelineManager->getPipeline(shaderHandle);
+    VkPipelineLayout layout = pipelineManager->getPipelineLayout(shaderHandle);
+    if (pipeline == VK_NULL_HANDLE || layout == VK_NULL_HANDLE) {
+        pipelineManager->createGraphicsPipeline(shaderProgramDescriptor);
+        pipeline = pipelineManager->getPipeline(shaderHandle);
+        layout = pipelineManager->getPipelineLayout(shaderHandle);
+        if (pipeline == VK_NULL_HANDLE || layout == VK_NULL_HANDLE) {
+            return false;
+        }
     }
 
     uint32_t thumbCameraIndex = std::min(15u, static_cast<uint32_t>(pipelineManager->cameraResources.size() - 1));
@@ -931,10 +1018,10 @@ bool RenderManager::renderAndCaptureModelThumbnail(
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     const auto& defines = shaderProgramDescriptor->getDefines();
-    bindPipelineDescriptors(cmd, wiremeshHandle, thumbCameraIndex, defines);
+    bindPipelineDescriptors(cmd, shaderHandle, thumbCameraIndex, defines);
 
     if (modelDescriptor) {
-        renderNode(modelDescriptor->nodes[0], cmd, glm::mat4(1.0f), wiremeshHandle);
+        renderNode(modelDescriptor->nodes[0], cmd, glm::mat4(1.0f), shaderHandle);
     } else if (meshDescriptor) {
         bool hasModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
         if (hasModelPushConstants) {
@@ -949,7 +1036,7 @@ bool RenderManager::renderAndCaptureModelThumbnail(
                 &push_m
             );
         }
-        bindMeshDescriptors(cmd, wiremeshHandle, meshDescriptor, defines);
+        bindMeshDescriptors(cmd, shaderHandle, meshDescriptor, defines);
         vkCmdDrawIndexed(cmd, meshDescriptor->indices.count, 1, 0, 0, 0);
     }
 

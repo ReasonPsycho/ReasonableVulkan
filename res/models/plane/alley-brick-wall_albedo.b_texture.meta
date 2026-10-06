@@ -3,11 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "cfd0c20c-09f2-4813-8fc2-3454b0ac674c",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\plane\\alley-brick-wall_albedo.b_texture",
+  "id": "6ba3acad-d221-40d7-acd4-8b5e9ffbcaeb",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\alley-brick-wall_albedo.b_texture",
   "type": "Texture",
-  "lookUpName": "alley-brick-wall_albedo_0a.texture",
+  "lookUpName": "alley-brick-wall_albedo_0c.texture",
   "contentHash": 5876403154067738325,
+  "thumbnailPath": ".cache/thumbnails/6ba3acad-d221-40d7-acd4-8b5e9ffbcaeb.png",
   "assetFactoryData": {
     "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\plane\\alley-brick-wall_albedo.png",
     "assetType": "Texture",

@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "e1ce724b-c848-43eb-8bfb-3df8f3204782",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\Sphere.material",
+  "type": "Material",
+  "lookUpName": "Sphere_0.material",
+  "contentHash": 6864802739313272055,
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\sphere\\Sphere.fbx",
+    "assetType": "Material",
+    "assimpIndex": 0
+  }
+}

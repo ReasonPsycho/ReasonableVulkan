@@ -9,12 +9,16 @@
 
 bool am::ImportContext::operator==(const ImportContext& factory_context) const
 {
-    if (this->importPath != factory_context.importPath)
-        return false;
     if (this->assetType != factory_context.assetType)
         return false;
     if (this->assimpIndex != factory_context.assimpIndex)
         return false;
+    if (this->importPath != factory_context.importPath) {
+        std::filesystem::path p1 = std::filesystem::path(this->importPath).lexically_normal();
+        std::filesystem::path p2 = std::filesystem::path(factory_context.importPath).lexically_normal();
+        if (p1 != p2)
+            return false;
+    }
 
     return true;
 }

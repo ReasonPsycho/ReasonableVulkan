@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "bf587f40-6125-4144-a43b-51a31425eec5",
+  "id": "199ce209-5c6a-49a5-9de7-c35dacbbb2d3",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.material",
   "type": "Material",
-  "lookUpName": "Plane_0.material",
+  "lookUpName": "Plane_0a.material",
   "contentHash": 4056282056264071001,
   "assetFactoryData": {
     "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\Plane.fbx",

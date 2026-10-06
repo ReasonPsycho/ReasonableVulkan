@@ -34,7 +34,7 @@ namespace gfx {
         virtual void setActiveCameraCount(uint32_t count) = 0;
 
         // Rendering commands using Handles
-        virtual void drawModel(uint32_t cameraIndex, ModelHandle modelHandle, ShaderProgramHandle shaderHandle, const glm::mat4& transform) = 0;
+        virtual void drawModel(uint32_t cameraIndex, MeshHandle meshHandle, MaterialHandle materialHandle, ShaderProgramHandle shaderHandle, const glm::mat4& transform) = 0;
         virtual void drawSkybox(uint32_t cameraIndex, MaterialHandle materialHandle, ShaderProgramHandle shaderHandle) = 0;
         virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;
@@ -42,11 +42,13 @@ namespace gfx {
 
         // Asset registration / handle acquisition
         virtual ModelHandle loadModel(boost::uuids::uuid uuid) = 0;
+        virtual MeshHandle loadMesh(boost::uuids::uuid uuid) = 0;
         virtual ShaderProgramHandle loadShader(boost::uuids::uuid uuid) = 0;
         virtual TextureHandle loadTexture(boost::uuids::uuid uuid) = 0;
         virtual MaterialHandle loadMaterial(boost::uuids::uuid uuid) = 0;
 
         virtual ModelHandle getModelHandle(const std::string& lookUpName) = 0;
+        virtual MeshHandle getMeshHandle(const std::string& lookUpName) = 0;
         virtual ShaderProgramHandle getShaderHandle(const std::string& lookUpName) = 0;
         virtual MaterialHandle getMaterialHandle(const std::string& lookUpName) = 0;
 

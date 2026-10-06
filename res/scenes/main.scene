@@ -1,25 +1,168 @@
 ﻿{
   "isEditable": true,
   "entities": {
-    "maxEntityIndex": 0,
-    "activeEntities": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "signatures": {}
+    "maxEntityIndex": 6,
+    "activeEntities": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111000",
+    "signatures": {
+      "5": "0000000000100111",
+      "4": "0000000000101001",
+      "3": "0000000000110001"
+    }
   },
   "components": {
+    "MeshComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 5,
+          "data": {
+            "meshUuid": "363e7ca8-4f14-4825-a688-b19bd446053f"
+          },
+          "active": true
+        }
+      ]
+    },
+    "NameComponent": {
+      "components": [
+        {
+          "entity": 3,
+          "data": {
+            "name": "Light"
+          }
+        },
+        {
+          "entity": 4,
+          "data": {
+            "name": "Camera"
+          }
+        },
+        {
+          "entity": 5,
+          "data": {
+            "name": "Model"
+          }
+        }
+      ]
+    },
     "CameraComponent": {
-      "size": 0,
-      "components": []
+      "size": 1,
+      "components": [
+        {
+          "entity": 4,
+          "data": {
+            "fov": 45.0,
+            "aspectRatio": 1.7699999809265137,
+            "nearPlane": 0.10000000149011612,
+            "farPlane": 1000.0,
+            "skyboxMaterialId": "00000000-0000-0000-0000-000000000000",
+            "active": false
+          },
+          "active": true
+        }
+      ]
     },
     "LightComponent": {
-      "size": 0,
-      "components": []
+      "size": 1,
+      "components": [
+        {
+          "entity": 3,
+          "data": {
+            "type": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "intensity": 1.0,
+            "hasShadow": false,
+            "data": {
+              "shadowBias": 0.004999999888241291,
+              "shadowStrength": 1.0
+            }
+          },
+          "active": true
+        }
+      ]
     },
     "RendererComponent": {
-      "size": 0,
-      "components": []
+      "size": 1,
+      "components": [
+        {
+          "entity": 5,
+          "data": {
+            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452",
+            "materialUuid": "199ce209-5c6a-49a5-9de7-c35dacbbb2d3"
+          },
+          "active": true
+        }
+      ]
     },
     "TransformComponent": {
-      "components": []
+      "components": [
+        {
+          "entity": 3,
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.4525398015975952,
+              0.20405995845794678,
+              0.8614381551742554,
+              0.10719886422157288
+            ],
+            "scale": [
+              1.0000015497207642,
+              0.9999998211860657,
+              1.0000017881393433
+            ]
+          }
+        },
+        {
+          "entity": 4,
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "entity": 5,
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.06999999284744263,
+              0.06999999284744263,
+              0.06999999284744263
+            ]
+          }
+        }
+      ]
     }
   },
   "systems": {
@@ -41,7 +184,11 @@
     }
   },
   "sceneGraph": {
-    "rootEntities": [],
+    "rootEntities": [
+      3,
+      4,
+      5
+    ],
     "nodes": {}
   },
   "_meta": {

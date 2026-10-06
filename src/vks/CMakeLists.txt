@@ -81,6 +81,7 @@ target_link_libraries(vks
         Vulkan::Vulkan
         fmt::fmt
         spdlog::spdlog
+        renderDocManager
 )
 
 # tinygltf is header-only, so we just need to include its directory

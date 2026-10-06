@@ -510,6 +510,7 @@ namespace engine {
         scene->SetActive(true);
         scene->sceneId = boost::uuids::nil_uuid();
 
+        auto meshUUID = boost::uuids::nil_uuid();
         // Calculate model / mesh bounding box
         glm::vec3 bMin(-1.0f);
         glm::vec3 bMax(1.0f);
@@ -518,9 +519,11 @@ namespace engine {
             if (auto* modelData = assetOpt.value()->getAssetDataAs<am::ModelData>()) {
                 bMin = modelData->boundingBoxMin;
                 bMax = modelData->boundingBoxMax;
+                meshUUID = modelData->rootNode.mChildren[0].meshes[0].get()->id;
             } else if (auto* meshData = assetOpt.value()->getAssetDataAs<am::MeshData>()) {
                 bMin = meshData->boundingBoxMin;
                 bMax = meshData->boundingBoxMax;
+                meshUUID = modelOrMeshId;
             }
         }
 
@@ -539,23 +542,26 @@ namespace engine {
         modelTransform.position = -center; // Center the model at origin
         ecs::Entity modelEntity = scene->CreateEntity(assetInfo->lookUpName, modelTransform);
 
-        MeshComponent meshComp(modelOrMeshId);
+        MeshComponent meshComp(meshUUID);
         scene->AddComponent<MeshComponent>(modelEntity, meshComp);
 
-        auto pbrOpt = assetManagerInterface->getAssetUuid("pbrShader");
-        if (pbrOpt) {
-            RendererComponent rendererComp(pbrOpt.value());
+        std::string shaderLookup = (assetInfo->type == am::AssetType::Mesh) ? "wiremeshShader" : "pbrShader";
+        auto shaderOpt = assetManagerInterface->getAssetUuid(shaderLookup);
+        if (shaderOpt) {
+            RendererComponent rendererComp(shaderOpt.value());
             scene->AddComponent<RendererComponent>(modelEntity, rendererComp);
         }
 
-        // 2. Create Light Entity
-        TransformComponent lightTransform;
-        lightTransform.position = glm::vec3(5.0f, 10.0f, 5.0f);
-        lightTransform.rotation = glm::quatLookAt(glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f)), glm::vec3(0, 1, 0));
-        ecs::Entity lightEntity = scene->CreateEntity("Directional Light", lightTransform);
+        // 2. Create Light Entity (only for model preview scenes, not mesh preview scenes)
+        if (assetInfo->type != am::AssetType::Mesh) {
+            TransformComponent lightTransform;
+            lightTransform.position = glm::vec3(5.0f, 10.0f, 5.0f);
+            lightTransform.rotation = glm::quatLookAt(glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f)), glm::vec3(0, 1, 0));
+            ecs::Entity lightEntity = scene->CreateEntity("Directional Light", lightTransform);
 
-        LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 2.5f);
-        scene->AddComponent<LightComponent>(lightEntity, lightComp);
+            LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 2.5f);
+            scene->AddComponent<LightComponent>(lightEntity, lightComp);
+        }
 
         // 3. Create Camera Entity
         TransformComponent camTransform;
@@ -624,7 +630,7 @@ namespace engine {
                 if (meshArray) {
                     for (int i = 0; i < meshArray->GetArraySize(); ++i) {
                         if (meshArray->IsComponentActive(i)) {
-                            previewAssetId = meshArray->GetComponents()[i].modelUuid;
+                            previewAssetId = meshArray->GetComponents()[i].meshUuid;
                             break;
                         }
                     }

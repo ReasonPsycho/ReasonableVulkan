@@ -54,6 +54,10 @@ namespace engine::ecs
         boost::uuids::uuid rayAssetUuid = boost::uuids::nil_uuid();
         [[=NonSerialized{}]]
         boost::uuids::uuid cubeAssetUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
+        boost::uuids::uuid rayMeshUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
+        boost::uuids::uuid cubeMeshUuid = boost::uuids::nil_uuid();
 
         [[=NonSerialized{}]]
         boost::uuids::uuid rayShaderUuid = boost::uuids::nil_uuid();
@@ -61,19 +65,19 @@ namespace engine::ecs
         boost::uuids::uuid cubeShaderUuid = boost::uuids::nil_uuid();
 
         [[=NonSerialized{}]]
-        gfx::ModelHandle rayModelHandle = gfx::ModelHandle::invalid();
+        gfx::MeshHandle rayMeshHandle = gfx::MeshHandle::invalid();
         [[=NonSerialized{}]]
-        gfx::ModelHandle cubeModelHandle = gfx::ModelHandle::invalid();
+        gfx::MeshHandle cubeMeshHandle = gfx::MeshHandle::invalid();
 
         [[=NonSerialized{}]]
         gfx::ShaderProgramHandle rayShaderHandle = gfx::ShaderProgramHandle::invalid();
         [[=NonSerialized{}]]
         gfx::ShaderProgramHandle cubeShaderHandle = gfx::ShaderProgramHandle::invalid();
 
-        boost::uuids::uuid ModelUUIDByGizmoType(GizmoType type);
+        boost::uuids::uuid MeshUUIDByGizmoType(GizmoType type);
         boost::uuids::uuid ShaderUUIDByGizmoType(GizmoType type);
 
-        gfx::ModelHandle ModelHandleByGizmoType(GizmoType type);
+        gfx::MeshHandle MeshHandleByGizmoType(GizmoType type);
         gfx::ShaderProgramHandle ShaderHandleByGizmoType(GizmoType type);
 
     protected:

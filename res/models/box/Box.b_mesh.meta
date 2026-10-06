@@ -3,12 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "a3e8da86-d71b-44e1-9c38-79b9375b1699",
+  "id": "582d631e-18d2-4b9a-b2d8-8cef005b67eb",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\box\\Box.b_mesh",
   "type": "Mesh",
-  "lookUpName": "Box_0.mesh",
-  "contentHash": 7320509236250218016,
-  "thumbnailPath": ".cache/thumbnails/a3e8da86-d71b-44e1-9c38-79b9375b1699.png",
+  "lookUpName": "Box_0f.mesh",
+  "contentHash": 5038183172379787656,
+  "thumbnailPath": ".cache/thumbnails/582d631e-18d2-4b9a-b2d8-8cef005b67eb.png",
   "assetFactoryData": {
     "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\box\\Box.fbx",
     "assetType": "Mesh",

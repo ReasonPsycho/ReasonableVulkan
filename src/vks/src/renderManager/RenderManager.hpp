@@ -23,7 +23,8 @@ namespace vks {
     struct RenderCommand
     {
         uint32_t cameraIndex;
-        gfx::ModelHandle modelHandle;
+        gfx::MeshHandle meshHandle;
+        gfx::MaterialHandle materialHandle;
         gfx::ShaderProgramHandle renderProgramHandle;
         glm::mat4 transform;
     };
@@ -68,9 +69,9 @@ private:
         void cleanup();
 
         // Core rendering functions
-        void drawModel(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform);
+        void drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform);
         void drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
-        void submitRenderCommand(uint32_t cameraIndex, gfx::ModelHandle modelHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform);
+        void submitRenderCommand(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform);
         void submitSkyboxRenderCommand(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
@@ -111,7 +112,7 @@ private:
 
     private:
         void bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines);
-        void bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines);
+        void bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines, MaterialDescriptor* materialOverride = nullptr);
 
         gfx::ShaderProgramHandle pbrShaderHandle{gfx::ShaderProgramHandle::invalid()};
         gfx::ShaderProgramHandle skyboxShaderHandle{gfx::ShaderProgramHandle::invalid()};
@@ -145,7 +146,7 @@ private:
         void createSyncObjects();
 
         //Render helper functions
-        void renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle);
+        void renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle, MaterialDescriptor* materialOverride = nullptr);
         void renderLightNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle, int lightIndex, int lightType);
     };
 

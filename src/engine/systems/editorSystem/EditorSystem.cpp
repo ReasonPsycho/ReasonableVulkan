@@ -24,6 +24,7 @@
 #include "assetDatas/ModelData.h"
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
+#include "RenderDocManager.hpp"
 
 namespace engine::ecs {
 
@@ -365,8 +366,30 @@ void EditorSystem::ImguiToolbar()
 {
     // Create the windows
     ImGui::Begin("Toolbar");
-    ImGui::Text("Toolbar Content");
-    // Add toolbar buttons/content here
+
+    auto& rdoc = rd::RenderDocManager::getInstance();
+    if (rdoc.isApiAvailable()) {
+        if (rdoc.isCapturing() || rdoc.isCaptureRequested()) {
+            ImGui::BeginDisabled(true);
+            ImGui::Button("Capturing Frame...");
+            ImGui::EndDisabled();
+        } else {
+            if (ImGui::Button("Capture Frame (F11)")) {
+                rdoc.requestCapture();
+            }
+        }
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+            ImGui::SetTooltip("Trigger a RenderDoc frame capture on the next frame (Hotkey: F11)");
+        }
+    } else {
+        ImGui::BeginDisabled(true);
+        ImGui::Button("Capture Frame (F11)");
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+            ImGui::SetTooltip("RenderDoc is not attached. Launch the application from RenderDoc to enable capturing.");
+        }
+    }
+
     ImGui::End();
 }
 
@@ -397,6 +420,10 @@ void EditorSystem::Update(float deltaTime)
 {
     if (!engine || engine->minimized)
         return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
+        rd::RenderDocManager::getInstance().requestCapture();
+    }
 
     // Create the docking space with transparent background
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
