@@ -464,6 +464,7 @@ void EditorSystem::Update(float deltaTime)
         // Dock the windows
         ImGui::DockBuilderDockWindow("Scene graph", dock_left);
         ImGui::DockBuilderDockWindow("Inspector", dock_right);
+        ImGui::DockBuilderDockWindow("File Inspector", dock_right);
         ImGui::DockBuilderDockWindow("System Settings", dock_right);
         ImGui::DockBuilderDockWindow("Toolbar", dock_top);
         ImGui::DockBuilderDockWindow("Menu", dock_bottom);
@@ -548,6 +549,7 @@ void EditorSystem::Update(float deltaTime)
                     auto hit = collisionSystem->RayCastClosest(ray);
                     if (hit.has_value()) {
                         SetSelectedEntity(hit->entity);
+                        ImGui::SetWindowFocus("Inspector");
                     } else {
                         SetSelectedEntity(std::numeric_limits<std::uint32_t>::max());
                     }
@@ -591,6 +593,80 @@ void EditorSystem::Update(float deltaTime)
                 ImGuiGizmoForScene(currentScene.get(), camState, viewportPos, viewportPanelSize);
                 ImguiShaderOverrideWindow(viewportPos, viewportPanelSize);
             }
+
+            // Drag and drop asset into viewport
+            if (currentScene->IsEditable())
+            {
+                ImVec2 vpMin = viewportPos;
+                ImVec2 vpMax = ImVec2(viewportPos.x + viewportPanelSize.x, viewportPos.y + viewportPanelSize.y);
+                bool isVpDropTarget = false;
+                std::string draggedAssetName;
+                std::string draggedAssetExt;
+
+                if (ImGui::BeginDragDropTarget())
+                {
+                    isVpDropTarget = true;
+                    const ImGuiPayload* curPayload = ImGui::GetDragDropPayload();
+                    if (curPayload && curPayload->IsDataType("AM_FILE_PATH") && curPayload->Data) {
+                        std::filesystem::path dp((const char*)curPayload->Data);
+                        draggedAssetName = dp.filename().string();
+                        draggedAssetExt = dp.extension().string();
+                    }
+
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
+                    {
+                        std::string filePath((const char*)payload->Data);
+                        std::filesystem::path p(filePath);
+                        auto ext = p.extension().string();
+                        if (ext == ".scene") {
+                            auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                            if (uuid) engine->LoadScene(uuid.value());
+                        } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh") {
+                            auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                            if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                            if (uuid) {
+                                Entity entity = currentScene->CreateEntity(p.stem().string());
+                                MeshComponent meshComp(uuid.value());
+                                currentScene->AddComponent<MeshComponent>(entity, meshComp);
+                                auto shaderOpt = engine->assetManagerInterface->getAssetUuid("pbrShader");
+                                if (shaderOpt) {
+                                    RendererComponent rendererComp(shaderOpt.value());
+                                    currentScene->AddComponent<RendererComponent>(entity, rendererComp);
+                                }
+                            }
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+
+                if (isVpDropTarget)
+                {
+                    ImDrawList* fgDrawList = ImGui::GetForegroundDrawList();
+                    fgDrawList->AddRect(vpMin, vpMax, IM_COL32(66, 180, 255, 230), 0.0f, 0, 3.0f);
+                    fgDrawList->AddRectFilled(vpMin, vpMax, IM_COL32(66, 150, 250, 35));
+
+                    std::string badgeText;
+                    if (draggedAssetExt == ".scene") {
+                        badgeText = "Drop to load scene: " + draggedAssetName;
+                    } else if (draggedAssetExt == ".fbx" || draggedAssetExt == ".obj" || draggedAssetExt == ".model" || draggedAssetExt == ".mesh") {
+                        badgeText = "Drop to instantiate model: " + draggedAssetName;
+                    } else if (!draggedAssetName.empty()) {
+                        badgeText = "Drop asset: " + draggedAssetName;
+                    } else {
+                        badgeText = "Drop asset into viewport";
+                    }
+
+                    ImVec2 textSize = ImGui::CalcTextSize(badgeText.c_str());
+                    ImVec2 badgePad(16.0f, 10.0f);
+                    ImVec2 centerPos(vpMin.x + (viewportPanelSize.x - textSize.x) * 0.5f, vpMin.y + (viewportPanelSize.y - textSize.y) * 0.5f);
+                    ImVec2 bMin(centerPos.x - badgePad.x, centerPos.y - badgePad.y);
+                    ImVec2 bMax(centerPos.x + textSize.x + badgePad.x, centerPos.y + textSize.y + badgePad.y);
+
+                    fgDrawList->AddRectFilled(bMin, bMax, IM_COL32(20, 25, 35, 230), 6.0f);
+                    fgDrawList->AddRect(bMin, bMax, IM_COL32(66, 180, 255, 255), 6.0f, 0, 1.5f);
+                    fgDrawList->AddText(centerPos, IM_COL32(255, 255, 255, 255), badgeText.c_str());
+                }
+            }
         }
         ImGui::End();
     }
@@ -629,6 +705,7 @@ void EditorSystem::Update(float deltaTime)
 
     if (engine->assetManagerInterface) {
         engine->assetManagerInterface->ImguiFileBrowser("Menu");
+        engine->assetManagerInterface->ImguiFileInspector("File Inspector");
     }
 
     ImGuiSceneGraph();
@@ -909,15 +986,52 @@ void EditorSystem::ImGuiSceneGraph()
         }
     }
 
-    // Handle dropping onto empty space (to make an entity a root)
-    if (targetScene && targetScene->IsEditable() && ImGui::BeginDragDropTarget())
+    // Handle dropping onto empty space (to make an entity a root or instantiate an asset)
+    ImVec2 availSpace = ImGui::GetContentRegionAvail();
+    if (availSpace.y > 10.0f)
     {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+        ImVec2 emptyMin = ImGui::GetCursorScreenPos();
+        ImGui::Dummy(availSpace);
+        ImVec2 emptyMax = ImGui::GetItemRectMax();
+        bool isEmptySceneDropTarget = false;
+        if (targetScene && targetScene->IsEditable() && ImGui::BeginDragDropTarget())
         {
-            Entity droppedEntity = *(const Entity*)payload->Data;
-            targetScene->RemoveParent(droppedEntity);
+            isEmptySceneDropTarget = true;
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+            {
+                Entity droppedEntity = *(const Entity*)payload->Data;
+                targetScene->RemoveParent(droppedEntity);
+            }
+            else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
+            {
+                std::string filePath((const char*)payload->Data);
+                std::filesystem::path p(filePath);
+                auto ext = p.extension().string();
+                if (ext == ".scene") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (uuid) engine->LoadScene(uuid.value());
+                } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                    if (uuid) {
+                        Entity entity = targetScene->CreateEntity(p.stem().string());
+                        MeshComponent meshComp(uuid.value());
+                        targetScene->AddComponent<MeshComponent>(entity, meshComp);
+                        auto shaderOpt = engine->assetManagerInterface->getAssetUuid("pbrShader");
+                        if (shaderOpt) {
+                            RendererComponent rendererComp(shaderOpt.value());
+                            targetScene->AddComponent<RendererComponent>(entity, rendererComp);
+                        }
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
         }
-        ImGui::EndDragDropTarget();
+        if (isEmptySceneDropTarget)
+        {
+            ImGui::GetWindowDrawList()->AddRect(emptyMin, emptyMax, IM_COL32(66, 180, 255, 180), 4.0f, 0, 2.0f);
+            ImGui::GetWindowDrawList()->AddRectFilled(emptyMin, emptyMax, IM_COL32(66, 180, 255, 30), 4.0f);
+        }
     }
 
     // Context menu on empty area
@@ -1046,13 +1160,26 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     {
         // Set payload to carry the entity index
         ImGui::SetDragDropPayload("SCENE_ENTITY", &entity, sizeof(Entity));
-        ImGui::Text("Moving %s", nameStr.c_str());
+        ImGui::BeginGroup();
+        ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
+        float dragIconSize = (ImGui::GetIO().Fonts->Fonts.Size > 1 ? 24.0f : ImGui::GetFontSize() * 1.5f);
+        ImGui::PushFont(iconFont);
+        ImGui::TextColored(ImVec4(0.35f, 0.75f, 1.0f, 1.0f), "%s", ICON_FA_CUBE);
+        ImGui::PopFont();
+        ImGui::SameLine();
+        ImGui::BeginGroup();
+        ImGui::TextUnformatted(nameStr.c_str());
+        ImGui::TextDisabled("Entity #%u - Drag to reparent", entity);
+        ImGui::EndGroup();
+        ImGui::EndGroup();
         ImGui::EndDragDropSource();
     }
 
     // Handle incoming drag
+    bool isNodeDropTarget = false;
     if (currentScene->IsEditable() && ImGui::BeginDragDropTarget())
     {
+        isNodeDropTarget = true;
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
         {
             Entity droppedEntity = *(const Entity*)payload->Data;
@@ -1062,7 +1189,37 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                 currentScene->SetParent(droppedEntity, entity);
             }
         }
+        else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
+        {
+            std::string filePath((const char*)payload->Data);
+            std::filesystem::path p(filePath);
+            auto ext = p.extension().string();
+            if (ext == ".scene") {
+                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                if (uuid) engine->LoadScene(uuid.value());
+            } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh") {
+                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                if (uuid) {
+                    Entity childEntity = currentScene->CreateEntity(p.stem().string(), entity);
+                    MeshComponent meshComp(uuid.value());
+                    currentScene->AddComponent<MeshComponent>(childEntity, meshComp);
+                    auto shaderOpt = engine->assetManagerInterface->getAssetUuid("pbrShader");
+                    if (shaderOpt) {
+                        RendererComponent rendererComp(shaderOpt.value());
+                        currentScene->AddComponent<RendererComponent>(childEntity, rendererComp);
+                    }
+                }
+            }
+        }
         ImGui::EndDragDropTarget();
+    }
+    if (isNodeDropTarget)
+    {
+        ImVec2 itemMin = ImGui::GetItemRectMin();
+        ImVec2 itemMax = ImGui::GetItemRectMax();
+        ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(66, 180, 255, 255), 2.0f, 0, 1.5f);
+        ImGui::GetWindowDrawList()->AddRectFilled(itemMin, itemMax, IM_COL32(66, 180, 255, 45), 2.0f);
     }
 
     // Handle selection when clicked
@@ -1075,6 +1232,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         else
         {
             selectedEntity = entity;
+            ImGui::SetWindowFocus("Inspector");
         }
     }
 
