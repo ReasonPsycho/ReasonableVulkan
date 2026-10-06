@@ -3,6 +3,8 @@
 #include "../Engine.h"
 #include "ecs/NameComponent.hpp"
 #include "ecs/TagComponent.hpp"
+#include "systems/renderingSystem/componets/RendererComponent.hpp"
+#include "systems/renderingSystem/componets/MeshComponent.hpp"
 
 using namespace engine;
 using namespace engine::ecs;
@@ -545,4 +547,71 @@ BOOST_AUTO_TEST_CASE(EngineEditorSystemAndMultiSceneTest) {
     // Cleanup
     engine.RemoveScene("LevelA");
     engine.RemoveScene("LevelB");
+}
+
+BOOST_AUTO_TEST_CASE(ReflectionLookupNameAnnotationTest) {
+    struct TestComponent : public Component {
+        [[=LookupName{}]]
+        boost::uuids::uuid anyAssetUuid{boost::uuids::nil_uuid()};
+
+        [[=LookupName{am::AssetType::Material}]]
+        boost::uuids::uuid matUuid{boost::uuids::nil_uuid()};
+
+        [[=UuidToLookupName{am::AssetType::ShaderProgram}]]
+        boost::uuids::uuid shaderUuid{boost::uuids::nil_uuid()};
+
+        [[=AssetLookup{am::AssetType::Mesh}]]
+        boost::uuids::uuid meshUuid{boost::uuids::nil_uuid()};
+
+        boost::uuids::uuid plainUuid{boost::uuids::nil_uuid()};
+    };
+
+    static constexpr auto members = get_members_array<TestComponent>();
+    static_assert(members.size() == 5);
+
+    static_assert(is_uuid_to_lookup_name<members[0]>());
+    static_assert(!get_lookup_name_asset_type<members[0]>().has_value());
+
+    static_assert(is_uuid_to_lookup_name<members[1]>());
+    static_assert(get_lookup_name_asset_type<members[1]>().has_value());
+    static_assert(get_lookup_name_asset_type<members[1]>().value() == am::AssetType::Material);
+
+    static_assert(is_uuid_to_lookup_name<members[2]>());
+    static_assert(get_lookup_name_asset_type<members[2]>().has_value());
+    static_assert(get_lookup_name_asset_type<members[2]>().value() == am::AssetType::ShaderProgram);
+
+    static_assert(is_uuid_to_lookup_name<members[3]>());
+    static_assert(get_lookup_name_asset_type<members[3]>().has_value());
+    static_assert(get_lookup_name_asset_type<members[3]>().value() == am::AssetType::Mesh);
+
+    static_assert(!is_uuid_to_lookup_name<members[4]>());
+
+    // Also test RendererComponent reflection
+    static constexpr auto rendererMembers = get_members_array<RendererComponent>();
+    static_assert(is_uuid_to_lookup_name<rendererMembers[0]>());
+    static_assert(get_lookup_name_asset_type<rendererMembers[0]>().value() == am::AssetType::ShaderProgram);
+    static_assert(is_uuid_to_lookup_name<rendererMembers[2]>());
+    static_assert(get_lookup_name_asset_type<rendererMembers[2]>().value() == am::AssetType::Material);
+
+    // Test MeshComponent reflection
+    static constexpr auto meshMembers = get_members_array<MeshComponent>();
+    static_assert(is_uuid_to_lookup_name<meshMembers[0]>());
+    static_assert(get_lookup_name_asset_type<meshMembers[0]>().value() == am::AssetType::Mesh);
+
+    // Verify isDirty initialization and reflection deserialization fallback
+    RendererComponent renderer;
+    BOOST_CHECK(renderer.isDirty);
+    renderer.isDirty = false;
+    rapidjson::Document doc;
+    doc.SetObject();
+    DeserializeTypeFromJson(renderer, doc);
+    BOOST_CHECK(renderer.isDirty);
+
+    MeshComponent mesh;
+    BOOST_CHECK(mesh.isDirty);
+    mesh.isDirty = false;
+    DeserializeTypeFromJson(mesh, doc);
+    BOOST_CHECK(mesh.isDirty);
+
+    BOOST_CHECK(true);
 }

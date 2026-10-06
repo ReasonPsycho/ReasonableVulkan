@@ -29,6 +29,8 @@
 #include <boost/uuid/nil_generator.hpp>
 #include <rapidjson/document.h>
 #include "Handle.hpp"
+#include "AssetTypes.hpp"
+#include "AssetManagerInterface.h"
 
 #ifdef ENABLE_IMGUI
 #include <imgui.h>
@@ -37,6 +39,8 @@
 namespace engine::ecs
 {
     class Scene;
+
+    am::AssetManagerInterface* GetAssetManagerFromScene(Scene* scene);
 
     // ==========================================
     // Attributes
@@ -70,6 +74,30 @@ namespace engine::ecs
     struct NonSerialized {};
     struct Integral {};
     struct HidenInInspector {};
+
+    struct LookupName {
+        bool hasType = false;
+        am::AssetType type = am::AssetType::Other;
+
+        constexpr LookupName() = default;
+        constexpr explicit LookupName(am::AssetType t) : hasType(true), type(t) {}
+    };
+
+    struct UuidToLookupName {
+        bool hasType = false;
+        am::AssetType type = am::AssetType::Other;
+
+        constexpr UuidToLookupName() = default;
+        constexpr explicit UuidToLookupName(am::AssetType t) : hasType(true), type(t) {}
+    };
+
+    struct AssetLookup {
+        bool hasType = false;
+        am::AssetType type = am::AssetType::Other;
+
+        constexpr AssetLookup() = default;
+        constexpr explicit AssetLookup(am::AssetType t) : hasType(true), type(t) {}
+    };
 
     // ==========================================
     // Compile-time Reflection Helpers
@@ -208,6 +236,36 @@ namespace engine::ecs
             return std::meta::extract<Attr>(annots[0]);
         }
         return std::nullopt;
+    }
+
+    template <std::meta::info entity>
+    consteval std::optional<am::AssetType> get_lookup_name_asset_type() {
+        if constexpr (has_annotation<LookupName>(entity)) {
+            constexpr auto annot = get_annotation<LookupName>(entity);
+            if constexpr (annot.has_value() && annot->hasType) {
+                return annot->type;
+            }
+        }
+        if constexpr (has_annotation<UuidToLookupName>(entity)) {
+            constexpr auto annot = get_annotation<UuidToLookupName>(entity);
+            if constexpr (annot.has_value() && annot->hasType) {
+                return annot->type;
+            }
+        }
+        if constexpr (has_annotation<AssetLookup>(entity)) {
+            constexpr auto annot = get_annotation<AssetLookup>(entity);
+            if constexpr (annot.has_value() && annot->hasType) {
+                return annot->type;
+            }
+        }
+        return std::nullopt;
+    }
+
+    template <std::meta::info entity>
+    consteval bool is_uuid_to_lookup_name() {
+        return has_annotation<LookupName>(entity) ||
+               has_annotation<UuidToLookupName>(entity) ||
+               has_annotation<AssetLookup>(entity);
     }
 
     template <typename T>
@@ -438,6 +496,9 @@ namespace engine::ecs
         }
 
         if (changed) {
+            if constexpr (requires { component.PostModify(); }) {
+                component.PostModify();
+            }
             if constexpr (requires { component.isDirty = true; }) {
                 component.isDirty = true;
             }
@@ -518,8 +579,79 @@ namespace engine::ecs
                 ImGui::TreePop();
             }
         } else if constexpr (std::is_same_v<RawT, boost::uuids::uuid>) {
-            std::string idStr = boost::uuids::to_string(value);
-            ImGui::LabelText(name, "%s", idStr.c_str());
+            if constexpr (is_uuid_to_lookup_name<Mem>()) {
+                am::AssetManagerInterface* assetMgr = GetAssetManagerFromScene(scene);
+                if (assetMgr) {
+                    std::string previewName = "None";
+                    if (!value.is_nil()) {
+                        auto infoOpt = assetMgr->getAssetInfo(value);
+                        if (infoOpt.has_value() && infoOpt.value() && !infoOpt.value()->lookUpName.empty()) {
+                            previewName = infoOpt.value()->lookUpName;
+                        } else {
+                            previewName = boost::uuids::to_string(value);
+                        }
+                    }
+
+                    if constexpr (isReadOnly) ImGui::BeginDisabled();
+                    if (ImGui::BeginCombo(name, previewName.c_str())) {
+                        bool isNoneSelected = value.is_nil();
+                        if (ImGui::Selectable("None", isNoneSelected)) {
+                            if (!value.is_nil()) {
+                                value = boost::uuids::nil_uuid();
+                                changed = true;
+                            }
+                        }
+                        if (isNoneSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+
+                        constexpr auto assetTypeOpt = get_lookup_name_asset_type<Mem>();
+                        std::vector<std::string> assetNames;
+                        if constexpr (assetTypeOpt.has_value()) {
+                            assetNames = assetMgr->getRegisteredAssetsNames(assetTypeOpt.value());
+                        } else {
+                            assetNames = assetMgr->getRegisteredAssetsNames();
+                        }
+
+                        for (const auto& assetLookUpName : assetNames) {
+                            bool isSelected = false;
+                            if (!value.is_nil()) {
+                                auto currentAssetUuid = assetMgr->getAssetUuid(assetLookUpName);
+                                if (currentAssetUuid.has_value() && *currentAssetUuid == value) {
+                                    isSelected = true;
+                                }
+                            }
+
+                            if (ImGui::Selectable(assetLookUpName.c_str(), isSelected)) {
+                                auto newUuid = assetMgr->getAssetUuid(assetLookUpName);
+                                if (newUuid.has_value()) {
+                                    if (value != *newUuid) {
+                                        value = *newUuid;
+                                        changed = true;
+                                    }
+                                }
+                            }
+
+                            if (isSelected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+                        }
+
+                        ImGui::EndCombo();
+                    }
+                    if constexpr (isReadOnly) ImGui::EndDisabled();
+                } else {
+                    if constexpr (isReadOnly) ImGui::BeginDisabled();
+                    std::string idStr = value.is_nil() ? "None" : boost::uuids::to_string(value);
+                    ImGui::LabelText(name, "%s", idStr.c_str());
+                    if constexpr (isReadOnly) ImGui::EndDisabled();
+                }
+            } else {
+                if constexpr (isReadOnly) ImGui::BeginDisabled();
+                std::string idStr = boost::uuids::to_string(value);
+                ImGui::LabelText(name, "%s", idStr.c_str());
+                if constexpr (isReadOnly) ImGui::EndDisabled();
+            }
         } else if constexpr (is_handle_v<RawT>) {
             if constexpr (isReadOnly) ImGui::BeginDisabled();
             ImGui::LabelText(name, "Index: %u, Gen: %u (%s)",

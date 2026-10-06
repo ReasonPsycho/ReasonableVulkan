@@ -13,6 +13,11 @@
 
 using namespace engine::ecs;
 
+am::AssetManagerInterface* engine::ecs::GetAssetManagerFromScene(Scene* scene) {
+    if (!scene) return nullptr;
+    return scene->engine.assetManagerInterface;
+}
+
 #include "systems/transformSystem/TransformSystem.h"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"

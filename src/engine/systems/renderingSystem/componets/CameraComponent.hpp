@@ -31,7 +31,7 @@ namespace engine::ecs
         [[=NonSerialized{}, =ReadOnly{}, =Tooltip{"View matrix"}]]
         glm::mat4 view{1.0f};
 
-        [[=Tooltip{"Skybox Material/Texture UUID"}]]
+        [[=Tooltip{"Skybox Material/Texture UUID"}, =LookupName{am::AssetType::Material}]]
         boost::uuids::uuid skyboxMaterialId{boost::uuids::nil_uuid()};
 
         [[=NonSerialized{}]]
@@ -44,11 +44,6 @@ namespace engine::ecs
         bool active{false};
 
         CameraComponent() = default;
-
-        void PostDeserialize()
-        {
-            isDirty = true;
-        }
     };
 
 

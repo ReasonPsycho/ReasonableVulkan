@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "a8d2c2b7-7944-471f-9df7-8d3af354b7b9",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\textures\\skybox.b_texture",
+  "type": "Texture",
+  "lookUpName": "skybox.texture",
+  "contentHash": 15522288510674531887,
+  "thumbnailPath": ".cache/thumbnails/a8d2c2b7-7944-471f-9df7-8d3af354b7b9.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\textures\\skybox.jpg",
+    "assetType": "Texture",
+    "assimpIndex": 0
+  }
+}
