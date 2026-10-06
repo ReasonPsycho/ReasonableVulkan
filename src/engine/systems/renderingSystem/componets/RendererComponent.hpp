@@ -19,17 +19,20 @@ namespace engine::ecs
 
     struct RendererComponent : public Component
     {
-        [[=Tooltip{"Shader program asset UUID"}]]
+        [[=Tooltip{"Shader program asset UUID"}, =LookupName{am::AssetType::ShaderProgram}]]
         boost::uuids::uuid shaderUuid{boost::uuids::nil_uuid()};
 
         [[=NonSerialized{}]]
         gfx::ShaderProgramHandle runtimeShaderHandle = gfx::ShaderProgramHandle::invalid();
 
-        [[=Tooltip{"Material asset UUID"}]]
+        [[=Tooltip{"Material asset UUID"}, =LookupName{am::AssetType::Material}]]
         boost::uuids::uuid materialUuid{boost::uuids::nil_uuid()};
 
         [[=NonSerialized{}]]
         gfx::MaterialHandle runtimeMaterialHandle = gfx::MaterialHandle::invalid();
+
+        [[=NonSerialized{}, =HidenInInspector{}]]
+        bool isDirty{true};
 
         RendererComponent() = default;
         explicit RendererComponent(boost::uuids::uuid shaderId)
@@ -40,8 +43,6 @@ namespace engine::ecs
             : shaderUuid(shaderId), materialUuid(materialId) {}
         explicit RendererComponent(boost::uuids::uuid shaderId, gfx::ShaderProgramHandle handle, boost::uuids::uuid materialId, gfx::MaterialHandle matHandle)
             : shaderUuid(shaderId), runtimeShaderHandle(handle), materialUuid(materialId), runtimeMaterialHandle(matHandle) {}
-
-        void CustomDrawImGui(Scene* scene);
     };
 }
 

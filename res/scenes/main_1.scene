@@ -1,0 +1,198 @@
+﻿{
+  "isEditable": true,
+  "entities": {
+    "maxEntityIndex": 3,
+    "activeEntities": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111",
+    "signatures": {
+      "0": "0000000000101001",
+      "1": "0000000000110001",
+      "2": "0000000000100111"
+    }
+  },
+  "components": {
+    "TransformComponent": {
+      "components": [
+        {
+          "entity": 0,
+          "data": {
+            "position": [
+              0.0,
+              -0.014061659574508667,
+              -0.31763797998428345
+            ],
+            "rotation": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "entity": 1,
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.9280362129211426,
+              -0.3724899888038635,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "entity": 2,
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      ]
+    },
+    "RendererComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 2,
+          "data": {
+            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452",
+            "materialUuid": "199ce209-5c6a-49a5-9de7-c35dacbbb2d3"
+          },
+          "active": true
+        }
+      ]
+    },
+    "LightComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 1,
+          "data": {
+            "type": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "intensity": 0.1860000044107437,
+            "hasShadow": false,
+            "data": {
+              "shadowBias": 0.004999999888241291,
+              "shadowStrength": 1.0
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    "CameraComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 0,
+          "data": {
+            "fov": 45.0,
+            "aspectRatio": 1.9982547760009766,
+            "nearPlane": 0.10000000149011612,
+            "farPlane": 1000.0,
+            "skyboxMaterialId": "00000000-0000-0000-0000-000000000000",
+            "active": true
+          },
+          "active": true
+        }
+      ]
+    },
+    "NameComponent": {
+      "components": [
+        {
+          "entity": 0,
+          "data": {
+            "name": "Camera"
+          }
+        },
+        {
+          "entity": 1,
+          "data": {
+            "name": "Light"
+          }
+        },
+        {
+          "entity": 2,
+          "data": {
+            "name": "Model"
+          }
+        }
+      ]
+    },
+    "MeshComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 2,
+          "data": {
+            "meshUuid": "582d631e-18d2-4b9a-b2d8-8cef005b67eb"
+          },
+          "active": true
+        }
+      ]
+    }
+  },
+  "systems": {
+    "CollisionSystem": {
+      "name": "CollisionSystem",
+      "extraData": {}
+    },
+    "TransformSystem": {
+      "name": "TransformSystem",
+      "extraData": {}
+    },
+    "GizmoSystem": {
+      "name": "GizmoSystem",
+      "extraData": {}
+    },
+    "RenderSystem": {
+      "name": "RenderSystem",
+      "extraData": {}
+    }
+  },
+  "sceneGraph": {
+    "rootEntities": [
+      0,
+      1,
+      2
+    ],
+    "nodes": {}
+  },
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  }
+}

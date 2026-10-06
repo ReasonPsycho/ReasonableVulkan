@@ -56,6 +56,9 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     if (inEditMode && editorSystem) {
         auto& camState = editorSystem->GetEditorCameraState(scene->GetName());
         // Editor camera for this specific scene at camera index: sceneIndex
+        if (camState.camera.isDirty) {
+            camState.camera.runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+        }
         updateViewMatrix(camState.camera, camState.cameraTransform.globalMatrix);
         camState.camera.aspectRatio = aspectRatio;
         updateProjectionMatrix(camState.camera);
@@ -84,6 +87,9 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
                 for (int i = 0; i < cameraCompArray->GetArraySize(); i++) {
                     if (cameraCompArray->IsComponentActive(i) && cameras[i].active) {
                         auto cameraEntity = cameraCompArray->ComponentIndexToEntity(i);
+                        if (cameras[i].isDirty) {
+                            cameras[i].runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+                        }
                         updateViewMatrix(cameras[i], cameraTransforms[cameraEntity].globalMatrix);
                         cameras[i].aspectRatio = aspectRatio;
                         updateProjectionMatrix(cameras[i]);
@@ -105,6 +111,9 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         scene->engine.graphicsEngine->setActiveCameraCount(activeCamCount);
     } else {
         uint32_t sceneCameraIndex = sceneIndex;
+        if (cameraObject.camera->isDirty) {
+            cameraObject.camera->runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+        }
         updateViewMatrix(*cameraObject.camera, cameraObject.transform->globalMatrix);
         cameraObject.camera->aspectRatio = aspectRatio;
         updateProjectionMatrix(*cameraObject.camera);
@@ -131,13 +140,25 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
             if (scene->HasComponent<MeshComponent>(entity))
             {
                 auto& mesh = scene->GetComponent<MeshComponent>(entity);
+                auto& renderer = renderers[i];
+
+                if (mesh.isDirty) {
+                    mesh.runtimeMeshHandle = gfx::MeshHandle::invalid();
+                    mesh.isDirty = false;
+                }
+
+                if (renderer.isDirty) {
+                    renderer.runtimeShaderHandle = gfx::ShaderProgramHandle::invalid();
+                    renderer.runtimeMaterialHandle = gfx::MaterialHandle::invalid();
+                    renderer.isDirty = false;
+                }
+
                 if (mesh.meshUuid != boost::uuids::nil_uuid())
                 {
                     if (!mesh.runtimeMeshHandle.isValid()) {
                         mesh.runtimeMeshHandle = scene->engine.graphicsEngine->loadMesh(mesh.meshUuid);
                     }
 
-                    auto& renderer = renderers[i];
                     if (renderer.shaderUuid != boost::uuids::nil_uuid() && !renderer.runtimeShaderHandle.isValid()) {
                         renderer.runtimeShaderHandle = scene->engine.graphicsEngine->loadShader(renderer.shaderUuid);
                     }

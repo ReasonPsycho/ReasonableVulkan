@@ -30,11 +30,6 @@ namespace engine::ecs
         bool isDirty{true};
 
         TransformComponent() = default;
-
-        void PostDeserialize()
-        {
-            isDirty = true;
-        }
     };
 
 
