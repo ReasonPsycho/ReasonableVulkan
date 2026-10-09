@@ -185,6 +185,8 @@ namespace am {
         bool saveRegistryMetadataToFile(const std::string& filename) const;
         bool loadRegistryMetadataFromFile(const std::string& filename);
 
+        std::optional<boost::uuids::uuid> registerManagedAsset(const std::string& filePath, const std::string& customLookUpName = "");
+
     private:
         AssetManager();
         ~AssetManager();

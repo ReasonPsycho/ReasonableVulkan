@@ -24,6 +24,8 @@ namespace engine::ecs
 
         virtual void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const = 0;
         virtual void DeserializeFromJson(const rapidjson::Value& obj) = 0;
+        virtual void SerializeEntitiesToJson(const std::vector<Entity>& entities, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const = 0;
+        virtual void DeserializeEntityComponent(Entity entity, const rapidjson::Value& componentData, bool active = true) = 0;
     };
 }
 #endif // COMPONENTARRAYBASE_H

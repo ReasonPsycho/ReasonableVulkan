@@ -615,3 +615,177 @@ BOOST_AUTO_TEST_CASE(ReflectionLookupNameAnnotationTest) {
 
     BOOST_CHECK(true);
 }
+
+BOOST_AUTO_TEST_CASE(ScenePrefabSerializationAndInstantiationTest) {
+    Engine& engine = Engine::GetInstance();
+    auto sourceScene = engine.CreateScene("PrefabSourceScene");
+    BOOST_REQUIRE(sourceScene);
+
+    Entity rootObj = sourceScene->CreateEntity("CarRoot");
+    sourceScene->AddComponent<TagComponent>(rootObj, TagComponent{"Vehicle"});
+
+    Entity wheel1 = sourceScene->CreateEntity("WheelFL", rootObj);
+    sourceScene->AddComponent<TagComponent>(wheel1, TagComponent{"Wheel"});
+
+    Entity wheel2 = sourceScene->CreateEntity("WheelFR", rootObj);
+    sourceScene->AddComponent<TagComponent>(wheel2, TagComponent{"Wheel"});
+
+    // Serialize object to prefab JSON document
+    rapidjson::Document prefabDoc;
+    sourceScene->SerializeObjectToJson(rootObj, prefabDoc);
+
+    // Verify document structure: should have entities, components, sceneGraph, but NO systems
+    BOOST_CHECK(prefabDoc.HasMember("entities"));
+    BOOST_CHECK(prefabDoc.HasMember("components"));
+    BOOST_CHECK(prefabDoc.HasMember("sceneGraph"));
+    BOOST_CHECK(!prefabDoc.HasMember("systems"));
+
+    // Check components in prefab doc
+    BOOST_CHECK(prefabDoc["components"].HasMember("NameComponent"));
+    BOOST_CHECK(prefabDoc["components"].HasMember("TagComponent"));
+    BOOST_CHECK(prefabDoc["components"].HasMember("TransformComponent"));
+
+    // Instantiate prefab into a new scene
+    auto targetScene = engine.CreateScene("PrefabTargetScene");
+    BOOST_REQUIRE(targetScene);
+
+    Entity existingEntity = targetScene->CreateEntity("WorldAnchor");
+
+    // Instantiate prefab as child of existingEntity
+    Entity instantiatedRoot = targetScene->InstantiatePrefab(prefabDoc, existingEntity);
+    BOOST_REQUIRE(instantiatedRoot != MAX_ENTITIES);
+    BOOST_CHECK_EQUAL(targetScene->GetEntityName(instantiatedRoot), "CarRoot");
+    BOOST_CHECK(targetScene->HasComponent<TagComponent>(instantiatedRoot));
+    BOOST_CHECK_EQUAL(targetScene->GetComponent<TagComponent>(instantiatedRoot).tag, "Vehicle");
+    BOOST_CHECK_EQUAL(targetScene->GetParent(instantiatedRoot), existingEntity);
+
+    // Verify children were created and parented correctly
+    const auto& children = targetScene->GetChildren(instantiatedRoot);
+    BOOST_REQUIRE_EQUAL(children.size(), 2);
+
+    std::vector<std::string> childNames;
+    for (Entity child : children) {
+        childNames.push_back(targetScene->GetEntityName(child));
+        BOOST_CHECK(targetScene->HasComponent<TagComponent>(child));
+        BOOST_CHECK_EQUAL(targetScene->GetComponent<TagComponent>(child).tag, "Wheel");
+    }
+    BOOST_CHECK(std::find(childNames.begin(), childNames.end(), "WheelFL") != childNames.end());
+    BOOST_CHECK(std::find(childNames.begin(), childNames.end(), "WheelFR") != childNames.end());
+
+    // Also test standalone instantiation (as root entity)
+    Entity standaloneRoot = targetScene->InstantiatePrefab(prefabDoc);
+    BOOST_REQUIRE(standaloneRoot != MAX_ENTITIES);
+    BOOST_CHECK_EQUAL(targetScene->GetEntityName(standaloneRoot), "CarRoot");
+    BOOST_CHECK(!targetScene->HasParent(standaloneRoot));
+
+    engine.RemoveScene("PrefabSourceScene");
+    engine.RemoveScene("PrefabTargetScene");
+}
+
+BOOST_AUTO_TEST_CASE(EngineSaveEntityAsPrefabTest) {
+    Engine& engine = Engine::GetInstance();
+    auto sourceScene = engine.CreateScene("SavePrefabSourceScene");
+    BOOST_REQUIRE(sourceScene);
+
+    Entity house = sourceScene->CreateEntity("House");
+    sourceScene->AddComponent<TagComponent>(house, TagComponent{"Building"});
+
+    Entity door = sourceScene->CreateEntity("Door", house);
+    sourceScene->AddComponent<TagComponent>(door, TagComponent{"Interactable"});
+
+    // Save entity as prefab
+    bool saved = engine.SaveEntityAsPrefab(house, "res/prefabs", sourceScene.get());
+    BOOST_CHECK(saved);
+
+    std::filesystem::path expectedPath = "res/prefabs/House.prefab";
+    std::error_code ec;
+    BOOST_CHECK(std::filesystem::exists(expectedPath, ec));
+
+    auto am = engine.assetManagerInterface;
+    if (am) {
+        auto uuidOpt = am->getAssetUuidByPath(expectedPath);
+        BOOST_CHECK(uuidOpt.has_value());
+    }
+
+    engine.RemoveScene("SavePrefabSourceScene");
+}
+
+BOOST_AUTO_TEST_CASE(EnginePrefabLoadAndInstantiateTest) {
+    Engine& engine = Engine::GetInstance();
+    auto sourceScene = engine.CreateScene("PrefabLoadSourceScene");
+    BOOST_REQUIRE(sourceScene);
+
+    Entity tower = sourceScene->CreateEntity("Tower");
+    sourceScene->AddComponent<TagComponent>(tower, TagComponent{"Structure"});
+
+    Entity roof = sourceScene->CreateEntity("Roof", tower);
+    sourceScene->AddComponent<TagComponent>(roof, TagComponent{"RoofTop"});
+
+    bool saved = engine.SaveEntityAsPrefab(tower, "res/prefabs", sourceScene.get());
+    BOOST_REQUIRE(saved);
+
+    std::filesystem::path prefabPath = "res/prefabs/Tower.prefab";
+    auto am = engine.assetManagerInterface;
+    BOOST_REQUIRE(am != nullptr);
+    auto uuidOpt = am->getAssetUuidByPath(prefabPath);
+    if (!uuidOpt) uuidOpt = am->registerAsset(prefabPath.string());
+    BOOST_REQUIRE(uuidOpt.has_value());
+
+    auto targetScene = engine.CreateScene("PrefabLoadTargetScene");
+    BOOST_REQUIRE(targetScene);
+
+    Entity instantiated = targetScene->InstantiatePrefab(uuidOpt.value());
+    BOOST_REQUIRE(instantiated != MAX_ENTITIES);
+    BOOST_CHECK_EQUAL(targetScene->GetEntityName(instantiated), "Tower");
+    BOOST_CHECK(targetScene->HasComponent<TagComponent>(instantiated));
+    BOOST_CHECK_EQUAL(targetScene->GetComponent<TagComponent>(instantiated).tag, "Structure");
+
+    const auto& children = targetScene->GetChildren(instantiated);
+    BOOST_REQUIRE_EQUAL(children.size(), 1);
+    BOOST_CHECK_EQUAL(targetScene->GetEntityName(children[0]), "Roof");
+
+    engine.RemoveScene("PrefabLoadSourceScene");
+    engine.RemoveScene("PrefabLoadTargetScene");
+}
+
+BOOST_AUTO_TEST_CASE(EngineInstantiateModelTest) {
+    Engine& engine = Engine::GetInstance();
+    auto am = engine.assetManagerInterface;
+    BOOST_REQUIRE(am != nullptr);
+
+    std::filesystem::path modelPath = "res/models/box/Box.model";
+    auto modelUuidOpt = am->getAssetUuidByPath(modelPath);
+    if (!modelUuidOpt) modelUuidOpt = am->registerAsset(modelPath.string());
+    BOOST_REQUIRE(modelUuidOpt.has_value());
+
+    auto testScene = engine.CreateScene("ModelInstantiateTestScene");
+    BOOST_REQUIRE(testScene);
+
+    Entity rootEnt = testScene->InstantiateModel(modelUuidOpt.value());
+    BOOST_REQUIRE(rootEnt != MAX_ENTITIES);
+    BOOST_CHECK_EQUAL(testScene->GetEntityName(rootEnt), "Box");
+
+    // Check if either rootEnt or its child has MeshComponent and RendererComponent
+    Entity meshEntity = rootEnt;
+    if (!testScene->HasComponent<MeshComponent>(rootEnt)) {
+        const auto& children = testScene->GetChildren(rootEnt);
+        BOOST_REQUIRE(!children.empty());
+        meshEntity = children[0];
+    }
+
+    BOOST_REQUIRE(testScene->HasComponent<MeshComponent>(meshEntity));
+    BOOST_REQUIRE(testScene->HasComponent<RendererComponent>(meshEntity));
+
+    auto& meshComp = testScene->GetComponent<MeshComponent>(meshEntity);
+    auto& rendComp = testScene->GetComponent<RendererComponent>(meshEntity);
+
+    BOOST_CHECK(!meshComp.meshUuid.is_nil());
+    BOOST_CHECK(!rendComp.shaderUuid.is_nil());
+
+    auto pbrOpt = am->getAssetUuid("pbrShader");
+    if (pbrOpt) {
+        BOOST_CHECK_EQUAL(rendComp.shaderUuid, pbrOpt.value());
+    }
+
+    engine.RemoveScene("ModelInstantiateTestScene");
+}

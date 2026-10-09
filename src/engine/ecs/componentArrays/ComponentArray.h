@@ -39,6 +39,8 @@ namespace engine::ecs{
 
         void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
         void DeserializeFromJson(const rapidjson::Value& obj) override;
+        void SerializeEntitiesToJson(const std::vector<Entity>& entities, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
+        void DeserializeEntityComponent(Entity entity, const rapidjson::Value& componentData, bool active = true) override;
     private:
         std::array<T, MAX_COMPONENTS_ARRAY> componentArray;
         std::bitset<MAX_COMPONENTS_ARRAY> activeComponents;

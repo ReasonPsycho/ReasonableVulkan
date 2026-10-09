@@ -120,6 +120,10 @@ namespace am {
             assets[id] = std::move(newAsset);
             metadata[id]->loadedAsset = assets[id].get();
             saveAssetMetadata(id);
+            if (assetType == AssetType::Material)
+            {
+                generateThumbnail(id);
+            }
             return id;
         }
         catch (std::exception& e)
@@ -281,6 +285,10 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             saveJsonToFile(info.value()->path, document);
         }
         saveAssetMetadata(id);
+        if (info.value()->type == AssetType::Material)
+        {
+            generateThumbnail(id);
+        }
     }
 
     void AssetManager::saveAsset(std::string lookupName)
@@ -574,6 +582,21 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
             if (engine) {
                 if (engine->CaptureModelThumbnail(id, destPath.string())) {
+                    info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
+                    saveAssetMetadata(id);
+                    return true;
+                }
+            }
+        }
+        else if (info->type == AssetType::Material) {
+            std::filesystem::path thumbDir = std::filesystem::path(resourceFolder) / ".cache" / "thumbnails";
+            std::error_code ec;
+            std::filesystem::create_directories(thumbDir, ec);
+
+            std::filesystem::path destPath = thumbDir / (boost::uuids::to_string(id) + ".png");
+
+            if (engine) {
+                if (engine->CaptureMaterialThumbnail(id, destPath.string())) {
                     info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
                     saveAssetMetadata(id);
                     return true;
@@ -1055,7 +1078,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 }
             }
 
-            if (expectedType == AssetType::Scene)
+            if (expectedType == AssetType::Scene || expectedType == AssetType::Prefab)
             {
                 rapidjson::Document doc;
                 if (loadJsonFromFile(normalPath.string(), doc))
@@ -1063,7 +1086,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     if (doc.HasMember("uuid") && doc["uuid"].IsString())
                     {
                         boost::uuids::uuid fileId = boost::uuids::string_generator()(doc["uuid"].GetString());
-                        auto assetInfo = std::make_shared<AssetInfo>(fileId, normalPath.string(), AssetType::Scene, 0, ImportContext(normalPath.string(), AssetType::Scene, 0), stemName);
+                        auto assetInfo = std::make_shared<AssetInfo>(fileId, normalPath.string(), expectedType, 0, ImportContext(normalPath.string(), expectedType, 0), stemName);
                         metadata[fileId] = assetInfo;
                         lookupNamesToUUIDs[stemName] = fileId;
                         saveAssetMetadata(fileId);
@@ -1489,6 +1512,10 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             info->loadedAsset = assets[id].get();
             lookupNamesToUUIDs[lookUpName] = id;
             saveAssetMetadata(id);
+            if (info->type == AssetType::Material)
+            {
+                generateThumbnail(id);
+            }
             return id;
         }
         catch (std::exception& e)

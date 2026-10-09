@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "236cf7ed-1c2a-4fa1-8219-e7dd4ef8a357",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\internal\\internalSphere.model",
+  "type": "Model",
+  "lookUpName": "internalSphere.model",
+  "contentHash": 4800601042128544496,
+  "thumbnailPath": ".cache/thumbnails/236cf7ed-1c2a-4fa1-8219-e7dd4ef8a357.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\internal\\internalSphere.fbx",
+    "assetType": "Model",
+    "assimpIndex": 0
+  }
+}

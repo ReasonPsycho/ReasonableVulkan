@@ -44,6 +44,7 @@ namespace vks
 
         ~MaterialDescriptor();
 
+        void update(am::MaterialData& materialData); // TODO not needed we need make it boundless anyway
         void setUpDescriptorSet(VkDescriptorSetLayout materialLayout, VkDescriptorPool materialDescriptorPool, VkDescriptorImageInfo defaultImageInfo, VkDescriptorImageInfo defaultCubeImageInfo);
         void cleanup() override {};
 

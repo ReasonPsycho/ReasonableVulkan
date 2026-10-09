@@ -459,6 +459,48 @@ namespace vks {
         );
     }
 
+    bool VulkanRenderer::renderAndCaptureMaterialThumbnail(
+        const boost::uuids::uuid& materialId,
+        const boost::uuids::uuid& sphereModelId,
+        const std::string& outputPath,
+        int targetWidth,
+        int targetHeight,
+        const glm::mat4& viewMatrix,
+        const glm::mat4& projMatrix,
+        const glm::vec3& camPos,
+        const glm::vec3& lightDir,
+        const glm::vec3& lightColor,
+        float lightIntensity)
+    {
+#if ENABLE_IMGUI
+        // Invalidate cached thumbnail texture if present so fresh image is reloaded
+        auto it = thumbnailCache.find(materialId);
+        if (it != thumbnailCache.end()) {
+            if (it->second.descriptorSet != VK_NULL_HANDLE && imguiManager) {
+                // If descriptorSet cleanup is needed or we just recreate
+            }
+            if (it->second.view != VK_NULL_HANDLE) {
+                vkDestroyImageView(context->getDevice(), it->second.view, nullptr);
+            }
+            if (it->second.image != VK_NULL_HANDLE) {
+                vkDestroyImage(context->getDevice(), it->second.image, nullptr);
+            }
+            if (it->second.memory != VK_NULL_HANDLE) {
+                vkFreeMemory(context->getDevice(), it->second.memory, nullptr);
+            }
+            thumbnailCache.erase(it);
+        }
+#endif
+        if (!renderManager) {
+            return false;
+        }
+        return renderManager->renderAndCaptureMaterialThumbnail(
+            materialId, sphereModelId, outputPath, targetWidth, targetHeight,
+            viewMatrix, projMatrix, camPos,
+            lightDir, lightColor, lightIntensity
+        );
+    }
+
     bool VulkanRenderer::captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth, int targetHeight) {
         waitIdle();
 
