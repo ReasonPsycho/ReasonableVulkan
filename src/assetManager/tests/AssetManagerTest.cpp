@@ -1,6 +1,7 @@
 #include <boost/test/unit_test.hpp>
 #include "../src/AssetManager.hpp"
 #include "../include/Asset.hpp"
+#include "../src/assets/engineAssets/PrefabAsset.h"
 
 struct MockData
 {
@@ -113,6 +114,20 @@ BOOST_AUTO_TEST_CASE(RegisterAndLookupAssetWorks) {
 
         auto asset = manager.getByUUID<am::Asset>(randomUUID);
         BOOST_TEST(asset == nullptr);
+    }
+
+    BOOST_AUTO_TEST_CASE(PrefabAssetRegistrationAndTypeCheck) {
+        auto& manager = am::AssetManager::getInstance();
+        auto prefabUuidOpt = manager.createAsset(am::AssetType::Prefab, "res/prefabs/TestCar.prefab", "TestCar");
+        BOOST_REQUIRE(prefabUuidOpt.has_value());
+
+        auto assetInfo = manager.getAssetInfo(prefabUuidOpt.value());
+        BOOST_REQUIRE(assetInfo.has_value());
+        BOOST_CHECK(assetInfo.value()->type == am::AssetType::Prefab);
+
+        auto prefabAsset = manager.getByUUID<am::PrefabAsset>(prefabUuidOpt.value());
+        BOOST_REQUIRE(prefabAsset != nullptr);
+        BOOST_CHECK(prefabAsset->getType() == am::AssetType::Prefab);
     }
 
 BOOST_AUTO_TEST_SUITE_END()

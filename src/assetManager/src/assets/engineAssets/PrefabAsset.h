@@ -3,6 +3,7 @@
 
 #include "../../../include/Asset.hpp"
 #include "../../JsonHelpers.hpp"
+#include "assetDatas/EngineAssets.h"
 
 namespace am {
     const char PREFAB_MAGIC[] = "RPRFB";
@@ -12,7 +13,7 @@ namespace am {
         static constexpr AssetType StaticType = AssetType::Prefab;
         using DataType = rapidjson::Document;
 
-        rapidjson::Document prefabData;
+        PrefabData prefabData;
 
         explicit PrefabAsset(const boost::uuids::uuid& id, std::string path);
 

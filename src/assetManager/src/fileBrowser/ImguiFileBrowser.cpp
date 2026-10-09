@@ -128,7 +128,19 @@ namespace am {
                     std::error_code ec;
                     if (std::filesystem::exists(droppedPath, ec) && !std::filesystem::equivalent(droppedPath, currentPath.parent_path(), ec))
                     {
-                        copyFileOrDirectory(droppedPath, currentPath.parent_path(), false);
+                        moveFileOrDirectory(droppedPath, currentPath.parent_path(), false);
+                    }
+                }
+                else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+                {
+                    if (engine)
+                    {
+                        engine::ecs::Entity entity = *(const engine::ecs::Entity*)payload->Data;
+                        engine::ecs::Scene* scn = nullptr;
+                        if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
+                            scn = ((const engine::ecs::SceneEntityPayload*)payload->Data)->scene;
+                        }
+                        engine->SaveEntityAsPrefab(entity, currentPath.parent_path(), scn);
                     }
                 }
                 ImGui::EndDragDropTarget();
@@ -253,10 +265,6 @@ namespace am {
                 {
                     std::string pathStr = path.string();
                     ImGui::SetDragDropPayload("AM_FILE_PATH", pathStr.c_str(), pathStr.size() + 1);
-                    auto fileUuid = getAssetUuidByPath(path);
-                    if (fileUuid.has_value()) {
-                        ImGui::SetDragDropPayload("ASSET_UUID", &fileUuid.value(), sizeof(boost::uuids::uuid));
-                    }
 
                     // Rich visual indicator tooltip
                     ImGui::BeginGroup();
@@ -277,7 +285,7 @@ namespace am {
                     ImGui::BeginGroup();
                     ImGui::TextUnformatted(filename.c_str());
                     if (entry.is_directory()) {
-                        ImGui::TextDisabled("Folder (drop to move/copy)");
+                        ImGui::TextDisabled("Folder (drop to move)");
                     } else {
                         std::error_code ecSize;
                         auto fsize = std::filesystem::file_size(path, ecSize);
@@ -307,7 +315,19 @@ namespace am {
                         std::error_code ec;
                         if (std::filesystem::exists(droppedPath, ec) && !std::filesystem::equivalent(droppedPath, path, ec))
                         {
-                            copyFileOrDirectory(droppedPath, path, false);
+                            moveFileOrDirectory(droppedPath, path, false);
+                        }
+                    }
+                    else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+                    {
+                        if (engine)
+                        {
+                            engine::ecs::Entity entity = *(const engine::ecs::Entity*)payload->Data;
+                            engine::ecs::Scene* scn = nullptr;
+                            if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
+                                scn = ((const engine::ecs::SceneEntityPayload*)payload->Data)->scene;
+                            }
+                            engine->SaveEntityAsPrefab(entity, path, scn);
                         }
                     }
                     ImGui::EndDragDropTarget();
@@ -324,7 +344,6 @@ namespace am {
                         }
                     } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                         selectedFile = path;
-                        focusFileInspectorRequested = true;
                     } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
                         selectedFile = path;
                     }
@@ -455,7 +474,7 @@ namespace am {
                         if (ImGui::BeginPopupContextItem("##FileContext")) {
                             selectedFile = path;
                             if (isRegistered) {
-                                if (type == AssetType::Texture || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp") {
+                                if (type == AssetType::Texture || type == AssetType::Material || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp" || path.extension() == ".mat") {
                                     if (ImGui::MenuItem("Regenerate Thumbnail")) {
                                         generateThumbnail(fileUuid.value());
                                     }
@@ -587,14 +606,22 @@ namespace am {
                         std::error_code ec;
                         if (std::filesystem::exists(droppedPath, ec))
                         {
-                            if (std::filesystem::equivalent(droppedPath.parent_path(), currentPath, ec))
+                            if (!std::filesystem::equivalent(droppedPath.parent_path(), currentPath, ec))
                             {
-                                duplicateFile(droppedPath);
+                                moveFileOrDirectory(droppedPath, currentPath, false);
                             }
-                            else
-                            {
-                                copyFileOrDirectory(droppedPath, currentPath, false);
+                        }
+                    }
+                    else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+                    {
+                        if (engine)
+                        {
+                            engine::ecs::Entity entity = *(const engine::ecs::Entity*)payload->Data;
+                            engine::ecs::Scene* scn = nullptr;
+                            if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
+                                scn = ((const engine::ecs::SceneEntityPayload*)payload->Data)->scene;
                             }
+                            engine->SaveEntityAsPrefab(entity, currentPath, scn);
                         }
                     }
                     ImGui::EndDragDropTarget();
@@ -631,6 +658,14 @@ namespace am {
                     std::filesystem::create_directory(newFolderPath, ec);
                     selectedFile = newFolderPath;
                 }
+                if (ImGui::MenuItem("New Material")) {
+                    std::filesystem::path newMatPath = currentPath / "New Material.material";
+                    newMatPath = getUniqueCopyPath(newMatPath);
+                    auto matUuid = createAsset(AssetType::Material, newMatPath.string());
+                    if (matUuid) {
+                        selectedFile = newMatPath;
+                    }
+                }
                 if (ImGui::MenuItem("Open in System File Explorer")) {
                     openFileWithDefaultApp(currentPath);
                 }
@@ -654,14 +689,22 @@ namespace am {
                 std::error_code ec;
                 if (std::filesystem::exists(droppedPath, ec))
                 {
-                    if (std::filesystem::equivalent(droppedPath.parent_path(), currentPath, ec))
+                    if (!std::filesystem::equivalent(droppedPath.parent_path(), currentPath, ec))
                     {
-                        duplicateFile(droppedPath);
+                        moveFileOrDirectory(droppedPath, currentPath, false);
                     }
-                    else
-                    {
-                        copyFileOrDirectory(droppedPath, currentPath, false);
+                }
+            }
+            else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+            {
+                if (engine)
+                {
+                    engine::ecs::Entity entity = *(const engine::ecs::Entity*)payload->Data;
+                    engine::ecs::Scene* scn = nullptr;
+                    if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
+                        scn = ((const engine::ecs::SceneEntityPayload*)payload->Data)->scene;
                     }
+                    engine->SaveEntityAsPrefab(entity, currentPath, scn);
                 }
             }
             ImGui::EndDragDropTarget();
@@ -692,6 +735,14 @@ namespace am {
                 std::error_code ec;
                 std::filesystem::create_directory(newFolderPath, ec);
                 selectedFile = newFolderPath;
+            }
+            if (ImGui::MenuItem("New Material")) {
+                std::filesystem::path newMatPath = currentPath / "New Material.material";
+                newMatPath = getUniqueCopyPath(newMatPath);
+                auto matUuid = createAsset(AssetType::Material, newMatPath.string());
+                if (matUuid) {
+                    selectedFile = newMatPath;
+                }
             }
             if (ImGui::MenuItem("Open in System File Explorer")) {
                 openFileWithDefaultApp(currentPath);
@@ -861,6 +912,178 @@ namespace am {
                         ImGui::Text("SPIR-V Bytecode Size: %zu words", shaderData->bytecode.size());
                         ImGui::Text("Stage: %s", EnumToString(shaderData->stage).data());
                     }
+                } else if (assetType == AssetType::Material) {
+                    auto matData = getAssetData<MaterialData>(fileUuid.value());
+                    if (matData) {
+                        bool matModified = false;
+                        ImGui::Separator();
+                        ImGui::Text("Material Properties");
+
+                        auto renderTextureSlot = [this, &matModified](const char* label, const char* imguiId, std::shared_ptr<am::AssetInfo>& texInfo) {
+                            ImGui::PushID(imguiId);
+                            ImGui::Text("%s", label);
+
+                            std::string currentName = "(None)";
+                            if (texInfo) {
+                                if (!texInfo->lookUpName.empty()) {
+                                    currentName = texInfo->lookUpName;
+                                } else {
+                                    currentName = std::filesystem::path(texInfo->path).filename().string();
+                                }
+                            }
+
+                            void* thumb = texInfo ? getThumbnailTexture(texInfo->path) : nullptr;
+                            if (thumb != nullptr) {
+                                ImGui::Image((ImTextureID)thumb, ImVec2(24, 24));
+                                ImGui::SameLine();
+                            }
+
+                            float availW = ImGui::GetContentRegionAvail().x - 30.0f;
+                            if (availW < 80.0f) availW = 80.0f;
+                            ImGui::SetNextItemWidth(availW);
+
+                            auto registeredTextures = getRegisteredAssetsNames(AssetType::Texture);
+                            if (ImGui::BeginCombo("##TexCombo", currentName.c_str())) {
+                                bool isNoneSelected = (texInfo == nullptr);
+                                if (ImGui::Selectable("(None)", isNoneSelected)) {
+                                    texInfo = nullptr;
+                                    matModified = true;
+                                }
+                                if (isNoneSelected) {
+                                    ImGui::SetItemDefaultFocus();
+                                }
+
+                                for (const auto& texName : registeredTextures) {
+                                    bool isSelected = (texInfo && (texInfo->lookUpName == texName || std::filesystem::path(texInfo->path).filename().string() == texName));
+                                    if (ImGui::Selectable(texName.c_str(), isSelected)) {
+                                        auto tUuid = getAssetUuid(texName);
+                                        if (tUuid) {
+                                            texInfo = getAssetInfo(tUuid.value()).value_or(nullptr);
+                                            matModified = true;
+                                        }
+                                    }
+                                    if (isSelected) {
+                                        ImGui::SetItemDefaultFocus();
+                                    }
+                                }
+                                ImGui::EndCombo();
+                            }
+
+                            // Drag and Drop target for texture
+                            if (ImGui::BeginDragDropTarget()) {
+                                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH")) {
+                                    std::string droppedPathStr = (const char*)payload->Data;
+                                    std::filesystem::path droppedPath(droppedPathStr);
+                                    auto droppedExt = droppedPath.extension().string();
+                                    if (GetAssetTypeFromExtension(droppedExt) == AssetType::Texture ||
+                                        droppedExt == ".png" || droppedExt == ".jpg" || droppedExt == ".jpeg" ||
+                                        droppedExt == ".bmp" || droppedExt == ".tga" || droppedExt == ".dds" || droppedExt == ".hdr") {
+                                        auto tUuid = getAssetUuidByPath(droppedPath);
+                                        if (!tUuid) {
+                                            tUuid = registerAsset(droppedPath.string());
+                                        }
+                                        if (tUuid) {
+                                            texInfo = getAssetInfo(tUuid.value()).value_or(nullptr);
+                                            matModified = true;
+                                        }
+                                    }
+                                }
+                                ImGui::EndDragDropTarget();
+                            }
+
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("x")) {
+                                if (texInfo != nullptr) {
+                                    texInfo = nullptr;
+                                    matModified = true;
+                                }
+                            }
+                            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear texture");
+
+                            ImGui::PopID();
+                        };
+
+                        if (ImGui::Checkbox("Use Specular-Glossiness Workflow", &matData->useSpecularGlossiness)) {
+                            matModified = true;
+                        }
+
+                        ImGui::Spacing();
+
+                        // Base Color / Albedo
+                        if (ImGui::ColorEdit4("Base Color Factor", &matData->baseColorFactor.x, ImGuiColorEditFlags_Float)) {
+                            matModified = true;
+                        }
+                        renderTextureSlot("Base Color Texture", "##BaseColorTex", matData->baseColorTexture);
+
+                        ImGui::Spacing();
+
+                        if (!matData->useSpecularGlossiness) {
+                            // Metallic - Roughness Workflow
+                            if (ImGui::SliderFloat("Metallic Factor", &matData->metallicFactor, 0.0f, 1.0f, "%.3f")) {
+                                matModified = true;
+                            }
+                            if (ImGui::SliderFloat("Roughness Factor", &matData->roughnessFactor, 0.0f, 1.0f, "%.3f")) {
+                                matModified = true;
+                            }
+                            renderTextureSlot("Metallic-Roughness Texture", "##MetRoughTex", matData->metallicRoughnessTexture);
+                        } else {
+                            // Specular - Glossiness Workflow
+                            if (ImGui::ColorEdit3("Diffuse Factor", &matData->diffuseFactor.x, ImGuiColorEditFlags_Float)) {
+                                matModified = true;
+                            }
+                            if (ImGui::ColorEdit3("Specular Factor", &matData->specularFactor.x, ImGuiColorEditFlags_Float)) {
+                                matModified = true;
+                            }
+                            if (ImGui::SliderFloat("Glossiness Factor", &matData->glossinessFactor, 0.0f, 1.0f, "%.3f")) {
+                                matModified = true;
+                            }
+                            renderTextureSlot("Specular-Glossiness Texture", "##SpecGlossTex", matData->specularGlossinessTexture);
+                        }
+
+                        ImGui::Spacing();
+
+                        // Normal Map
+                        renderTextureSlot("Normal Map Texture", "##NormalTex", matData->normalTexture);
+
+                        ImGui::Spacing();
+
+                        // Ambient Occlusion
+                        if (ImGui::SliderFloat("Occlusion Strength", &matData->occlusionStrength, 0.0f, 1.0f, "%.3f")) {
+                            matModified = true;
+                        }
+                        renderTextureSlot("Occlusion Texture", "##OcclusionTex", matData->occlusionTexture);
+
+                        ImGui::Spacing();
+
+                        // Emissive
+                        if (ImGui::ColorEdit3("Emissive Factor", &matData->emissiveFactor.x, ImGuiColorEditFlags_Float)) {
+                            matModified = true;
+                        }
+                        renderTextureSlot("Emissive Texture", "##EmissiveTex", matData->emissiveTexture);
+
+                        ImGui::Spacing();
+
+                        // Alpha & Transparency
+                        if (ImGui::Checkbox("Is Opaque", &matData->isOpaque)) {
+                            matModified = true;
+                        }
+                        if (ImGui::SliderFloat("Alpha Cutoff", &matData->alphaCutoff, 0.0f, 1.0f, "%.3f")) {
+                            matModified = true;
+                        }
+
+                        ImGui::Spacing();
+
+                        // Legacy Diffuse
+                        if (ImGui::TreeNode("Legacy & Additional Maps")) {
+                            renderTextureSlot("Legacy Diffuse Texture", "##LegacyDiffTex", matData->diffuseTexture);
+                            ImGui::TreePop();
+                        }
+
+                        ImGui::Spacing();
+                        if (ImGui::Button("Save Material") || matModified) {
+                            saveAsset(fileUuid.value());
+                        }
+                    }
                 }
             } else {
                 ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Status: Not Registered in Registry");
@@ -902,8 +1125,8 @@ namespace am {
                 if (ImGui::Button("Reimport Asset")) {
                     reimportAsset(selectedFile);
                 }
-                if (assetType == AssetType::Texture || assetType == AssetType::Model || assetType == AssetType::Scene ||
-                    ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".fbx" || ext == ".obj") {
+                if (assetType == AssetType::Texture || assetType == AssetType::Model || assetType == AssetType::Mesh || assetType == AssetType::Material || assetType == AssetType::Scene ||
+                    ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".fbx" || ext == ".obj" || ext == ".mat") {
                     ImGui::SameLine();
                     if (ImGui::Button("Regenerate Thumbnail")) {
                         generateThumbnail(fileUuid.value());

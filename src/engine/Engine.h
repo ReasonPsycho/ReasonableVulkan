@@ -78,6 +78,7 @@ namespace engine {
         void LoadScene(boost::uuids::uuid sceneId) override;
         void CloseScene(const std::string& name) override;
         void CloseScene(boost::uuids::uuid sceneId) override;
+        bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
 
         void SaveConfig() override;
         void LoadConfig() override;
@@ -85,6 +86,7 @@ namespace engine {
 
         void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
         bool CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath) override;
+        bool CaptureMaterialThumbnail(const boost::uuids::uuid& materialId, const std::string& outputPath) override;
         std::shared_ptr<ecs::Scene> OpenModelPreviewScene(const boost::uuids::uuid& modelOrMeshId) override;
 
         // Get registered types

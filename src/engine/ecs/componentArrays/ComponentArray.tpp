@@ -198,3 +198,43 @@ void ComponentArray<T>::DeserializeFromJson(const rapidjson::Value& obj) {
         }
     }
 }
+
+template <typename T>
+void ComponentArray<T>::SerializeEntitiesToJson(const std::vector<Entity>& entities, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
+    rapidjson::Value components(rapidjson::kArrayType);
+    size_t count = 0;
+
+    for (Entity entity : entities) {
+        auto it = entityToIndexMap.find(entity);
+        if (it != entityToIndexMap.end()) {
+            ComponentID index = it->second;
+            rapidjson::Value componentObj(rapidjson::kObjectType);
+            componentObj.AddMember("entity", static_cast<uint64_t>(entity), allocator);
+
+            rapidjson::Value componentData(rapidjson::kObjectType);
+            SerializeTypeToJson(componentArray[index], componentData, allocator);
+            componentObj.AddMember("data", componentData, allocator);
+
+            componentObj.AddMember("active", activeComponents[index], allocator);
+
+            components.PushBack(componentObj, allocator);
+            count++;
+        }
+    }
+
+    obj.AddMember("size", static_cast<uint64_t>(count), allocator);
+    obj.AddMember("components", components, allocator);
+}
+
+template <typename T>
+void ComponentArray<T>::DeserializeEntityComponent(Entity entity, const rapidjson::Value& componentData, bool active) {
+    T component;
+    DeserializeTypeFromJson(component, componentData);
+    if (HasComponent(entity)) {
+        componentArray[entityToIndexMap[entity]] = component;
+        activeComponents[entityToIndexMap[entity]] = active;
+    } else {
+        AddComponentToEntity(entity, component);
+        SetComponentActive(entity, active);
+    }
+}

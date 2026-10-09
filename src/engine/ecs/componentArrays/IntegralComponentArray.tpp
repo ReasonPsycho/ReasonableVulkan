@@ -138,3 +138,35 @@ void IntegralComponentArray<T>::DeserializeFromJson(const rapidjson::Value& obj)
         }
     }
 }
+
+template <typename T>
+void IntegralComponentArray<T>::SerializeEntitiesToJson(const std::vector<Entity>& entities, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
+    rapidjson::Value components(rapidjson::kArrayType);
+
+    for (Entity entity : entities) {
+        if (entity < MAX_ENTITIES && activeComponents[entity]) {
+            rapidjson::Value componentObj(rapidjson::kObjectType);
+
+            // Store entity ID
+            componentObj.AddMember("entity", static_cast<uint64_t>(entity), allocator);
+
+            // Store component data
+            rapidjson::Value componentData(rapidjson::kObjectType);
+            SerializeTypeToJson(componentArray[entity], componentData, allocator);
+            componentObj.AddMember("data", componentData, allocator);
+
+            components.PushBack(componentObj, allocator);
+        }
+    }
+
+    obj.AddMember("components", components, allocator);
+}
+
+template <typename T>
+void IntegralComponentArray<T>::DeserializeEntityComponent(Entity entity, const rapidjson::Value& componentData, bool active) {
+    assert(entity < MAX_ENTITIES);
+    T component;
+    DeserializeTypeFromJson(component, componentData);
+    componentArray[entity] = component;
+    activeComponents[entity] = active;
+}

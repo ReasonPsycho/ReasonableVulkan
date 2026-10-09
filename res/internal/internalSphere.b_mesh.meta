@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "99285cd5-8c1e-47e1-b21f-010f97e3dbdd",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\internal\\internalSphere.b_mesh",
+  "type": "Mesh",
+  "lookUpName": "internalSphere_0.mesh",
+  "contentHash": 970938207582912137,
+  "thumbnailPath": ".cache/thumbnails/99285cd5-8c1e-47e1-b21f-010f97e3dbdd.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\internal\\internalSphere.fbx",
+    "assetType": "Mesh",
+    "assimpIndex": 0
+  }
+}

@@ -65,6 +65,18 @@ namespace gfx {
             const glm::vec3& lightDir,
             const glm::vec3& lightColor,
             float lightIntensity) { return false; }
+        virtual bool renderAndCaptureMaterialThumbnail(
+            const boost::uuids::uuid& materialId,
+            const boost::uuids::uuid& sphereModelId,
+            const std::string& outputPath,
+            int targetWidth,
+            int targetHeight,
+            const glm::mat4& viewMatrix,
+            const glm::mat4& projMatrix,
+            const glm::vec3& camPos,
+            const glm::vec3& lightDir,
+            const glm::vec3& lightColor,
+            float lightIntensity) { return false; }
 
         virtual void beginFrame() = 0;
         virtual void renderFrame() = 0;

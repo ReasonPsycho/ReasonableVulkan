@@ -2,6 +2,8 @@
 
 #include "PlatformInterface.hpp"
 #include "../assetManager/src/assets/engineAssets/SceneAsset.h"
+#include "../assetManager/src/assets/engineAssets/PrefabAsset.h"
+#include "../assetManager/src/JsonHelpers.hpp"
 #include "ecs/Scene.h"
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
@@ -408,6 +410,98 @@ namespace engine {
         }
     }
 
+    bool Engine::SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene)
+    {
+        if (!assetManagerInterface)
+        {
+            spdlog::error("SaveEntityAsPrefab failed: assetManagerInterface is null");
+            return false;
+        }
+
+        Scene* scene = sourceScene;
+        if (!scene)
+        {
+            if (editorSystem)
+            {
+                scene = editorSystem->GetTargetScene();
+            }
+            if (!scene)
+            {
+                scene = GetTopEditableScene().get();
+            }
+            if (!scene)
+            {
+                auto activeScenes = GetActiveScenes();
+                if (!activeScenes.empty())
+                {
+                    scene = activeScenes[0].get();
+                }
+            }
+        }
+
+        if (!scene)
+        {
+            spdlog::error("SaveEntityAsPrefab failed: No valid scene found for entity {}", entity);
+            return false;
+        }
+
+        std::string entityRawName = "Entity";
+        if (editorSystem)
+        {
+            entityRawName = editorSystem->GetEntityRawName(entity, scene);
+        }
+        else if (scene->HasComponent<NameComponent>(entity))
+        {
+            entityRawName = scene->GetComponent<NameComponent>(entity).name;
+        }
+        if (entityRawName.empty())
+        {
+            entityRawName = "Entity";
+        }
+
+        std::filesystem::path targetPath = destinationDirectoryOrPath;
+        std::error_code ec;
+        if (std::filesystem::is_directory(targetPath, ec) || targetPath.extension() != ".prefab")
+        {
+            targetPath = targetPath / (entityRawName + ".prefab");
+        }
+
+        targetPath = assetManagerInterface->getUniqueCopyPath(targetPath);
+        std::string prefabLookupName = targetPath.stem().string();
+
+        rapidjson::Document doc;
+        scene->SerializeObjectToJson(entity, doc);
+
+        auto pOpt = assetManagerInterface->createAsset(am::AssetType::Prefab, targetPath.string(), prefabLookupName);
+        if (!pOpt.has_value())
+        {
+            spdlog::error("SaveEntityAsPrefab failed: Could not create prefab asset at {}", targetPath.string());
+            return false;
+        }
+
+        auto info = assetManagerInterface->getAssetInfo(pOpt.value());
+        if (info)
+        {
+            auto prefabAsset = dynamic_cast<am::PrefabAsset*>(info->get()->getAsset());
+            if (prefabAsset)
+            {
+                prefabAsset->prefabData.CopyFrom(doc, prefabAsset->prefabData.GetAllocator());
+                rapidjson::Document saveDoc;
+                saveDoc.CopyFrom(doc, saveDoc.GetAllocator());
+                if (!saveDoc.HasMember("uuid"))
+                {
+                    rapidjson::Value uuidVal(boost::uuids::to_string(pOpt.value()).c_str(), saveDoc.GetAllocator());
+                    saveDoc.AddMember("uuid", uuidVal, saveDoc.GetAllocator());
+                }
+                am::saveJsonToFile(info->get()->path, saveDoc);
+            }
+        }
+
+        assetManagerInterface->setSelectedFile(targetPath);
+        spdlog::info("Saved entity {} ('{}') as prefab to '{}'", entity, entityRawName, targetPath.string());
+        return true;
+    }
+
     void* Engine::GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath)
     {
         if (graphicsEngine) {
@@ -463,10 +557,91 @@ namespace engine {
 
         glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f));
         glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-        float lightIntensity = 2.5f;
+        float lightIntensity = 0.2f;
 
         return graphicsEngine->renderAndCaptureModelThumbnail(
             modelId, outputPath, 128, 128,
+            viewMatrix, projMatrix, camPos,
+            lightDir, lightColor, lightIntensity);
+    }
+
+    bool Engine::CaptureMaterialThumbnail(const boost::uuids::uuid& materialId, const std::string& outputPath)
+    {
+        if (!graphicsEngine || !assetManagerInterface) {
+            return false;
+        }
+
+        auto assetOpt = assetManagerInterface->getAsset(materialId);
+        if (!assetOpt.has_value() || !assetOpt.value()) {
+            return false;
+        }
+
+        if (assetOpt.value()->getType() != am::AssetType::Material) {
+            return false;
+        }
+
+        // Look for internalSphere model
+        std::optional<boost::uuids::uuid> sphereUuidOpt = assetManagerInterface->getAssetUuid("internalSphere.model");
+        if (!sphereUuidOpt.has_value()) {
+            sphereUuidOpt = assetManagerInterface->getAssetUuid("internalSphere");
+        }
+        if (!sphereUuidOpt.has_value()) {
+            sphereUuidOpt = boost::uuids::string_generator()("236cf7ed-1c2a-4fa1-8219-e7dd4ef8a357");
+            if (!assetManagerInterface->getAssetInfo(sphereUuidOpt.value()).has_value()) {
+                sphereUuidOpt = std::nullopt;
+            }
+        }
+        if (!sphereUuidOpt.has_value()) {
+            sphereUuidOpt = assetManagerInterface->getAssetUuidByPath(std::filesystem::path("internal/internalSphere.model"));
+        }
+        if (!sphereUuidOpt.has_value()) {
+            sphereUuidOpt = assetManagerInterface->getAssetUuidByPath(std::filesystem::path("res/internal/internalSphere.model"));
+        }
+
+        if (!sphereUuidOpt.has_value()) {
+            spdlog::error("Could not find internalSphere model for material thumbnail");
+            return false;
+        }
+
+        boost::uuids::uuid sphereId = sphereUuidOpt.value();
+        auto sphereAssetOpt = assetManagerInterface->getAsset(sphereId);
+        if (!sphereAssetOpt.has_value() || !sphereAssetOpt.value()) {
+            spdlog::error("Could not load internalSphere model for material thumbnail");
+            return false;
+        }
+
+        glm::vec3 bMin(-0.5f);
+        glm::vec3 bMax(0.5f);
+        if (auto* modelData = sphereAssetOpt.value()->getAssetDataAs<am::ModelData>()) {
+            bMin = modelData->boundingBoxMin;
+            bMax = modelData->boundingBoxMax;
+        }
+
+        glm::vec3 center = (bMin + bMax) * 0.5f;
+        glm::vec3 size = bMax - bMin;
+        float maxDim = std::max({size.x, size.y, size.z});
+        if (maxDim <= 0.001f) {
+            maxDim = 1.0f;
+        }
+
+        float fov = 45.0f;
+        float distance = (maxDim * 0.5f) / std::sin(glm::radians(fov * 0.5f)) * 1.5f;
+
+        // Camera at ~45 degrees to the side and above the sphere
+        glm::vec3 camDir = glm::normalize(glm::vec3(1.0f, 0.8f, 1.0f));
+        glm::vec3 camPos = center + camDir * distance;
+        glm::vec3 camTarget = center;
+        glm::vec3 camUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+        glm::mat4 viewMatrix = glm::lookAt(camPos, camTarget, camUp);
+        glm::mat4 projMatrix = glm::perspective(glm::radians(fov), 1.0f, std::max(0.01f, distance * 0.01f), distance * 100.0f);
+
+        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f));
+        glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        float lightIntensity = 0.2f;
+
+        return graphicsEngine->renderAndCaptureMaterialThumbnail(
+            materialId, sphereId, outputPath, 128, 128,
             viewMatrix, projMatrix, camPos,
             lightDir, lightColor, lightIntensity);
     }
@@ -548,7 +723,12 @@ namespace engine {
         std::string shaderLookup = (assetInfo->type == am::AssetType::Mesh) ? "wiremeshShader" : "pbrShader";
         auto shaderOpt = assetManagerInterface->getAssetUuid(shaderLookup);
         if (shaderOpt) {
-            RendererComponent rendererComp(shaderOpt.value());
+            boost::uuids::uuid materialUuid = boost::uuids::nil_uuid();
+            auto meshData = assetManagerInterface->getAssetData<am::MeshData>(meshUUID);
+            if (meshData && meshData->material) {
+                materialUuid = meshData->material->id;
+            }
+            RendererComponent rendererComp(shaderOpt.value(), materialUuid);
             scene->AddComponent<RendererComponent>(modelEntity, rendererComp);
         }
 

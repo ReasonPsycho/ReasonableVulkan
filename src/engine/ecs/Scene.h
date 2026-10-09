@@ -126,6 +126,12 @@ namespace engine::ecs
 
         void SerializeToJson(rapidjson::Document& doc) const;
         void DeserializeFromJson(const rapidjson::Document& doc);
+        void SerializeObjectToJson(Entity entity, rapidjson::Document& doc) const;
+        void SerializePrefabToJson(Entity entity, rapidjson::Document& doc) const;
+        Entity DeserializeObjectFromJson(const rapidjson::Document& doc, Entity parentEntity = -1);
+        Entity InstantiatePrefab(const rapidjson::Document& doc, Entity parentEntity = -1);
+        Entity InstantiatePrefab(boost::uuids::uuid prefabUuid, Entity parentEntity = -1);
+        Entity InstantiateModel(boost::uuids::uuid modelOrMeshUuid, Entity parentEntity = -1);
         void AddComponent(const std::type_index& type);
 
         std::unordered_map<Entity, TransformNode> sceneGraph;
@@ -158,6 +164,11 @@ namespace engine::ecs
         void SerializeComponents(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
         void SerializeSystems(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
         void SerializeSceneGraph(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+
+        void CollectSubtreeEntities(Entity root, std::vector<Entity>& outSubtree) const;
+        void SerializeObjectEntities(Entity rootEntity, const std::vector<Entity>& subtree, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeObjectComponents(const std::vector<Entity>& subtree, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeObjectSceneGraph(Entity rootEntity, const std::vector<Entity>& subtree, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
 
         void RegisterSystem(const std::type_index& type);
         void DeserializeEntities(const rapidjson::Value& obj);

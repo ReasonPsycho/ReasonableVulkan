@@ -25,6 +25,7 @@
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 #include "RenderDocManager.hpp"
+#include "assetManager/src/assets/engineAssets/PrefabAsset.h"
 
 namespace engine::ecs {
 
@@ -329,7 +330,6 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
 
         memcpy(viewMatrix, &camState.camera.view[0][0], sizeof(float) * 16);
         memcpy(projMatrix, &camState.camera.projection[0][0], sizeof(float) * 16);
-        projMatrix[5] *= -1.0f; // Invert Y back for ImGuizmo (since Vulkan Y was inverted in projection)
         memcpy(modelMatrix, &transform.globalMatrix[0][0], sizeof(float) * 16);
 
         // Manipulate the transform
@@ -569,8 +569,8 @@ void EditorSystem::Update(float deltaTime)
             // Orbit camera
             if (camState.isRightMousePressed) {
                 float sensitivity = 0.3f;
-                camState.cameraYaw += io.MouseDelta.x * sensitivity;
-                camState.cameraPitch += -io.MouseDelta.y * sensitivity;
+                camState.cameraYaw -= io.MouseDelta.x * sensitivity;
+                camState.cameraPitch += io.MouseDelta.y * sensitivity;
                 camState.cameraPitch = glm::clamp(camState.cameraPitch, -89.0f, 89.0f);
                 camState.UpdateCameraPosition();
             }
@@ -578,9 +578,9 @@ void EditorSystem::Update(float deltaTime)
             // Pan camera
             if (camState.isMiddleMousePressed) {
                 float sensitivity = 0.001f * camState.cameraDistance;
-                glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0, 1, 0),
-                    camState.cameraTransform.position - camState.cameraTarget));
-                glm::vec3 up = glm::cross(right, camState.cameraTransform.position - camState.cameraTarget);
+                glm::vec3 back = glm::normalize(camState.cameraTransform.position - camState.cameraTarget);
+                glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0, 1, 0), back));
+                glm::vec3 up = glm::cross(back, right);
 
                 camState.cameraTarget += right * (-io.MouseDelta.x * sensitivity);
                 camState.cameraTarget += up * (io.MouseDelta.y * sensitivity);
@@ -621,17 +621,24 @@ void EditorSystem::Update(float deltaTime)
                         if (ext == ".scene") {
                             auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
                             if (uuid) engine->LoadScene(uuid.value());
-                        } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh") {
+                        } else if (ext == ".prefab") {
                             auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
                             if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
                             if (uuid) {
-                                Entity entity = currentScene->CreateEntity(p.stem().string());
-                                MeshComponent meshComp(uuid.value());
-                                currentScene->AddComponent<MeshComponent>(entity, meshComp);
-                                auto shaderOpt = engine->assetManagerInterface->getAssetUuid("pbrShader");
-                                if (shaderOpt) {
-                                    RendererComponent rendererComp(shaderOpt.value());
-                                    currentScene->AddComponent<RendererComponent>(entity, rendererComp);
+                                Entity newEnt = currentScene->InstantiatePrefab(uuid.value());
+                                if (newEnt != MAX_ENTITIES) {
+                                    selectedEntity = newEnt;
+                                    selectedScene = currentScene->engine.GetScene(currentScene->GetName());
+                                }
+                            }
+                        } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                            auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                            if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                            if (uuid) {
+                                Entity newEnt = currentScene->InstantiateModel(uuid.value());
+                                if (newEnt != MAX_ENTITIES) {
+                                    selectedEntity = newEnt;
+                                    selectedScene = currentScene->engine.GetScene(currentScene->GetName());
                                 }
                             }
                         }
@@ -648,7 +655,9 @@ void EditorSystem::Update(float deltaTime)
                     std::string badgeText;
                     if (draggedAssetExt == ".scene") {
                         badgeText = "Drop to load scene: " + draggedAssetName;
-                    } else if (draggedAssetExt == ".fbx" || draggedAssetExt == ".obj" || draggedAssetExt == ".model" || draggedAssetExt == ".mesh") {
+                    } else if (draggedAssetExt == ".prefab") {
+                        badgeText = "Drop to instantiate prefab: " + draggedAssetName;
+                    } else if (draggedAssetExt == ".fbx" || draggedAssetExt == ".obj" || draggedAssetExt == ".model" || draggedAssetExt == ".mesh" || draggedAssetExt == ".gltf" || draggedAssetExt == ".glb" || draggedAssetExt == ".blend" || draggedAssetExt == ".blend1") {
                         badgeText = "Drop to instantiate model: " + draggedAssetName;
                     } else if (!draggedAssetName.empty()) {
                         badgeText = "Drop asset: " + draggedAssetName;
@@ -928,6 +937,46 @@ void EditorSystem::ImGuiSceneGraph()
             selectedScene = scn;
         }
 
+        if (scn->IsEditable() && ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+            {
+                Entity droppedEntity = *(const Entity*)payload->Data;
+                scn->RemoveParent(droppedEntity);
+            }
+            else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
+            {
+                std::string filePath((const char*)payload->Data);
+                std::filesystem::path p(filePath);
+                auto ext = p.extension().string();
+                if (ext == ".scene") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (uuid) engine->LoadScene(uuid.value());
+                } else if (ext == ".prefab") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                    if (uuid) {
+                        Entity newEnt = scn->InstantiatePrefab(uuid.value());
+                        if (newEnt != MAX_ENTITIES) {
+                            selectedEntity = newEnt;
+                            selectedScene = scn;
+                        }
+                    }
+                } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                    if (uuid) {
+                        Entity newEnt = scn->InstantiateModel(uuid.value());
+                        if (newEnt != MAX_ENTITIES) {
+                            selectedEntity = newEnt;
+                            selectedScene = scn;
+                        }
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
         // Context menu for the scene
         if (ImGui::BeginPopupContextItem())
         {
@@ -1010,17 +1059,24 @@ void EditorSystem::ImGuiSceneGraph()
                 if (ext == ".scene") {
                     auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
                     if (uuid) engine->LoadScene(uuid.value());
-                } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh") {
+                } else if (ext == ".prefab") {
                     auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
                     if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
                     if (uuid) {
-                        Entity entity = targetScene->CreateEntity(p.stem().string());
-                        MeshComponent meshComp(uuid.value());
-                        targetScene->AddComponent<MeshComponent>(entity, meshComp);
-                        auto shaderOpt = engine->assetManagerInterface->getAssetUuid("pbrShader");
-                        if (shaderOpt) {
-                            RendererComponent rendererComp(shaderOpt.value());
-                            targetScene->AddComponent<RendererComponent>(entity, rendererComp);
+                        Entity newEnt = targetScene->InstantiatePrefab(uuid.value());
+                        if (newEnt != MAX_ENTITIES) {
+                            selectedEntity = newEnt;
+                            selectedScene = targetScene->engine.GetScene(targetScene->GetName());
+                        }
+                    }
+                } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                    if (uuid) {
+                        Entity newEnt = targetScene->InstantiateModel(uuid.value());
+                        if (newEnt != MAX_ENTITIES) {
+                            selectedEntity = newEnt;
+                            selectedScene = targetScene->engine.GetScene(targetScene->GetName());
                         }
                     }
                 }
@@ -1128,6 +1184,12 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
             {
                 currentScene->SetEntityActive(entity, !isActive);
             }
+            if (ImGui::MenuItem("Save as Prefab"))
+            {
+                if (engine) {
+                    engine->SaveEntityAsPrefab(entity, "res/prefabs", currentScene);
+                }
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Delete Entity"))
             {
@@ -1158,8 +1220,9 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     // Start drag operation
     if (currentScene->IsEditable() && !isRenaming && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        // Set payload to carry the entity index
-        ImGui::SetDragDropPayload("SCENE_ENTITY", &entity, sizeof(Entity));
+        // Set payload to carry the entity index and source scene
+        engine::ecs::SceneEntityPayload payloadData{entity, currentScene};
+        ImGui::SetDragDropPayload("SCENE_ENTITY", &payloadData, sizeof(engine::ecs::SceneEntityPayload));
         ImGui::BeginGroup();
         ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
         float dragIconSize = (ImGui::GetIO().Fonts->Fonts.Size > 1 ? 24.0f : ImGui::GetFontSize() * 1.5f);
@@ -1169,7 +1232,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         ImGui::SameLine();
         ImGui::BeginGroup();
         ImGui::TextUnformatted(nameStr.c_str());
-        ImGui::TextDisabled("Entity #%u - Drag to reparent", entity);
+        ImGui::TextDisabled("Entity #%u - Drag to reparent or save as prefab", entity);
         ImGui::EndGroup();
         ImGui::EndGroup();
         ImGui::EndDragDropSource();
@@ -1197,17 +1260,24 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
             if (ext == ".scene") {
                 auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
                 if (uuid) engine->LoadScene(uuid.value());
-            } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh") {
+            } else if (ext == ".prefab") {
                 auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
                 if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
                 if (uuid) {
-                    Entity childEntity = currentScene->CreateEntity(p.stem().string(), entity);
-                    MeshComponent meshComp(uuid.value());
-                    currentScene->AddComponent<MeshComponent>(childEntity, meshComp);
-                    auto shaderOpt = engine->assetManagerInterface->getAssetUuid("pbrShader");
-                    if (shaderOpt) {
-                        RendererComponent rendererComp(shaderOpt.value());
-                        currentScene->AddComponent<RendererComponent>(childEntity, rendererComp);
+                    Entity newEnt = currentScene->InstantiatePrefab(uuid.value(), entity);
+                    if (newEnt != MAX_ENTITIES) {
+                        selectedEntity = newEnt;
+                        selectedScene = currentScene->engine.GetScene(currentScene->GetName());
+                    }
+                }
+            } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                if (uuid) {
+                    Entity newEnt = currentScene->InstantiateModel(uuid.value(), entity);
+                    if (newEnt != MAX_ENTITIES) {
+                        selectedEntity = newEnt;
+                        selectedScene = currentScene->engine.GetScene(currentScene->GetName());
                     }
                 }
             }
