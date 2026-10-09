@@ -209,7 +209,7 @@ void Scene::DestroyEntity(Entity entity) {
     if (it != sceneGraph.end()) {
         for (Entity child : it->second.children) {
             sceneGraph[child].parent = MAX_ENTITIES;
-            rootEntities.push_back(child);dcsa
+            rootEntities.push_back(child);
         }
         sceneGraph.erase(it);
     }
