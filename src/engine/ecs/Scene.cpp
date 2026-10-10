@@ -178,13 +178,14 @@ Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
     AddComponent<TransformComponent>(entity, transform);
     AddComponent<NameComponent>(entity, NameComponent{"Entity"});
 
-    if (parentEntity == -1)
+    if (parentEntity < 0 || parentEntity >= MAX_ENTITIES)
     {
         rootEntities.push_back(entity);
+        sceneGraph[entity] = TransformNode{MAX_ENTITIES, {}};
     }else
     {
-        auto parentNode = sceneGraph.find(parentEntity);
-        parentNode->second.children.push_back(entity);
+        sceneGraph[entity] = TransformNode{parentEntity, {}};
+        sceneGraph[parentEntity].children.push_back(entity);
     }
 
     activeEntities.set(entity, true);
@@ -623,9 +624,11 @@ Entity Scene::InstantiatePrefab(const rapidjson::Document& doc, Entity parentEnt
                 if (parentEntity != -1 && parentEntity != MAX_ENTITIES) {
                     SetParent(newEntity, parentEntity);
                 } else {
+                    sceneGraph[newEntity] = TransformNode{MAX_ENTITIES, {}};
                     rootEntities.push_back(newEntity);
                 }
             } else {
+                sceneGraph[newEntity] = TransformNode{MAX_ENTITIES, {}};
                 rootEntities.push_back(newEntity);
             }
         }
@@ -633,6 +636,7 @@ Entity Scene::InstantiatePrefab(const rapidjson::Document& doc, Entity parentEnt
         if (parentEntity != -1 && parentEntity != MAX_ENTITIES) {
             SetParent(createdRootEntity, parentEntity);
         } else {
+            sceneGraph[createdRootEntity] = TransformNode{MAX_ENTITIES, {}};
             rootEntities.push_back(createdRootEntity);
         }
     }

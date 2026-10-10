@@ -697,7 +697,10 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         } else if (std::filesystem::exists("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res")) {
             resourceFolder = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
         }
-        currentPath = resourceFolder;
+
+        fileBrowserInstance = std::make_unique<FileBrowser>(this);
+        fileBrowserInstance->currentPath = resourceFolder;
+        imguiFileBrowser = fileBrowserInstance.get();
 
         // Auto-register all supported engine assets at compile time using reflection
         ForEachType<SupportedAssets>([this]<typename T>() {
@@ -705,11 +708,13 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         });
 
         scanResourceDirectory(resourceFolder);
-        loadFileBrowserConfig();
+        fileBrowserInstance->loadFileBrowserConfig();
     }
 
     AssetManager::~AssetManager() {
-        saveFileBrowserConfig();
+        if (fileBrowserInstance) {
+            fileBrowserInstance->saveFileBrowserConfig();
+        }
         saveAllAssetMetadata();
     }
 
@@ -843,11 +848,14 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     void AssetManager::handleFileDropped(const plt::FileDropEvent* event)
     {
         auto filePath = std::filesystem::path(event->filePath).lexically_normal();
-        std::filesystem::path destPath = currentPath / filePath.filename();
+        std::filesystem::path targetFolder = imguiFileBrowser ? fileBrowserInstance->currentPath : std::filesystem::path(resourceFolder);
+        std::filesystem::path destPath = targetFolder / filePath.filename();
 
         if (filePath != destPath)
         {
-            copyFileOrDirectory(filePath, currentPath, false);
+            if (imguiFileBrowser) {
+                imguiFileBrowser->copyFileOrDirectory(filePath, targetFolder, false);
+            }
         }
         else
         {
@@ -1164,221 +1172,6 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 result.push_back(info.get()->id);
         }
         return result;
-    }
-
-    void AssetManager::setSelectedFile(const std::filesystem::path& path)
-    {
-        selectedFile = path;
-        focusFileInspectorRequested = true;
-    }
-
-    std::filesystem::path AssetManager::getSelectedFile() const
-    {
-        return selectedFile;
-    }
-
-    std::filesystem::path AssetManager::getUniqueCopyPath(const std::filesystem::path& targetPath) const
-    {
-        std::error_code ec;
-        if (!std::filesystem::exists(targetPath, ec)) {
-            return targetPath;
-        }
-
-        std::filesystem::path parentDir = targetPath.parent_path();
-        std::string stem = targetPath.stem().string();
-        std::string ext = targetPath.extension().string();
-
-        int counter = 1;
-        while (true) {
-            std::string newFilename;
-            if (counter == 1) {
-                newFilename = stem + " - Copy" + ext;
-            } else {
-                newFilename = stem + " - Copy (" + std::to_string(counter) + ")" + ext;
-            }
-            std::filesystem::path candidate = parentDir / newFilename;
-            if (!std::filesystem::exists(candidate, ec)) {
-                return candidate;
-            }
-            counter++;
-        }
-    }
-
-    bool AssetManager::copyFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite)
-    {
-        std::error_code ec;
-        if (!std::filesystem::exists(sourcePath, ec)) {
-            spdlog::error("copyFileOrDirectory failed: source '{}' does not exist", sourcePath.string());
-            return false;
-        }
-        if (!std::filesystem::is_directory(destDir, ec)) {
-            spdlog::error("copyFileOrDirectory failed: destination '{}' is not a directory", destDir.string());
-            return false;
-        }
-
-        std::filesystem::path target = destDir / sourcePath.filename();
-        if (std::filesystem::equivalent(sourcePath, target, ec)) {
-            target = getUniqueCopyPath(target);
-        } else if (!overwrite && std::filesystem::exists(target, ec)) {
-            target = getUniqueCopyPath(target);
-        }
-
-        try {
-            if (std::filesystem::is_directory(sourcePath, ec)) {
-                std::filesystem::copy(sourcePath, target, std::filesystem::copy_options::recursive | (overwrite ? std::filesystem::copy_options::overwrite_existing : std::filesystem::copy_options::none));
-            } else {
-                std::filesystem::copy_file(sourcePath, target, overwrite ? std::filesystem::copy_options::overwrite_existing : std::filesystem::copy_options::none);
-                auto ext = target.extension().string();
-                if (StringToAssetOwnership(ext) == AssetOwnership::Import || GetAssetTypeFromExtension(ext) != AssetType::Other) {
-                    registerAsset(target.string());
-                }
-            }
-            selectedFile = target;
-            return true;
-        } catch (const std::exception& e) {
-            spdlog::error("copyFileOrDirectory exception: {}", e.what());
-            return false;
-        }
-    }
-
-    bool AssetManager::moveFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite)
-    {
-        std::error_code ec;
-        if (!std::filesystem::exists(sourcePath, ec)) {
-            spdlog::error("moveFileOrDirectory failed: source '{}' does not exist", sourcePath.string());
-            return false;
-        }
-        if (!std::filesystem::is_directory(destDir, ec)) {
-            spdlog::error("moveFileOrDirectory failed: destination '{}' is not a directory", destDir.string());
-            return false;
-        }
-
-        std::filesystem::path target = destDir / sourcePath.filename();
-        if (std::filesystem::equivalent(sourcePath, target, ec)) {
-            return true;
-        }
-        if (!overwrite && std::filesystem::exists(target, ec)) {
-            target = getUniqueCopyPath(target);
-        }
-
-        try {
-            std::filesystem::path sourceMeta = sourcePath.string() + ".meta";
-            std::filesystem::path targetMeta = target.string() + ".meta";
-
-            std::filesystem::rename(sourcePath, target);
-            if (std::filesystem::exists(sourceMeta, ec)) {
-                std::filesystem::rename(sourceMeta, targetMeta, ec);
-            }
-
-            auto uuidOpt = getAssetUuidByPath(sourcePath);
-            if (uuidOpt.has_value()) {
-                auto it = metadata.find(uuidOpt.value());
-                if (it != metadata.end()) {
-                    it->second->path = target.string();
-                    saveAssetMetadata(uuidOpt.value());
-                }
-            }
-
-            if (selectedFile == sourcePath) {
-                selectedFile = target;
-            }
-            return true;
-        } catch (const std::exception& e) {
-            spdlog::error("moveFileOrDirectory exception: {}", e.what());
-            return false;
-        }
-    }
-
-    bool AssetManager::duplicateFile(const std::filesystem::path& path)
-    {
-        std::error_code ec;
-        if (!std::filesystem::exists(path, ec)) {
-            return false;
-        }
-        return copyFileOrDirectory(path, path.parent_path(), false);
-    }
-
-    bool AssetManager::deleteFile(const std::filesystem::path& path)
-    {
-        std::error_code ec;
-        if (!std::filesystem::exists(path, ec)) {
-            return false;
-        }
-
-        try {
-            auto uuidOpt = getAssetUuidByPath(path);
-            if (uuidOpt.has_value()) {
-                metadata.erase(uuidOpt.value());
-                assets.erase(uuidOpt.value());
-            }
-
-            std::filesystem::path metaPath = path.string() + ".meta";
-            if (std::filesystem::exists(metaPath, ec)) {
-                std::filesystem::remove(metaPath, ec);
-            }
-
-            std::filesystem::remove_all(path, ec);
-
-            if (selectedFile == path) {
-                selectedFile.clear();
-            }
-            return true;
-        } catch (const std::exception& e) {
-            spdlog::error("deleteFile exception: {}", e.what());
-            return false;
-        }
-    }
-
-    void AssetManager::copyFileToClipboard(const std::filesystem::path& path)
-    {
-        clipboardPath = path;
-        clipboardIsCut = false;
-        ImGui::SetClipboardText(path.string().c_str());
-    }
-
-    void AssetManager::cutFileToClipboard(const std::filesystem::path& path)
-    {
-        clipboardPath = path;
-        clipboardIsCut = true;
-        ImGui::SetClipboardText(path.string().c_str());
-    }
-
-    bool AssetManager::pasteFileFromClipboard(const std::filesystem::path& targetDir)
-    {
-        std::filesystem::path source = clipboardPath;
-        std::error_code ec;
-        if (source.empty() || !std::filesystem::exists(source, ec)) {
-            const char* sysClip = ImGui::GetClipboardText();
-            if (sysClip && sysClip[0] != '\0') {
-                std::filesystem::path sysP(sysClip);
-                if (std::filesystem::exists(sysP, ec)) {
-                    source = sysP;
-                }
-            }
-        }
-        if (source.empty() || !std::filesystem::exists(source, ec)) {
-            return false;
-        }
-
-        bool res = false;
-        if (clipboardIsCut) {
-            res = moveFileOrDirectory(source, targetDir, false);
-            clipboardPath.clear();
-            clipboardIsCut = false;
-        } else {
-            res = copyFileOrDirectory(source, targetDir, false);
-        }
-        return res;
-    }
-
-    std::filesystem::path AssetManager::getClipboardPath() const
-    {
-        return clipboardPath;
-    }
-
-    bool AssetManager::isClipboardCut() const
-    {
-        return clipboardIsCut;
     }
 
     void AssetManager::openAssetFile(const std::filesystem::path& path)

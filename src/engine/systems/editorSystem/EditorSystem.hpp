@@ -76,8 +76,28 @@ namespace engine::ecs
         std::string GetEntityName(Entity entity, Scene* targetScene = nullptr) const;
         std::string GetEntityRawName(Entity entity, Scene* targetScene = nullptr) const;
 
-        Entity GetSelectedEntity() const { return selectedEntity; }
-        void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
+        Entity GetSelectedEntity() const { return selectedEntities.empty() ? std::numeric_limits<std::uint32_t>::max() : selectedEntities.back(); }
+        void SetSelectedEntity(Entity entity) {
+            selectedEntities.clear();
+            if (entity != std::numeric_limits<std::uint32_t>::max()) {
+                selectedEntities.push_back(entity);
+            }
+        }
+        const std::vector<Entity>& GetSelectedEntities() const { return selectedEntities; }
+        void SetSelectedEntities(const std::vector<Entity>& entities) { selectedEntities = entities; }
+        void AddSelectedEntity(Entity entity) {
+            if (entity == std::numeric_limits<std::uint32_t>::max()) return;
+            if (std::find(selectedEntities.begin(), selectedEntities.end(), entity) == selectedEntities.end()) {
+                selectedEntities.push_back(entity);
+            }
+        }
+        void RemoveSelectedEntity(Entity entity) {
+            selectedEntities.erase(std::remove(selectedEntities.begin(), selectedEntities.end(), entity), selectedEntities.end());
+        }
+        void ClearSelectedEntities() { selectedEntities.clear(); }
+        bool IsEntitySelected(Entity entity) const {
+            return std::find(selectedEntities.begin(), selectedEntities.end(), entity) != selectedEntities.end();
+        }
 
         Scene* GetTargetScene() const;
         std::shared_ptr<Scene> GetSelectedScene() const { return selectedScene.lock(); }
@@ -139,7 +159,7 @@ namespace engine::ecs
         std::weak_ptr<Scene> selectedScene;
         std::unordered_map<std::string, EditorCameraState> sceneEditorCameras;
         std::unordered_map<Entity, std::string> named_entities;
-        Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();
+        std::vector<Entity> selectedEntities;
         Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
         char renameBuf[256] = "";
         bool renameFocusRequested = false;

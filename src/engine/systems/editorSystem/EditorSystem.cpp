@@ -29,6 +29,36 @@
 
 namespace engine::ecs {
 
+static std::vector<std::filesystem::path> ParseFilePathPayload(const ImGuiPayload* payload) {
+    std::vector<std::filesystem::path> paths;
+    if (!payload || !payload->Data || payload->DataSize == 0) return paths;
+    const char* str = (const char*)payload->Data;
+    std::stringstream ss(str);
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (!line.empty()) {
+            paths.push_back(std::filesystem::path(line));
+        }
+    }
+    return paths;
+}
+
+static std::vector<Entity> ParseSceneEntityPayload(const ImGuiPayload* payload) {
+    std::vector<Entity> ents;
+    if (!payload || !payload->Data || payload->DataSize == 0) return ents;
+    if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
+        const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
+        if (pl->count > 0) {
+            for (uint32_t k = 0; k < pl->count; ++k) ents.push_back(pl->entities[k]);
+        }
+    }
+    if (ents.empty()) {
+        ents.push_back(*(const Entity*)payload->Data);
+    }
+    return ents;
+}
+
 Scene* EditorSystem::GetTargetScene() const
 {
     if (auto scn = selectedScene.lock()) {
@@ -50,24 +80,125 @@ void EditorSystem::ImGuiInspector()
 {
     ImGui::Begin("Inspector");
     Scene* scene = GetTargetScene();
-    if (scene && selectedEntity != std::numeric_limits<std::uint32_t>::max())
+    if (!scene || selectedEntities.empty())
     {
-        if (!scene->IsEntityActive(selectedEntity) && !scene->HasComponent<TransformComponent>(selectedEntity))
+        ImGui::TextDisabled("No entity selected");
+        ImGui::End();
+        return;
+    }
+
+    bool isEditable = scene->IsEditable();
+    if (!isEditable)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "Non-Editable Scene (Read-Only)");
+        ImGui::Separator();
+        ImGui::BeginDisabled(true);
+    }
+
+    if (selectedEntities.size() > 1)
+    {
+        bool allActive = true;
+        for (Entity e : selectedEntities) {
+            if (!scene->IsEntityActive(e)) {
+                allActive = false;
+                break;
+            }
+        }
+        bool activeToggle = allActive;
+        if (ImGui::Checkbox("##AllActiveToggle", &activeToggle))
         {
-            selectedEntity = std::numeric_limits<std::uint32_t>::max();
-            ImGui::End();
-            return;
+            for (Entity e : selectedEntities) {
+                scene->SetEntityActive(e, activeToggle);
+            }
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Toggle Active State for All Selected Entities");
+        ImGui::SameLine();
+        ImGui::Text("%zu Entities Selected", selectedEntities.size());
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Selection Actions", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::Button("Save Selected as Prefabs"))
+            {
+                if (engine) {
+                    for (Entity e : selectedEntities) {
+                        engine->SaveEntityAsPrefab(e, "res/prefabs", scene);
+                    }
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Clear Selection"))
+            {
+                ClearSelectedEntities();
+                if (!isEditable) ImGui::EndDisabled();
+                ImGui::End();
+                return;
+            }
+
+            ImGui::Separator();
+            if (ImGui::Button("Delete All Selected (Del)"))
+            {
+                auto entsToDelete = selectedEntities;
+                for (Entity e : entsToDelete) {
+                    scene->DestroyEntity(e);
+                }
+                ClearSelectedEntities();
+                if (!isEditable) ImGui::EndDisabled();
+                ImGui::End();
+                return;
+            }
         }
 
-        bool isEditable = scene->IsEditable();
+        if (ImGui::CollapsingHeader("Selected Entities List", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            Entity toRemove = std::numeric_limits<std::uint32_t>::max();
+            Entity toSolo = std::numeric_limits<std::uint32_t>::max();
+            for (Entity e : selectedEntities)
+            {
+                ImGui::PushID((int)e);
+                std::string eName = GetEntityName(e, scene);
+                if (ImGui::Selectable(eName.c_str(), false))
+                {
+                    toSolo = e;
+                }
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Click to select only this entity");
+                ImGui::SameLine(ImGui::GetContentRegionAvail().x - 20.0f);
+                if (ImGui::SmallButton("x"))
+                {
+                    toRemove = e;
+                }
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Remove from selection");
+                ImGui::PopID();
+            }
+            if (toSolo != std::numeric_limits<std::uint32_t>::max())
+            {
+                SetSelectedEntity(toSolo);
+            }
+            else if (toRemove != std::numeric_limits<std::uint32_t>::max())
+            {
+                RemoveSelectedEntity(toRemove);
+            }
+        }
+
         if (!isEditable)
         {
-            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "Non-Editable Scene (Read-Only)");
-            ImGui::Separator();
-            ImGui::BeginDisabled(true);
+            ImGui::EndDisabled();
         }
+        ImGui::End();
+        return;
+    }
 
-        // 1. Entity Header: Active toggle, Name, Entity ID
+    Entity selectedEntity = selectedEntities[0];
+    if (!scene->IsEntityActive(selectedEntity) && !scene->HasComponent<TransformComponent>(selectedEntity))
+    {
+        ClearSelectedEntities();
+        if (!isEditable) ImGui::EndDisabled();
+        ImGui::End();
+        return;
+    }
+
+    // 1. Entity Header: Active toggle, Name, Entity ID
         bool active = scene->IsEntityActive(selectedEntity);
         if (ImGui::Checkbox("##EntityActive", &active))
         {
@@ -203,14 +334,9 @@ void EditorSystem::ImGuiInspector()
         {
             ImGui::EndDisabled();
         }
-    }
-    else
-    {
-        ImGui::TextDisabled("No entity selected");
-    }
 
-    ImGui::End();
-}
+        ImGui::End();
+    }
 
 void EditorSystem::ImGuiSystemSettings()
 {
@@ -239,9 +365,10 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
     {
         return;
     }
-    if (selectedEntity != std::numeric_limits<std::uint32_t>::max() && scene->HasComponent<TransformComponent>(selectedEntity))
+    Entity targetEntity = GetSelectedEntity();
+    if (targetEntity != std::numeric_limits<std::uint32_t>::max() && scene->HasComponent<TransformComponent>(targetEntity))
     {
-        auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(selectedEntity);
+        auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(targetEntity);
 
         static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
         static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
@@ -347,7 +474,7 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
             memcpy(&newGlobalMatrix[0][0], modelMatrix, sizeof(float) * 16);
 
             // If we have a parent, we need to convert global to local
-            auto it = scene->sceneGraph.find(selectedEntity);
+            auto it = scene->sceneGraph.find(targetEntity);
             if (it != scene->sceneGraph.end() && it->second.parent != MAX_ENTITIES)
             {
                 auto& parentTransform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(it->second.parent);
@@ -547,11 +674,25 @@ void EditorSystem::Update(float deltaTime)
                     }
 
                     auto hit = collisionSystem->RayCastClosest(ray);
+                    bool isCtrl = io.KeyCtrl || io.KeySuper;
+                    bool isShift = io.KeyShift;
+
                     if (hit.has_value()) {
-                        SetSelectedEntity(hit->entity);
-                        ImGui::SetWindowFocus("Inspector");
+                        if (isCtrl) {
+                            if (IsEntitySelected(hit->entity)) {
+                                RemoveSelectedEntity(hit->entity);
+                            } else {
+                                AddSelectedEntity(hit->entity);
+                            }
+                        } else if (isShift) {
+                            AddSelectedEntity(hit->entity);
+                        } else {
+                            SetSelectedEntity(hit->entity);
+                        }
                     } else {
-                        SetSelectedEntity(std::numeric_limits<std::uint32_t>::max());
+                        if (!isCtrl && !isShift) {
+                            ClearSelectedEntities();
+                        }
                     }
                 }
             }
@@ -608,39 +749,49 @@ void EditorSystem::Update(float deltaTime)
                     isVpDropTarget = true;
                     const ImGuiPayload* curPayload = ImGui::GetDragDropPayload();
                     if (curPayload && curPayload->IsDataType("AM_FILE_PATH") && curPayload->Data) {
-                        std::filesystem::path dp((const char*)curPayload->Data);
-                        draggedAssetName = dp.filename().string();
-                        draggedAssetExt = dp.extension().string();
+                        auto droppedPaths = ParseFilePathPayload(curPayload);
+                        if (droppedPaths.size() > 1) {
+                            draggedAssetName = std::to_string(droppedPaths.size()) + " items";
+                            draggedAssetExt.clear();
+                        } else if (!droppedPaths.empty()) {
+                            draggedAssetName = droppedPaths[0].filename().string();
+                            draggedAssetExt = droppedPaths[0].extension().string();
+                        }
                     }
 
                     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
                     {
-                        std::string filePath((const char*)payload->Data);
-                        std::filesystem::path p(filePath);
-                        auto ext = p.extension().string();
-                        if (ext == ".scene") {
-                            auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                            if (uuid) engine->LoadScene(uuid.value());
-                        } else if (ext == ".prefab") {
-                            auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                            if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                            if (uuid) {
-                                Entity newEnt = currentScene->InstantiatePrefab(uuid.value());
-                                if (newEnt != MAX_ENTITIES) {
-                                    selectedEntity = newEnt;
-                                    selectedScene = currentScene->engine.GetScene(currentScene->GetName());
+                        auto droppedPaths = ParseFilePathPayload(payload);
+                        std::vector<Entity> createdEntities;
+                        for (const auto& p : droppedPaths)
+                        {
+                            auto ext = p.extension().string();
+                            if (ext == ".scene") {
+                                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                                if (uuid) engine->LoadScene(uuid.value());
+                            } else if (ext == ".prefab") {
+                                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                                if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                                if (uuid) {
+                                    Entity newEnt = currentScene->InstantiatePrefab(uuid.value());
+                                    if (newEnt != MAX_ENTITIES) {
+                                        createdEntities.push_back(newEnt);
+                                    }
+                                }
+                            } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                                if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                                if (uuid) {
+                                    Entity newEnt = currentScene->InstantiateModel(uuid.value());
+                                    if (newEnt != MAX_ENTITIES) {
+                                        createdEntities.push_back(newEnt);
+                                    }
                                 }
                             }
-                        } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
-                            auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                            if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                            if (uuid) {
-                                Entity newEnt = currentScene->InstantiateModel(uuid.value());
-                                if (newEnt != MAX_ENTITIES) {
-                                    selectedEntity = newEnt;
-                                    selectedScene = currentScene->engine.GetScene(currentScene->GetName());
-                                }
-                            }
+                        }
+                        if (!createdEntities.empty()) {
+                            SetSelectedEntities(createdEntities);
+                            selectedScene = currentScene->engine.GetScene(currentScene->GetName());
                         }
                     }
                     ImGui::EndDragDropTarget();
@@ -712,9 +863,9 @@ void EditorSystem::Update(float deltaTime)
 
     ImguiToolbar();
 
-    if (engine->assetManagerInterface) {
-        engine->assetManagerInterface->ImguiFileBrowser("Menu");
-        engine->assetManagerInterface->ImguiFileInspector("File Inspector");
+    if (engine->assetManagerInterface && engine->assetManagerInterface->imguiFileBrowser) {
+        engine->assetManagerInterface->imguiFileBrowser->ImguiFileBrowser("Menu");
+        engine->assetManagerInterface->imguiFileBrowser->ImguiFileInspector("File Inspector");
     }
 
     ImGuiSceneGraph();
@@ -891,7 +1042,7 @@ void EditorSystem::ImGuiSceneGraph()
                 {
                     newScene->SetActive(true);
                     selectedScene = newScene;
-                    selectedEntity = std::numeric_limits<std::uint32_t>::max();
+                    ClearSelectedEntities();
                 }
             }
         }
@@ -941,37 +1092,44 @@ void EditorSystem::ImGuiSceneGraph()
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
             {
-                Entity droppedEntity = *(const Entity*)payload->Data;
-                scn->RemoveParent(droppedEntity);
+                auto ents = ParseSceneEntityPayload(payload);
+                for (Entity droppedEntity : ents) {
+                    scn->RemoveParent(droppedEntity);
+                }
             }
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
             {
-                std::string filePath((const char*)payload->Data);
-                std::filesystem::path p(filePath);
-                auto ext = p.extension().string();
-                if (ext == ".scene") {
-                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                    if (uuid) engine->LoadScene(uuid.value());
-                } else if (ext == ".prefab") {
-                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                    if (uuid) {
-                        Entity newEnt = scn->InstantiatePrefab(uuid.value());
-                        if (newEnt != MAX_ENTITIES) {
-                            selectedEntity = newEnt;
-                            selectedScene = scn;
+                auto droppedPaths = ParseFilePathPayload(payload);
+                std::vector<Entity> createdEntities;
+                for (const auto& p : droppedPaths)
+                {
+                    auto ext = p.extension().string();
+                    if (ext == ".scene") {
+                        auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                        if (uuid) engine->LoadScene(uuid.value());
+                    } else if (ext == ".prefab") {
+                        auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                        if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                        if (uuid) {
+                            Entity newEnt = scn->InstantiatePrefab(uuid.value());
+                            if (newEnt != MAX_ENTITIES) {
+                                createdEntities.push_back(newEnt);
+                            }
+                        }
+                    } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                        auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                        if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                        if (uuid) {
+                            Entity newEnt = scn->InstantiateModel(uuid.value());
+                            if (newEnt != MAX_ENTITIES) {
+                                createdEntities.push_back(newEnt);
+                            }
                         }
                     }
-                } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
-                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                    if (uuid) {
-                        Entity newEnt = scn->InstantiateModel(uuid.value());
-                        if (newEnt != MAX_ENTITIES) {
-                            selectedEntity = newEnt;
-                            selectedScene = scn;
-                        }
-                    }
+                }
+                if (!createdEntities.empty()) {
+                    SetSelectedEntities(createdEntities);
+                    selectedScene = scn;
                 }
             }
             ImGui::EndDragDropTarget();
@@ -1018,20 +1176,31 @@ void EditorSystem::ImGuiSceneGraph()
             if (currentSelected->GetName() == sceneToClose)
             {
                 selectedScene.reset();
-                selectedEntity = std::numeric_limits<std::uint32_t>::max();
+                ClearSelectedEntities();
                 renamingEntity = std::numeric_limits<std::uint32_t>::max();
             }
         }
         engine->CloseScene(sceneToClose);
     }
 
-    if (targetScene && targetScene->IsEditable() && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && selectedEntity != std::numeric_limits<std::uint32_t>::max() && renamingEntity == std::numeric_limits<std::uint32_t>::max())
+    if (targetScene && targetScene->IsEditable() && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !selectedEntities.empty() && renamingEntity == std::numeric_limits<std::uint32_t>::max())
     {
-        if (ImGui::IsKeyPressed(ImGuiKey_F2))
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete))
         {
-            renamingEntity = selectedEntity;
-            std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(selectedEntity, targetScene).c_str());
-            renameFocusRequested = true;
+            auto toDel = selectedEntities;
+            for (Entity e : toDel) {
+                targetScene->DestroyEntity(e);
+            }
+            ClearSelectedEntities();
+        }
+        else if (ImGui::IsKeyPressed(ImGuiKey_F2))
+        {
+            Entity primary = GetSelectedEntity();
+            if (primary != std::numeric_limits<std::uint32_t>::max()) {
+                renamingEntity = primary;
+                std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(primary, targetScene).c_str());
+                renameFocusRequested = true;
+            }
         }
     }
 
@@ -1048,37 +1217,44 @@ void EditorSystem::ImGuiSceneGraph()
             isEmptySceneDropTarget = true;
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
             {
-                Entity droppedEntity = *(const Entity*)payload->Data;
-                targetScene->RemoveParent(droppedEntity);
+                auto ents = ParseSceneEntityPayload(payload);
+                for (Entity droppedEntity : ents) {
+                    targetScene->RemoveParent(droppedEntity);
+                }
             }
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
             {
-                std::string filePath((const char*)payload->Data);
-                std::filesystem::path p(filePath);
-                auto ext = p.extension().string();
-                if (ext == ".scene") {
-                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                    if (uuid) engine->LoadScene(uuid.value());
-                } else if (ext == ".prefab") {
-                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                    if (uuid) {
-                        Entity newEnt = targetScene->InstantiatePrefab(uuid.value());
-                        if (newEnt != MAX_ENTITIES) {
-                            selectedEntity = newEnt;
-                            selectedScene = targetScene->engine.GetScene(targetScene->GetName());
+                auto droppedPaths = ParseFilePathPayload(payload);
+                std::vector<Entity> createdEntities;
+                for (const auto& p : droppedPaths)
+                {
+                    auto ext = p.extension().string();
+                    if (ext == ".scene") {
+                        auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                        if (uuid) engine->LoadScene(uuid.value());
+                    } else if (ext == ".prefab") {
+                        auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                        if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                        if (uuid) {
+                            Entity newEnt = targetScene->InstantiatePrefab(uuid.value());
+                            if (newEnt != MAX_ENTITIES) {
+                                createdEntities.push_back(newEnt);
+                            }
+                        }
+                    } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                        auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                        if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                        if (uuid) {
+                            Entity newEnt = targetScene->InstantiateModel(uuid.value());
+                            if (newEnt != MAX_ENTITIES) {
+                                createdEntities.push_back(newEnt);
+                            }
                         }
                     }
-                } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
-                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                    if (uuid) {
-                        Entity newEnt = targetScene->InstantiateModel(uuid.value());
-                        if (newEnt != MAX_ENTITIES) {
-                            selectedEntity = newEnt;
-                            selectedScene = targetScene->engine.GetScene(targetScene->GetName());
-                        }
-                    }
+                }
+                if (!createdEntities.empty()) {
+                    SetSelectedEntities(createdEntities);
+                    selectedScene = targetScene->engine.GetScene(targetScene->GetName());
                 }
             }
             ImGui::EndDragDropTarget();
@@ -1091,8 +1267,21 @@ void EditorSystem::ImGuiSceneGraph()
     }
 
     // Context menu on empty area
-    if (targetScene && targetScene->IsEditable() && ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    if (targetScene && targetScene->IsEditable() && ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight))
     {
+        if (!selectedEntities.empty())
+        {
+            std::string delLabel = selectedEntities.size() > 1 ? ("Delete (" + std::to_string(selectedEntities.size()) + " entities)") : "Delete Entity";
+            if (ImGui::MenuItem(delLabel.c_str(), "Del"))
+            {
+                auto toDel = selectedEntities;
+                for (Entity e : toDel) {
+                    targetScene->DestroyEntity(e);
+                }
+                ClearSelectedEntities();
+            }
+            ImGui::Separator();
+        }
         if (ImGui::MenuItem("Create Entity"))
         {
             targetScene->CreateEntity();
@@ -1114,7 +1303,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 
     Scene* targetScene = GetTargetScene();
-    if (entity == selectedEntity && currentScene == targetScene) {
+    if (IsEntitySelected(entity) && currentScene == targetScene) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
 
@@ -1168,46 +1357,88 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     // Context menu on entity
     if (ImGui::BeginPopupContextItem())
     {
+        if (!IsEntitySelected(entity)) {
+            SetSelectedEntity(entity);
+        }
+
         if (currentScene->IsEditable())
         {
-            if (ImGui::MenuItem("Rename", "F2"))
+            if (selectedEntities.size() > 1 && IsEntitySelected(entity))
             {
-                renamingEntity = entity;
-                std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(entity, currentScene).c_str());
-                renameFocusRequested = true;
-            }
-            if (ImGui::MenuItem("Create Child Entity"))
-            {
-                currentScene->CreateEntity("Child Entity", entity);
-            }
-            if (ImGui::MenuItem(isActive ? "Disable Entity" : "Enable Entity"))
-            {
-                currentScene->SetEntityActive(entity, !isActive);
-            }
-            if (ImGui::MenuItem("Save as Prefab"))
-            {
-                if (engine) {
-                    engine->SaveEntityAsPrefab(entity, "res/prefabs", currentScene);
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Delete Entity"))
-            {
-                currentScene->DestroyEntity(entity);
-                if (selectedEntity == entity)
+                std::string delLabel = "Delete (" + std::to_string(selectedEntities.size()) + " entities)";
+                std::string saveLabel = "Save (" + std::to_string(selectedEntities.size()) + " entities) as Prefabs";
+                if (ImGui::MenuItem(saveLabel.c_str()))
                 {
-                    selectedEntity = std::numeric_limits<std::uint32_t>::max();
+                    if (engine) {
+                        for (Entity e : selectedEntities) {
+                            engine->SaveEntityAsPrefab(e, "res/prefabs", currentScene);
+                        }
+                    }
                 }
-                if (renamingEntity == entity)
+                if (ImGui::MenuItem("Enable All Selected"))
                 {
+                    for (Entity e : selectedEntities) {
+                        currentScene->SetEntityActive(e, true);
+                    }
+                }
+                if (ImGui::MenuItem("Disable All Selected"))
+                {
+                    for (Entity e : selectedEntities) {
+                        currentScene->SetEntityActive(e, false);
+                    }
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem(delLabel.c_str()))
+                {
+                    auto toDel = selectedEntities;
+                    for (Entity e : toDel) {
+                        currentScene->DestroyEntity(e);
+                    }
+                    ClearSelectedEntities();
                     renamingEntity = std::numeric_limits<std::uint32_t>::max();
+                    ImGui::EndPopup();
+                    if (nodeOpen) ImGui::TreePop();
+                    return;
                 }
-                ImGui::EndPopup();
-                if (nodeOpen)
+            }
+            else
+            {
+                if (ImGui::MenuItem("Rename", "F2"))
                 {
-                    ImGui::TreePop();
+                    renamingEntity = entity;
+                    std::snprintf(renameBuf, sizeof(renameBuf), "%s", GetEntityRawName(entity, currentScene).c_str());
+                    renameFocusRequested = true;
                 }
-                return;
+                if (ImGui::MenuItem("Create Child Entity"))
+                {
+                    currentScene->CreateEntity("Child Entity", entity);
+                }
+                if (ImGui::MenuItem(isActive ? "Disable Entity" : "Enable Entity"))
+                {
+                    currentScene->SetEntityActive(entity, !isActive);
+                }
+                if (ImGui::MenuItem("Save as Prefab"))
+                {
+                    if (engine) {
+                        engine->SaveEntityAsPrefab(entity, "res/prefabs", currentScene);
+                    }
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Delete Entity"))
+                {
+                    currentScene->DestroyEntity(entity);
+                    RemoveSelectedEntity(entity);
+                    if (renamingEntity == entity)
+                    {
+                        renamingEntity = std::numeric_limits<std::uint32_t>::max();
+                    }
+                    ImGui::EndPopup();
+                    if (nodeOpen)
+                    {
+                        ImGui::TreePop();
+                    }
+                    return;
+                }
             }
         }
         else
@@ -1220,22 +1451,54 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     // Start drag operation
     if (currentScene->IsEditable() && !isRenaming && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        // Set payload to carry the entity index and source scene
-        engine::ecs::SceneEntityPayload payloadData{entity, currentScene};
+        std::vector<Entity> entsToDrag;
+        if (IsEntitySelected(entity) && selectedEntities.size() > 1) {
+            entsToDrag = selectedEntities;
+        } else {
+            entsToDrag.push_back(entity);
+        }
+
+        engine::ecs::SceneEntityPayload payloadData{};
+        payloadData.entity = entity;
+        payloadData.scene = currentScene;
+        payloadData.count = (uint32_t)std::min(entsToDrag.size(), (size_t)128);
+        for (uint32_t k = 0; k < payloadData.count; ++k) {
+            payloadData.entities[k] = entsToDrag[k];
+        }
+
         ImGui::SetDragDropPayload("SCENE_ENTITY", &payloadData, sizeof(engine::ecs::SceneEntityPayload));
         ImGui::BeginGroup();
         ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
-        float dragIconSize = (ImGui::GetIO().Fonts->Fonts.Size > 1 ? 24.0f : ImGui::GetFontSize() * 1.5f);
         ImGui::PushFont(iconFont);
-        ImGui::TextColored(ImVec4(0.35f, 0.75f, 1.0f, 1.0f), "%s", ICON_FA_CUBE);
+        ImGui::TextColored(ImVec4(0.35f, 0.75f, 1.0f, 1.0f), "%s", payloadData.count > 1 ? ICON_FA_BOXES_STACKED : ICON_FA_CUBE);
         ImGui::PopFont();
         ImGui::SameLine();
         ImGui::BeginGroup();
-        ImGui::TextUnformatted(nameStr.c_str());
-        ImGui::TextDisabled("Entity #%u - Drag to reparent or save as prefab", entity);
+        if (payloadData.count > 1) {
+            ImGui::Text("%u Entities", payloadData.count);
+            ImGui::TextDisabled("Drag to reparent or save as prefabs");
+        } else {
+            ImGui::TextUnformatted(nameStr.c_str());
+            ImGui::TextDisabled("Entity #%u - Drag to reparent or save as prefab", entity);
+        }
         ImGui::EndGroup();
         ImGui::EndGroup();
         ImGui::EndDragDropSource();
+    }
+
+    // Drag highlight if this node is among the entities currently being dragged
+    const ImGuiPayload* curDragPayload = ImGui::GetDragDropPayload();
+    if (curDragPayload && curDragPayload->IsDataType("SCENE_ENTITY") && curDragPayload->Data) {
+        auto draggedEnts = ParseSceneEntityPayload(curDragPayload);
+        for (Entity de : draggedEnts) {
+            if (de == entity) {
+                ImVec2 itemMin = ImGui::GetItemRectMin();
+                ImVec2 itemMax = ImGui::GetItemRectMax();
+                ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(66, 180, 255, 120), 0.0f, 0, 1.0f);
+                ImGui::GetWindowDrawList()->AddRectFilled(itemMin, itemMax, IM_COL32(66, 180, 255, 30));
+                break;
+            }
+        }
     }
 
     // Handle incoming drag
@@ -1245,41 +1508,48 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         isNodeDropTarget = true;
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
         {
-            Entity droppedEntity = *(const Entity*)payload->Data;
-            // Prevent dropping on itself or its children
-            if (droppedEntity != entity)
-            {
-                currentScene->SetParent(droppedEntity, entity);
+            auto ents = ParseSceneEntityPayload(payload);
+            for (Entity droppedEntity : ents) {
+                // Prevent dropping on itself
+                if (droppedEntity != entity)
+                {
+                    currentScene->SetParent(droppedEntity, entity);
+                }
             }
         }
         else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
         {
-            std::string filePath((const char*)payload->Data);
-            std::filesystem::path p(filePath);
-            auto ext = p.extension().string();
-            if (ext == ".scene") {
-                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                if (uuid) engine->LoadScene(uuid.value());
-            } else if (ext == ".prefab") {
-                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                if (uuid) {
-                    Entity newEnt = currentScene->InstantiatePrefab(uuid.value(), entity);
-                    if (newEnt != MAX_ENTITIES) {
-                        selectedEntity = newEnt;
-                        selectedScene = currentScene->engine.GetScene(currentScene->GetName());
+            auto droppedPaths = ParseFilePathPayload(payload);
+            std::vector<Entity> createdEntities;
+            for (const auto& p : droppedPaths)
+            {
+                auto ext = p.extension().string();
+                if (ext == ".scene") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (uuid) engine->LoadScene(uuid.value());
+                } else if (ext == ".prefab") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                    if (uuid) {
+                        Entity newEnt = currentScene->InstantiatePrefab(uuid.value(), entity);
+                        if (newEnt != MAX_ENTITIES) {
+                            createdEntities.push_back(newEnt);
+                        }
+                    }
+                } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
+                    auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
+                    if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
+                    if (uuid) {
+                        Entity newEnt = currentScene->InstantiateModel(uuid.value(), entity);
+                        if (newEnt != MAX_ENTITIES) {
+                            createdEntities.push_back(newEnt);
+                        }
                     }
                 }
-            } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
-                auto uuid = engine->assetManagerInterface->getAssetUuidByPath(p);
-                if (!uuid) uuid = engine->assetManagerInterface->registerAsset(p.string());
-                if (uuid) {
-                    Entity newEnt = currentScene->InstantiateModel(uuid.value(), entity);
-                    if (newEnt != MAX_ENTITIES) {
-                        selectedEntity = newEnt;
-                        selectedScene = currentScene->engine.GetScene(currentScene->GetName());
-                    }
-                }
+            }
+            if (!createdEntities.empty()) {
+                SetSelectedEntities(createdEntities);
+                selectedScene = currentScene->engine.GetScene(currentScene->GetName());
             }
         }
         ImGui::EndDragDropTarget();
@@ -1293,16 +1563,29 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     }
 
     // Handle selection when clicked
-    if (!isRenaming && ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-        selectedScene = currentScene->engine.GetScene(currentScene->GetName());
-        if (selectedEntity == entity)
-        {
-            selectedEntity = std::numeric_limits<std::uint32_t>::max();
-        }
-        else
-        {
-            selectedEntity = entity;
-            ImGui::SetWindowFocus("Inspector");
+    if (!isRenaming) {
+        bool isCtrl = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
+        bool isShift = ImGui::GetIO().KeyShift;
+
+        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+            selectedScene = currentScene->engine.GetScene(currentScene->GetName());
+            if (isCtrl) {
+                if (IsEntitySelected(entity)) {
+                    RemoveSelectedEntity(entity);
+                } else {
+                    AddSelectedEntity(entity);
+                }
+            } else if (isShift) {
+                AddSelectedEntity(entity);
+            } else {
+                if (!IsEntitySelected(entity)) {
+                    SetSelectedEntity(entity);
+                }
+            }
+        } else if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !isCtrl && !isShift && !ImGui::IsMouseDragging(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen()) {
+            if (IsEntitySelected(entity) && selectedEntities.size() > 1) {
+                SetSelectedEntity(entity);
+            }
         }
     }
 

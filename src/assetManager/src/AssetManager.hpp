@@ -20,6 +20,7 @@
 #include <assimp/Importer.hpp>
 
 #include "AssetManagerInterface.h"
+#include "fileBrowser/ImguiFileBrowser.hpp"
 #include "../include/AssetInfo.hpp"
 #include "EngineInterface.hpp"
 
@@ -121,33 +122,6 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids() const override;
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
-        void ImguiFileBrowser(std::string windowName) override;
-        void ImguiFileInspector(std::string windowName = "File Inspector") override;
-        void setSelectedFile(const std::filesystem::path& path) override;
-        std::filesystem::path getSelectedFile() const override;
-
-        void copyFileToClipboard(const std::filesystem::path& path) override;
-        void cutFileToClipboard(const std::filesystem::path& path) override;
-        bool pasteFileFromClipboard(const std::filesystem::path& targetDir) override;
-        bool duplicateFile(const std::filesystem::path& path) override;
-        bool deleteFile(const std::filesystem::path& path) override;
-        bool copyFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) override;
-        bool moveFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) override;
-        std::filesystem::path getUniqueCopyPath(const std::filesystem::path& targetPath) const override;
-        std::filesystem::path getClipboardPath() const override;
-        bool isClipboardCut() const override;
-
-        void saveFileBrowserConfig();
-        void loadFileBrowserConfig();
-        float fileBrowserScale = 1.0f;
-        float fileBrowserLetterScale = 1.0f;
-        std::string fileBrowserConfigLookupName = "fileBrowserConfig";
-        std::filesystem::path currentPath;
-        std::filesystem::path selectedFile;
-        std::filesystem::path clipboardPath;
-        bool clipboardIsCut = false;
-        bool focusFileInspectorRequested = false;
-
         bool openFileWithDefaultApp(const std::filesystem::path& path) override;
         bool openFileInIDE(const std::filesystem::path& path) override;
         void openAssetFile(const std::filesystem::path& path) override;
@@ -195,6 +169,8 @@ namespace am {
         void handleFileAddedToFolder(const plt::FileAddedEvent* event);
         void handleFileDropped(const plt::FileDropEvent* event);
 
+        std::unique_ptr<FileBrowser> fileBrowserInstance;
+
         engine::EngineInterface* engine = nullptr;
         plt::PlatformInterface* platform = nullptr;
         std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
@@ -207,6 +183,8 @@ namespace am {
         std::unordered_map<std::type_index, AssetLoader> loaders;
         std::unordered_map<std::type_index, MetadataSaver> metadataSavers;
         std::unordered_map<std::type_index, MetadataLoader> metadataLoaders;
+
+        friend class FileBrowser;
 
     #ifdef AM_ENABLE_TESTS
         friend struct AssetManagerTestFixture;
