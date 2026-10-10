@@ -789,3 +789,35 @@ BOOST_AUTO_TEST_CASE(EngineInstantiateModelTest) {
 
     engine.RemoveScene("ModelInstantiateTestScene");
 }
+
+BOOST_AUTO_TEST_CASE(SceneCreateEntityParentChildTest) {
+    Engine& engine = Engine::GetInstance();
+    auto testScene = engine.CreateScene("ParentChildTestScene");
+    BOOST_REQUIRE(testScene);
+
+    // Create root entity
+    Entity parent = testScene->CreateEntity("ParentNode");
+    BOOST_REQUIRE(parent != MAX_ENTITIES);
+    BOOST_CHECK(!testScene->HasParent(parent));
+    BOOST_CHECK_EQUAL(testScene->GetParent(parent), MAX_ENTITIES);
+
+    // Create child directly using parent parameter (which previously triggered SIGSEGV)
+    Entity child1 = testScene->CreateEntity("ChildNode1", parent);
+    BOOST_REQUIRE(child1 != MAX_ENTITIES);
+    BOOST_CHECK(testScene->HasParent(child1));
+    BOOST_CHECK_EQUAL(testScene->GetParent(child1), parent);
+
+    TransformComponent childTransform;
+    childTransform.position = glm::vec3(1.0f, 2.0f, 3.0f);
+    Entity child2 = testScene->CreateEntity("ChildNode2", childTransform, parent);
+    BOOST_REQUIRE(child2 != MAX_ENTITIES);
+    BOOST_CHECK(testScene->HasParent(child2));
+    BOOST_CHECK_EQUAL(testScene->GetParent(child2), parent);
+
+    const auto& children = testScene->GetChildren(parent);
+    BOOST_REQUIRE_EQUAL(children.size(), 2);
+    BOOST_CHECK_EQUAL(children[0], child1);
+    BOOST_CHECK_EQUAL(children[1], child2);
+
+    engine.RemoveScene("ParentChildTestScene");
+}

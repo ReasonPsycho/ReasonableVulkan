@@ -466,14 +466,16 @@ namespace engine {
             targetPath = targetPath / (entityRawName + ".prefab");
         }
 
-        targetPath = assetManagerInterface->getUniqueCopyPath(targetPath);
-        std::string prefabLookupName = targetPath.stem().string();
+        if (assetManagerInterface && assetManagerInterface->imguiFileBrowser)
+        {
+            targetPath = assetManagerInterface->imguiFileBrowser->getUniqueCopyPath(targetPath);
+        }
 
         rapidjson::Document doc;
         scene->SerializeObjectToJson(entity, doc);
 
-        auto pOpt = assetManagerInterface->createAsset(am::AssetType::Prefab, targetPath.string(), prefabLookupName);
-        if (!pOpt.has_value())
+        auto pOpt = assetManagerInterface->createAsset(am::AssetType::Prefab, targetPath.string());
+        if (!pOpt.has_value() || pOpt.value().is_nil())
         {
             spdlog::error("SaveEntityAsPrefab failed: Could not create prefab asset at {}", targetPath.string());
             return false;
@@ -495,10 +497,21 @@ namespace engine {
                 }
                 am::saveJsonToFile(info->get()->path, saveDoc);
             }
+            if (assetManagerInterface->imguiFileBrowser)
+            {
+                assetManagerInterface->imguiFileBrowser->setSelectedFile(info->get()->path);
+            }
+            spdlog::info("Saved entity {} ('{}') as prefab to '{}'", entity, entityRawName, info->get()->path);
+        }
+        else
+        {
+            if (assetManagerInterface->imguiFileBrowser)
+            {
+                assetManagerInterface->imguiFileBrowser->setSelectedFile(targetPath);
+            }
+            spdlog::info("Saved entity {} ('{}') as prefab to '{}'", entity, entityRawName, targetPath.string());
         }
 
-        assetManagerInterface->setSelectedFile(targetPath);
-        spdlog::info("Saved entity {} ('{}') as prefab to '{}'", entity, entityRawName, targetPath.string());
         return true;
     }
 

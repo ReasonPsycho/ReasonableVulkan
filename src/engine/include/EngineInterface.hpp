@@ -30,6 +30,8 @@ namespace engine::ecs {
     struct SceneEntityPayload {
         Entity entity{0};
         Scene* scene{nullptr};
+        uint32_t count{1};
+        Entity entities[128]{0};
     };
 }
 

@@ -9,6 +9,7 @@
 #include <boost/uuid/uuid.hpp>
 #include "AssetInfo.hpp"
 #include "PlatformInterface.hpp"
+#include "ImguiFileBrowserInterface.h"
 
 namespace engine {
     class EngineInterface;
@@ -20,6 +21,8 @@ namespace am
     public:
         virtual void Initialize(plt::PlatformInterface* platformInterface) = 0;
         virtual ~AssetManagerInterface() = default;
+
+        ImguiFileBrowserInterface* imguiFileBrowser = nullptr;
 
         virtual void setEngine(engine::EngineInterface* engineInterface) = 0;
         virtual std::optional<boost::uuids::uuid> getAssetUuidByPath(const std::filesystem::path& path) = 0;
@@ -73,22 +76,6 @@ namespace am
 
         virtual std::vector<boost::uuids::uuid> getRegisteredAssetsUuids() const = 0;
         virtual std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const = 0;
-
-        virtual void ImguiFileBrowser(std::string windowName) = 0;
-        virtual void ImguiFileInspector(std::string windowName = "File Inspector") = 0;
-        virtual void setSelectedFile(const std::filesystem::path& path) = 0;
-        virtual std::filesystem::path getSelectedFile() const = 0;
-
-        virtual void copyFileToClipboard(const std::filesystem::path& path) = 0;
-        virtual void cutFileToClipboard(const std::filesystem::path& path) = 0;
-        virtual bool pasteFileFromClipboard(const std::filesystem::path& targetDir) = 0;
-        virtual bool duplicateFile(const std::filesystem::path& path) = 0;
-        virtual bool deleteFile(const std::filesystem::path& path) = 0;
-        virtual bool copyFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) = 0;
-        virtual bool moveFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) = 0;
-        virtual std::filesystem::path getUniqueCopyPath(const std::filesystem::path& targetPath) const = 0;
-        virtual std::filesystem::path getClipboardPath() const = 0;
-        virtual bool isClipboardCut() const = 0;
 
         virtual bool openFileWithDefaultApp(const std::filesystem::path& path) = 0;
         virtual bool openFileInIDE(const std::filesystem::path& path) = 0;
