@@ -21,6 +21,8 @@
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "ecs/Types.h"
+#include "CommandHistory.hpp"
+#include "EditorCommands.hpp"
 
 namespace plt
 {
@@ -145,6 +147,16 @@ namespace engine::ecs
         void SetUpCameraControls();
         void FocusCameraOnBounds(const glm::vec3& center, float distance, Scene* scene = nullptr);
 
+        void Undo() { history.Undo(); }
+        void Redo() { history.Redo(); }
+        bool CanUndo() const { return history.CanUndo(); }
+        bool CanRedo() const { return history.CanRedo(); }
+        editor::CommandHistory& GetHistory() { return history; }
+        const editor::CommandHistory& GetHistory() const { return history; }
+        void ExecuteCommand(std::shared_ptr<editor::ICommand> cmd) { history.Execute(cmd); }
+        void PushCommand(std::shared_ptr<editor::ICommand> cmd) { history.Push(cmd); }
+        void ImGuiHistoryWindow(const std::string& windowName = "History");
+
         struct EditorCameraState {
             CameraComponent camera = CameraComponent();
             TransformComponent cameraTransform = TransformComponent();
@@ -171,6 +183,7 @@ namespace engine::ecs
         ::engine::Engine* engine = nullptr;
 
     private:
+        editor::CommandHistory history;
         std::weak_ptr<Scene> selectedScene;
         std::unordered_map<std::string, EditorCameraState> sceneEditorCameras;
         std::unordered_map<Entity, std::string> named_entities;

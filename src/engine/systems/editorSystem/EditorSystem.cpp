@@ -26,6 +26,7 @@
 #include "assetManager/src/assets/engineAssets/PrefabAsset.h"
 #include "ComponentGizmoRegistry.hpp"
 #include "visualizers/LightGizmoVisualizer.hpp"
+#include "IconsFontAwesome6.h"
 
 namespace engine::ecs {
 
@@ -107,9 +108,12 @@ void EditorSystem::ImGuiInspector()
         bool activeToggle = allActive;
         if (ImGui::Checkbox("##AllActiveToggle", &activeToggle))
         {
+            std::vector<std::pair<Entity, bool>> oldStates;
             for (Entity e : selectedEntities) {
-                scene->SetEntityActive(e, activeToggle);
+                oldStates.push_back({e, scene->IsEntityActive(e)});
             }
+            auto cmd = std::make_shared<editor::SetEntityActiveCommand>(scene, oldStates, activeToggle);
+            history.Execute(cmd);
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Toggle Active State for All Selected Entities");
         ImGui::SameLine();
@@ -140,10 +144,8 @@ void EditorSystem::ImGuiInspector()
             if (ImGui::Button("Delete All Selected (Del)"))
             {
                 auto entsToDelete = selectedEntities;
-                for (Entity e : entsToDelete) {
-                    scene->DestroyEntity(e);
-                }
-                ClearSelectedEntities();
+                auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(scene, entsToDelete, this);
+                history.Execute(cmd);
                 if (!isEditable) ImGui::EndDisabled();
                 ImGui::End();
                 return;
@@ -202,7 +204,8 @@ void EditorSystem::ImGuiInspector()
         bool active = scene->IsEntityActive(selectedEntity);
         if (ImGui::Checkbox("##EntityActive", &active))
         {
-            scene->SetEntityActive(selectedEntity, active);
+            auto cmd = std::make_shared<editor::SetEntityActiveCommand>(scene, std::vector<std::pair<Entity, bool>>{{selectedEntity, !active}}, active);
+            history.Execute(cmd);
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip(active ? "Entity is Active" : "Entity is Inactive");
         ImGui::SameLine();
@@ -212,9 +215,12 @@ void EditorSystem::ImGuiInspector()
         std::snprintf(nameBuf, sizeof(nameBuf), "%s", rawName.c_str());
         float idWidth = 70.0f;
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - idWidth);
-        if (ImGui::InputText("##EntityName", nameBuf, sizeof(nameBuf)))
+        if (ImGui::InputText("##EntityName", nameBuf, sizeof(nameBuf), ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit())
         {
-            SetEntityName(selectedEntity, nameBuf, scene);
+            if (rawName != nameBuf) {
+                auto cmd = std::make_shared<editor::RenameEntityCommand>(this, scene, selectedEntity, rawName, nameBuf);
+                history.Execute(cmd);
+            }
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Entity Name (Editable)");
         ImGui::SameLine();
@@ -282,8 +288,8 @@ void EditorSystem::ImGuiInspector()
 
         if (componentToRemove != typeid(void))
         {
-            auto& array = componentArrays[componentToRemove];
-            array->RemoveComponentUntyped(selectedEntity);
+            auto cmd = std::make_shared<editor::RemoveComponentCommand>(scene, selectedEntity, componentToRemove, registeredComponentTypes[componentToRemove].displayName);
+            history.Execute(cmd);
         }
 
         ImGui::Spacing();
@@ -317,7 +323,8 @@ void EditorSystem::ImGuiInspector()
                     anyAvailable = true;
                     if (ImGui::MenuItem(info.displayName.c_str()))
                     {
-                        scene->AddComponent(selectedEntity, typeIndex);
+                        auto cmd = std::make_shared<editor::AddComponentCommand>(scene, selectedEntity, typeIndex, info.displayName);
+                        history.Execute(cmd);
                     }
                 }
             }
@@ -489,6 +496,22 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
     {
         auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(targetEntity);
 
+        static bool s_GizmoWasUsing = false;
+        static glm::mat4 s_GizmoInitialLocalMatrix{1.0f};
+        static glm::mat4 s_GizmoInitialGlobalMatrix{1.0f};
+        static Entity s_GizmoTargetEntity = MAX_ENTITIES;
+        static Scene* s_GizmoTargetScene = nullptr;
+
+        bool isGizmoUsing = ImGuizmo::IsUsing();
+
+        if (isGizmoUsing && !s_GizmoWasUsing)
+        {
+            s_GizmoTargetEntity = targetEntity;
+            s_GizmoTargetScene = scene;
+            s_GizmoInitialLocalMatrix = transform.localMatrix;
+            s_GizmoInitialGlobalMatrix = transform.globalMatrix;
+        }
+
         glm::vec3 snap(1.0f);
         if (currentGizmoOperation == ImGuizmo::TRANSLATE)
             snap = glm::vec3(0.5f); // Snap every 0.5 units for translation
@@ -527,6 +550,27 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
                 setLocalMatrix(transform, newGlobalMatrix);
             }
         }
+
+        if (!isGizmoUsing && s_GizmoWasUsing)
+        {
+            if (s_GizmoTargetScene == scene && s_GizmoTargetEntity == targetEntity && scene->HasComponent<TransformComponent>(targetEntity))
+            {
+                auto& curTransform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(targetEntity);
+                if (curTransform.localMatrix != s_GizmoInitialLocalMatrix)
+                {
+                    auto cmd = std::make_shared<editor::EntityTransformCommand>(
+                        scene, targetEntity,
+                        s_GizmoInitialLocalMatrix, curTransform.localMatrix,
+                        s_GizmoInitialGlobalMatrix, curTransform.globalMatrix
+                    );
+                    history.Push(cmd);
+                }
+            }
+            s_GizmoTargetEntity = MAX_ENTITIES;
+            s_GizmoTargetScene = nullptr;
+        }
+
+        s_GizmoWasUsing = isGizmoUsing;
     }
 }
 
@@ -555,6 +599,37 @@ void EditorSystem::ImguiToolbar()
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
             ImGui::SetTooltip("RenderDoc is not attached. Launch the application from RenderDoc to enable capturing.");
+        }
+    }
+
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 2.0f);
+    ImGui::SameLine();
+
+    if (!CanUndo()) ImGui::BeginDisabled(true);
+    if (ImGui::Button(ICON_FA_ROTATE_LEFT " Undo")) {
+        Undo();
+    }
+    if (!CanUndo()) ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        if (CanUndo()) {
+            ImGui::SetTooltip("Undo: %s (Ctrl+Z)", history.GetUndoName().c_str());
+        } else {
+            ImGui::SetTooltip("Nothing to undo (Ctrl+Z)");
+        }
+    }
+
+    ImGui::SameLine();
+    if (!CanRedo()) ImGui::BeginDisabled(true);
+    if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Redo")) {
+        Redo();
+    }
+    if (!CanRedo()) ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        if (CanRedo()) {
+            ImGui::SetTooltip("Redo: %s (Ctrl+Shift+Z / Ctrl+Y)", history.GetRedoName().c_str());
+        } else {
+            ImGui::SetTooltip("Nothing to redo (Ctrl+Shift+Z / Ctrl+Y)");
         }
     }
 
@@ -591,6 +666,23 @@ void EditorSystem::Update(float deltaTime)
 
     if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
         rd::RenderDocManager::getInstance().requestCapture();
+    }
+
+    // Keyboard shortcuts for Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z / Ctrl+Y)
+    bool isCtrlOrCmd = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
+    bool isShift = ImGui::GetIO().KeyShift;
+
+    if (!ImGui::GetIO().WantTextInput)
+    {
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_Z))
+        {
+            Undo();
+        }
+        if ((isCtrlOrCmd && isShift && ImGui::IsKeyPressed(ImGuiKey_Z)) ||
+            (isCtrlOrCmd && ImGui::IsKeyPressed(ImGuiKey_Y)))
+        {
+            Redo();
+        }
     }
 
     // Create the docking space with transparent background
@@ -634,6 +726,7 @@ void EditorSystem::Update(float deltaTime)
         ImGui::DockBuilderDockWindow("Inspector", dock_right);
         ImGui::DockBuilderDockWindow("File Inspector", dock_right);
         ImGui::DockBuilderDockWindow("System Settings", dock_right);
+        ImGui::DockBuilderDockWindow("History", dock_right);
         ImGui::DockBuilderDockWindow("Toolbar", dock_top);
         ImGui::DockBuilderDockWindow("Menu", dock_bottom);
         ImGui::DockBuilderDockWindow("Editor", dock_main_id);
@@ -988,6 +1081,8 @@ void EditorSystem::Update(float deltaTime)
                             }
                         }
                         if (!createdEntities.empty()) {
+                            auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(currentScene.get(), createdEntities, draggedAssetName.empty() ? "Asset" : draggedAssetName, this);
+                            history.Push(cmd);
                             SetSelectedEntities(createdEntities);
                             selectedScene = currentScene->engine.GetScene(currentScene->GetName());
                         }
@@ -1069,6 +1164,7 @@ void EditorSystem::Update(float deltaTime)
     ImGuiSceneGraph();
     ImGuiInspector();
     ImGuiSystemSettings();
+    ImGuiHistoryWindow("History");
 
     ImGui::End();
 }
@@ -1315,7 +1411,11 @@ void EditorSystem::ImGuiSceneGraph()
             {
                 auto ents = ParseSceneEntityPayload(payload);
                 for (Entity droppedEntity : ents) {
-                    scn->RemoveParent(droppedEntity);
+                    Entity oldP = scn->GetParent(droppedEntity);
+                    if (oldP != MAX_ENTITIES && oldP != (Entity)-1) {
+                        auto cmd = std::make_shared<editor::ReparentEntityCommand>(scn.get(), droppedEntity, oldP, MAX_ENTITIES);
+                        history.Execute(cmd);
+                    }
                 }
             }
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
@@ -1349,6 +1449,8 @@ void EditorSystem::ImGuiSceneGraph()
                     }
                 }
                 if (!createdEntities.empty()) {
+                    auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(scn.get(), createdEntities, "Dropped Assets", this);
+                    history.Push(cmd);
                     SetSelectedEntities(createdEntities);
                     selectedScene = scn;
                 }
@@ -1364,7 +1466,9 @@ void EditorSystem::ImGuiSceneGraph()
                 if (ImGui::MenuItem("Create Entity"))
                 {
                     selectedScene = scn;
-                    scn->CreateEntity();
+                    Entity newEnt = scn->CreateEntity();
+                    auto cmd = std::make_shared<editor::CreateEntityCommand>(scn.get(), newEnt, MAX_ENTITIES, GetEntityRawName(newEnt, scn.get()));
+                    history.Push(cmd);
                 }
             }
             if (ImGui::MenuItem(isCurrentActive ? "Deactivate Scene" : "Activate Scene"))
@@ -1409,10 +1513,8 @@ void EditorSystem::ImGuiSceneGraph()
         if (ImGui::IsKeyPressed(ImGuiKey_Delete))
         {
             auto toDel = selectedEntities;
-            for (Entity e : toDel) {
-                targetScene->DestroyEntity(e);
-            }
-            ClearSelectedEntities();
+            auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(targetScene, toDel, this);
+            history.Execute(cmd);
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_F2))
         {
@@ -1440,7 +1542,11 @@ void EditorSystem::ImGuiSceneGraph()
             {
                 auto ents = ParseSceneEntityPayload(payload);
                 for (Entity droppedEntity : ents) {
-                    targetScene->RemoveParent(droppedEntity);
+                    Entity oldP = targetScene->GetParent(droppedEntity);
+                    if (oldP != MAX_ENTITIES && oldP != (Entity)-1) {
+                        auto cmd = std::make_shared<editor::ReparentEntityCommand>(targetScene, droppedEntity, oldP, MAX_ENTITIES);
+                        history.Execute(cmd);
+                    }
                 }
             }
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
@@ -1474,6 +1580,8 @@ void EditorSystem::ImGuiSceneGraph()
                     }
                 }
                 if (!createdEntities.empty()) {
+                    auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(targetScene, createdEntities, "Dropped Assets", this);
+                    history.Push(cmd);
                     SetSelectedEntities(createdEntities);
                     selectedScene = targetScene->engine.GetScene(targetScene->GetName());
                 }
@@ -1496,16 +1604,16 @@ void EditorSystem::ImGuiSceneGraph()
             if (ImGui::MenuItem(delLabel.c_str(), "Del"))
             {
                 auto toDel = selectedEntities;
-                for (Entity e : toDel) {
-                    targetScene->DestroyEntity(e);
-                }
-                ClearSelectedEntities();
+                auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(targetScene, toDel, this);
+                history.Execute(cmd);
             }
             ImGui::Separator();
         }
         if (ImGui::MenuItem("Create Entity"))
         {
-            targetScene->CreateEntity();
+            Entity newEnt = targetScene->CreateEntity();
+            auto cmd = std::make_shared<editor::CreateEntityCommand>(targetScene, newEnt, MAX_ENTITIES, GetEntityRawName(newEnt, targetScene));
+            history.Push(cmd);
         }
         ImGui::EndPopup();
     }
@@ -1651,7 +1759,11 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         ImGuiInputTextFlags inputFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
         if (ImGui::InputText("##TreeRename", renameBuf, sizeof(renameBuf), inputFlags))
         {
-            SetEntityName(entity, renameBuf, currentScene);
+            std::string oldName = GetEntityRawName(entity, currentScene);
+            if (oldName != renameBuf) {
+                auto cmd = std::make_shared<editor::RenameEntityCommand>(this, currentScene, entity, oldName, renameBuf);
+                history.Execute(cmd);
+            }
             renamingEntity = std::numeric_limits<std::uint32_t>::max();
         }
         else if (ImGui::IsItemDeactivated())
@@ -1662,7 +1774,11 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
             }
             else
             {
-                SetEntityName(entity, renameBuf, currentScene);
+                std::string oldName = GetEntityRawName(entity, currentScene);
+                if (oldName != renameBuf) {
+                    auto cmd = std::make_shared<editor::RenameEntityCommand>(this, currentScene, entity, oldName, renameBuf);
+                    history.Execute(cmd);
+                }
                 renamingEntity = std::numeric_limits<std::uint32_t>::max();
             }
         }
@@ -1722,24 +1838,28 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                 }
                 if (ImGui::MenuItem("Enable All Selected"))
                 {
+                    std::vector<std::pair<Entity, bool>> oldStates;
                     for (Entity e : selectedEntities) {
-                        currentScene->SetEntityActive(e, true);
+                        oldStates.push_back({e, currentScene->IsEntityActive(e)});
                     }
+                    auto cmd = std::make_shared<editor::SetEntityActiveCommand>(currentScene, oldStates, true);
+                    history.Execute(cmd);
                 }
                 if (ImGui::MenuItem("Disable All Selected"))
                 {
+                    std::vector<std::pair<Entity, bool>> oldStates;
                     for (Entity e : selectedEntities) {
-                        currentScene->SetEntityActive(e, false);
+                        oldStates.push_back({e, currentScene->IsEntityActive(e)});
                     }
+                    auto cmd = std::make_shared<editor::SetEntityActiveCommand>(currentScene, oldStates, false);
+                    history.Execute(cmd);
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem(delLabel.c_str()))
                 {
                     auto toDel = selectedEntities;
-                    for (Entity e : toDel) {
-                        currentScene->DestroyEntity(e);
-                    }
-                    ClearSelectedEntities();
+                    auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(currentScene, toDel, this);
+                    history.Execute(cmd);
                     renamingEntity = std::numeric_limits<std::uint32_t>::max();
                     ImGui::EndPopup();
                     if (nodeOpen) ImGui::TreePop();
@@ -1756,11 +1876,14 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                 }
                 if (ImGui::MenuItem("Create Child Entity"))
                 {
-                    currentScene->CreateEntity("Child Entity", entity);
+                    Entity childEnt = currentScene->CreateEntity("Child Entity", entity);
+                    auto cmd = std::make_shared<editor::CreateEntityCommand>(currentScene, childEnt, entity, "Child Entity");
+                    history.Push(cmd);
                 }
                 if (ImGui::MenuItem(isActive ? "Disable Entity" : "Enable Entity"))
                 {
-                    currentScene->SetEntityActive(entity, !isActive);
+                    auto cmd = std::make_shared<editor::SetEntityActiveCommand>(currentScene, std::vector<std::pair<Entity, bool>>{{entity, isActive}}, !isActive);
+                    history.Execute(cmd);
                 }
                 if (ImGui::MenuItem("Save as Prefab"))
                 {
@@ -1771,8 +1894,8 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                 ImGui::Separator();
                 if (ImGui::MenuItem("Delete Entity"))
                 {
-                    currentScene->DestroyEntity(entity);
-                    RemoveSelectedEntity(entity);
+                    auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(currentScene, std::vector<Entity>{entity}, this);
+                    history.Execute(cmd);
                     if (renamingEntity == entity)
                     {
                         renamingEntity = std::numeric_limits<std::uint32_t>::max();
@@ -1858,7 +1981,11 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                 // Prevent dropping on itself
                 if (droppedEntity != entity)
                 {
-                    currentScene->SetParent(droppedEntity, entity);
+                    Entity oldP = currentScene->GetParent(droppedEntity);
+                    if (oldP != entity) {
+                        auto cmd = std::make_shared<editor::ReparentEntityCommand>(currentScene, droppedEntity, oldP, entity);
+                        history.Execute(cmd);
+                    }
                 }
             }
         }
@@ -1893,6 +2020,8 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                 }
             }
             if (!createdEntities.empty()) {
+                auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(currentScene, createdEntities, "Dropped Assets", this);
+                history.Push(cmd);
                 SetSelectedEntities(createdEntities);
                 selectedScene = currentScene->engine.GetScene(currentScene->GetName());
             }
@@ -1946,6 +2075,98 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         ImGui::Unindent();
         ImGui::TreePop();
     }
+}
+
+void EditorSystem::ImGuiHistoryWindow(const std::string& windowName)
+{
+    if (!ImGui::Begin(windowName.c_str()))
+    {
+        ImGui::End();
+        return;
+    }
+
+    const auto& undoStack = history.GetUndoStack();
+    const auto& redoStack = history.GetRedoStack();
+
+    // Top action bar
+    if (!CanUndo()) ImGui::BeginDisabled(true);
+    if (ImGui::Button(ICON_FA_ROTATE_LEFT " Undo (Ctrl+Z)")) {
+        Undo();
+    }
+    if (!CanUndo()) ImGui::EndDisabled();
+
+    ImGui::SameLine();
+
+    if (!CanRedo()) ImGui::BeginDisabled(true);
+    if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Redo (Ctrl+Shift+Z)")) {
+        Redo();
+    }
+    if (!CanRedo()) ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    if (undoStack.empty() && redoStack.empty()) ImGui::BeginDisabled(true);
+    if (ImGui::Button("Clear")) {
+        history.Clear();
+    }
+    if (undoStack.empty() && redoStack.empty()) ImGui::EndDisabled();
+
+    ImGui::Separator();
+
+    ImGui::TextDisabled("History Steps: %zu undo, %zu redo", undoStack.size(), redoStack.size());
+    ImGui::Separator();
+
+    if (undoStack.empty() && redoStack.empty())
+    {
+        ImGui::TextDisabled("No history available");
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::BeginChild("HistoryList"))
+    {
+        // 1. Initial / Base state item
+        bool isInitialActive = undoStack.empty();
+        if (ImGui::Selectable("  [Initial State]", isInitialActive))
+        {
+            history.JumpToIndex(0);
+        }
+
+        // 2. Undo stack (past actions up to current)
+        for (size_t i = 0; i < undoStack.size(); ++i)
+        {
+            ImGui::PushID(static_cast<int>(i));
+            bool isCurrent = (i == undoStack.size() - 1);
+            std::string label = std::string(isCurrent ? ICON_FA_CHECK " " : "  ") + std::to_string(i + 1) + ". " + undoStack[i]->GetName();
+            if (ImGui::Selectable(label.c_str(), isCurrent))
+            {
+                history.JumpToIndex(i + 1);
+            }
+            ImGui::PopID();
+        }
+
+        // 3. Redo stack (undone actions shown disabled)
+        if (!redoStack.empty())
+        {
+            ImGui::Separator();
+            ImGui::TextDisabled("-- Redo Available --");
+            for (size_t i = 0; i < redoStack.size(); ++i)
+            {
+                size_t redoIdx = redoStack.size() - 1 - i;
+                ImGui::PushID(static_cast<int>(10000 + i));
+                std::string label = "  " + std::to_string(undoStack.size() + i + 1) + ". " + redoStack[redoIdx]->GetName();
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                if (ImGui::Selectable(label.c_str(), false))
+                {
+                    history.JumpToIndex(undoStack.size() + i + 1);
+                }
+                ImGui::PopStyleColor();
+                ImGui::PopID();
+            }
+        }
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
 }
 
 } // namespace engine::ecs
