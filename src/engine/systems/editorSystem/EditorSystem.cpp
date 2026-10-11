@@ -24,6 +24,8 @@
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 #include "RenderDocManager.hpp"
 #include "assetManager/src/assets/engineAssets/PrefabAsset.h"
+#include "ComponentGizmoRegistry.hpp"
+#include "visualizers/LightGizmoVisualizer.hpp"
 
 namespace engine::ecs {
 
@@ -460,8 +462,26 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
             {
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Toggle Grid (G)");
+            ImGui::SameLine();
+
+            // Component Gizmo visualizers toggles (discovered via C++26 reflection over EngineComponents)
+            ComponentGizmoRegistry<>::DrawToolbarToggles();
         }
         ImGui::End();
+    }
+
+    // Draw component gizmos (lights, cameras, etc.) via C++26 reflection
+    {
+        GizmoContext ctx;
+        ctx.drawList = ImGui::GetWindowDrawList();
+        ctx.viewProj = camState.camera.projection * camState.camera.view;
+        ctx.viewportPos = viewportPos;
+        ctx.viewportSize = viewportSize;
+        ctx.mousePos = ImGui::GetIO().MousePos;
+
+        ComponentGizmoRegistry<>::DrawAllGizmos(scene, ctx, [this](Entity e) {
+            return IsEntitySelected(e);
+        });
     }
 
     Entity targetEntity = GetSelectedEntity();
@@ -809,37 +829,64 @@ void EditorSystem::Update(float deltaTime)
                 } else {
                     // Left mouse button released
                     if (dragDist <= 4.0f) {
-                        // Single click raycast selection
-                        auto* collisionSystem = currentScene->GetSystem<CollisionSystem>().get();
-                        if (collisionSystem) {
-                            ImVec2 mousePos = camState.boxSelectStart;
-                            Ray ray = collisionSystem->ScreenToWorldRay(camState.camera, mousePos.x - viewportPos.x,
-                                                                        mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
+                        GizmoContext clickCtx;
+                        clickCtx.viewProj = camState.camera.projection * camState.camera.view;
+                        clickCtx.viewportPos = viewportPos;
+                        clickCtx.viewportSize = viewportPanelSize;
+                        clickCtx.mousePos = camState.boxSelectStart;
 
-                            auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
-                            if (gizmoSystem) {
-                                gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f), 5);
-                            }
+                        auto hitGizmoEntity = ComponentGizmoRegistry<>::HitTestAllGizmos(currentScene.get(), clickCtx, 16.0f);
 
-                            auto hit = collisionSystem->RayCastClosest(ray);
-                            bool isCtrl = io.KeyCtrl || io.KeySuper;
-                            bool isShift = io.KeyShift;
+                        bool isCtrl = io.KeyCtrl || io.KeySuper;
+                        bool isShift = io.KeyShift;
 
-                            if (hit.has_value()) {
-                                if (isCtrl) {
-                                    if (IsEntitySelected(hit->entity)) {
-                                        RemoveSelectedEntity(hit->entity);
-                                    } else {
-                                        AddSelectedEntity(hit->entity);
-                                    }
-                                } else if (isShift) {
-                                    AddSelectedEntity(hit->entity);
+                        if (hitGizmoEntity.has_value() && *hitGizmoEntity != MAX_ENTITIES)
+                        {
+                            Entity hitEntity = *hitGizmoEntity;
+                            if (isCtrl) {
+                                if (IsEntitySelected(hitEntity)) {
+                                    RemoveSelectedEntity(hitEntity);
                                 } else {
-                                    SetSelectedEntity(hit->entity);
+                                    AddSelectedEntity(hitEntity);
                                 }
+                            } else if (isShift) {
+                                AddSelectedEntity(hitEntity);
                             } else {
-                                if (!isCtrl && !isShift) {
-                                    ClearSelectedEntities();
+                                SetSelectedEntity(hitEntity);
+                            }
+                        }
+                        else
+                        {
+                            // Single click raycast selection
+                            auto* collisionSystem = currentScene->GetSystem<CollisionSystem>().get();
+                            if (collisionSystem) {
+                                ImVec2 mousePos = camState.boxSelectStart;
+                                Ray ray = collisionSystem->ScreenToWorldRay(camState.camera, mousePos.x - viewportPos.x,
+                                                                            mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
+
+                                auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
+                                if (gizmoSystem) {
+                                    gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f), 5);
+                                }
+
+                                auto hit = collisionSystem->RayCastClosest(ray);
+
+                                if (hit.has_value()) {
+                                    if (isCtrl) {
+                                        if (IsEntitySelected(hit->entity)) {
+                                            RemoveSelectedEntity(hit->entity);
+                                        } else {
+                                            AddSelectedEntity(hit->entity);
+                                        }
+                                    } else if (isShift) {
+                                        AddSelectedEntity(hit->entity);
+                                    } else {
+                                        SetSelectedEntity(hit->entity);
+                                    }
+                                } else {
+                                    if (!isCtrl && !isShift) {
+                                        ClearSelectedEntities();
+                                    }
                                 }
                             }
                         }
