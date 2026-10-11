@@ -12,7 +12,12 @@
 #include <glm/glm.hpp>
 #include <utility>
 #include <memory>
+#include <cmath>
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
 #include <imgui.h>
+#include <imgui_internal.h>
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "ecs/Types.h"
@@ -112,6 +117,11 @@ namespace engine::ecs
 
         [[=Tooltip{"Toggle in-editor editing mode"}]]
         bool inEditMode = true;
+
+        [[=Tooltip{"Toggle grid visualization"}]]
+        bool showGrid = true;
+        [[=Tooltip{"Grid size"}]]
+        float gridSize = 20.0f;
 
         void Initialize();
 

@@ -59,7 +59,7 @@ target_include_directories(engine
 )
 
 
-add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
+add_definitions(-DGLM_ENABLE_EXPERIMENTAL -DIMGUI_DEFINE_MATH_OPERATORS)
 
 
 # Platform specific linking

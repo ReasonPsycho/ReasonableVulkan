@@ -3,12 +3,10 @@
 //
 
 #include "EditorSystem.hpp"
-#include <imgui.h>
 #include <ImGuizmo.h>
 
 #include "ecs/Scene.h"
 #include "Engine.h"
-#include <imgui_internal.h>
 #include <SDL3/SDL_mouse.h>
 
 #include "Asset.hpp"
@@ -365,81 +363,111 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
     {
         return;
     }
-    Entity targetEntity = GetSelectedEntity();
-    if (targetEntity != std::numeric_limits<std::uint32_t>::max() && scene->HasComponent<TransformComponent>(targetEntity))
+
+    ImGuizmo::SetDrawlist();
+    ImGuizmo::SetRect(viewportPos.x, viewportPos.y, viewportSize.x, viewportSize.y);
+
+    float viewMatrix[16], projMatrix[16];
+    memcpy(viewMatrix, &camState.camera.view[0][0], sizeof(float) * 16);
+    memcpy(projMatrix, &camState.camera.projection[0][0], sizeof(float) * 16);
+
+    // Draw Grid using ImGuizmo
+    if (showGrid)
     {
-        auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(targetEntity);
+        float identityMatrix[16];
+        glm::mat4 idMat(1.0f);
+        memcpy(identityMatrix, &idMat[0][0], sizeof(float) * 16);
+        ImGuizmo::DrawGrid(viewMatrix, projMatrix, identityMatrix, gridSize);
+    }
 
-        static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
-        static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
+    static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
+    static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
+    static bool useSnap = false;
 
-        // Keyboard shortcuts for operation changes
+    // Keyboard shortcuts for operation changes
+    if (!ImGui::GetIO().WantTextInput)
+    {
         if (ImGui::IsKeyPressed(ImGuiKey_T))
             currentGizmoOperation = ImGuizmo::TRANSLATE;
         if (ImGui::IsKeyPressed(ImGuiKey_E))
             currentGizmoOperation = ImGuizmo::ROTATE;
         if (ImGui::IsKeyPressed(ImGuiKey_R))
             currentGizmoOperation = ImGuizmo::SCALE;
-
-        // Snapping
-        static bool useSnap = false;
         if (ImGui::IsKeyPressed(ImGuiKey_S))
             useSnap = !useSnap;
+        if (ImGui::IsKeyPressed(ImGuiKey_G))
+            showGrid = !showGrid;
+    }
 
-        // Tool Overlay Window in Top Right
+    // Tool Overlay Window in Top Right
+    {
+        const float PADDING = 1.0f;
+
+        ImVec2 window_pos = ImVec2(viewportPos.x + viewportSize.x - PADDING, viewportPos.y + PADDING + 37);
+        ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
+        ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+        ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+
+        if (ImGui::Begin("GizmoTools", nullptr, window_flags))
         {
-            const float PADDING = 1.0f;
+            // Translate
+            if (ImGui::RadioButton("T", currentGizmoOperation == ImGuizmo::TRANSLATE))
+                currentGizmoOperation = ImGuizmo::TRANSLATE;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Translate (T)");
+            ImGui::SameLine();
 
-            ImVec2 window_pos = ImVec2(viewportPos.x + viewportSize.x - PADDING, viewportPos.y + PADDING + 37);
-            ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
-            ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
-            ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
-            ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+            // Rotate
+            if (ImGui::RadioButton("R", currentGizmoOperation == ImGuizmo::ROTATE))
+                currentGizmoOperation = ImGuizmo::ROTATE;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rotate (E)");
+            ImGui::SameLine();
 
-            if (ImGui::Begin("GizmoTools", nullptr, window_flags))
+            // Scale
+            if (ImGui::RadioButton("S", currentGizmoOperation == ImGuizmo::SCALE))
+                currentGizmoOperation = ImGuizmo::SCALE;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale (R)");
+            ImGui::SameLine();
+
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 3.0f);
+            ImGui::SameLine();
+
+            // Mode selection (except for Scale)
+            if (currentGizmoOperation != ImGuizmo::SCALE)
             {
-                // Translate
-                if (ImGui::RadioButton("T", currentGizmoOperation == ImGuizmo::TRANSLATE))
-                    currentGizmoOperation = ImGuizmo::TRANSLATE;
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Translate (T)");
+                if (ImGui::RadioButton("L", currentGizmoMode == ImGuizmo::LOCAL))
+                    currentGizmoMode = ImGuizmo::LOCAL;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Local Mode");
                 ImGui::SameLine();
-
-                // Rotate
-                if (ImGui::RadioButton("R", currentGizmoOperation == ImGuizmo::ROTATE))
-                    currentGizmoOperation = ImGuizmo::ROTATE;
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rotate (E)");
+                if (ImGui::RadioButton("W", currentGizmoMode == ImGuizmo::WORLD))
+                    currentGizmoMode = ImGuizmo::WORLD;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("World Mode");
                 ImGui::SameLine();
-
-                // Scale
-                if (ImGui::RadioButton("S", currentGizmoOperation == ImGuizmo::SCALE))
-                    currentGizmoOperation = ImGuizmo::SCALE;
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale (R)");
-                ImGui::SameLine();
-
-                ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 3.0f);
-                ImGui::SameLine();
-
-                // Mode selection (except for Scale)
-                if (currentGizmoOperation != ImGuizmo::SCALE)
-                {
-                    if (ImGui::RadioButton("L", currentGizmoMode == ImGuizmo::LOCAL))
-                        currentGizmoMode = ImGuizmo::LOCAL;
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Local Mode");
-                    ImGui::SameLine();
-                    if (ImGui::RadioButton("W", currentGizmoMode == ImGuizmo::WORLD))
-                        currentGizmoMode = ImGuizmo::WORLD;
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("World Mode");
-                    ImGui::SameLine();
-                }
-
-                // Snap toggle
-                if (ImGui::Checkbox("##Snap", &useSnap))
-                {
-                }
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use Snap (S)");
             }
-            ImGui::End();
+
+            // Snap toggle
+            if (ImGui::Checkbox("##Snap", &useSnap))
+            {
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use Snap (S)");
+            ImGui::SameLine();
+
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 3.0f);
+            ImGui::SameLine();
+
+            // Grid toggle
+            if (ImGui::Checkbox("Grid", &showGrid))
+            {
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Toggle Grid (G)");
         }
+        ImGui::End();
+    }
+
+    Entity targetEntity = GetSelectedEntity();
+    if (targetEntity != std::numeric_limits<std::uint32_t>::max() && scene->HasComponent<TransformComponent>(targetEntity))
+    {
+        auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(targetEntity);
 
         glm::vec3 snap(1.0f);
         if (currentGizmoOperation == ImGuizmo::TRANSLATE)
@@ -449,14 +477,7 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
         else if (currentGizmoOperation == ImGuizmo::SCALE)
             snap = glm::vec3(0.1f); // Snap every 0.1 units for scale
 
-        // Get the viewport bounds for ImGuizmo
-        ImGuizmo::SetRect(viewportPos.x, viewportPos.y, viewportSize.x, viewportSize.y);
-
-        // Convert glm matrices to float arrays for ImGuizmo
-        float viewMatrix[16], projMatrix[16], modelMatrix[16];
-
-        memcpy(viewMatrix, &camState.camera.view[0][0], sizeof(float) * 16);
-        memcpy(projMatrix, &camState.camera.projection[0][0], sizeof(float) * 16);
+        float modelMatrix[16];
         memcpy(modelMatrix, &transform.globalMatrix[0][0], sizeof(float) * 16);
 
         // Manipulate the transform
