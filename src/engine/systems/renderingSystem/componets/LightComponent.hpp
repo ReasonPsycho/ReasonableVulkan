@@ -63,12 +63,14 @@ namespace engine::ecs
         [[=Tooltip{"Enable shadows"}]]
         bool hasShadow{false};
 
+        [[=Tooltip{"Show gizmo in editor"}]]
+        bool showGizmo{true};
+
         [[=Tooltip{"Type-specific light settings"}]]
         std::variant<DirectionalLightData, PointLightData, SpotLightData> data{PointLightData{}};
 
         Type getType() const { return type; }
         void setType(Type t) {
-            type = t;
             switch (t) {
                 case Type::Point:
                     if (!std::holds_alternative<PointLightData>(data)) data = PointLightData{};
@@ -80,11 +82,13 @@ namespace engine::ecs
                     if (!std::holds_alternative<DirectionalLightData>(data)) data = DirectionalLightData{};
                     break;
             }
+            type = t;
         }
 
-        LightComponent() : type(Type::Point), color(1.0f, 1.0f, 1.0f), intensity(1.0f), hasShadow(false), data(PointLightData{}) {}
+        LightComponent() : type(Type::Point), color(1.0f, 1.0f, 1.0f), intensity(1.0f), hasShadow(false), showGizmo(true), data(PointLightData{}) {}
 
-        explicit LightComponent(Type t, glm::vec3 c, float i, bool hS = false) : type(t), color(c), intensity(i), hasShadow(hS) {
+        explicit LightComponent(Type t, glm::vec3 c = glm::vec3(1.0f), float i = 1.0f, bool hS = false, bool sG = true)
+            : type(t), color(c), intensity(i), hasShadow(hS), showGizmo(sG) {
             setType(t);
         }
 
@@ -92,7 +96,9 @@ namespace engine::ecs
             setType(type);
         }
 
-        void CustomDrawImGui(Scene* scene);
+        void PostModify() {
+            setType(type);
+        }
     };
 }
 
