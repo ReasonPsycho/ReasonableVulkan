@@ -99,8 +99,18 @@ namespace am {
 
         bool isBrowserFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         bool isCtrlOrCmd = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
+        bool isShift = ImGui::GetIO().KeyShift;
         if (isBrowserFocused && !ImGui::GetIO().WantTextInput)
         {
+            if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_Z))
+            {
+                undoFileAction();
+            }
+            if ((isCtrlOrCmd && isShift && ImGui::IsKeyPressed(ImGuiKey_Z)) ||
+                (isCtrlOrCmd && ImGui::IsKeyPressed(ImGuiKey_Y)))
+            {
+                redoFileAction();
+            }
             if (isCtrlOrCmd && ImGui::IsKeyPressed(ImGuiKey_A))
             {
                 std::vector<std::filesystem::path> allPaths;
@@ -248,6 +258,16 @@ namespace am {
         }
 
         auto renderFolderBackgroundContextMenu = [this]() {
+            std::string undoLabel = canUndoFileAction() ? ("Undo " + getUndoFileActionName()) : "Undo";
+            std::string redoLabel = canRedoFileAction() ? ("Redo " + getRedoFileActionName()) : "Redo";
+            if (ImGui::MenuItem(undoLabel.c_str(), "Ctrl+Z", false, canUndoFileAction())) {
+                undoFileAction();
+            }
+            if (ImGui::MenuItem(redoLabel.c_str(), "Ctrl+Shift+Z", false, canRedoFileAction())) {
+                redoFileAction();
+            }
+            ImGui::Separator();
+
             if (!selectedFiles.empty() || !selectedFile.empty()) {
                 auto targets = !selectedFiles.empty() ? selectedFiles : std::vector<std::filesystem::path>{selectedFile};
                 std::string copyLabel = targets.size() > 1 ? ("Copy (" + std::to_string(targets.size()) + " items)") : "Copy";
@@ -293,6 +313,11 @@ namespace am {
                 std::error_code ec;
                 std::filesystem::create_directory(newFolderPath, ec);
                 setSelectedFile(newFolderPath);
+                FileActionRecord rec;
+                rec.type = FileActionRecord::Type::CreateFolder;
+                rec.targetPath = newFolderPath;
+                rec.description = "Create Folder '" + newFolderPath.filename().string() + "'";
+                pushFileAction(rec);
             }
             if (ImGui::MenuItem("New Material")) {
                 std::filesystem::path newMatPath = currentPath / "New Material.material";
@@ -300,6 +325,11 @@ namespace am {
                 auto matUuid = assetManager ? assetManager->createAsset(AssetType::Material, newMatPath.string()) : std::nullopt;
                 if (matUuid) {
                     setSelectedFile(newMatPath);
+                    FileActionRecord rec;
+                    rec.type = FileActionRecord::Type::CreateMaterial;
+                    rec.targetPath = newMatPath;
+                    rec.description = "Create Material '" + newMatPath.filename().string() + "'";
+                    pushFileAction(rec);
                 }
             }
             if (ImGui::MenuItem("Open in System File Explorer")) {
@@ -979,9 +1009,8 @@ namespace am {
                     isBoxSelecting = false;
                 }
             }
-
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         // Drop target on whole window
         if (ImGui::BeginDragDropTarget())
@@ -1620,6 +1649,14 @@ namespace am {
                 }
             }
             setSelectedFile(target);
+
+            FileActionRecord rec;
+            rec.type = FileActionRecord::Type::Copy;
+            rec.sourcePath = sourcePath;
+            rec.targetPath = target;
+            rec.description = "Copy '" + sourcePath.filename().string() + "'";
+            pushFileAction(rec);
+
             return true;
         } catch (const std::exception& e) {
             spdlog::error("copyFileOrDirectory exception: {}", e.what());
@@ -1675,6 +1712,14 @@ namespace am {
             if (selectedFile == sourcePath) {
                 selectedFile = target;
             }
+
+            FileActionRecord rec;
+            rec.type = FileActionRecord::Type::Move;
+            rec.sourcePath = sourcePath;
+            rec.targetPath = target;
+            rec.description = "Move '" + sourcePath.filename().string() + "'";
+            pushFileAction(rec);
+
             return true;
         } catch (const std::exception& e) {
             spdlog::error("moveFileOrDirectory exception: {}", e.what());
@@ -1718,6 +1763,20 @@ namespace am {
         }
 
         try {
+            std::filesystem::path trashDir = std::filesystem::path(assetManager ? assetManager->resourceFolder : ".") / ".cache" / "trash";
+            std::filesystem::create_directories(trashDir, ec);
+
+            auto timestamp = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            std::filesystem::path trashBackup = trashDir / (timestamp + "_" + path.filename().string());
+
+            std::filesystem::path metaPath = path.string() + ".meta";
+            std::filesystem::path trashMeta = trashBackup.string() + ".meta";
+
+            if (std::filesystem::exists(metaPath, ec)) {
+                std::filesystem::rename(metaPath, trashMeta, ec);
+            }
+            std::filesystem::rename(path, trashBackup, ec);
+
             if (assetManager) {
                 auto uuidOpt = assetManager->getAssetUuidByPath(path);
                 if (uuidOpt.has_value()) {
@@ -1726,14 +1785,15 @@ namespace am {
                 }
             }
 
-            std::filesystem::path metaPath = path.string() + ".meta";
-            if (std::filesystem::exists(metaPath, ec)) {
-                std::filesystem::remove(metaPath, ec);
-            }
-
-            std::filesystem::remove_all(path, ec);
-
             removeSelectedFile(path);
+
+            FileActionRecord rec;
+            rec.type = FileActionRecord::Type::Delete;
+            rec.sourcePath = path;
+            rec.trashBackupPath = trashBackup;
+            rec.description = "Delete '" + path.filename().string() + "'";
+            pushFileAction(rec);
+
             return true;
         } catch (const std::exception& e) {
             spdlog::error("deleteFile exception: {}", e.what());
@@ -1863,6 +1923,225 @@ namespace am {
     bool FileBrowser::isClipboardCut() const
     {
         return clipboardIsCut;
+    }
+
+    void FileBrowser::pushFileAction(const FileActionRecord& record)
+    {
+        fileUndoStack.push_back(record);
+        fileRedoStack.clear();
+        if (fileUndoStack.size() > 128) {
+            fileUndoStack.erase(fileUndoStack.begin());
+        }
+    }
+
+    bool FileBrowser::canUndoFileAction() const
+    {
+        return !fileUndoStack.empty();
+    }
+
+    bool FileBrowser::canRedoFileAction() const
+    {
+        return !fileRedoStack.empty();
+    }
+
+    std::string FileBrowser::getUndoFileActionName() const
+    {
+        if (fileUndoStack.empty()) return "";
+        return fileUndoStack.back().description;
+    }
+
+    std::string FileBrowser::getRedoFileActionName() const
+    {
+        if (fileRedoStack.empty()) return "";
+        return fileRedoStack.back().description;
+    }
+
+    void FileBrowser::clearFileActionHistory()
+    {
+        fileUndoStack.clear();
+        fileRedoStack.clear();
+    }
+
+    void FileBrowser::undoFileAction()
+    {
+        if (fileUndoStack.empty()) return;
+
+        auto rec = fileUndoStack.back();
+        fileUndoStack.pop_back();
+
+        std::error_code ec;
+        switch (rec.type)
+        {
+            case FileActionRecord::Type::Move:
+            {
+                if (std::filesystem::exists(rec.targetPath, ec)) {
+                    std::filesystem::path sourceMeta = rec.sourcePath.string() + ".meta";
+                    std::filesystem::path targetMeta = rec.targetPath.string() + ".meta";
+
+                    std::filesystem::create_directories(rec.sourcePath.parent_path(), ec);
+                    std::filesystem::rename(rec.targetPath, rec.sourcePath, ec);
+                    if (std::filesystem::exists(targetMeta, ec)) {
+                        std::filesystem::rename(targetMeta, sourceMeta, ec);
+                    }
+
+                    if (assetManager) {
+                        auto uuidOpt = assetManager->getAssetUuidByPath(rec.targetPath);
+                        if (uuidOpt.has_value()) {
+                            auto it = assetManager->metadata.find(uuidOpt.value());
+                            if (it != assetManager->metadata.end()) {
+                                it->second->path = rec.sourcePath.string();
+                                assetManager->saveAssetMetadata(uuidOpt.value());
+                            }
+                        }
+                    }
+                    setSelectedFile(rec.sourcePath);
+                }
+                break;
+            }
+            case FileActionRecord::Type::Copy:
+            case FileActionRecord::Type::CreateFolder:
+            case FileActionRecord::Type::CreateMaterial:
+            {
+                if (std::filesystem::exists(rec.targetPath, ec)) {
+                    if (assetManager) {
+                        auto uuidOpt = assetManager->getAssetUuidByPath(rec.targetPath);
+                        if (uuidOpt.has_value()) {
+                            assetManager->metadata.erase(uuidOpt.value());
+                            assetManager->assets.erase(uuidOpt.value());
+                        }
+                    }
+                    std::filesystem::path metaPath = rec.targetPath.string() + ".meta";
+                    if (std::filesystem::exists(metaPath, ec)) {
+                        std::filesystem::remove(metaPath, ec);
+                    }
+                    std::filesystem::remove_all(rec.targetPath, ec);
+                    removeSelectedFile(rec.targetPath);
+                }
+                break;
+            }
+            case FileActionRecord::Type::Delete:
+            {
+                if (!rec.trashBackupPath.empty() && std::filesystem::exists(rec.trashBackupPath, ec)) {
+                    std::filesystem::path trashMeta = rec.trashBackupPath.string() + ".meta";
+                    std::filesystem::path sourceMeta = rec.sourcePath.string() + ".meta";
+
+                    std::filesystem::create_directories(rec.sourcePath.parent_path(), ec);
+                    std::filesystem::rename(rec.trashBackupPath, rec.sourcePath, ec);
+                    if (std::filesystem::exists(trashMeta, ec)) {
+                        std::filesystem::rename(trashMeta, sourceMeta, ec);
+                    }
+
+                    if (assetManager) {
+                        auto ext = rec.sourcePath.extension().string();
+                        if (StringToAssetOwnership(ext) == AssetOwnership::Import || GetAssetTypeFromExtension(ext) != AssetType::Other) {
+                            assetManager->registerAsset(rec.sourcePath.string());
+                        }
+                    }
+                    setSelectedFile(rec.sourcePath);
+                }
+                break;
+            }
+        }
+
+        fileRedoStack.push_back(rec);
+    }
+
+    void FileBrowser::redoFileAction()
+    {
+        if (fileRedoStack.empty()) return;
+
+        auto rec = fileRedoStack.back();
+        fileRedoStack.pop_back();
+
+        std::error_code ec;
+        switch (rec.type)
+        {
+            case FileActionRecord::Type::Move:
+            {
+                if (std::filesystem::exists(rec.sourcePath, ec)) {
+                    std::filesystem::path sourceMeta = rec.sourcePath.string() + ".meta";
+                    std::filesystem::path targetMeta = rec.targetPath.string() + ".meta";
+
+                    std::filesystem::create_directories(rec.targetPath.parent_path(), ec);
+                    std::filesystem::rename(rec.sourcePath, rec.targetPath, ec);
+                    if (std::filesystem::exists(sourceMeta, ec)) {
+                        std::filesystem::rename(sourceMeta, targetMeta, ec);
+                    }
+
+                    if (assetManager) {
+                        auto uuidOpt = assetManager->getAssetUuidByPath(rec.sourcePath);
+                        if (uuidOpt.has_value()) {
+                            auto it = assetManager->metadata.find(uuidOpt.value());
+                            if (it != assetManager->metadata.end()) {
+                                it->second->path = rec.targetPath.string();
+                                assetManager->saveAssetMetadata(uuidOpt.value());
+                            }
+                        }
+                    }
+                    setSelectedFile(rec.targetPath);
+                }
+                break;
+            }
+            case FileActionRecord::Type::Copy:
+            {
+                if (std::filesystem::exists(rec.sourcePath, ec)) {
+                    if (std::filesystem::is_directory(rec.sourcePath, ec)) {
+                        std::filesystem::copy(rec.sourcePath, rec.targetPath, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing, ec);
+                    } else {
+                        std::filesystem::copy_file(rec.sourcePath, rec.targetPath, std::filesystem::copy_options::overwrite_existing, ec);
+                        auto ext = rec.targetPath.extension().string();
+                        if (StringToAssetOwnership(ext) == AssetOwnership::Import || GetAssetTypeFromExtension(ext) != AssetType::Other) {
+                            if (assetManager) assetManager->registerAsset(rec.targetPath.string());
+                        }
+                    }
+                    setSelectedFile(rec.targetPath);
+                }
+                break;
+            }
+            case FileActionRecord::Type::CreateFolder:
+            {
+                std::filesystem::create_directory(rec.targetPath, ec);
+                setSelectedFile(rec.targetPath);
+                break;
+            }
+            case FileActionRecord::Type::CreateMaterial:
+            {
+                if (assetManager) {
+                    assetManager->createAsset(AssetType::Material, rec.targetPath.string());
+                }
+                setSelectedFile(rec.targetPath);
+                break;
+            }
+            case FileActionRecord::Type::Delete:
+            {
+                if (std::filesystem::exists(rec.sourcePath, ec)) {
+                    std::filesystem::path trashMeta = rec.trashBackupPath.string() + ".meta";
+                    std::filesystem::path sourceMeta = rec.sourcePath.string() + ".meta";
+
+                    if (!rec.trashBackupPath.empty()) {
+                        std::filesystem::create_directories(rec.trashBackupPath.parent_path(), ec);
+                        std::filesystem::rename(rec.sourcePath, rec.trashBackupPath, ec);
+                        if (std::filesystem::exists(sourceMeta, ec)) {
+                            std::filesystem::rename(sourceMeta, trashMeta, ec);
+                        }
+                    } else {
+                        std::filesystem::remove_all(rec.sourcePath, ec);
+                    }
+
+                    if (assetManager) {
+                        auto uuidOpt = assetManager->getAssetUuidByPath(rec.sourcePath);
+                        if (uuidOpt.has_value()) {
+                            assetManager->metadata.erase(uuidOpt.value());
+                            assetManager->assets.erase(uuidOpt.value());
+                        }
+                    }
+                    removeSelectedFile(rec.sourcePath);
+                }
+                break;
+            }
+        }
+
+        fileUndoStack.push_back(rec);
     }
 
 } // namespace am

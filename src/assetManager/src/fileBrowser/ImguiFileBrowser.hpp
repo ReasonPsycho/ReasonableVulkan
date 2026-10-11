@@ -61,6 +61,33 @@ namespace am {
         std::vector<std::filesystem::path> clipboardPaths;
         bool clipboardIsCut = false;
 
+        struct FileActionRecord {
+            enum class Type {
+                Move,
+                Copy,
+                CreateFolder,
+                CreateMaterial,
+                Delete
+            };
+            Type type = Type::Move;
+            std::filesystem::path sourcePath;
+            std::filesystem::path targetPath;
+            std::filesystem::path trashBackupPath;
+            std::string description;
+        };
+
+        void undoFileAction();
+        void redoFileAction();
+        bool canUndoFileAction() const;
+        bool canRedoFileAction() const;
+        std::string getUndoFileActionName() const;
+        std::string getRedoFileActionName() const;
+        void clearFileActionHistory();
+        void pushFileAction(const FileActionRecord& record);
+
+        std::vector<FileActionRecord> fileUndoStack;
+        std::vector<FileActionRecord> fileRedoStack;
+
         bool isBoxSelecting = false;
         ImVec2 boxSelectStartPos = {0.0f, 0.0f};
         std::vector<std::filesystem::path> boxSelectPreSelection;
