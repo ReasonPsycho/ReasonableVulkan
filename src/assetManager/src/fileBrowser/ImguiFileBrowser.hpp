@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <imgui.h>
 
 namespace am {
 
@@ -59,6 +60,10 @@ namespace am {
         std::filesystem::path clipboardPath;
         std::vector<std::filesystem::path> clipboardPaths;
         bool clipboardIsCut = false;
+
+        bool isBoxSelecting = false;
+        ImVec2 boxSelectStartPos = {0.0f, 0.0f};
+        std::vector<std::filesystem::path> boxSelectPreSelection;
 
     private:
         AssetManager* assetManager = nullptr;

@@ -320,6 +320,22 @@ namespace am {
 
             float windowVisibleX2 = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
 
+            ImVec2 childWindowPos = ImGui::GetWindowPos();
+            ImVec2 childScroll = ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            ImGuiIO& io = ImGui::GetIO();
+            bool isChildHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+            bool isCtrlOrCmdClick = io.KeyCtrl || io.KeySuper;
+            bool isShiftClick = io.KeyShift;
+
+            struct TileRect {
+                std::filesystem::path path;
+                ImVec2 contentMin;
+                ImVec2 contentMax;
+            };
+            std::vector<TileRect> tileRects;
+            bool anyTileClickedOrActive = false;
+
             std::vector<std::filesystem::directory_entry> entries;
             try {
                 for (const auto& entry : std::filesystem::directory_iterator(currentPath))
@@ -367,6 +383,9 @@ namespace am {
                 bool isSelected = isFileSelected(path);
 
                 ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+                ImVec2 tileContentMin = ImVec2(cursorPos.x - childWindowPos.x + childScroll.x, cursorPos.y - childWindowPos.y + childScroll.y);
+                ImVec2 tileContentMax = ImVec2(tileContentMin.x + iconSize, tileContentMin.y + totalTileHeight);
+                tileRects.push_back({path, tileContentMin, tileContentMax});
 
                 // Drag detection
                 bool isBeingDragged = false;
@@ -386,6 +405,13 @@ namespace am {
                 ImGui::InvisibleButton("##tile", tileSize);
                 bool isHovered = ImGui::IsItemHovered();
                 bool isActive = ImGui::IsItemActive();
+
+                if (isHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+                    anyTileClickedOrActive = true;
+                }
+                if (isActive) {
+                    anyTileClickedOrActive = true;
+                }
 
                 // Drag Source on tile
                 if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
@@ -492,7 +518,7 @@ namespace am {
                 }
 
                 // Click interactions
-                if (isHovered) {
+                if (isHovered && !isBoxSelecting) {
                     bool isCtrl = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
                     bool isShift = ImGui::GetIO().KeyShift;
 
@@ -856,6 +882,101 @@ namespace am {
                 {
                     renderFolderBackgroundContextMenu();
                     ImGui::EndPopup();
+                }
+            }
+
+            // Box selection (Windows Explorer style)
+            if (isChildHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !anyTileClickedOrActive && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
+            {
+                isBoxSelecting = true;
+                boxSelectStartPos = ImVec2(io.MousePos.x - childWindowPos.x + childScroll.x, io.MousePos.y - childWindowPos.y + childScroll.y);
+                boxSelectPreSelection = selectedFiles;
+            }
+
+            if (isBoxSelecting)
+            {
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                {
+                    ImVec2 curContentPos = ImVec2(io.MousePos.x - childWindowPos.x + childScroll.x, io.MousePos.y - childWindowPos.y + childScroll.y);
+                    float dragDist = std::hypot(curContentPos.x - boxSelectStartPos.x, curContentPos.y - boxSelectStartPos.y);
+
+                    if (dragDist > 3.0f)
+                    {
+                        ImVec2 boxMinContent = ImVec2(std::min(boxSelectStartPos.x, curContentPos.x), std::min(boxSelectStartPos.y, curContentPos.y));
+                        ImVec2 boxMaxContent = ImVec2(std::max(boxSelectStartPos.x, curContentPos.x), std::max(boxSelectStartPos.y, curContentPos.y));
+
+                        ImVec2 boxMinScreen = ImVec2(boxMinContent.x + childWindowPos.x - childScroll.x, boxMinContent.y + childWindowPos.y - childScroll.y);
+                        ImVec2 boxMaxScreen = ImVec2(boxMaxContent.x + childWindowPos.x - childScroll.x, boxMaxContent.y + childWindowPos.y - childScroll.y);
+
+                        drawList->AddRectFilled(boxMinScreen, boxMaxScreen, IM_COL32(66, 150, 250, 45));
+                        drawList->AddRect(boxMinScreen, boxMaxScreen, IM_COL32(66, 150, 250, 220), 0.0f, 0, 1.5f);
+
+                        std::vector<std::filesystem::path> inBoxPaths;
+                        for (const auto& tr : tileRects)
+                        {
+                            bool overlaps = (boxMinContent.x <= tr.contentMax.x && boxMaxContent.x >= tr.contentMin.x &&
+                                             boxMinContent.y <= tr.contentMax.y && boxMaxContent.y >= tr.contentMin.y);
+                            if (overlaps)
+                            {
+                                inBoxPaths.push_back(tr.path);
+                            }
+                        }
+
+                        if (isCtrlOrCmdClick)
+                        {
+                            std::vector<std::filesystem::path> combined = boxSelectPreSelection;
+                            for (const auto& p : inBoxPaths)
+                            {
+                                auto it = std::find_if(combined.begin(), combined.end(), [&p](const std::filesystem::path& item) {
+                                    std::error_code ec;
+                                    return item == p || std::filesystem::equivalent(item, p, ec);
+                                });
+                                if (it != combined.end())
+                                {
+                                    combined.erase(it);
+                                }
+                                else
+                                {
+                                    combined.push_back(p);
+                                }
+                            }
+                            selectedFiles = combined;
+                        }
+                        else if (isShiftClick)
+                        {
+                            std::vector<std::filesystem::path> combined = boxSelectPreSelection;
+                            for (const auto& p : inBoxPaths)
+                            {
+                                auto it = std::find_if(combined.begin(), combined.end(), [&p](const std::filesystem::path& item) {
+                                    std::error_code ec;
+                                    return item == p || std::filesystem::equivalent(item, p, ec);
+                                });
+                                if (it == combined.end())
+                                {
+                                    combined.push_back(p);
+                                }
+                            }
+                            selectedFiles = combined;
+                        }
+                        else
+                        {
+                            selectedFiles = inBoxPaths;
+                        }
+                        selectedFile = selectedFiles.empty() ? std::filesystem::path() : selectedFiles.back();
+                    }
+                }
+                else
+                {
+                    ImVec2 curContentPos = ImVec2(io.MousePos.x - childWindowPos.x + childScroll.x, io.MousePos.y - childWindowPos.y + childScroll.y);
+                    float dragDist = std::hypot(curContentPos.x - boxSelectStartPos.x, curContentPos.y - boxSelectStartPos.y);
+                    if (dragDist <= 3.0f)
+                    {
+                        if (!isCtrlOrCmdClick && !isShiftClick)
+                        {
+                            clearSelectedFiles();
+                        }
+                    }
+                    isBoxSelecting = false;
                 }
             }
 
