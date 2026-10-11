@@ -8,9 +8,11 @@
 #include <limits>
 #include <typeindex>
 #include <unordered_map>
+#include <vector>
 #include <glm/glm.hpp>
 #include <utility>
 #include <memory>
+#include <imgui.h>
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "ecs/Types.h"
@@ -142,6 +144,9 @@ namespace engine::ecs
             glm::vec3 cameraTarget = glm::vec3(0.0f);
             bool isRightMousePressed = false;
             bool isMiddleMousePressed = false;
+            bool isBoxSelecting = false;
+            ImVec2 boxSelectStart = { 0, 0 };
+            std::vector<Entity> preBoxSelectedEntities;
             ImVec2 lastViewportSize = { 0, 0 };
             ImVec2 lastViewportPos = { 0, 0 };
 
@@ -164,6 +169,19 @@ namespace engine::ecs
         char renameBuf[256] = "";
         bool renameFocusRequested = false;
         std::unordered_map<std::type_index,ComponentInfo> registeredComponentTypes;
+
+        struct SceneGraphNodeRect {
+            Entity entity;
+            Scene* scene = nullptr;
+            ImVec2 contentMin;
+            ImVec2 contentMax;
+        };
+        std::vector<SceneGraphNodeRect> sceneGraphNodeRects;
+        bool isSceneGraphBoxSelecting = false;
+        ImVec2 sceneGraphBoxSelectStartPos = { 0, 0 };
+        std::vector<Entity> sceneGraphBoxSelectPreSelection;
+        bool anySceneGraphNodeClickedOrActive = false;
+
         void ImGuiSceneGraph();
         void ImGuiGraphEntity(Scene* currentScene, Entity entity);
         void ImGuiInspector();

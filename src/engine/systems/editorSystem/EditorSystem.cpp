@@ -659,41 +659,171 @@ void EditorSystem::Update(float deltaTime)
                 camState.UpdateCameraPosition();
             }
 
-            // Selection (Left Click)
-            if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
+            // Selection (Left Click & Box Drag Select)
+            if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing()) {
                 selectedScene = currentScene;
-                auto* collisionSystem = currentScene->GetSystem<CollisionSystem>().get();
-                if (collisionSystem) {
-                    ImVec2 mousePos = ImGui::GetMousePos();
-                    Ray ray = collisionSystem->ScreenToWorldRay(camState.camera, mousePos.x - viewportPos.x,
-                                                                mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
+                camState.isBoxSelecting = true;
+                camState.boxSelectStart = io.MousePos;
+                camState.preBoxSelectedEntities = selectedEntities;
+            }
 
-                    auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
-                    if (gizmoSystem) {
-                        gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f), 5);
-                    }
+            if (camState.isBoxSelecting) {
+                float dragDist = std::hypot(io.MousePos.x - camState.boxSelectStart.x, io.MousePos.y - camState.boxSelectStart.y);
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                    if (dragDist > 4.0f) {
+                        ImVec2 bMin = ImVec2(std::min(camState.boxSelectStart.x, io.MousePos.x), std::min(camState.boxSelectStart.y, io.MousePos.y));
+                        ImVec2 bMax = ImVec2(std::max(camState.boxSelectStart.x, io.MousePos.x), std::max(camState.boxSelectStart.y, io.MousePos.y));
 
-                    auto hit = collisionSystem->RayCastClosest(ray);
-                    bool isCtrl = io.KeyCtrl || io.KeySuper;
-                    bool isShift = io.KeyShift;
+                        // Clamp drawing to viewport rect
+                        ImVec2 clipMin = viewportPos;
+                        ImVec2 clipMax = ImVec2(viewportPos.x + viewportPanelSize.x, viewportPos.y + viewportPanelSize.y);
+                        ImVec2 drawBoxMin = ImVec2(std::max(bMin.x, clipMin.x), std::max(bMin.y, clipMin.y));
+                        ImVec2 drawBoxMax = ImVec2(std::min(bMax.x, clipMax.x), std::min(bMax.y, clipMax.y));
 
-                    if (hit.has_value()) {
-                        if (isCtrl) {
-                            if (IsEntitySelected(hit->entity)) {
-                                RemoveSelectedEntity(hit->entity);
-                            } else {
-                                AddSelectedEntity(hit->entity);
+                        if (drawBoxMax.x > drawBoxMin.x && drawBoxMax.y > drawBoxMin.y) {
+                            ImDrawList* drawList = ImGui::GetWindowDrawList();
+                            drawList->AddRectFilled(drawBoxMin, drawBoxMax, IM_COL32(66, 150, 250, 45));
+                            drawList->AddRect(drawBoxMin, drawBoxMax, IM_COL32(66, 150, 250, 220), 0.0f, 0, 1.5f);
+                        }
+
+                        // Determine which entities are inside the marquee box
+                        std::vector<Entity> inBoxEntities;
+                        auto transformArray = currentScene->GetIntegralComponentArray<TransformComponent>().get();
+                        auto meshArray = currentScene->GetComponentArray<MeshComponent>().get();
+                        if (transformArray) {
+                            auto& transforms = transformArray->GetComponents();
+                            for (Entity e = 0; e < MAX_ENTITIES; ++e) {
+                                if (!transformArray->HasComponent(e)) continue;
+                                if (!currentScene->IsEntityActive(e)) continue;
+
+                                bool overlaps = false;
+                                // If entity has a mesh component with bounding box, check projected 2D AABB
+                                if (meshArray && meshArray->HasComponent(e)) {
+                                    auto& meshComp = meshArray->GetComponentFromEntity(e);
+                                    if (meshComp.meshUuid != boost::uuids::nil_uuid()) {
+                                        auto meshData = engine->assetManagerInterface ?
+                                            engine->assetManagerInterface->getAssetData<am::MeshData>(meshComp.meshUuid) : nullptr;
+                                        if (meshData) {
+                                            glm::vec3 bmin = meshData->boundingBoxMin;
+                                            glm::vec3 bmax = meshData->boundingBoxMax;
+                                            glm::vec3 corners[8] = {
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmin.y, bmin.z, 1.0f)),
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmin.y, bmin.z, 1.0f)),
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmax.y, bmin.z, 1.0f)),
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmax.y, bmin.z, 1.0f)),
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmin.y, bmax.z, 1.0f)),
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmin.y, bmax.z, 1.0f)),
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmax.y, bmax.z, 1.0f)),
+                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmax.y, bmax.z, 1.0f))
+                                            };
+                                            float minScreenX = std::numeric_limits<float>::max();
+                                            float maxScreenX = -std::numeric_limits<float>::max();
+                                            float minScreenY = std::numeric_limits<float>::max();
+                                            float maxScreenY = -std::numeric_limits<float>::max();
+                                            bool anyFront = false;
+
+                                            for (int c = 0; c < 8; ++c) {
+                                                glm::vec4 clip = camState.camera.projection * camState.camera.view * glm::vec4(corners[c], 1.0f);
+                                                if (clip.w > 0.0f) {
+                                                    anyFront = true;
+                                                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
+                                                    float sx = viewportPos.x + (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
+                                                    float sy = viewportPos.y + (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
+                                                    minScreenX = std::min(minScreenX, sx);
+                                                    maxScreenX = std::max(maxScreenX, sx);
+                                                    minScreenY = std::min(minScreenY, sy);
+                                                    maxScreenY = std::max(maxScreenY, sy);
+                                                }
+                                            }
+
+                                            if (anyFront) {
+                                                overlaps = (bMin.x <= maxScreenX && bMax.x >= minScreenX &&
+                                                            bMin.y <= maxScreenY && bMax.y >= minScreenY);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (!overlaps) {
+                                    // Fallback to testing entity's origin/position
+                                    glm::vec3 worldPos = glm::vec3(transforms[e].globalMatrix[3]);
+                                    glm::vec4 clip = camState.camera.projection * camState.camera.view * glm::vec4(worldPos, 1.0f);
+                                    if (clip.w > 0.0f) {
+                                        glm::vec3 ndc = glm::vec3(clip) / clip.w;
+                                        float sx = viewportPos.x + (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
+                                        float sy = viewportPos.y + (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
+                                        overlaps = (sx >= bMin.x && sx <= bMax.x && sy >= bMin.y && sy <= bMax.y);
+                                    }
+                                }
+
+                                if (overlaps) {
+                                    inBoxEntities.push_back(e);
+                                }
                             }
-                        } else if (isShift) {
-                            AddSelectedEntity(hit->entity);
-                        } else {
-                            SetSelectedEntity(hit->entity);
                         }
-                    } else {
-                        if (!isCtrl && !isShift) {
-                            ClearSelectedEntities();
+
+                        bool isCtrl = io.KeyCtrl || io.KeySuper;
+                        bool isShift = io.KeyShift;
+
+                        if (isCtrl) {
+                            std::vector<Entity> combined = camState.preBoxSelectedEntities;
+                            for (Entity e : inBoxEntities) {
+                                auto it = std::find(combined.begin(), combined.end(), e);
+                                if (it != combined.end()) combined.erase(it);
+                                else combined.push_back(e);
+                            }
+                            SetSelectedEntities(combined);
+                        } else if (isShift) {
+                            std::vector<Entity> combined = camState.preBoxSelectedEntities;
+                            for (Entity e : inBoxEntities) {
+                                if (std::find(combined.begin(), combined.end(), e) == combined.end()) {
+                                    combined.push_back(e);
+                                }
+                            }
+                            SetSelectedEntities(combined);
+                        } else {
+                            SetSelectedEntities(inBoxEntities);
                         }
                     }
+                } else {
+                    // Left mouse button released
+                    if (dragDist <= 4.0f) {
+                        // Single click raycast selection
+                        auto* collisionSystem = currentScene->GetSystem<CollisionSystem>().get();
+                        if (collisionSystem) {
+                            ImVec2 mousePos = camState.boxSelectStart;
+                            Ray ray = collisionSystem->ScreenToWorldRay(camState.camera, mousePos.x - viewportPos.x,
+                                                                        mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
+
+                            auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
+                            if (gizmoSystem) {
+                                gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f), 5);
+                            }
+
+                            auto hit = collisionSystem->RayCastClosest(ray);
+                            bool isCtrl = io.KeyCtrl || io.KeySuper;
+                            bool isShift = io.KeyShift;
+
+                            if (hit.has_value()) {
+                                if (isCtrl) {
+                                    if (IsEntitySelected(hit->entity)) {
+                                        RemoveSelectedEntity(hit->entity);
+                                    } else {
+                                        AddSelectedEntity(hit->entity);
+                                    }
+                                } else if (isShift) {
+                                    AddSelectedEntity(hit->entity);
+                                } else {
+                                    SetSelectedEntity(hit->entity);
+                                }
+                            } else {
+                                if (!isCtrl && !isShift) {
+                                    ClearSelectedEntities();
+                                }
+                            }
+                        }
+                    }
+                    camState.isBoxSelecting = false;
                 }
             }
 
@@ -1022,7 +1152,18 @@ void EditorSystem::UpdateCameraPosition()
 
 void EditorSystem::ImGuiSceneGraph()
 {
+    sceneGraphNodeRects.clear();
+    anySceneGraphNodeClickedOrActive = false;
+
     ImGui::Begin("Scene graph", nullptr, ImGuiWindowFlags_MenuBar);
+
+    ImVec2 windowPos = ImGui::GetWindowPos();
+    ImVec2 scroll = ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImGuiIO& io = ImGui::GetIO();
+    bool isWindowHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+    bool isCtrlOrCmd = io.KeyCtrl || io.KeySuper;
+    bool isShift = io.KeyShift;
 
     if (ImGui::BeginMenuBar())
     {
@@ -1073,6 +1214,12 @@ void EditorSystem::ImGuiSceneGraph()
             scn->SetActive(isCurrentActive);
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Toggle Scene Active");
+        if (ImGui::IsItemHovered() && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+            anySceneGraphNodeClickedOrActive = true;
+        }
+        if (ImGui::IsItemActive()) {
+            anySceneGraphNodeClickedOrActive = true;
+        }
         ImGui::SameLine();
 
         ImGuiTreeNodeFlags sceneFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_DefaultOpen;
@@ -1083,6 +1230,12 @@ void EditorSystem::ImGuiSceneGraph()
 
         std::string displayName = sceneName + (scn->IsEditable() ? "" : " (Read-Only)");
         bool sceneNodeOpen = ImGui::TreeNodeEx((void*)scn.get(), sceneFlags, "%s", displayName.c_str());
+        if (ImGui::IsItemHovered() && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+            anySceneGraphNodeClickedOrActive = true;
+        }
+        if (ImGui::IsItemActive()) {
+            anySceneGraphNodeClickedOrActive = true;
+        }
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
         {
             selectedScene = scn;
@@ -1289,6 +1442,107 @@ void EditorSystem::ImGuiSceneGraph()
         ImGui::EndPopup();
     }
 
+    // Box selection (Marquee selection)
+    if (isWindowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !anySceneGraphNodeClickedOrActive && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) && !ImGui::IsDragDropActive())
+    {
+        isSceneGraphBoxSelecting = true;
+        sceneGraphBoxSelectStartPos = ImVec2(io.MousePos.x - windowPos.x + scroll.x, io.MousePos.y - windowPos.y + scroll.y);
+        sceneGraphBoxSelectPreSelection = selectedEntities;
+    }
+
+    if (isSceneGraphBoxSelecting)
+    {
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        {
+            ImVec2 curContentPos = ImVec2(io.MousePos.x - windowPos.x + scroll.x, io.MousePos.y - windowPos.y + scroll.y);
+            float dragDist = std::hypot(curContentPos.x - sceneGraphBoxSelectStartPos.x, curContentPos.y - sceneGraphBoxSelectStartPos.y);
+
+            if (dragDist > 3.0f)
+            {
+                ImVec2 boxMinContent = ImVec2(std::min(sceneGraphBoxSelectStartPos.x, curContentPos.x), std::min(sceneGraphBoxSelectStartPos.y, curContentPos.y));
+                ImVec2 boxMaxContent = ImVec2(std::max(sceneGraphBoxSelectStartPos.x, curContentPos.x), std::max(sceneGraphBoxSelectStartPos.y, curContentPos.y));
+
+                ImVec2 boxMinScreen = ImVec2(boxMinContent.x + windowPos.x - scroll.x, boxMinContent.y + windowPos.y - scroll.y);
+                ImVec2 boxMaxScreen = ImVec2(boxMaxContent.x + windowPos.x - scroll.x, boxMaxContent.y + windowPos.y - scroll.y);
+
+                ImVec2 clipMin = windowPos;
+                ImVec2 clipMax = ImVec2(windowPos.x + ImGui::GetWindowSize().x, windowPos.y + ImGui::GetWindowSize().y);
+                ImVec2 drawBoxMin = ImVec2(std::max(boxMinScreen.x, clipMin.x), std::max(boxMinScreen.y, clipMin.y));
+                ImVec2 drawBoxMax = ImVec2(std::min(boxMaxScreen.x, clipMax.x), std::min(boxMaxScreen.y, clipMax.y));
+
+                if (drawBoxMax.x > drawBoxMin.x && drawBoxMax.y > drawBoxMin.y)
+                {
+                    drawList->AddRectFilled(drawBoxMin, drawBoxMax, IM_COL32(66, 150, 250, 45));
+                    drawList->AddRect(drawBoxMin, drawBoxMax, IM_COL32(66, 150, 250, 220), 0.0f, 0, 1.5f);
+                }
+
+                std::vector<Entity> inBoxEntities;
+                Scene* primaryScene = nullptr;
+                for (const auto& nr : sceneGraphNodeRects)
+                {
+                    bool overlaps = (boxMinContent.x <= nr.contentMax.x && boxMaxContent.x >= nr.contentMin.x &&
+                                     boxMinContent.y <= nr.contentMax.y && boxMaxContent.y >= nr.contentMin.y);
+                    if (overlaps)
+                    {
+                        inBoxEntities.push_back(nr.entity);
+                        if (!primaryScene) primaryScene = nr.scene;
+                    }
+                }
+
+                if (primaryScene) {
+                    selectedScene = primaryScene->engine.GetScene(primaryScene->GetName());
+                }
+
+                if (isCtrlOrCmd)
+                {
+                    std::vector<Entity> combined = sceneGraphBoxSelectPreSelection;
+                    for (Entity e : inBoxEntities)
+                    {
+                        auto it = std::find(combined.begin(), combined.end(), e);
+                        if (it != combined.end())
+                        {
+                            combined.erase(it);
+                        }
+                        else
+                        {
+                            combined.push_back(e);
+                        }
+                    }
+                    SetSelectedEntities(combined);
+                }
+                else if (isShift)
+                {
+                    std::vector<Entity> combined = sceneGraphBoxSelectPreSelection;
+                    for (Entity e : inBoxEntities)
+                    {
+                        if (std::find(combined.begin(), combined.end(), e) == combined.end())
+                        {
+                            combined.push_back(e);
+                        }
+                    }
+                    SetSelectedEntities(combined);
+                }
+                else
+                {
+                    SetSelectedEntities(inBoxEntities);
+                }
+            }
+        }
+        else
+        {
+            ImVec2 curContentPos = ImVec2(io.MousePos.x - windowPos.x + scroll.x, io.MousePos.y - windowPos.y + scroll.y);
+            float dragDist = std::hypot(curContentPos.x - sceneGraphBoxSelectStartPos.x, curContentPos.y - sceneGraphBoxSelectStartPos.y);
+            if (dragDist <= 3.0f)
+            {
+                if (!isCtrlOrCmd && !isShift)
+                {
+                    ClearSelectedEntities();
+                }
+            }
+            isSceneGraphBoxSelecting = false;
+        }
+    }
+
     ImGui::End();
 }
 
@@ -1353,6 +1607,29 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     if (!isActive) {
         ImGui::PopStyleColor();
     }
+
+    ImVec2 itemMin = ImGui::GetItemRectMin();
+    ImVec2 itemMax = ImGui::GetItemRectMax();
+    bool isNodeHovered = ImGui::IsItemHovered();
+    bool isNodeActive = ImGui::IsItemActive();
+
+    if (isNodeHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+        anySceneGraphNodeClickedOrActive = true;
+    }
+    if (isNodeActive) {
+        anySceneGraphNodeClickedOrActive = true;
+    }
+
+    ImVec2 windowPos = ImGui::GetWindowPos();
+    ImVec2 scroll = ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
+    float rowMinX = windowPos.x;
+    float rowMaxX = windowPos.x + ImGui::GetWindowContentRegionMax().x;
+    float rowMinY = itemMin.y;
+    float rowMaxY = itemMax.y;
+
+    ImVec2 rowContentMin = ImVec2(rowMinX - windowPos.x + scroll.x, rowMinY - windowPos.y + scroll.y);
+    ImVec2 rowContentMax = ImVec2(rowMaxX - windowPos.x + scroll.x, rowMaxY - windowPos.y + scroll.y);
+    sceneGraphNodeRects.push_back({ entity, currentScene, rowContentMin, rowContentMax });
 
     // Context menu on entity
     if (ImGui::BeginPopupContextItem())
@@ -1563,7 +1840,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     }
 
     // Handle selection when clicked
-    if (!isRenaming) {
+    if (!isRenaming && !isSceneGraphBoxSelecting) {
         bool isCtrl = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
         bool isShift = ImGui::GetIO().KeyShift;
 
