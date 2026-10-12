@@ -22,11 +22,14 @@ namespace engine::ecs
     struct NameComponent;
     struct TagComponent;
     struct ThumbnailComponent;
+    struct ScriptComponent;
+    struct MoveLeftScript;
 
     class RenderSystem;
     class GizmoSystem;
     class TransformSystem;
     class CollisionSystem;
+    class ScriptSystem;
 
     using EngineComponents = std::tuple<
         TransformComponent,
@@ -36,14 +39,16 @@ namespace engine::ecs
         LightComponent,
         NameComponent,
         TagComponent,
-        ThumbnailComponent
+        ThumbnailComponent,
+        ScriptComponent
     >;
 
     using EngineSystems = std::tuple<
         RenderSystem,
         GizmoSystem,
         TransformSystem,
-        CollisionSystem
+        CollisionSystem,
+        ScriptSystem
     >;
 
     template<typename T>

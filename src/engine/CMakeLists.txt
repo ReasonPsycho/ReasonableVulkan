@@ -42,18 +42,52 @@ file(GLOB_RECURSE TEST_FILES
 
 list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
+# Auto-discover script files in res/scripts
+file(GLOB_RECURSE RES_SCRIPT_FILES
+        CONFIGURE_DEPENDS
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.cpp"
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.hpp"
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.h"
+)
+
+file(GLOB_RECURSE RES_SCRIPT_HEADERS
+        CONFIGURE_DEPENDS
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.hpp"
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.h"
+)
+
+set(SCRIPT_INCLUDES "")
+foreach(HEADER_FILE ${RES_SCRIPT_HEADERS})
+    file(TO_CMAKE_PATH "${HEADER_FILE}" NORMALIZED_HEADER)
+    string(APPEND SCRIPT_INCLUDES "#include \"${NORMALIZED_HEADER}\"\n")
+endforeach()
+
+set(GENERATED_SCRIPT_REGISTRY "${CMAKE_CURRENT_BINARY_DIR}/GeneratedScriptRegistry.cpp")
+file(GENERATE OUTPUT "${GENERATED_SCRIPT_REGISTRY}" CONTENT "
+#include \"systems/scriptSystem/ScriptRegistry.hpp\"
+${SCRIPT_INCLUDES}
+
+namespace engine::ecs {
+    void AutoRegisterGeneratedScripts() {
+        // Includes above trigger REGISTER_SCRIPT static initializers
+    }
+}
+")
+
 # Create the interface target
 add_library(engine_interface INTERFACE)
 target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(engine_interface INTERFACE vks_interface am_interface platform_interface)
 
 # Create static library
-add_library(engine STATIC ${BASE_SRC})
+add_library(engine STATIC ${BASE_SRC} ${RES_SCRIPT_FILES} ${GENERATED_SCRIPT_REGISTRY})
 
 # Configure include directories
 target_include_directories(engine
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/res
+        ${CMAKE_SOURCE_DIR}/res/scripts
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

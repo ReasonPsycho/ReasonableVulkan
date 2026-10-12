@@ -16,6 +16,7 @@
 #include "systems/renderingSystem/componets/LightComponent.hpp"
 #include "systems/renderingSystem/componets/ThumbnailComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "systems/scriptSystem/components/ScriptComponent.hpp"
 #include "ecs/NameComponent.hpp"
 #include "ecs/TagComponent.hpp"
 #include "PlatformInterface.hpp"
@@ -340,6 +341,31 @@ void EditorSystem::ImGuiInspector()
             if (!anyAvailable)
             {
                 ImGui::TextDisabled("No more components available");
+            }
+
+            auto registeredScripts = ScriptRegistry::Instance().GetRegisteredNames();
+            if (!registeredScripts.empty())
+            {
+                if (ImGui::BeginMenu("Scripts"))
+                {
+                    for (const auto& scriptName : registeredScripts)
+                    {
+                        if (ImGui::MenuItem(scriptName.c_str()))
+                        {
+                            if (!scene->HasComponent<ScriptComponent>(selectedEntity))
+                            {
+                                auto cmd = std::make_shared<editor::AddComponentCommand>(scene, selectedEntity, typeid(ScriptComponent), "ScriptComponent");
+                                history.Execute(cmd);
+                            }
+                            if (scene->HasComponent<ScriptComponent>(selectedEntity))
+                            {
+                                auto& scriptComp = scene->GetComponent<ScriptComponent>(selectedEntity);
+                                scriptComp.AddScriptByName(scriptName);
+                            }
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
             }
 
             ImGui::EndPopup();
@@ -1413,6 +1439,8 @@ std::string EditorSystem::GetEntityName(Entity entity, Scene* targetScene) const
 
 void EditorSystem::Initialize()
 {
+    InitializeScriptRegistry();
+
     ForEachType<EngineComponents>([this]<typename T>() {
         this->RegisterComponentType<T>();
     });
@@ -2535,6 +2563,62 @@ bool EditorSystem::SaveEntityAsPrefab(uint32_t entity, const std::filesystem::pa
         spdlog::info("Saved entity {} ('{}') as prefab to '{}'", entity, entityRawName, targetPath.string());
     }
 
+    return true;
+}
+
+bool EditorSystem::CreateScriptAsset(const std::string& scriptName, const std::filesystem::path& targetDir)
+{
+    std::filesystem::path scriptDir = targetDir.empty() ? (std::filesystem::path("res") / "scripts") : targetDir;
+    std::error_code ec;
+    std::filesystem::create_directories(scriptDir, ec);
+
+    std::filesystem::path filePath = scriptDir / (scriptName + ".hpp");
+    if (std::filesystem::exists(filePath, ec)) {
+        spdlog::warn("Script {} already exists at {}", scriptName, filePath.string());
+        return false;
+    }
+
+    std::string sanitizedClassName;
+    for (char c : scriptName) {
+        if (isalnum(static_cast<unsigned char>(c)) || c == '_') {
+            sanitizedClassName.push_back(c);
+        }
+    }
+    if (sanitizedClassName.empty() || isdigit(static_cast<unsigned char>(sanitizedClassName[0]))) {
+        sanitizedClassName = "Script_" + sanitizedClassName;
+    }
+
+    std::ofstream outFile(filePath);
+    if (!outFile.is_open()) {
+        spdlog::error("Failed to open file for writing script: {}", filePath.string());
+        return false;
+    }
+
+    outFile << "#pragma once\n\n"
+            << "#include \"systems/scriptSystem/Script.hpp\"\n"
+            << "#include \"systems/scriptSystem/ScriptRegistry.hpp\"\n"
+            << "#include \"systems/transformSystem/componets/TransformComponent.hpp\"\n\n"
+            << "namespace engine::ecs {\n\n"
+            << "    class " << sanitizedClassName << " : public Script {\n"
+            << "    public:\n"
+            << "        [[=Range{0.0f, 100.0f, 0.1f}, =Tooltip{\"Speed parameter\"}]]\n"
+            << "        float speed = 1.0f;\n\n"
+            << "        void OnStart() override {\n"
+            << "            // Called once when the script starts\n"
+            << "        }\n\n"
+            << "        void OnUpdate(float deltaTime) override {\n"
+            << "            // Called every frame\n"
+            << "        }\n"
+            << "    };\n\n"
+            << "    REGISTER_SCRIPT(" << sanitizedClassName << ")\n\n"
+            << "} // namespace engine::ecs\n";
+    outFile.close();
+
+    if (engine && engine->assetManagerInterface) {
+        engine->assetManagerInterface->createAsset(am::AssetType::Script, filePath.string());
+    }
+
+    spdlog::info("Created script asset: {}", filePath.string());
     return true;
 }
 

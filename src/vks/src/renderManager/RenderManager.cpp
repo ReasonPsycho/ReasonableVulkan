@@ -92,12 +92,19 @@ void RenderManager::renderNode(NodeDescriptorStruct* mainNode, VkCommandBuffer c
         glm::mat4 nodeWorldTransform = matrix * node->matrix;
         
         if (hasModelPushConstants) {
-            ModelPushConstant push_m;
+            ModelPushConstant push_m{};
             push_m.model = nodeWorldTransform;
+            MaterialDescriptor* mat = materialOverride;
+            if (!mat && !node->meshes.empty() && node->meshes[0]) {
+                mat = node->meshes[0]->material;
+            }
+            if (mat) {
+                push_m.materialIndex = mat->materialIndex;
+            }
             vkCmdPushConstants(
                 commandBuffer,
                 pipelineManager->getPipelineLayout(renderProgramHandle),
-                VK_SHADER_STAGE_VERTEX_BIT,
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 0,
                 sizeof(ModelPushConstant),
                 &push_m
@@ -106,7 +113,7 @@ void RenderManager::renderNode(NodeDescriptorStruct* mainNode, VkCommandBuffer c
 
         for (const auto& mesh : node->meshes) {
             bindMeshDescriptors(commandBuffer, renderProgramHandle, mesh, defines, materialOverride);
-            vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
+            vkCmdDrawIndexedIndirect(commandBuffer, mesh->indirect.buffer.buffer, 0, 1, sizeof(VkDrawIndexedIndirectCommand));
         }
         renderNode(node, commandBuffer, matrix, renderProgramHandle, materialOverride);
     }
@@ -141,7 +148,7 @@ void RenderManager::renderLightNode(NodeDescriptorStruct* mainNode, VkCommandBuf
 
         for (const auto& mesh : node->meshes) {
             bindMeshDescriptors(commandBuffer, renderProgramHandle, mesh, defines);
-            vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
+            vkCmdDrawIndexedIndirect(commandBuffer, mesh->indirect.buffer.buffer, 0, 1, sizeof(VkDrawIndexedIndirectCommand));
         }
         renderLightNode(node, commandBuffer, matrix, renderProgramHandle, lightIndex, lightType);
     }
@@ -402,7 +409,7 @@ void RenderManager::endFrame() {
                                 );
                             }
                             bindMeshDescriptors(commandBuffer, shadowShaderHandle, meshDescriptor, defines);
-                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
+                            vkCmdDrawIndexedIndirect(commandBuffer, meshDescriptor->indirect.buffer.buffer, 0, 1, sizeof(VkDrawIndexedIndirectCommand));
                         }
                     }
 
@@ -478,7 +485,7 @@ void RenderManager::endFrame() {
                                 );
                             }
                             bindMeshDescriptors(commandBuffer, cubeShadowShaderHandle, meshDescriptor, defines);
-                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
+                            vkCmdDrawIndexedIndirect(commandBuffer, meshDescriptor->indirect.buffer.buffer, 0, 1, sizeof(VkDrawIndexedIndirectCommand));
                         }
                     }
 
@@ -547,7 +554,7 @@ void RenderManager::endFrame() {
                                 );
                             }
                             bindMeshDescriptors(commandBuffer, shadowShaderHandle, meshDescriptor, defines);
-                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
+                            vkCmdDrawIndexedIndirect(commandBuffer, meshDescriptor->indirect.buffer.buffer, 0, 1, sizeof(VkDrawIndexedIndirectCommand));
                         }
                     }
 
@@ -587,11 +594,129 @@ void RenderManager::endFrame() {
         pointLightQueue.clear();
         spotLightQueue.clear();
 
-        // Sort render queue by renderProgramHandle to minimize pipeline switching (optional, could be per camera)
-        std::sort(renderQueue.begin(), renderQueue.end(), [](const RenderCommand& a, const RenderCommand& b) {
+        // Group model & mesh render commands into batches to draw identical mesh-material instances at once
+        struct BatchKey {
+            uint32_t cameraIndex;
+            uint32_t renderProgramIndex;
+            uint32_t meshIndex;
+            uint32_t materialSlot;
+
+            bool operator==(const BatchKey& other) const {
+                return cameraIndex == other.cameraIndex &&
+                       renderProgramIndex == other.renderProgramIndex &&
+                       meshIndex == other.meshIndex &&
+                       materialSlot == other.materialSlot;
+            }
+        };
+
+        struct BatchKeyHash {
+            std::size_t operator()(const BatchKey& k) const {
+                std::size_t h1 = std::hash<uint32_t>{}(k.cameraIndex);
+                std::size_t h2 = std::hash<uint32_t>{}(k.renderProgramIndex);
+                std::size_t h3 = std::hash<uint32_t>{}(k.meshIndex);
+                std::size_t h4 = std::hash<uint32_t>{}(k.materialSlot);
+                return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
+            }
+        };
+
+        struct MeshBatch {
+            gfx::ShaderProgramHandle renderProgramHandle;
+            gfx::MeshHandle meshHandle;
+            MeshDescriptor* meshDescriptor = nullptr;
+            MaterialDescriptor* materialDescriptor = nullptr;
+            std::vector<glm::mat4> transforms;
+        };
+
+        struct PreparedBatch {
+            uint32_t cameraIndex;
+            gfx::ShaderProgramHandle renderProgramHandle;
+            MeshDescriptor* meshDescriptor = nullptr;
+            MaterialDescriptor* materialDescriptor = nullptr;
+            uint32_t firstInstance = 0;
+            uint32_t instanceCount = 0;
+        };
+
+        std::unordered_map<BatchKey, MeshBatch, BatchKeyHash> batchMap;
+        std::vector<BatchKey> batchKeys;
+
+        for (const auto& cmd : renderQueue) {
+            auto meshDescriptor = descriptorManager->getMesh(cmd.meshHandle);
+            if (!meshDescriptor) continue;
+
+            MaterialDescriptor* materialDescriptor = nullptr;
+            if (cmd.materialHandle.isValid()) {
+                materialDescriptor = descriptorManager->getMaterial(cmd.materialHandle);
+            } else if (meshDescriptor && meshDescriptor->material) {
+                materialDescriptor = meshDescriptor->material;
+            }
+
+            uint32_t matSlot = materialDescriptor ? materialDescriptor->materialIndex : 0;
+            BatchKey key{
+                cmd.cameraIndex,
+                cmd.renderProgramHandle.index,
+                cmd.meshHandle.index,
+                matSlot
+            };
+
+            auto it = batchMap.find(key);
+            if (it == batchMap.end()) {
+                MeshBatch batch{};
+                batch.renderProgramHandle = cmd.renderProgramHandle;
+                batch.meshHandle = cmd.meshHandle;
+                batch.meshDescriptor = meshDescriptor;
+                batch.materialDescriptor = materialDescriptor;
+                batch.transforms.push_back(cmd.transform);
+                batchMap[key] = std::move(batch);
+                batchKeys.push_back(key);
+            } else {
+                it->second.transforms.push_back(cmd.transform);
+            }
+        }
+
+        // Sort batch keys to minimize camera and pipeline switches
+        std::sort(batchKeys.begin(), batchKeys.end(), [](const BatchKey& a, const BatchKey& b) {
             if (a.cameraIndex != b.cameraIndex) return a.cameraIndex < b.cameraIndex;
-            return a.renderProgramHandle < b.renderProgramHandle;
+            if (a.renderProgramIndex != b.renderProgramIndex) return a.renderProgramIndex < b.renderProgramIndex;
+            if (a.meshIndex != b.meshIndex) return a.meshIndex < b.meshIndex;
+            return a.materialSlot < b.materialSlot;
         });
+
+        // Multi-buffer instance offset partitioning
+        uint32_t maxInstancesPerFrame = DescriptorManager::MAX_INSTANCES / MAX_FRAMES_IN_FLIGHT;
+        uint32_t frameBaseInstanceOffset = (currentFrame % MAX_FRAMES_IN_FLIGHT) * maxInstancesPerFrame;
+
+        std::vector<GPUInstanceData> frameInstanceData;
+        std::vector<PreparedBatch> preparedBatches;
+        preparedBatches.reserve(batchKeys.size());
+
+        for (const auto& key : batchKeys) {
+            auto& batch = batchMap[key];
+            if (batch.transforms.empty()) continue;
+
+            uint32_t batchFirstInstance = frameBaseInstanceOffset + static_cast<uint32_t>(frameInstanceData.size());
+            uint32_t instanceCount = static_cast<uint32_t>(batch.transforms.size());
+            uint32_t matSlot = batch.materialDescriptor ? batch.materialDescriptor->materialIndex : 0;
+
+            for (const auto& transform : batch.transforms) {
+                GPUInstanceData inst{};
+                inst.modelMatrix = transform;
+                inst.materialIndex = matSlot;
+                frameInstanceData.push_back(inst);
+            }
+
+            PreparedBatch pb{};
+            pb.cameraIndex = key.cameraIndex;
+            pb.renderProgramHandle = batch.renderProgramHandle;
+            pb.meshDescriptor = batch.meshDescriptor;
+            pb.materialDescriptor = batch.materialDescriptor;
+            pb.firstInstance = batchFirstInstance;
+            pb.instanceCount = instanceCount;
+            preparedBatches.push_back(pb);
+        }
+
+        if (!frameInstanceData.empty()) {
+            descriptorManager->updateInstancesData(frameBaseInstanceOffset, frameInstanceData.data(), frameInstanceData.size());
+        }
 
         // Loop through all active cameras
         uint32_t cameraCountToRender = std::max(1u, activeCameraCount);
@@ -636,95 +761,80 @@ void RenderManager::endFrame() {
 
                         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramHandle));
 
-                        vkCmdBindDescriptorSets(
-                              commandBuffer,
-                              VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipelineManager->getPipelineLayout(cmd.renderProgramHandle),
-                              0,                                    // First set index (Set 0)
-                              1,                                    // Number of sets
-                              &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
-                              0, nullptr);
-
-
-                        // Bind material descriptor set at set index 1
-                        auto materialDescriptor = descriptorManager->getMaterial(cmd.skyboxMaterialHandle);
-                        if (materialDescriptor) {
-                             if (materialDescriptor->descriptorSet == VK_NULL_HANDLE) {
-                                  materialDescriptor->setUpDescriptorSet(descriptorManager->skyboxMaterialLayout, descriptorManager->skyboxMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
-                             }
-
-                             auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
-                             if (shaderProgramDescriptor) {
-                                 const auto& defines = shaderProgramDescriptor->getDefines();
-                                 if (std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != defines.end()) {
-                                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        pipelineManager->getPipelineLayout(cmd.renderProgramHandle), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
-                                 }
-                             }
+                        auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
+                        if (shaderProgramDescriptor) {
+                            bindPipelineDescriptors(commandBuffer, cmd.renderProgramHandle, i, shaderProgramDescriptor->getDefines());
                         }
+
+                        auto materialDescriptor = descriptorManager->getMaterial(cmd.skyboxMaterialHandle);
 
                         VkBuffer vertexBuffers[] = { skyboxMesh->vertices.buffer.buffer };
                         VkDeviceSize offsets[] = { 0 };
                         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
                         vkCmdBindIndexBuffer(commandBuffer, skyboxMesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-                        ModelPushConstant push_m;
+                        ModelPushConstant push_m{};
                         push_m.model = glm::mat4(1.0f);
+                        if (materialDescriptor) {
+                            push_m.materialIndex = materialDescriptor->materialIndex;
+                        }
                         vkCmdPushConstants(
                             commandBuffer,
                             pipelineManager->getPipelineLayout(cmd.renderProgramHandle),
-                            VK_SHADER_STAGE_VERTEX_BIT,
+                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                             0,
                             sizeof(ModelPushConstant),
                             &push_m
                         );
 
-                        vkCmdDrawIndexed(commandBuffer, skyboxMesh->indices.count, 1, 0, 0, 0);
+                        vkCmdDrawIndexedIndirect(commandBuffer, skyboxMesh->indirect.buffer.buffer, 0, 1, sizeof(VkDrawIndexedIndirectCommand));
                     }
                 }
             }
 
-            // Process model & mesh render queue for this camera
+            // Process model & mesh render queue for this camera in batched instanced calls
             gfx::ShaderProgramHandle lastProgramHandle = gfx::ShaderProgramHandle::invalid();
-            for (auto& cmd : renderQueue) {
-                if (cmd.cameraIndex != i) continue;
+            for (const auto& batch : preparedBatches) {
+                if (batch.cameraIndex != i) continue;
 
-                auto meshDescriptor = descriptorManager->getMesh(cmd.meshHandle);
-                if (!meshDescriptor) continue;
+                if (batch.renderProgramHandle != lastProgramHandle) {
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(batch.renderProgramHandle));
 
-                if (cmd.renderProgramHandle != lastProgramHandle) {
-                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramHandle));
-
-                    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
+                    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(batch.renderProgramHandle);
                     if (shaderProgramDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, cmd.renderProgramHandle, i, shaderProgramDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, batch.renderProgramHandle, i, shaderProgramDescriptor->getDefines());
                     }
 
-                    lastProgramHandle = cmd.renderProgramHandle;
+                    lastProgramHandle = batch.renderProgramHandle;
                 }
 
-                MaterialDescriptor* materialDescriptor = nullptr;
-                if (cmd.materialHandle.isValid()) {
-                    materialDescriptor = descriptorManager->getMaterial(cmd.materialHandle);
-                }
-
-                auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
+                auto shaderProgramDescriptor = descriptorManager->getShaderProgram(batch.renderProgramHandle);
                 const auto& defines = shaderProgramDescriptor ? shaderProgramDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
                 bool hasModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
                 if (hasModelPushConstants) {
-                    ModelPushConstant push_m;
-                    push_m.model = cmd.transform;
+                    ModelPushConstant push_m{};
+                    push_m.model = glm::mat4(1.0f);
+                    if (batch.materialDescriptor) {
+                        push_m.materialIndex = batch.materialDescriptor->materialIndex;
+                    }
                     vkCmdPushConstants(
                         commandBuffer,
-                        pipelineManager->getPipelineLayout(cmd.renderProgramHandle),
-                        VK_SHADER_STAGE_VERTEX_BIT,
+                        pipelineManager->getPipelineLayout(batch.renderProgramHandle),
+                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                         0,
                         sizeof(ModelPushConstant),
                         &push_m
                     );
                 }
-                bindMeshDescriptors(commandBuffer, cmd.renderProgramHandle, meshDescriptor, defines, materialDescriptor);
-                vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
+                bindMeshDescriptors(commandBuffer, batch.renderProgramHandle, batch.meshDescriptor, defines, batch.materialDescriptor);
+                vkCmdDrawIndexed(
+                    commandBuffer,
+                    batch.meshDescriptor->indices.count,
+                    batch.instanceCount,
+                    0,
+                    0,
+                    batch.firstInstance
+                );
             }
 
             vkCmdEndRenderPass(commandBuffer);
@@ -789,6 +899,10 @@ void RenderManager::updateSyncObjects() {
 
 void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines) {
     bool hasSceneUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::SCENE_UBO_GLSL) != defines.end();
+    bool hasBindless = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_PBR_GLSL) != defines.end() ||
+                       std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != defines.end() ||
+                       std::find(defines.begin(), defines.end(), ShaderDefinesEnum::WIREMESH_GLSL) != defines.end() ||
+                       std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MESH_VERTEX_GLSL) != defines.end();
     bool hasLighting = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != defines.end() ||
                        std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
 
@@ -800,6 +914,17 @@ void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::
               0,                                    // First set index (Set 0)
               1,                                    // Number of sets
               &descriptorManager->sceneUBOs[imageIndex].buffer.descriptorSet,
+              0, nullptr);
+    }
+
+    if (hasBindless && descriptorManager->getBindlessDescriptorSet() != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(
+              commandBuffer,
+              VK_PIPELINE_BIND_POINT_GRAPHICS,
+              pipelineManager->getPipelineLayout(renderProgramHandle),
+              1,                                    // Set index 1 (Bindless Textures)
+              1,                                    // Number of sets
+              &descriptorManager->bindlessDescriptorSet,
               0, nullptr);
     }
 
@@ -816,33 +941,10 @@ void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::
 }
 
 void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines, MaterialDescriptor* materialOverride) {
-    bool hasMeshUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != defines.end();
-    bool hasMaterial = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_PBR_GLSL) != defines.end();
-
     VkBuffer vertexBuffers[] = { mesh->vertices.buffer.buffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, mesh->indices.buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    // Bind mesh descriptor set at set index 2
-    if (hasMeshUBO && mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-            pipelineManager->getPipelineLayout(renderProgramHandle), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
-    }
-
-    // Bind material descriptor set at set index 1
-    if (hasMaterial) {
-        MaterialDescriptor* mat = materialOverride ? materialOverride : mesh->material;
-        if (mat) {
-            if (mat->descriptorSet == VK_NULL_HANDLE) {
-                mat->setUpDescriptorSet(descriptorManager->pbrMaterialLayout, descriptorManager->pbrMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
-            }
-            if (mat->descriptorSet != VK_NULL_HANDLE) {
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineManager->getPipelineLayout(renderProgramHandle), 1, 1, &mat->descriptorSet, 0, nullptr);
-            }
-        }
-    }
 }
 
 } // namespace vks

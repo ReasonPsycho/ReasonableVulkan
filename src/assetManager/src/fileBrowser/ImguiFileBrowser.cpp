@@ -332,6 +332,50 @@ namespace am {
                     pushFileAction(rec);
                 }
             }
+            if (ImGui::MenuItem("New C++ Script")) {
+                std::filesystem::path newScriptPath = currentPath / "NewScript.hpp";
+                newScriptPath = getUniqueCopyPath(newScriptPath);
+                std::string scriptClassName = newScriptPath.stem().string();
+                std::string sanitizedClassName;
+                for (char c : scriptClassName) {
+                    if (isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                        sanitizedClassName.push_back(c);
+                    }
+                }
+                if (sanitizedClassName.empty() || isdigit(static_cast<unsigned char>(sanitizedClassName[0]))) {
+                    sanitizedClassName = "Script_" + sanitizedClassName;
+                }
+
+                std::ofstream outFile(newScriptPath);
+                if (outFile.is_open()) {
+                    outFile << "#pragma once\n\n"
+                            << "#include \"systems/scriptSystem/Script.hpp\"\n"
+                            << "#include \"systems/scriptSystem/ScriptRegistry.hpp\"\n"
+                            << "#include \"systems/transformSystem/componets/TransformComponent.hpp\"\n\n"
+                            << "namespace engine::ecs {\n\n"
+                            << "    class " << sanitizedClassName << " : public Script {\n"
+                            << "    public:\n"
+                            << "        [[=Range{0.0f, 100.0f, 0.1f}, =Tooltip{\"Speed parameter\"}]]\n"
+                            << "        float speed = 1.0f;\n\n"
+                            << "        void OnStart() override {\n"
+                            << "            // Called once when the script starts\n"
+                            << "        }\n\n"
+                            << "        void OnUpdate(float deltaTime) override {\n"
+                            << "            // Called every frame\n"
+                            << "        }\n"
+                            << "    };\n\n"
+                            << "    REGISTER_SCRIPT(" << sanitizedClassName << ")\n\n"
+                            << "} // namespace engine::ecs\n";
+                    outFile.close();
+                }
+
+                setSelectedFile(newScriptPath);
+                FileActionRecord rec;
+                rec.type = FileActionRecord::Type::CreateScript;
+                rec.targetPath = newScriptPath;
+                rec.description = "Create Script '" + newScriptPath.filename().string() + "'";
+                pushFileAction(rec);
+            }
             if (ImGui::MenuItem("Open in System File Explorer")) {
                 if (assetManager) assetManager->openFileWithDefaultApp(currentPath);
             }
@@ -2010,6 +2054,7 @@ namespace am {
             case FileActionRecord::Type::Copy:
             case FileActionRecord::Type::CreateFolder:
             case FileActionRecord::Type::CreateMaterial:
+            case FileActionRecord::Type::CreateScript:
             {
                 if (std::filesystem::exists(rec.targetPath, ec)) {
                     if (assetManager) {
@@ -2119,6 +2164,14 @@ namespace am {
                     assetManager->createAsset(AssetType::Material, rec.targetPath.string());
                 }
                 setSelectedFile(rec.targetPath);
+                break;
+            }
+            case FileActionRecord::Type::CreateScript:
+            {
+                if (!rec.trashBackupPath.empty() && std::filesystem::exists(rec.trashBackupPath, ec)) {
+                    std::filesystem::rename(rec.trashBackupPath, rec.targetPath, ec);
+                    setSelectedFile(rec.targetPath);
+                }
                 break;
             }
             case FileActionRecord::Type::Delete:

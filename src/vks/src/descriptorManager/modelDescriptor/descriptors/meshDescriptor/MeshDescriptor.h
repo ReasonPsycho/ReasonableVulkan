@@ -80,6 +80,11 @@ namespace vks
             vks::base::Buffer buffer;
         } indices{};
 
+        struct IndirectDraw {
+            VkDrawIndexedIndirectCommand command{};
+            vks::base::Buffer buffer;
+        } indirect{};
+
     };
 }
 

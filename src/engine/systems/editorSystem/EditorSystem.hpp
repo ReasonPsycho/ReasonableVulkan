@@ -49,6 +49,7 @@ namespace engine::ecs
         bool QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath) override;
         std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) override;
         bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
+        bool CreateScriptAsset(const std::string& scriptName, const std::filesystem::path& targetDir = "");
 
         struct ComponentInfo {
             std::string displayName;

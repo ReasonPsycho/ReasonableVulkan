@@ -297,6 +297,11 @@ namespace engine::ecs
             outObj.SetObject();
         }
 
+        if constexpr (requires { component.CustomSerialize(outObj, allocator); }) {
+            component.CustomSerialize(outObj, allocator);
+            return;
+        }
+
         static constexpr auto members = get_members_array<T>();
         template for (constexpr auto mem : members) {
             if constexpr (!is_nonSerialized<mem>()) {
@@ -381,6 +386,11 @@ namespace engine::ecs
     template <typename T>
     void DeserializeTypeFromJson(T& component, const rapidjson::Value& inObj) {
         if (!inObj.IsObject()) return;
+
+        if constexpr (requires { component.CustomDeserialize(inObj); }) {
+            component.CustomDeserialize(inObj);
+            return;
+        }
 
         static constexpr auto members = get_members_array<T>();
         template for (constexpr auto mem : members) {
