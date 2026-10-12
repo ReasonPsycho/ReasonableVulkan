@@ -40,6 +40,30 @@ namespace engine::editor
         glm::mat4 newGlobalMatrix{1.0f};
     };
 
+    struct EntityTransformRecord
+    {
+        ecs::Entity entity = ecs::MAX_ENTITIES;
+        glm::mat4 oldLocalMatrix{1.0f};
+        glm::mat4 newLocalMatrix{1.0f};
+        glm::mat4 oldGlobalMatrix{1.0f};
+        glm::mat4 newGlobalMatrix{1.0f};
+    };
+
+    // Command for multiple entities transform changes
+    class EntitiesTransformCommand : public ICommand
+    {
+    public:
+        EntitiesTransformCommand(ecs::Scene* scene, const std::vector<EntityTransformRecord>& records);
+
+        void Execute() override;
+        void Undo() override;
+        std::string GetName() const override;
+
+    private:
+        ecs::Scene* scene = nullptr;
+        std::vector<EntityTransformRecord> records;
+    };
+
     // Command for creating an entity
     class CreateEntityCommand : public ICommand
     {

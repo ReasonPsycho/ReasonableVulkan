@@ -67,6 +67,9 @@ namespace am {
 
         void Initialize(plt::PlatformInterface* platformInterface) override;
         void setEngine(engine::EngineInterface* engineInterface) override;
+        engine::EngineInterface* getEngine() const override { return engine; }
+        void setEditor(editor::EditorInterface* editorInterface) override;
+        editor::EditorInterface* getEditor() const override { return editor; }
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
         static AssetManager &getInstance();
@@ -152,7 +155,7 @@ namespace am {
 
         //Scanning & Metadata
         void scanResourceDirectory(const std::filesystem::path& rootPath);
-        bool saveAssetMetadata(const boost::uuids::uuid& id) const;
+        bool saveAssetMetadata(const boost::uuids::uuid& id) const override;
         void saveAllAssetMetadata() const;
 
         //Json
@@ -172,6 +175,7 @@ namespace am {
         std::unique_ptr<FileBrowser> fileBrowserInstance;
 
         engine::EngineInterface* engine = nullptr;
+        editor::EditorInterface* editor = nullptr;
         plt::PlatformInterface* platform = nullptr;
         std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;

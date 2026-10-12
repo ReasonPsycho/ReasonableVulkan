@@ -78,10 +78,20 @@ bool Scene::IsActive() const {
     return active;
 }
 
-void Scene::Update(float deltaTime) {
-    for (auto& [_, system] : systems) {
+void Scene::Update(float deltaTime) { //TODO prob i will need to extend update with diffrent forms (late update for example) or enums
+    for (auto& [type, system] : systems) {
+        if (type == std::type_index(typeid(RenderSystem))) {
+            continue;
+        }
         ZoneTransientN(zoneName,(system->name).c_str(),true);
         system->Update(deltaTime);
+    }
+}
+
+void Scene::Render(float deltaTime) {
+    if (auto renderSystem = GetSystem<RenderSystem>()) {
+        ZoneTransientN(zoneName, (renderSystem->name).c_str(), true);
+        renderSystem->Update(deltaTime);
     }
 }
 
@@ -932,21 +942,25 @@ CameraObject Scene::GetActiveCamera()
         static CameraComponent defaultCamera;
 
         auto editorSystem = engine.GetEditorSystem();
-        if (editorSystem && editorSystem->inEditMode && editorSystem->GetTargetScene() == this)
+        if (sceneType != SceneType::Thumbnail && editorSystem && editorSystem->inEditMode && editorSystem->GetTargetScene() == this)
         {
             return {&editorSystem->camera, &editorSystem->cameraTransform};
         }
         else
         {
-            auto& cameras = GetComponentArray<CameraComponent>().get()->GetComponents();
-            auto& transforms = GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
+            auto cameraCompArray = GetComponentArray<CameraComponent>();
+            auto transformArray = GetIntegralComponentArray<TransformComponent>();
+            if (cameraCompArray && transformArray) {
+                auto& cameras = cameraCompArray->GetComponents();
+                auto& transforms = transformArray->GetComponents();
 
-            for (int i = 0; i < cameras.size(); i++)
-            {
-                if (GetComponentArray<CameraComponent>().get()->IsComponentActive(i))
+                for (int i = 0; i < cameraCompArray->GetArraySize(); i++)
                 {
-                    auto cameraEntity = GetComponentArray<CameraComponent>().get()->ComponentIndexToEntity(i);
-                    return {&cameras[cameraEntity], &transforms[cameraEntity]};
+                    if (cameraCompArray->IsComponentActive(i))
+                    {
+                        auto cameraEntity = cameraCompArray->ComponentIndexToEntity(i);
+                        return {&cameras[i], &transforms[cameraEntity]};
+                    }
                 }
             }
         }

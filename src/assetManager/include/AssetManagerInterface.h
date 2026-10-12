@@ -10,6 +10,7 @@
 #include "AssetInfo.hpp"
 #include "PlatformInterface.hpp"
 #include "ImguiFileBrowserInterface.h"
+#include "EditorInterface.hpp"
 
 namespace engine {
     class EngineInterface;
@@ -25,6 +26,9 @@ namespace am
         ImguiFileBrowserInterface* imguiFileBrowser = nullptr;
 
         virtual void setEngine(engine::EngineInterface* engineInterface) = 0;
+        virtual engine::EngineInterface* getEngine() const = 0;
+        virtual void setEditor(editor::EditorInterface* editorInterface) = 0;
+        virtual editor::EditorInterface* getEditor() const = 0;
         virtual std::optional<boost::uuids::uuid> getAssetUuidByPath(const std::filesystem::path& path) = 0;
 
         virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) = 0;
@@ -70,6 +74,7 @@ namespace am
 
         virtual bool saveMetaCache(const std::string& cachePath = "") const = 0;
         virtual bool loadMetaCache(const std::string& cachePath = "") = 0;
+        virtual bool saveAssetMetadata(const boost::uuids::uuid& id) const { return false; }
 
         virtual std::vector<std::string> getRegisteredAssetsNames() const = 0;
         virtual std::vector<std::string> getRegisteredAssetsNames(AssetType type) const = 0;
