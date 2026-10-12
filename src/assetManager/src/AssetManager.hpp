@@ -3,6 +3,8 @@
 
 #include <typeindex>
 #include "stb_image.h"
+#include "stb_image_write.h"
+#include "stb_image_resize2.h"
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -18,7 +20,9 @@
 #include <assimp/Importer.hpp>
 
 #include "AssetManagerInterface.h"
+#include "fileBrowser/ImguiFileBrowser.hpp"
 #include "../include/AssetInfo.hpp"
+#include "EngineInterface.hpp"
 
 
 #include <rapidjson/document.h>
@@ -29,6 +33,28 @@
 #include <rapidjson/ostreamwrapper.h>
 
 namespace am {
+    class MaterialAsset;
+    class TextureAsset;
+    class ShaderAsset;
+    class ShaderProgramAsset;
+    class ModelAsset;
+    class MeshAsset;
+    class SceneAsset;
+    class PrefabAsset;
+    class ConfigAsset;
+
+    using SupportedAssets = std::tuple<
+        MaterialAsset,
+        TextureAsset,
+        ShaderAsset,
+        ShaderProgramAsset,
+        ModelAsset,
+        MeshAsset,
+        SceneAsset,
+        PrefabAsset,
+        ConfigAsset
+    >;
+
     class AssetManager : public AssetManagerInterface {
         using AssetCreator = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, std::string)>;
         using AssetImporter = std::function<std::unique_ptr<am::Asset>(const boost::uuids::uuid&, am::ImportContext &)>;
@@ -40,6 +66,10 @@ namespace am {
     public:
 
         void Initialize(plt::PlatformInterface* platformInterface) override;
+        void setEngine(engine::EngineInterface* engineInterface) override;
+        engine::EngineInterface* getEngine() const override { return engine; }
+        void setEditor(editor::EditorInterface* editorInterface) override;
+        editor::EditorInterface* getEditor() const override { return editor; }
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
         static AssetManager &getInstance();
@@ -66,6 +96,8 @@ namespace am {
         MetadataSaver getMetadataSaver(std::type_index type) const;
 
 
+        using AssetManagerInterface::getAssetData;
+
         //Creators
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) override;
         std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path, std::string lookupName) override;
@@ -80,7 +112,9 @@ namespace am {
         std::optional<boost::uuids::uuid> initializeAsset(AssetType assetType, std::string path, std::string lookupName);
 
         //Getters
+        std::optional<boost::uuids::uuid> findAssetByImportContext(const ImportContext& importContext) const;
         std::optional<boost::uuids::uuid> getAssetUuid(std::string lookupName) override;
+        std::optional<boost::uuids::uuid> getAssetUuidByPath(const std::filesystem::path& path) override;
 
         std::any getAssetData(const boost::uuids::uuid& id) override;
         std::any getAssetData(std::string lookupName) override;
@@ -91,14 +125,26 @@ namespace am {
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids() const override;
         std::vector<boost::uuids::uuid> getRegisteredAssetsUuids(AssetType type) const override;
 
-        void ImguiFileBrowser(std::string windowName) override;
-        std::filesystem::path currentPath;
+        bool openFileWithDefaultApp(const std::filesystem::path& path) override;
+        bool openFileInIDE(const std::filesystem::path& path) override;
+        void openAssetFile(const std::filesystem::path& path) override;
+
+        bool reimportAsset(const boost::uuids::uuid& id) override;
+        bool reimportAsset(const std::filesystem::path& path) override;
 
         std::optional<std::shared_ptr<AssetInfo>> getAssetInfo(const boost::uuids::uuid &id) const override;
         std::optional<Asset*> getAsset(const boost::uuids::uuid& id) override;
 
         void saveAsset(boost::uuids::uuid id) override;
         void saveAsset(std::string lookupName) override;
+
+        std::string getThumbnailPath(const boost::uuids::uuid& id) const override;
+        bool generateThumbnail(const boost::uuids::uuid& id) override;
+        void* getThumbnailTexture(const boost::uuids::uuid& id) override;
+        void* getThumbnailTexture(const std::filesystem::path& path) override;
+
+        bool saveMetaCache(const std::string& cachePath = "") const override;
+        bool loadMetaCache(const std::string& cachePath = "") override;
 
         //UUIDS
         template <typename T>
@@ -107,9 +153,16 @@ namespace am {
         template <typename T>
         void RegisterAssetType();
 
+        //Scanning & Metadata
+        void scanResourceDirectory(const std::filesystem::path& rootPath);
+        bool saveAssetMetadata(const boost::uuids::uuid& id) const override;
+        void saveAllAssetMetadata() const;
+
         //Json
         bool saveRegistryMetadataToFile(const std::string& filename) const;
         bool loadRegistryMetadataFromFile(const std::string& filename);
+
+        std::optional<boost::uuids::uuid> registerManagedAsset(const std::string& filePath, const std::string& customLookUpName = "");
 
     private:
         AssetManager();
@@ -119,7 +172,12 @@ namespace am {
         void handleFileAddedToFolder(const plt::FileAddedEvent* event);
         void handleFileDropped(const plt::FileDropEvent* event);
 
-        std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkan\\res";
+        std::unique_ptr<FileBrowser> fileBrowserInstance;
+
+        engine::EngineInterface* engine = nullptr;
+        editor::EditorInterface* editor = nullptr;
+        plt::PlatformInterface* platform = nullptr;
+        std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, boost::uuids::uuid> lookupNamesToUUIDs;
@@ -129,6 +187,8 @@ namespace am {
         std::unordered_map<std::type_index, AssetLoader> loaders;
         std::unordered_map<std::type_index, MetadataSaver> metadataSavers;
         std::unordered_map<std::type_index, MetadataLoader> metadataLoaders;
+
+        friend class FileBrowser;
 
     #ifdef AM_ENABLE_TESTS
         friend struct AssetManagerTestFixture;

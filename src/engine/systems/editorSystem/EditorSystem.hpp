@@ -8,57 +8,136 @@
 #include <limits>
 #include <typeindex>
 #include <unordered_map>
+#include <vector>
 #include <glm/glm.hpp>
 #include <utility>
-#include "ecs/System.h"
+#include <memory>
+#include <cmath>
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
+#include <imgui.h>
+#include <imgui_internal.h>
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "ecs/Types.h"
+#include "CommandHistory.hpp"
+#include "EditorCommands.hpp"
+#include "EditorInterface.hpp"
 
 namespace plt
 {
     class PlatformInterface;
 }
+namespace engine
+{
+    class Engine;
+}
 namespace engine::ecs
 {
     struct Component;
+    class Scene;
 
-    class EditorSystem :  public System<EditorSystem>
+    class EditorSystem : public ::engine::editor::EditorInterface
     {
     public:
-        explicit EditorSystem(Scene* scene);
+        explicit EditorSystem(::engine::Engine* engine);
         void Update(float deltaTime) override;
+        void ProcessThumbnailCaptures() override;
+
+        void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
+        bool QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath) override;
+        std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) override;
+        bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
 
         struct ComponentInfo {
             std::string displayName;
-            std::function<void(Scene* scene, Component* component)> showImGuiComponent;
-         };
-
+            bool isIntegral = false;
+            std::function<bool(Scene* scene, void* component)> showImGuiComponent;
+        };
 
         // Register component type with a display name and ImGui renderer
-
         template<typename T>
         void RegisterComponentType() {
             ComponentInfo info;
-            info.displayName = boost::core::demangle(typeid(T).name());
-            info.showImGuiComponent = [](Scene* scene, Component* component) {
-                if (auto* typedComponent = dynamic_cast<T*>(component)) {
-                    typedComponent->ShowImGui(scene, component);
+            info.displayName = std::meta::identifier_of(^^T);
+            info.isIntegral = has_annotation<Integral>(^^T);
+            info.showImGuiComponent = [](Scene* scene, void* component) -> bool {
+                if (!component) return false;
+                bool shouldRemove = false;
+                constexpr auto typeName = std::meta::identifier_of(^^T);
+                bool open = ImGui::CollapsingHeader(typeName.data());
+                if constexpr (!has_annotation<Integral>(^^T) && !std::is_same_v<T, TransformComponent>) {
+                    if (ImGui::BeginPopupContextItem()) {
+                        if (ImGui::MenuItem("Remove Component")) {
+                            shouldRemove = true;
+                        }
+                        ImGui::EndPopup();
+                    }
                 }
+                if (open) {
+                    auto& comp = *static_cast<T*>(component);
+                    if constexpr (requires { comp.CustomDrawImGui(scene); }) {
+                        comp.CustomDrawImGui(scene);
+                    } else {
+                        DrawComponentFields(comp, scene);
+                    }
+                }
+                return shouldRemove;
             };
             registeredComponentTypes[typeid(T)] = std::move(info);
         }
 
+        void SetEntityName(Entity entity, const std::string& name, Scene* targetScene = nullptr) override;
+        std::string GetEntityName(Entity entity, Scene* targetScene = nullptr) const override;
+        std::string GetEntityRawName(Entity entity, Scene* targetScene = nullptr) const override;
 
-        void SetEntityName(Entity entity, const std::string& name);
-        std::string GetEntityName(Entity entity) const;
+        Entity GetSelectedEntity() const override { return selectedEntities.empty() ? std::numeric_limits<std::uint32_t>::max() : selectedEntities.back(); }
+        void SetSelectedEntity(Entity entity) override {
+            selectedEntities.clear();
+            if (entity != std::numeric_limits<std::uint32_t>::max()) {
+                selectedEntities.push_back(entity);
+                requestInspectorFocus = true;
+            }
+        }
+        const std::vector<Entity>& GetSelectedEntities() const override { return selectedEntities; }
+        void SetSelectedEntities(const std::vector<Entity>& entities) override {
+            selectedEntities = entities;
+            if (!selectedEntities.empty()) {
+                requestInspectorFocus = true;
+            }
+        }
+        void AddSelectedEntity(Entity entity) override {
+            if (entity == std::numeric_limits<std::uint32_t>::max()) return;
+            if (std::find(selectedEntities.begin(), selectedEntities.end(), entity) == selectedEntities.end()) {
+                selectedEntities.push_back(entity);
+                requestInspectorFocus = true;
+            }
+        }
+        void RemoveSelectedEntity(Entity entity) override {
+            selectedEntities.erase(std::remove(selectedEntities.begin(), selectedEntities.end(), entity), selectedEntities.end());
+        }
+        void ClearSelectedEntities() override { selectedEntities.clear(); }
+        bool IsEntitySelected(Entity entity) const override {
+            return std::find(selectedEntities.begin(), selectedEntities.end(), entity) != selectedEntities.end();
+        }
 
-        Entity GetSelectedEntity() const { return selectedEntity; }
-        void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
+        Scene* GetTargetScene() const override;
+        std::shared_ptr<Scene> GetSelectedScene() const override { return selectedScene.lock(); }
+        void SetTargetScene(std::shared_ptr<Scene> scene) override { selectedScene = scene; }
 
+        [[=NonSerialized{}]]
         CameraComponent camera = CameraComponent();
+        [[=NonSerialized{}]]
         TransformComponent cameraTransform = TransformComponent();
 
+        [[=Tooltip{"Toggle in-editor editing mode"}]]
         bool inEditMode = true;
+
+        [[=Tooltip{"Toggle grid visualization"}]]
+        bool showGrid = true;
+        [[=Tooltip{"Grid size"}]]
+        float gridSize = 20.0f;
 
         void Initialize();
 
@@ -68,26 +147,85 @@ namespace engine::ecs
             TexturedWiremesh
         };
 
+        [[=Tooltip{"Shader override mode for viewport rendering"}]]
         ShaderOverrideMode currentShaderOverride = ShaderOverrideMode::Default;
+        [[=NonSerialized{}]]
         boost::uuids::uuid wiremeshShaderId = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
         boost::uuids::uuid wiremeshTexturedShaderId = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle wiremeshShaderHandle = gfx::ShaderProgramHandle::invalid();
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle wiremeshTexturedShaderHandle = gfx::ShaderProgramHandle::invalid();
 
         void SetUpCameraControls();
+        void FocusCameraOnBounds(const glm::vec3& center, float distance, Scene* scene = nullptr) override;
 
-    protected:
-        void OnComponentAdded(ComponentID componentID, std::type_index type) override {}
-        void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
+        void Undo() override { history.Undo(); }
+        void Redo() override { history.Redo(); }
+        bool CanUndo() const override { return history.CanUndo(); }
+        bool CanRedo() const override { return history.CanRedo(); }
+        editor::CommandHistory& GetHistory() { return history; }
+        const editor::CommandHistory& GetHistory() const { return history; }
+        void ExecuteCommand(std::shared_ptr<editor::ICommand> cmd) { history.Execute(cmd); }
+        void PushCommand(std::shared_ptr<editor::ICommand> cmd) { history.Push(cmd); }
+        void ImGuiHistoryWindow(const std::string& windowName = "History");
+
+        struct EditorCameraState {
+            CameraComponent camera = CameraComponent();
+            TransformComponent cameraTransform = TransformComponent();
+            float cameraDistance = 5.0f;
+            float cameraYaw = 0.0f;
+            float cameraPitch = 45.0f;
+            glm::vec3 cameraTarget = glm::vec3(0.0f);
+            bool isRightMousePressed = false;
+            bool isMiddleMousePressed = false;
+            bool isBoxSelecting = false;
+            ImVec2 boxSelectStart = { 0, 0 };
+            std::vector<Entity> preBoxSelectedEntities;
+            ImVec2 lastViewportSize = { 0, 0 };
+            ImVec2 lastViewportPos = { 0, 0 };
+
+            void UpdateCameraPosition();
+        };
+
+        EditorCameraState& GetEditorCameraState(Scene* scene);
+        EditorCameraState& GetEditorCameraState(const std::string& sceneName);
+
+        void UpdateCameraPosition();
+
+        ::engine::Engine* engine = nullptr;
 
     private:
+        editor::CommandHistory history;
+        std::weak_ptr<Scene> selectedScene;
+        std::unordered_map<std::string, EditorCameraState> sceneEditorCameras;
         std::unordered_map<Entity, std::string> named_entities;
-        Entity selectedEntity = std::numeric_limits<std::uint32_t>::max();
-        ;
+        std::vector<Entity> selectedEntities;
+        Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
+        char renameBuf[256] = "";
+        bool renameFocusRequested = false;
+        bool requestInspectorFocus = false;
         std::unordered_map<std::type_index,ComponentInfo> registeredComponentTypes;
+
+        struct SceneGraphNodeRect {
+            Entity entity;
+            Scene* scene = nullptr;
+            ImVec2 contentMin;
+            ImVec2 contentMax;
+        };
+        std::vector<SceneGraphNodeRect> sceneGraphNodeRects;
+        bool isSceneGraphBoxSelecting = false;
+        ImVec2 sceneGraphBoxSelectStartPos = { 0, 0 };
+        std::vector<Entity> sceneGraphBoxSelectPreSelection;
+        bool anySceneGraphNodeClickedOrActive = false;
+
         void ImGuiSceneGraph();
-        void ImGuiGraphEntity(Entity entity);
+        void ImGuiGraphEntity(Scene* currentScene, Entity entity);
         void ImGuiInspector();
-        void ImGuiGizmo();
-        void ImguiShaderOverrideWindow();
+        void ImGuiSystemSettings();
+        void ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState, const ImVec2& viewportPos, const ImVec2& viewportSize);
+        void ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize);
         void ImguiToolbar();
 
         bool isRightMousePressed = false;
@@ -98,7 +236,6 @@ namespace engine::ecs
         float cameraPitch = 45.0f;
         glm::vec3 cameraTarget = glm::vec3(0.0f);
 
-        void UpdateCameraPosition();
         ImVec2 lastViewportSize = { 0, 0 };
         ImVec2 lastViewportPos = { 0, 0 };
     };

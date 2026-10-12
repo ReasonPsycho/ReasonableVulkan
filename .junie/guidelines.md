@@ -74,5 +74,4 @@ The following README files provide detailed documentation for different parts of
 - `res/shaders/README.md`: Documentation for the shader creation process.
 
 ### Internal Tracking
-- **Notes File**: Use `.junie/notes.md` to keep track of progress, technical decisions, and observations throughout the development process. This file serves as a persistent scratchpad for Junie.
 - **Output Files**: Any command output should be redirected to `.junie/output.txt` to avoid cluttering files in the project root.

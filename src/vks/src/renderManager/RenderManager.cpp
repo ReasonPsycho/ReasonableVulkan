@@ -8,8 +8,6 @@
 #include "../imguiManager/ImguiManager.hpp"
 #endif
 
-#include <boost/uuid/nil_generator.hpp>
-
 #include "../descriptorManager/buffers/LightModelPushConstant.hpp"
 #include "../descriptorManager/buffers/ModelPushConstant.hpp"
 
@@ -30,18 +28,26 @@ RenderManager::~RenderManager() {
     cleanup();
 }
 
-void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost
-                               ::uuids::uuid raycastShaderId) {
-    this->pbrShaderId = pbrShaderId;
-    this->skyboxShaderId = skyboxShaderId;
-    this->shadowShaderId = shadowShaderId;
-    this->cubeShadowShaderId = cubeShadowShaderId;
-    this->raycastShaderId = raycastShaderId;
+void RenderManager::initialize(gfx::ShaderProgramHandle pbrShader, gfx::ShaderProgramHandle skyboxShader, gfx::ShaderProgramHandle shadowShader, gfx::ShaderProgramHandle cubeShadowShader, gfx::ShaderProgramHandle raycastShader) {
+    this->pbrShaderHandle = pbrShader;
+    this->skyboxShaderHandle = skyboxShader;
+    this->shadowShaderHandle = shadowShader;
+    this->cubeShadowShaderHandle = cubeShadowShader;
+    this->raycastShaderHandle = raycastShader;
     createCommandBuffers();
     createSyncObjects();
-    
+
     // Load a default box model for skybox rendering
-    descriptorManager->getOrLoadResource<ModelDescriptor>("boxModel");
+    descriptorManager->getOrLoadResource<ModelDescriptor>("internalCubeModel");
+}
+
+void RenderManager::initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost::uuids::uuid raycastShaderId) {
+    auto pbrHandle = descriptorManager->getOrLoadShaderProgram(pbrShaderId);
+    auto skyboxHandle = descriptorManager->getOrLoadShaderProgram(skyboxShaderId);
+    auto shadowHandle = descriptorManager->getOrLoadShaderProgram(shadowShaderId);
+    auto cubeShadowHandle = descriptorManager->getOrLoadShaderProgram(cubeShadowShaderId);
+    auto raycastHandle = descriptorManager->getOrLoadShaderProgram(raycastShaderId);
+    initialize(pbrHandle, skyboxHandle, shadowHandle, cubeShadowHandle, raycastHandle);
 }
 
 #ifdef ENABLE_IMGUI
@@ -74,9 +80,9 @@ void RenderManager::createSyncObjects() {
 }
 
 
-    void vks::RenderManager::renderNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId)
+void RenderManager::renderNode(NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle, MaterialDescriptor* materialOverride)
 {
-    auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(renderProgramId);
+    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(renderProgramHandle);
     if (!shaderProgramDescriptor) return;
     const auto& defines = shaderProgramDescriptor->getDefines();
 
@@ -90,7 +96,7 @@ void RenderManager::createSyncObjects() {
             push_m.model = nodeWorldTransform;
             vkCmdPushConstants(
                 commandBuffer,
-                pipelineManager->getPipelineLayout(renderProgramId),
+                pipelineManager->getPipelineLayout(renderProgramHandle),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 sizeof(ModelPushConstant),
@@ -99,16 +105,16 @@ void RenderManager::createSyncObjects() {
         }
 
         for (const auto& mesh : node->meshes) {
-            bindMeshDescriptors(commandBuffer, renderProgramId, mesh, defines);
+            bindMeshDescriptors(commandBuffer, renderProgramHandle, mesh, defines, materialOverride);
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
         }
-        renderNode(node, commandBuffer, matrix, renderProgramId);
+        renderNode(node, commandBuffer, matrix, renderProgramHandle, materialOverride);
     }
 }
 
-void vks::RenderManager::renderLightNode(vks::NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, boost::uuids::uuid renderProgramId, int lightIndex, int lightType)
+void RenderManager::renderLightNode(NodeDescriptorStruct* mainNode, VkCommandBuffer commandBuffer, const glm::mat4 matrix, gfx::ShaderProgramHandle renderProgramHandle, int lightIndex, int lightType)
 {
-    auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(renderProgramId);
+    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(renderProgramHandle);
     if (!shaderProgramDescriptor) return;
     const auto& defines = shaderProgramDescriptor->getDefines();
 
@@ -125,7 +131,7 @@ void vks::RenderManager::renderLightNode(vks::NodeDescriptorStruct* mainNode, Vk
 
             vkCmdPushConstants(
                 commandBuffer,
-                pipelineManager->getPipelineLayout(renderProgramId),
+                pipelineManager->getPipelineLayout(renderProgramHandle),
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 0,
                 sizeof(LightModelPushConstant),
@@ -134,10 +140,10 @@ void vks::RenderManager::renderLightNode(vks::NodeDescriptorStruct* mainNode, Vk
         }
 
         for (const auto& mesh : node->meshes) {
-            bindMeshDescriptors(commandBuffer, renderProgramId, mesh, defines);
+            bindMeshDescriptors(commandBuffer, renderProgramHandle, mesh, defines);
             vkCmdDrawIndexed(commandBuffer, mesh->indices.count, 1, 0, 0, 0);
         }
-        renderLightNode(node, commandBuffer, matrix, renderProgramId, lightIndex, lightType);
+        renderLightNode(node, commandBuffer, matrix, renderProgramHandle, lightIndex, lightType);
     }
 }
 
@@ -153,14 +159,24 @@ void RenderManager::cleanup() {
     vkDestroyCommandPool(context->getDevice(), context->getGraphicsCommandPool(), nullptr);
 }
 
-void RenderManager::submitRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId, glm::mat4 transform)
+void RenderManager::drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform)
 {
-    renderQueue.push_back(RenderCommand{cameraIndex, modelId, renderProgramId, transform});
+    renderQueue.push_back(RenderCommand{cameraIndex, meshHandle, materialHandle, renderProgramHandle, transform});
 }
 
-void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid renderProgramId)
+void RenderManager::drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle)
 {
-    skyboxRenderQueue.push_back(SkyboxRenderCommand{cameraIndex, modelId, renderProgramId});
+    skyboxRenderQueue.push_back(SkyboxRenderCommand{cameraIndex, skyboxMaterialHandle, renderProgramHandle});
+}
+
+void RenderManager::submitRenderCommand(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform)
+{
+    renderQueue.push_back(RenderCommand{cameraIndex, meshHandle, materialHandle, renderProgramHandle, transform});
+}
+
+void RenderManager::submitSkyboxRenderCommand(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle)
+{
+    skyboxRenderQueue.push_back(SkyboxRenderCommand{cameraIndex, skyboxMaterialHandle, renderProgramHandle});
 }
 
 void RenderManager::submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform)
@@ -232,6 +248,7 @@ void RenderManager::createCommandBuffers() {
 }
 
 void RenderManager::beginFrame() {
+    activeCameraCount = 0;
     vkWaitForFences(context->getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     VkResult result = swapChain->acquireNextImage(imageAvailableSemaphores[currentFrame]);
@@ -357,17 +374,35 @@ void RenderManager::endFrame() {
 
                     vkCmdSetDepthBias(commandBuffer, 1.25f, 0.0f, 1.75f);
 
-                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(shadowShaderId));
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(shadowShaderHandle));
 
-                    auto shadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(shadowShaderId);
+                    auto shadowShaderDescriptor = descriptorManager->getShaderProgram(shadowShaderHandle);
                     if (shadowShaderDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, shadowShaderId, 0, shadowShaderDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, shadowShaderHandle, 0, shadowShaderDescriptor->getDefines());
                     }
 
                     for (auto& command : renderQueue) {
-                        auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(command.modelId);
-                        if (modelDescriptor) {
-                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, shadowShaderId, light.shadowMapIndex, 0);
+                        auto meshDescriptor = descriptorManager->getMesh(command.meshHandle);
+                        if (meshDescriptor) {
+                            auto currentShadowDescriptor = descriptorManager->getShaderProgram(shadowShaderHandle);
+                            const auto& defines = currentShadowDescriptor ? currentShadowDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                            bool hasLightModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+                            if (hasLightModelPushConstants) {
+                                LightModelPushConstant push_lm;
+                                push_lm.model = command.transform;
+                                push_lm.lightIndex = light.shadowMapIndex;
+                                push_lm.lightType = 0;
+                                vkCmdPushConstants(
+                                    commandBuffer,
+                                    pipelineManager->getPipelineLayout(shadowShaderHandle),
+                                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    0,
+                                    sizeof(LightModelPushConstant),
+                                    &push_lm
+                                );
+                            }
+                            bindMeshDescriptors(commandBuffer, shadowShaderHandle, meshDescriptor, defines);
+                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
                         }
                     }
 
@@ -415,17 +450,35 @@ void RenderManager::endFrame() {
 
                     vkCmdSetDepthBias(commandBuffer, 1.25f, 0.0f, 1.75f);
 
-                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cubeShadowShaderId));
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cubeShadowShaderHandle));
 
-                    auto cubeShadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cubeShadowShaderId);
+                    auto cubeShadowShaderDescriptor = descriptorManager->getShaderProgram(cubeShadowShaderHandle);
                     if (cubeShadowShaderDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, cubeShadowShaderId, 0, cubeShadowShaderDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, cubeShadowShaderHandle, 0, cubeShadowShaderDescriptor->getDefines());
                     }
 
                     for (auto& command : renderQueue) {
-                        auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(command.modelId);
-                        if (modelDescriptor) {
-                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, cubeShadowShaderId, light.shadowMapIndex, 1);
+                        auto meshDescriptor = descriptorManager->getMesh(command.meshHandle);
+                        if (meshDescriptor) {
+                            auto currentCubeShadowDescriptor = descriptorManager->getShaderProgram(cubeShadowShaderHandle);
+                            const auto& defines = currentCubeShadowDescriptor ? currentCubeShadowDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                            bool hasLightModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+                            if (hasLightModelPushConstants) {
+                                LightModelPushConstant push_lm;
+                                push_lm.model = command.transform;
+                                push_lm.lightIndex = light.shadowMapIndex;
+                                push_lm.lightType = 1;
+                                vkCmdPushConstants(
+                                    commandBuffer,
+                                    pipelineManager->getPipelineLayout(cubeShadowShaderHandle),
+                                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    0,
+                                    sizeof(LightModelPushConstant),
+                                    &push_lm
+                                );
+                            }
+                            bindMeshDescriptors(commandBuffer, cubeShadowShaderHandle, meshDescriptor, defines);
+                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
                         }
                     }
 
@@ -466,17 +519,35 @@ void RenderManager::endFrame() {
 
                     vkCmdSetDepthBias(commandBuffer, 1.25f, 0.0f, 1.75f);
 
-                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(shadowShaderId));
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(shadowShaderHandle));
 
-                    auto spotShadowShaderDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(shadowShaderId);
+                    auto spotShadowShaderDescriptor = descriptorManager->getShaderProgram(shadowShaderHandle);
                     if (spotShadowShaderDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, shadowShaderId, 0, spotShadowShaderDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, shadowShaderHandle, 0, spotShadowShaderDescriptor->getDefines());
                     }
 
                     for (auto& command : renderQueue) {
-                        auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(command.modelId);
-                        if (modelDescriptor) {
-                            renderLightNode(modelDescriptor->nodes[0], commandBuffer, command.transform, shadowShaderId, light.shadowMapIndex, 2);
+                        auto meshDescriptor = descriptorManager->getMesh(command.meshHandle);
+                        if (meshDescriptor) {
+                            auto currentSpotShadowDescriptor = descriptorManager->getShaderProgram(shadowShaderHandle);
+                            const auto& defines = currentSpotShadowDescriptor ? currentSpotShadowDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                            bool hasLightModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
+                            if (hasLightModelPushConstants) {
+                                LightModelPushConstant push_lm;
+                                push_lm.model = command.transform;
+                                push_lm.lightIndex = light.shadowMapIndex;
+                                push_lm.lightType = 2;
+                                vkCmdPushConstants(
+                                    commandBuffer,
+                                    pipelineManager->getPipelineLayout(shadowShaderHandle),
+                                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    0,
+                                    sizeof(LightModelPushConstant),
+                                    &push_lm
+                                );
+                            }
+                            bindMeshDescriptors(commandBuffer, shadowShaderHandle, meshDescriptor, defines);
+                            vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
                         }
                     }
 
@@ -516,14 +587,15 @@ void RenderManager::endFrame() {
         pointLightQueue.clear();
         spotLightQueue.clear();
 
-        // Sort render queue by renderProgramId to minimize pipeline switching (optional, could be per camera)
+        // Sort render queue by renderProgramHandle to minimize pipeline switching (optional, could be per camera)
         std::sort(renderQueue.begin(), renderQueue.end(), [](const RenderCommand& a, const RenderCommand& b) {
             if (a.cameraIndex != b.cameraIndex) return a.cameraIndex < b.cameraIndex;
-            return a.renderProgramId < b.renderProgramId;
+            return a.renderProgramHandle < b.renderProgramHandle;
         });
 
         // Loop through all active cameras
-        for (uint32_t i = 0; i < activeCameraCount; ++i) {
+        uint32_t cameraCountToRender = std::max(1u, activeCameraCount);
+        for (uint32_t i = 0; i < cameraCountToRender; ++i) {
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderPassInfo.renderPass = pipelineManager->getRenderPass();
@@ -555,19 +627,19 @@ void RenderManager::endFrame() {
 
             // Process skybox for this camera
             if (!skyboxRenderQueue.empty()) {
-                auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("skyboxModel");
+                auto skyboxModel = descriptorManager->getOrLoadResource<ModelDescriptor>("internalBoxOfskybox.model");
                 if (skyboxModel && !skyboxModel->meshes.empty()) {
                     auto skyboxMesh = skyboxModel->meshes[0];
 
                     for (auto& cmd : skyboxRenderQueue) {
                         if (cmd.cameraIndex != i) continue;
 
-                        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+                        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramHandle));
 
                         vkCmdBindDescriptorSets(
                               commandBuffer,
                               VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                              pipelineManager->getPipelineLayout(cmd.renderProgramHandle),
                               0,                                    // First set index (Set 0)
                               1,                                    // Number of sets
                               &descriptorManager->sceneUBOs[i].buffer.descriptorSet,
@@ -575,18 +647,18 @@ void RenderManager::endFrame() {
 
 
                         // Bind material descriptor set at set index 1
-                        auto materialDescriptor = descriptorManager->getOrLoadResource<MaterialDescriptor>(cmd.modelId);
+                        auto materialDescriptor = descriptorManager->getMaterial(cmd.skyboxMaterialHandle);
                         if (materialDescriptor) {
                              if (materialDescriptor->descriptorSet == VK_NULL_HANDLE) {
                                   materialDescriptor->setUpDescriptorSet(descriptorManager->skyboxMaterialLayout, descriptorManager->skyboxMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
                              }
 
-                             auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cmd.renderProgramId);
+                             auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
                              if (shaderProgramDescriptor) {
                                  const auto& defines = shaderProgramDescriptor->getDefines();
                                  if (std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != defines.end()) {
                                      vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        pipelineManager->getPipelineLayout(cmd.renderProgramId), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
+                                        pipelineManager->getPipelineLayout(cmd.renderProgramHandle), 1, 1, &materialDescriptor->descriptorSet, 0, nullptr);
                                  }
                              }
                         }
@@ -600,7 +672,7 @@ void RenderManager::endFrame() {
                         push_m.model = glm::mat4(1.0f);
                         vkCmdPushConstants(
                             commandBuffer,
-                            pipelineManager->getPipelineLayout(cmd.renderProgramId),
+                            pipelineManager->getPipelineLayout(cmd.renderProgramHandle),
                             VK_SHADER_STAGE_VERTEX_BIT,
                             0,
                             sizeof(ModelPushConstant),
@@ -612,26 +684,47 @@ void RenderManager::endFrame() {
                 }
             }
 
-            // Process model render queue for this camera
-            boost::uuids::uuid lastProgramId = boost::uuids::nil_uuid();
+            // Process model & mesh render queue for this camera
+            gfx::ShaderProgramHandle lastProgramHandle = gfx::ShaderProgramHandle::invalid();
             for (auto& cmd : renderQueue) {
                 if (cmd.cameraIndex != i) continue;
 
-                auto modelDescriptor = descriptorManager->getOrLoadResource<ModelDescriptor>(cmd.modelId);
-                if (!modelDescriptor) continue;
+                auto meshDescriptor = descriptorManager->getMesh(cmd.meshHandle);
+                if (!meshDescriptor) continue;
 
-                if (cmd.renderProgramId != lastProgramId) {
-                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramId));
+                if (cmd.renderProgramHandle != lastProgramHandle) {
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(cmd.renderProgramHandle));
 
-                    auto shaderProgramDescriptor = descriptorManager->getOrLoadResource<ShaderProgramDescriptor>(cmd.renderProgramId);
+                    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
                     if (shaderProgramDescriptor) {
-                        bindPipelineDescriptors(commandBuffer, cmd.renderProgramId, i, shaderProgramDescriptor->getDefines());
+                        bindPipelineDescriptors(commandBuffer, cmd.renderProgramHandle, i, shaderProgramDescriptor->getDefines());
                     }
 
-                    lastProgramId = cmd.renderProgramId;
+                    lastProgramHandle = cmd.renderProgramHandle;
                 }
 
-                renderNode(modelDescriptor->nodes[0], commandBuffer, cmd.transform, cmd.renderProgramId);
+                MaterialDescriptor* materialDescriptor = nullptr;
+                if (cmd.materialHandle.isValid()) {
+                    materialDescriptor = descriptorManager->getMaterial(cmd.materialHandle);
+                }
+
+                auto shaderProgramDescriptor = descriptorManager->getShaderProgram(cmd.renderProgramHandle);
+                const auto& defines = shaderProgramDescriptor ? shaderProgramDescriptor->getDefines() : std::vector<ShaderDefinesEnum>{};
+                bool hasModelPushConstants = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != defines.end();
+                if (hasModelPushConstants) {
+                    ModelPushConstant push_m;
+                    push_m.model = cmd.transform;
+                    vkCmdPushConstants(
+                        commandBuffer,
+                        pipelineManager->getPipelineLayout(cmd.renderProgramHandle),
+                        VK_SHADER_STAGE_VERTEX_BIT,
+                        0,
+                        sizeof(ModelPushConstant),
+                        &push_m
+                    );
+                }
+                bindMeshDescriptors(commandBuffer, cmd.renderProgramHandle, meshDescriptor, defines, materialDescriptor);
+                vkCmdDrawIndexed(commandBuffer, meshDescriptor->indices.count, 1, 0, 0, 0);
             }
 
             vkCmdEndRenderPass(commandBuffer);
@@ -694,7 +787,7 @@ void RenderManager::updateSyncObjects() {
     imagesInFlight.assign(swapChain->getImageViews().size(), VK_NULL_HANDLE);
 }
 
-void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines) {
+void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, uint32_t imageIndex, const std::vector<ShaderDefinesEnum>& defines) {
     bool hasSceneUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::SCENE_UBO_GLSL) != defines.end();
     bool hasLighting = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != defines.end() ||
                        std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
@@ -703,7 +796,7 @@ void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost
         vkCmdBindDescriptorSets(
               commandBuffer,
               VK_PIPELINE_BIND_POINT_GRAPHICS,
-              pipelineManager->getPipelineLayout(renderProgramId),
+              pipelineManager->getPipelineLayout(renderProgramHandle),
               0,                                    // First set index (Set 0)
               1,                                    // Number of sets
               &descriptorManager->sceneUBOs[imageIndex].buffer.descriptorSet,
@@ -714,7 +807,7 @@ void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost
         vkCmdBindDescriptorSets(
               commandBuffer,
               VK_PIPELINE_BIND_POINT_GRAPHICS,
-              pipelineManager->getPipelineLayout(renderProgramId),
+              pipelineManager->getPipelineLayout(renderProgramHandle),
               3,                                    // Set index 3
               1,                                    // Number of sets
               &descriptorManager->lightInfoUBO.buffer.descriptorSet,
@@ -722,7 +815,7 @@ void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, boost
     }
 }
 
-void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, boost::uuids::uuid renderProgramId, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines) {
+void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, gfx::ShaderProgramHandle renderProgramHandle, MeshDescriptor* mesh, const std::vector<ShaderDefinesEnum>& defines, MaterialDescriptor* materialOverride) {
     bool hasMeshUBO = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::VERTEX_IO_GLSL) != defines.end();
     bool hasMaterial = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_PBR_GLSL) != defines.end();
 
@@ -734,15 +827,20 @@ void RenderManager::bindMeshDescriptors(VkCommandBuffer commandBuffer, boost::uu
     // Bind mesh descriptor set at set index 2
     if (hasMeshUBO && mesh->uniformBuffer.descriptorSet != VK_NULL_HANDLE) {
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-            pipelineManager->getPipelineLayout(renderProgramId), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
+            pipelineManager->getPipelineLayout(renderProgramHandle), 2, 1, &mesh->uniformBuffer.descriptorSet, 0, nullptr);
     }
 
     // Bind material descriptor set at set index 1
     if (hasMaterial) {
-        auto materialDescriptorSet = mesh->material->descriptorSet;
-        if (materialDescriptorSet != VK_NULL_HANDLE) {
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipelineManager->getPipelineLayout(renderProgramId), 1, 1, &materialDescriptorSet, 0, nullptr);
+        MaterialDescriptor* mat = materialOverride ? materialOverride : mesh->material;
+        if (mat) {
+            if (mat->descriptorSet == VK_NULL_HANDLE) {
+                mat->setUpDescriptorSet(descriptorManager->pbrMaterialLayout, descriptorManager->pbrMaterialPool, descriptorManager->defaultImageInfo, descriptorManager->cubeImageInfo);
+            }
+            if (mat->descriptorSet != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineManager->getPipelineLayout(renderProgramHandle), 1, 1, &mat->descriptorSet, 0, nullptr);
+            }
         }
     }
 }

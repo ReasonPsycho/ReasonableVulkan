@@ -9,9 +9,18 @@ if (MSVC) # Caouse windows error
     add_compile_definitions(_AMD64_)
 endif ()
 
-# Set C++23 as the C++ standard for all targets
-set(CMAKE_CXX_STANDARD 23)
+# Set C++26 as the C++ standard for all targets
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_compile_options(-freflection)
+endif ()
+
+# Fix GCC 16 C++26 experimental constexpr exceptions symbol collision with static libstdc++
+if (MINGW)
+    add_compile_definitions(__cpp_lib_constexpr_exceptions=0)
+endif ()
 
 add_compile_definitions(SPDLOG_COMPILED_LIB)
 
@@ -40,6 +49,7 @@ target_include_directories(platform_interface INTERFACE ${CMAKE_SOURCE_DIR}/src/
 
 # Add subdirectories containing other CMake projects
 message(STATUS "Adding subdirectories")
+add_subdirectory(src/renderDocManager)
 add_subdirectory(src/assetManager)
 add_subdirectory(src/platform)
 add_subdirectory(src/vks)
@@ -62,7 +72,7 @@ add_definitions(-DGLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 engine_interface vks_interface am_interface platform_interface engine vks am platform)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 engine_interface vks_interface am_interface platform_interface engine vks am platform renderDocManager)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder
@@ -91,6 +101,7 @@ if (ENABLE_INTEGRATION_TESTS)
             vks
             am
             platform
+            renderDocManager
             Boost::unit_test_framework
     )
 

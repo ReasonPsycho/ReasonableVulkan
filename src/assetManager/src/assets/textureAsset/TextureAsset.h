@@ -15,6 +15,8 @@ namespace am {
     
     class TextureAsset : public Asset {
     public:
+        static constexpr AssetType StaticType = AssetType::Texture;
+        using DataType = TextureData;
 
         explicit TextureAsset(const boost::uuids::uuid& id, std::string path);
         explicit TextureAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
@@ -35,7 +37,7 @@ namespace am {
         [[nodiscard]] int getChannels() const { return data.channels ; }
         [[nodiscard]] bool hasAlpha() const { return data.hasAlpha; }
 
-        [[nodiscard]] const unsigned* getData() const {
+        [[nodiscard]] const uint8_t* getData() const {
             return data.pixels.data();
         }
 

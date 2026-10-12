@@ -2,7 +2,7 @@
 message(STATUS "Running vks cmake")
 cmake_policy(SET CMP0167 NEW)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(ENABLE_IMGUI)
@@ -34,6 +34,7 @@ find_package(imguizmo CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 # Define source files explicitly, excluding test directory
 file(GLOB_RECURSE BASE_SRC
@@ -61,6 +62,7 @@ add_library(vks STATIC ${BASE_SRC})
 target_include_directories(vks
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${Stb_INCLUDE_DIR}
 )
 
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
@@ -79,6 +81,7 @@ target_link_libraries(vks
         Vulkan::Vulkan
         fmt::fmt
         spdlog::spdlog
+        renderDocManager
 )
 
 # tinygltf is header-only, so we just need to include its directory

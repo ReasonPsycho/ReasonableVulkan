@@ -1,9 +1,9 @@
 #include "CollisionSystem.hpp"
 
-#include "assetDatas/ModelData.h"
+#include "assetDatas/MeshData.h"
 #include "ecs/Scene.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
-#include "systems/renderingSystem/componets/RendererComponent.hpp"
+#include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 
 namespace engine::ecs {
@@ -70,18 +70,19 @@ std::optional<RayHit> CollisionSystem::RayCastClosest(const Ray& ray) {
     closestHit.distance = std::numeric_limits<float>::max();
     bool hasHit = false;
 
-    auto modelArray = scene->GetComponentArray<RendererComponent>().get();
-    auto& models = modelArray->GetComponents();
+    auto meshArray = scene->GetComponentArray<MeshComponent>().get();
+    auto& meshes = meshArray->GetComponents();
     auto& transforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
 
     // Only iterate up to the actual size of used components
-    for (ComponentID i = 0; i < modelArray->GetArraySize(); i++)
+    for (ComponentID i = 0; i < meshArray->GetArraySize(); i++)
     {
-            Entity entity = modelArray->ComponentIndexToEntity(i);
-            if (models[i].modelUuid != boost::uuids::nil_uuid())
+            Entity entity = meshArray->ComponentIndexToEntity(i);
+            if (meshes[i].meshUuid != boost::uuids::nil_uuid())
             {
                 float distance;
-                if (RayIntersectsAABB(ray,  scene->engine.assetManagerInterface->getAssetData<am::ModelData>(models[i].modelUuid)->boundingBoxMin, scene->engine.assetManagerInterface->getAssetData<am::ModelData>(models[i].modelUuid)->boundingBoxMax,
+                auto meshData = scene->engine.assetManagerInterface->getAssetData<am::MeshData>(meshes[i].meshUuid);
+                if (meshData && RayIntersectsAABB(ray, meshData->boundingBoxMin, meshData->boundingBoxMax,
                                       transforms[entity].globalMatrix, distance))
                 {
                     if (distance < closestHit.distance) {

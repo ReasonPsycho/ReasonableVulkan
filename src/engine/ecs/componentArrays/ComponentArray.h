@@ -6,6 +6,7 @@
 #define COMPONENTARRAY_H
 #include <unordered_map>
 #include <cassert>
+#include <meta>
 
 #include "IComponentArray.h"
 
@@ -13,6 +14,10 @@ namespace engine::ecs{
     template<typename T>
     class ComponentArray : public IComponentArray {
     public:
+        std::string_view GetName() const override {
+            return std::meta::identifier_of(^^T);
+        }
+
         ComponentID AddComponentToEntity(Entity entity, T component);
         ComponentID RemoveComponentFronEntity(Entity entity);
         T& GetComponentFromEntity(Entity entity);
@@ -26,7 +31,7 @@ namespace engine::ecs{
 
         //Untyped interface overrides
         ComponentID AddComponentUntyped(Entity entity) override;
-        Component& GetComponentUntyped(Entity entity)  override;
+        void* GetComponentUntyped(Entity entity)  override;
         void RemoveComponentUntyped(Entity entity) override;
         bool HasComponentUntyped(Entity entity) const override;
         void SetComponentActiveUntyped(Entity entity, bool active) override;
@@ -34,6 +39,8 @@ namespace engine::ecs{
 
         void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
         void DeserializeFromJson(const rapidjson::Value& obj) override;
+        void SerializeEntitiesToJson(const std::vector<Entity>& entities, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const override;
+        void DeserializeEntityComponent(Entity entity, const rapidjson::Value& componentData, bool active = true) override;
     private:
         std::array<T, MAX_COMPONENTS_ARRAY> componentArray;
         std::bitset<MAX_COMPONENTS_ARRAY> activeComponents;

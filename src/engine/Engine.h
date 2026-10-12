@@ -8,13 +8,18 @@
 #include <memory>
 #include <set>
 #include <unordered_map>
+#include <optional>
+#include <string_view>
 #include <rapidjson/prettywriter.h>
 #include <spdlog/spdlog.h>
 
 #include "AssetManagerInterface.h"
 #include "GraphicsEngine.hpp"
+#include "ecs/componentArrays/ComponentType.h"
 #include "ecs/componentArrays/IntegralComponentArray.h"
 #include "ecs/componentArrays/ComponentArray.h"
+#include "ecs/SystemBase.h"
+#include "EngineInterface.hpp"
 
 namespace engine {
     namespace ecs
@@ -22,27 +27,36 @@ namespace engine {
         class SystemBase;
         struct TransformComponent;
         class Scene;
+        class EditorSystem;
     }
 
     using namespace engine::ecs;
 
-    class Engine {
+    class Engine : public EngineInterface{
     public:
-        Engine(plt::PlatformInterface* platformInterface,gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface);
-        ~Engine() = default;
+        Engine(plt::PlatformInterface* platformInterface, gfx::GraphicsEngine* graphicsEngine, am::AssetManagerInterface* assetManagerInterface);
+        ~Engine() override;
 
-        void Initialize();
+        void Initialize() override;
 
         // Scene management
-        std::shared_ptr<Scene> CreateScene(const std::string& name);
-        std::shared_ptr<Scene> GetScene(const std::string& name);
-        void RemoveScene(const std::string& name);
-        void SetActiveScene(const std::string& name);
-        std::shared_ptr<Scene> GetActiveScene();
+        std::shared_ptr<Scene> CreateScene(const std::string& name) override;
+        std::shared_ptr<Scene> GetScene(const std::string& name) override;
+        void RemoveScene(const std::string& name) override;
+        void SetActiveScene(const std::string& name, bool active = true) override;
+        void SetSceneActive(const std::string& name, bool active) override;
+        std::shared_ptr<Scene> GetActiveScene() override;
+        std::vector<std::shared_ptr<Scene>> GetActiveScenes() override;
+        const std::unordered_map<std::string, std::shared_ptr<Scene>>& GetScenes() const override { return scenes; }
+        std::unordered_map<std::string, std::shared_ptr<Scene>>& GetScenes() override { return scenes; }
+        const std::vector<std::string>& GetSceneOrder() const override { return sceneOrder; }
+        std::shared_ptr<Scene> GetTopEditableScene() override;
 
+        std::shared_ptr<editor::EditorInterface> GetEditor() override;
+        std::shared_ptr<ecs::EditorSystem> GetEditorSystem();
 
         // Global update loop
-        void Update(float deltaTime);
+        void Update(float deltaTime) override;
 
         am::AssetManagerInterface* assetManagerInterface;
         gfx::GraphicsEngine* graphicsEngine;
@@ -50,36 +64,45 @@ namespace engine {
         bool minimized = false;
 
         template<typename T>
-        void RegisterComponentType();
+        void RegisterComponentType() {}
 
         template <class T>
-        void RegisterSystemType();
-
+        void RegisterSystemType() {}
 
         // Factory getters
         std::shared_ptr<IComponentArray> CreateComponentArray(const std::type_index& type) const;
         std::shared_ptr<SystemBase> CreateSystem(const std::type_index& type, Scene* scene) const;
 
-        void SaveScene();
-        void LoadScene(boost::uuids::uuid sceneId);
+        void SaveScene() override;
+        void LoadScene(boost::uuids::uuid sceneId) override;
+        void CloseScene(const std::string& name) override;
+        void CloseScene(boost::uuids::uuid sceneId) override;
+
+        void SaveConfig() override;
+        void LoadConfig() override;
+        std::string configLookupName = "engineConfig";
+
+        bool SetupAssetInScene(ecs::Scene* scene, const boost::uuids::uuid& assetId);
 
         // Get registered types
-        const std::set<std::type_index>& GetRegisteredComponentTypes() const { return componentTypes; }
-        const std::set<std::type_index>& GetRegisteredSystemTypes() const { return systemTypes; }
+        const std::set<std::type_index>& GetRegisteredComponentTypes() const;
+        const std::set<std::type_index>& GetRegisteredSystemTypes() const;
 
-        std::unordered_map<std::type_index, std::function<std::shared_ptr<IComponentArray>()>> componentFactories;
-        std::unordered_map<std::type_index, std::function<std::shared_ptr<SystemBase>(Scene*)>> systemFactories;
+        // Name-based type lookup
+        std::optional<std::type_index> GetComponentTypeByName(std::string_view name) const;
+        std::optional<std::type_index> GetSystemTypeByName(std::string_view name) const;
+
+        std::string_view GetComponentTypeName(const std::type_index& type) const;
+        std::string_view GetSystemTypeName(const std::type_index& type) const;
+
+        ComponentTypeID GetComponentTypeID(const std::type_index& type) const;
+        std::type_index GetComponentTypeFromID(ComponentTypeID id) const;
 
     private:
-        std::set<std::type_index> componentTypes;
-        std::set<std::type_index> systemTypes;
-
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
-        std::shared_ptr<Scene> activeScene = nullptr;
+        std::vector<std::string> sceneOrder;
+        std::shared_ptr<ecs::EditorSystem> editorSystem = nullptr;
     };
-
-
-#include "Engine.tpp"
 
 } // namespace engine
 

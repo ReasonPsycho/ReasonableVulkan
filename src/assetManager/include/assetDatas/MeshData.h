@@ -5,7 +5,7 @@
 #ifndef MESHDATA_H
 #define MESHDATA_H
 #include "VertexAsset.hpp"
-
+#include "AssetInfo.hpp"
 
 namespace am
 {

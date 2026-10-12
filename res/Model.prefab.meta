@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "39461c80-144d-4824-bcf9-5c08fe0e41e2",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\Model.prefab",
+  "type": "Prefab",
+  "lookUpName": "Model.prefab",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Prefab",
+    "assimpIndex": 0
+  }
+}

@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "c900f4eb-39a9-4c9b-a934-f1461f21f211",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\scenes\\main.scene",
+  "type": "Scene",
+  "lookUpName": "main.scene",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Scene",
+    "assimpIndex": 0
+  }
+}

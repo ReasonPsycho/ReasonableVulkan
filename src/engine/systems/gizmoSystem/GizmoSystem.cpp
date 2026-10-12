@@ -28,6 +28,7 @@ namespace engine::ecs
         {
             rayAssetUuid = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalRayModel","internalRayModel").value();
             auto rayData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(rayAssetUuid);
+            rayMeshUuid = rayData->rootNode.mChildren[0].meshes[0].get()->id;
             auto meshData = rayData->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>();
             am::VertexAsset v1{};
             v1.Position = glm::vec3(0.0f);
@@ -51,6 +52,10 @@ namespace engine::ecs
         else
         {
             rayAssetUuid = rayUuidOpt.value();
+            auto rayData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(rayAssetUuid);
+            if (rayData && !rayData->rootNode.mChildren.empty() && !rayData->rootNode.mChildren[0].meshes.empty()) {
+                rayMeshUuid = rayData->rootNode.mChildren[0].meshes[0].get()->id;
+            }
         }
 
         auto cubeUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("internalCubeModel");
@@ -58,6 +63,7 @@ namespace engine::ecs
         {
             cubeAssetUuid = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalCubeModel","internalCubeModel").value();
             auto cubeData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(cubeAssetUuid);
+            cubeMeshUuid = cubeData->rootNode.mChildren[0].meshes[0].get()->id;
             auto meshData = cubeData->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>();
 
             meshData->vertices.resize(8);
@@ -90,10 +96,24 @@ namespace engine::ecs
         else
         {
             cubeAssetUuid = cubeUuidOpt.value();
+            auto cubeData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(cubeAssetUuid);
+            if (cubeData && !cubeData->rootNode.mChildren.empty() && !cubeData->rootNode.mChildren[0].meshes.empty()) {
+                cubeMeshUuid = cubeData->rootNode.mChildren[0].meshes[0].get()->id;
+            }
+        }
+
+        if (rayMeshUuid != boost::uuids::nil_uuid()) {
+            rayMeshHandle = scene->engine.graphicsEngine->loadMesh(rayMeshUuid);
+        }
+        if (cubeMeshUuid != boost::uuids::nil_uuid()) {
+            cubeMeshHandle = scene->engine.graphicsEngine->loadMesh(cubeMeshUuid);
         }
 
         rayShaderUuid = scene->engine.assetManagerInterface->getAssetUuid("raycastShader").value();
+        rayShaderHandle = scene->engine.graphicsEngine->loadShader(rayShaderUuid);
+
         cubeShaderUuid = scene->engine.assetManagerInterface->getAssetUuid("wiremeshShader").value();
+        cubeShaderHandle = scene->engine.graphicsEngine->loadShader(cubeShaderUuid);
     }
 
     void GizmoSystem::Update(float deltaTime)
@@ -151,14 +171,14 @@ namespace engine::ecs
         gizmoRenderCommandQueue.push_back({CUBE, transform, color, duration, true});
     }
 
-    boost::uuids::uuid GizmoSystem::ModelUUIDByGizmoType(GizmoType type)
+    boost::uuids::uuid GizmoSystem::MeshUUIDByGizmoType(GizmoType type)
     {
         switch (type)
         {
             case RAY:
-                return rayAssetUuid;
+                return rayMeshUuid;
             case CUBE:
-                return cubeAssetUuid;
+                return cubeMeshUuid;
             default:
                 return boost::uuids::nil_uuid();
         }
@@ -174,6 +194,32 @@ namespace engine::ecs
             return cubeShaderUuid;
         default:
             return boost::uuids::nil_uuid();
+        }
+    }
+
+    gfx::MeshHandle GizmoSystem::MeshHandleByGizmoType(GizmoType type)
+    {
+        switch (type)
+        {
+            case RAY:
+                return rayMeshHandle;
+            case CUBE:
+                return cubeMeshHandle;
+            default:
+                return gfx::MeshHandle::invalid();
+        }
+    }
+
+    gfx::ShaderProgramHandle GizmoSystem::ShaderHandleByGizmoType(GizmoType type)
+    {
+        switch (type)
+        {
+        case RAY:
+            return rayShaderHandle;
+        case CUBE:
+            return cubeShaderHandle;
+        default:
+            return gfx::ShaderProgramHandle::invalid();
         }
     }
 } // engine::ecs

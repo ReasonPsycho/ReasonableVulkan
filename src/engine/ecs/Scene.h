@@ -24,6 +24,12 @@ namespace engine::ecs
 {
     struct TransformComponent;
 
+    enum class SceneType {
+        Default,
+        Preview,
+        Thumbnail
+    };
+
     struct CameraObject
     {
         CameraComponent* camera;
@@ -33,9 +39,10 @@ namespace engine::ecs
     class Scene {
     public:
 
-        explicit Scene(Engine& engine);
+        explicit Scene(::engine::Engine& engine);
 
         void Update(float deltaTime);
+        void Render(float deltaTime);
 
         //Entity
         Entity CreateEntity(Entity parentEntity = -1);
@@ -49,6 +56,9 @@ namespace engine::ecs
         void SetEntityActive(Entity entity, bool active);
 
         bool IsEntityActive(Entity entity) const;
+
+        std::string GetEntityName(Entity entity) const;
+        void SetEntityName(Entity entity, const std::string& name);
 
         template<typename... Components>
         std::vector<Entity> GetEntitiesWith();
@@ -99,7 +109,7 @@ namespace engine::ecs
 
         const      std::unordered_map<std::type_index, std::shared_ptr<SystemBase>>GetSystems();
 
-        //Scene Graph
+        // Scene Graph
         void SetParent(Entity child, Entity parent);
         void RemoveParent(Entity child);
         Entity GetParent(Entity entity) const;
@@ -107,8 +117,33 @@ namespace engine::ecs
         bool HasParent(Entity entity) const;
         bool IsAncestor(Entity potentialAncestor, Entity entity) const;
 
+        // Active state
+        void SetActive(bool active);
+        bool IsActive() const;
+        bool active = false;
+
+        // Scene Type & Editable state
+        SceneType GetSceneType() const { return sceneType; }
+        void SetSceneType(SceneType type) {
+            sceneType = type;
+            isEditable = (type == SceneType::Default);
+        }
+        bool IsEditable() const { return isEditable && sceneType == SceneType::Default; }
+        void SetEditable(bool editable) { isEditable = editable; }
+        bool isEditable = true;
+
+        const std::string& GetName() const { return name; }
+        void SetName(const std::string& sceneName) { name = sceneName; }
+        std::string name;
+
         void SerializeToJson(rapidjson::Document& doc) const;
         void DeserializeFromJson(const rapidjson::Document& doc);
+        void SerializeObjectToJson(Entity entity, rapidjson::Document& doc) const;
+        void SerializePrefabToJson(Entity entity, rapidjson::Document& doc) const;
+        Entity DeserializeObjectFromJson(const rapidjson::Document& doc, Entity parentEntity = -1);
+        Entity InstantiatePrefab(const rapidjson::Document& doc, Entity parentEntity = -1);
+        Entity InstantiatePrefab(boost::uuids::uuid prefabUuid, Entity parentEntity = -1);
+        Entity InstantiateModel(boost::uuids::uuid modelOrMeshUuid, Entity parentEntity = -1);
         void AddComponent(const std::type_index& type);
 
         std::unordered_map<Entity, TransformNode> sceneGraph;
@@ -117,10 +152,11 @@ namespace engine::ecs
         CameraObject GetActiveCamera();
 
         //Engine
-        engine::Engine& engine;
+        ::engine::Engine& engine;
 
-        boost::uuids::uuid sceneId;
+        boost::uuids::uuid sceneId{boost::uuids::nil_uuid()};
     private:
+        SceneType sceneType = SceneType::Default;
 
         //Entities
         uint32_t maxEntityIndex = 0;
@@ -133,7 +169,6 @@ namespace engine::ecs
         void RegisterIntegralComponent();
 
         std::unordered_map<std::type_index, std::shared_ptr<IComponentArray>> componentArrays;
-        std::unordered_map<ComponentTypeID, std::type_index> indexToType;
 
         //Systems
         std::unordered_map<std::type_index, std::shared_ptr<SystemBase>> systems;
@@ -142,6 +177,11 @@ namespace engine::ecs
         void SerializeComponents(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
         void SerializeSystems(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
         void SerializeSceneGraph(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+
+        void CollectSubtreeEntities(Entity root, std::vector<Entity>& outSubtree) const;
+        void SerializeObjectEntities(Entity rootEntity, const std::vector<Entity>& subtree, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeObjectComponents(const std::vector<Entity>& subtree, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeObjectSceneGraph(Entity rootEntity, const std::vector<Entity>& subtree, rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
 
         void RegisterSystem(const std::type_index& type);
         void DeserializeEntities(const rapidjson::Value& obj);

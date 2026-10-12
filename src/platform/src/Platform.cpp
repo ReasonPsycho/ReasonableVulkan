@@ -2,6 +2,17 @@
 #include <imgui_impl_sdl3.h>
 #include "AssetManagerInterface.h"
 #include <rapidjson/document.h>
+#include <filesystem>
+#ifdef _WIN32
+#include <shellapi.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#endif
 
 namespace  plt
 {
@@ -394,6 +405,196 @@ namespace  plt
         // Non-windows implementation placeholder
 #endif
     }
+    bool Platform::OpenFileInDefaultApp(const std::string& path) {
+        if (path.empty()) return false;
+        std::filesystem::path absPath = std::filesystem::absolute(path);
+#ifdef _WIN32
+        HINSTANCE result = ShellExecuteW(NULL, L"open", absPath.wstring().c_str(), NULL, NULL, SW_SHOWNORMAL);
+        return reinterpret_cast<intptr_t>(result) > 32;
+#elif defined(__APPLE__)
+        std::string cmd = "open \"" + absPath.string() + "\"";
+        return system(cmd.c_str()) == 0;
+#else
+        std::string cmd = "xdg-open \"" + absPath.string() + "\"";
+        return system(cmd.c_str()) == 0;
+#endif
+    }
+
+    bool Platform::OpenFileInIDE(const std::string& path) {
+        if (path.empty()) return false;
+        std::filesystem::path absPath = std::filesystem::absolute(path);
+        std::string pathStr = absPath.string();
+
+#ifdef _WIN32
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            return false;
+        }
+
+        SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (sock == INVALID_SOCKET) {
+            WSACleanup();
+            return false;
+        }
+
+        DWORD timeout = 500;
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+
+        sockaddr_in serverAddr{};
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(63456);
+        inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+        if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+            closesocket(sock);
+            WSACleanup();
+            return false;
+        }
+
+        std::string body = pathStr;
+        std::string request = "POST /open HTTP/1.1\r\n"
+                              "Host: 127.0.0.1:63456\r\n"
+                              "Content-Type: text/plain\r\n"
+                              "Content-Length: " + std::to_string(body.length()) + "\r\n"
+                              "Connection: close\r\n\r\n" + body;
+
+        send(sock, request.c_str(), static_cast<int>(request.length()), 0);
+
+        char buffer[256];
+        int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        bool success = false;
+        if (bytesReceived > 0) {
+            buffer[bytesReceived] = '\0';
+            if (strstr(buffer, "200 OK") != nullptr) {
+                success = true;
+            }
+        }
+
+        closesocket(sock);
+        WSACleanup();
+        return success;
+#else
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) return false;
+
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = 500000;
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+
+        sockaddr_in serverAddr{};
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(63456);
+        inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+        if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+            close(sock);
+            return false;
+        }
+
+        std::string body = pathStr;
+        std::string request = "POST /open HTTP/1.1\r\n"
+                              "Host: 127.0.0.1:63456\r\n"
+                              "Content-Type: text/plain\r\n"
+                              "Content-Length: " + std::to_string(body.length()) + "\r\n"
+                              "Connection: close\r\n\r\n" + body;
+
+        send(sock, request.c_str(), request.length(), 0);
+
+        char buffer[256];
+        int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        bool success = false;
+        if (bytesReceived > 0) {
+            buffer[bytesReceived] = '\0';
+            if (strstr(buffer, "200 OK") != nullptr) {
+                success = true;
+            }
+        }
+        close(sock);
+        return success;
+#endif
+    }
+
+    std::optional<std::string> Platform::SaveFileDialog(const std::string& defaultPath, const std::string& filterName, const std::string& filterExtension) {
+#ifdef _WIN32
+        OPENFILENAMEW ofn;
+        wchar_t szFile[MAX_PATH] = { 0 };
+
+        std::filesystem::path defP = defaultPath;
+        std::wstring initialDir;
+        std::wstring defaultFilename;
+
+        if (!defaultPath.empty()) {
+            std::error_code ec;
+            if (std::filesystem::is_directory(defP, ec)) {
+                initialDir = defP.wstring();
+            } else {
+                if (defP.has_parent_path()) {
+                    initialDir = defP.parent_path().wstring();
+                }
+                defaultFilename = defP.filename().wstring();
+                wcsncpy_s(szFile, defaultFilename.c_str(), _TRUNCATE);
+            }
+        }
+
+        // Build filter string with double null terminator
+        std::vector<wchar_t> filterBuf;
+        if (!filterName.empty() && !filterExtension.empty()) {
+            std::wstring wFilterName(filterName.begin(), filterName.end());
+            std::wstring wFilterExt(filterExtension.begin(), filterExtension.end());
+            if (!wFilterExt.empty() && wFilterExt[0] != L'*' && wFilterExt[0] != L'.') {
+                wFilterExt = L"*." + wFilterExt;
+            } else if (!wFilterExt.empty() && wFilterExt[0] == L'.') {
+                wFilterExt = L"*" + wFilterExt;
+            }
+            std::wstring desc = wFilterName + L" (" + wFilterExt + L")";
+            filterBuf.insert(filterBuf.end(), desc.begin(), desc.end());
+            filterBuf.push_back(L'\0');
+            filterBuf.insert(filterBuf.end(), wFilterExt.begin(), wFilterExt.end());
+            filterBuf.push_back(L'\0');
+        }
+        std::wstring allFilesDesc = L"All Files (*.*)";
+        std::wstring allFilesExt = L"*.*";
+        filterBuf.insert(filterBuf.end(), allFilesDesc.begin(), allFilesDesc.end());
+        filterBuf.push_back(L'\0');
+        filterBuf.insert(filterBuf.end(), allFilesExt.begin(), allFilesExt.end());
+        filterBuf.push_back(L'\0');
+        filterBuf.push_back(L'\0');
+
+        ZeroMemory(&ofn, sizeof(ofn));
+        ofn.lStructSize = sizeof(ofn);
+        HWND hwnd = NULL;
+        if (window) {
+            hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        }
+        ofn.hwndOwner = hwnd;
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile) / sizeof(szFile[0]);
+        ofn.lpstrFilter = filterBuf.data();
+        ofn.nFilterIndex = 1;
+        ofn.lpstrInitialDir = initialDir.empty() ? NULL : initialDir.c_str();
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
+        std::wstring defExt;
+        if (!filterExtension.empty()) {
+            defExt = std::wstring(filterExtension.begin(), filterExtension.end());
+            if (!defExt.empty() && defExt[0] == L'*') defExt.erase(0, 1);
+            if (!defExt.empty() && defExt[0] == L'.') defExt.erase(0, 1);
+            ofn.lpstrDefExt = defExt.c_str();
+        }
+
+        if (GetSaveFileNameW(&ofn) == TRUE) {
+            std::filesystem::path resultPath(ofn.lpstrFile);
+            return resultPath.lexically_normal().string();
+        }
+        return std::nullopt;
+#else
+        return std::nullopt;
+#endif
+    }
+
     Platform::~Platform() {
         Shutdown();
     }
@@ -402,6 +603,14 @@ namespace  plt
         if (!assetManager || configLookupName.empty() || !window) return;
 
         auto uuid = assetManager->getAssetUuid(configLookupName);
+        if (!uuid) {
+            std::filesystem::path configPath = "res/.cache/config/platform.config";
+            try {
+                uuid = assetManager->createAsset(am::AssetType::Config, configPath.string(), configLookupName);
+            } catch (...) {
+                return;
+            }
+        }
         if (!uuid) return;
 
         auto configData = assetManager->getAssetData<rapidjson::Document>(uuid.value());

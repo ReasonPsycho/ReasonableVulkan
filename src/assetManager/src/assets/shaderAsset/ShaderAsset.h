@@ -21,6 +21,9 @@ namespace am {
 
     class ShaderAsset : public Asset {
     public:
+        static constexpr AssetType StaticType = AssetType::Shader;
+        using DataType = ShaderData;
+
         explicit ShaderAsset(const boost::uuids::uuid& id, std::string path);
         explicit ShaderAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
         explicit ShaderAsset(const std::string& path, AssetFormat format);

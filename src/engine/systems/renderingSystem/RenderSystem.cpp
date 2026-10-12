@@ -8,18 +8,20 @@
 #include "PlatformInterface.hpp"
 #include "assetDatas/ModelData.h"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
-#include"componets/CameraComponent.hpp"
+#include "componets/CameraComponent.hpp"
+#include "componets/MeshComponent.hpp"
+#include "componets/ThumbnailComponent.hpp"
 #include "ecs/Scene.h"
 #include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 
 void engine::ecs::RenderSystem::Update(float deltaTime)
 {
-    if (scene->engine.minimized)
+    if (scene->engine.minimized || scene->engine.graphicsEngine == nullptr)
         return;
 
-    auto modelArray = scene->GetComponentArray<RendererComponent>().get();
-    auto& models = modelArray->GetComponents();
+    auto rendererArray = scene->GetComponentArray<RendererComponent>().get();
+    auto& renderers = rendererArray->GetComponents();
 
     auto lightArray = scene->GetComponentArray<LightComponent>().get();
     auto& lights = lightArray->GetComponents();
@@ -28,8 +30,8 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
     CameraObject cameraObject = scene->GetActiveCamera();
 
-    auto editorSystem = scene->GetSystem<EditorSystem>();
-    bool inEditMode = editorSystem->inEditMode;
+    auto editorSystem = scene->engine.GetEditorSystem();
+    bool inEditMode = editorSystem ? editorSystem->inEditMode : false;
 
     int width, height;
 #ifdef ENABLE_IMGUI
@@ -39,89 +41,176 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 #else
     scene->engine.platform->GetWindowSize(width, height);
 #endif
-    float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+    float aspectRatio = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : 1.0f;
 
-    int activeCameraCount = 0;
-
-    if (inEditMode) {
-        // Camera 0 is always the editor camera
-        updateViewMatrix(editorSystem->camera, editorSystem->cameraTransform.globalMatrix);
-        editorSystem->camera.aspectRatio = aspectRatio;
-        updateProjectionMatrix(editorSystem->camera);
-        scene->engine.graphicsEngine->setCameraData(0, editorSystem->camera.projection, editorSystem->camera.view,
-                                                    editorSystem->cameraTransform.position);
-        if (editorSystem->camera.skyboxMaterialId != boost::uuids::nil_uuid()) {
-            scene->engine.graphicsEngine->drawSkybox(0, editorSystem->camera.skyboxMaterialId, boost::uuids::nil_uuid());
+    auto activeScenes = scene->engine.GetActiveScenes();
+    uint32_t sceneIndex = 0;
+    for (size_t s = 0; s < activeScenes.size(); ++s) {
+        if (activeScenes[s].get() == scene) {
+            sceneIndex = static_cast<uint32_t>(s);
+            break;
         }
-        activeCameraCount = 1;
-
-        // Camera 1 is the active scene camera (if any)
-        auto& cameras = scene->GetComponentArray<CameraComponent>().get()->GetComponents();
-        auto& cameraTransforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
-        for (int i = 0; i < scene->GetComponentArray<CameraComponent>().get()->GetArraySize(); i++) {
-            if (scene->GetComponentArray<CameraComponent>().get()->IsComponentActive(i) && cameras[i].active) {
-                auto cameraEntity = scene->GetComponentArray<CameraComponent>().get()->ComponentIndexToEntity(i);
-                updateViewMatrix(cameras[i], cameraTransforms[cameraEntity].globalMatrix);
-                cameras[i].aspectRatio = aspectRatio;
-                updateProjectionMatrix(cameras[i]);
-                scene->engine.graphicsEngine->setCameraData(1, cameras[i].projection, cameras[i].view,
-                                                            cameraTransforms[cameraEntity].position);
-                if (cameras[i].skyboxMaterialId != boost::uuids::nil_uuid()) {
-                    scene->engine.graphicsEngine->drawSkybox(1, cameras[i].skyboxMaterialId, boost::uuids::nil_uuid());
-                }
-                activeCameraCount = 2;
-                break;
-            }
-        }
-    } else {
-        updateViewMatrix(*cameraObject.camera, cameraObject.transform->globalMatrix);
-        cameraObject.camera->aspectRatio = aspectRatio;
-        updateProjectionMatrix(*cameraObject.camera);
-
-        scene->engine.graphicsEngine->setCameraData(0, cameraObject.camera->projection, cameraObject.camera->view,
-                                                    cameraObject.transform->position);
-
-        if (cameraObject.camera->skyboxMaterialId != boost::uuids::nil_uuid()) {
-            scene->engine.graphicsEngine->drawSkybox(0, cameraObject.camera->skyboxMaterialId, boost::uuids::nil_uuid());
-        }
-        activeCameraCount = 1;
     }
 
-    scene->engine.graphicsEngine->setActiveCameraCount(activeCameraCount);
+    std::vector<uint32_t> targetCameraIndices;
+    auto thumbCompArray = scene->GetComponentArray<ThumbnailComponent>();
+    bool isThumbnailScene = (scene->GetSceneType() == ecs::SceneType::Thumbnail) || (thumbCompArray && thumbCompArray->GetArraySize() > 0);
+
+    if (thumbCompArray) {
+        auto& thumbs = thumbCompArray->GetComponents();
+        for (int i = 0; i < thumbCompArray->GetArraySize(); ++i) {
+            if (thumbCompArray->IsComponentActive(i)) {
+                thumbs[i].framesRendered++;
+            }
+        }
+    }
+
+    if (inEditMode && editorSystem && !isThumbnailScene) {
+        auto& camState = editorSystem->GetEditorCameraState(scene->GetName());
+        // Editor camera for this specific scene at camera index: sceneIndex
+        if (camState.camera.isDirty) {
+            camState.camera.runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+        }
+        updateViewMatrix(camState.camera, camState.cameraTransform.globalMatrix);
+        float editorAspect = (camState.lastViewportSize.x > 0.0f && camState.lastViewportSize.y > 0.0f)
+            ? (camState.lastViewportSize.x / camState.lastViewportSize.y)
+            : aspectRatio;
+        camState.camera.aspectRatio = editorAspect;
+        updateProjectionMatrix(camState.camera);
+        scene->engine.graphicsEngine->setCameraData(sceneIndex, camState.camera.projection, camState.camera.view,
+                                                    camState.cameraTransform.position);
+        if (camState.camera.skyboxMaterialId != boost::uuids::nil_uuid()) {
+            if (!camState.camera.runtimeSkyboxMaterialHandle.isValid()) {
+                camState.camera.runtimeSkyboxMaterialHandle = scene->engine.graphicsEngine->loadMaterial(camState.camera.skyboxMaterialId);
+            }
+            scene->engine.graphicsEngine->drawSkybox(sceneIndex, camState.camera.runtimeSkyboxMaterialHandle, gfx::ShaderProgramHandle::invalid());
+        }
+        targetCameraIndices.push_back(sceneIndex);
+
+        // Check if this scene is the top editable active scene
+        auto topEditableScene = scene->engine.GetTopEditableScene();
+        bool isTopEditable = (topEditableScene && topEditableScene.get() == scene);
+
+        uint32_t gameCameraIndex = static_cast<uint32_t>(activeScenes.size());
+        uint32_t activeCamCount = static_cast<uint32_t>(activeScenes.size());
+
+        if (isTopEditable) {
+            auto cameraCompArray = scene->GetComponentArray<CameraComponent>();
+            if (cameraCompArray) {
+                auto& cameras = cameraCompArray->GetComponents();
+                auto& cameraTransforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
+                for (int i = 0; i < cameraCompArray->GetArraySize(); i++) {
+                    if (cameraCompArray->IsComponentActive(i) && cameras[i].active) {
+                        auto cameraEntity = cameraCompArray->ComponentIndexToEntity(i);
+                        if (cameras[i].isDirty) {
+                            cameras[i].runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+                        }
+                        updateViewMatrix(cameras[i], cameraTransforms[cameraEntity].globalMatrix);
+                        if (cameras[i].aspectRatio <= 0.0f) {
+                            cameras[i].aspectRatio = aspectRatio;
+                        }
+                        updateProjectionMatrix(cameras[i]);
+                        scene->engine.graphicsEngine->setCameraData(gameCameraIndex, cameras[i].projection, cameras[i].view,
+                                                                    cameraTransforms[cameraEntity].position);
+                        if (cameras[i].skyboxMaterialId != boost::uuids::nil_uuid()) {
+                            if (!cameras[i].runtimeSkyboxMaterialHandle.isValid()) {
+                                cameras[i].runtimeSkyboxMaterialHandle = scene->engine.graphicsEngine->loadMaterial(cameras[i].skyboxMaterialId);
+                            }
+                            scene->engine.graphicsEngine->drawSkybox(gameCameraIndex, cameras[i].runtimeSkyboxMaterialHandle, gfx::ShaderProgramHandle::invalid());
+                        }
+                        targetCameraIndices.push_back(gameCameraIndex);
+                        activeCamCount = gameCameraIndex + 1;
+                        break;
+                    }
+                }
+            }
+        }
+        scene->engine.graphicsEngine->setActiveCameraCount(activeCamCount);
+    } else {
+        uint32_t sceneCameraIndex = sceneIndex;
+        if (cameraObject.camera && cameraObject.transform) {
+            if (cameraObject.camera->isDirty) {
+                cameraObject.camera->runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+            }
+            updateViewMatrix(*cameraObject.camera, cameraObject.transform->globalMatrix);
+            cameraObject.camera->aspectRatio = isThumbnailScene ? 1.0f : aspectRatio;
+            updateProjectionMatrix(*cameraObject.camera);
+
+            scene->engine.graphicsEngine->setCameraData(sceneCameraIndex, cameraObject.camera->projection, cameraObject.camera->view,
+                                                        cameraObject.transform->position);
+
+            if (cameraObject.camera->skyboxMaterialId != boost::uuids::nil_uuid()) {
+                if (!cameraObject.camera->runtimeSkyboxMaterialHandle.isValid()) {
+                    cameraObject.camera->runtimeSkyboxMaterialHandle = scene->engine.graphicsEngine->loadMaterial(cameraObject.camera->skyboxMaterialId);
+                }
+                scene->engine.graphicsEngine->drawSkybox(sceneCameraIndex, cameraObject.camera->runtimeSkyboxMaterialHandle, gfx::ShaderProgramHandle::invalid());
+            }
+            targetCameraIndices.push_back(sceneCameraIndex);
+            scene->engine.graphicsEngine->setActiveCameraCount(sceneCameraIndex + 1);
+        }
+    }
 
     // Only iterate up to the actual size of used components
-    for (ComponentID i = 0; i < modelArray->GetArraySize(); i++)
+    for (ComponentID i = 0; i < rendererArray->GetArraySize(); i++)
     {
-        if (modelArray->IsComponentActive(i))
+        if (rendererArray->IsComponentActive(i))
         {
-            Entity entity = modelArray->ComponentIndexToEntity(i);
-            if (models[i].modelUuid != boost::uuids::nil_uuid())
+            Entity entity = rendererArray->ComponentIndexToEntity(i);
+            if (scene->HasComponent<MeshComponent>(entity))
             {
-                for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
-                    boost::uuids::uuid currentShader = models[i].shaderUuid;
-                    if (inEditMode && camIdx == 0) { // Only override for the editor camera
-                        if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
-                            currentShader = editorSystem->wiremeshShaderId;
-                        } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
-                            currentShader = editorSystem->wiremeshTexturedShaderId;
-                        }
+                auto& mesh = scene->GetComponent<MeshComponent>(entity);
+                auto& renderer = renderers[i];
+
+                if (mesh.isDirty) {
+                    mesh.runtimeMeshHandle = gfx::MeshHandle::invalid();
+                    mesh.isDirty = false;
+                }
+
+                if (renderer.isDirty) {
+                    renderer.runtimeShaderHandle = gfx::ShaderProgramHandle::invalid();
+                    renderer.runtimeMaterialHandle = gfx::MaterialHandle::invalid();
+                    renderer.isDirty = false;
+                }
+
+                if (mesh.meshUuid != boost::uuids::nil_uuid())
+                {
+                    if (!mesh.runtimeMeshHandle.isValid()) {
+                        mesh.runtimeMeshHandle = scene->engine.graphicsEngine->loadMesh(mesh.meshUuid);
                     }
 
-                    scene->engine.graphicsEngine->drawModel(camIdx, models[i].modelUuid, currentShader,
-                                                            transforms[entity].globalMatrix);
+                    if (renderer.shaderUuid != boost::uuids::nil_uuid() && !renderer.runtimeShaderHandle.isValid()) {
+                        renderer.runtimeShaderHandle = scene->engine.graphicsEngine->loadShader(renderer.shaderUuid);
+                    }
+                    if (renderer.materialUuid != boost::uuids::nil_uuid() && !renderer.runtimeMaterialHandle.isValid()) {
+                        renderer.runtimeMaterialHandle = scene->engine.graphicsEngine->loadMaterial(renderer.materialUuid);
+                    }
+
+                    for (uint32_t camIdx : targetCameraIndices) {
+                        gfx::ShaderProgramHandle currentShader = renderer.runtimeShaderHandle;
+                        if (inEditMode && camIdx < activeScenes.size() && editorSystem && !isThumbnailScene) { // Only override for editor cameras
+                            if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
+                                currentShader = editorSystem->wiremeshShaderHandle;
+                            } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
+                                currentShader = editorSystem->wiremeshTexturedShaderHandle;
+                            }
+                        }
+
+                        scene->engine.graphicsEngine->drawModel(camIdx, mesh.runtimeMeshHandle, renderer.runtimeMaterialHandle, currentShader,
+                                                                transforms[entity].globalMatrix);
+                    }
                 }
             }
         }
     }
 
     auto gizmoSystem = scene->GetSystem<GizmoSystem>();
-    if (gizmoSystem != nullptr)
+    if (gizmoSystem != nullptr && !isThumbnailScene)
     {
         for (auto& command : gizmoSystem->gizmoRenderCommandQueue) {
-            boost::uuids::uuid modelUuid = gizmoSystem->ModelUUIDByGizmoType(command.type);
-            boost::uuids::uuid shaderUuid = gizmoSystem->ShaderUUIDByGizmoType(command.type);
-            for (int camIdx = 0; camIdx < activeCameraCount; ++camIdx) {
-                scene->engine.graphicsEngine->drawModel(camIdx, modelUuid, shaderUuid,
+            gfx::MeshHandle meshHandle = gizmoSystem->MeshHandleByGizmoType(command.type);
+            gfx::ShaderProgramHandle shaderHandle = gizmoSystem->ShaderHandleByGizmoType(command.type);
+            if (inEditMode) {
+                scene->engine.graphicsEngine->drawModel(sceneIndex, meshHandle, gfx::MaterialHandle::invalid(), shaderHandle,
                                                         command.transform);
             }
         }
@@ -191,11 +280,4 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
 
 void RenderSystem::OnComponentAdded(ComponentID componentID, std::type_index type)
 {
-  if (type == typeid(RendererComponent))
-  {
-      auto& model = scene->GetComponentArray<RendererComponent>().get()->GetComponent(componentID);
-
-      if (model.modelUuid == boost::uuids::nil_uuid())
-          return;
-  }
 }

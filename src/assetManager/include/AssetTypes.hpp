@@ -5,9 +5,9 @@
 #include <string>
 #include <sstream>
 #include <filesystem>
-
+#include "AssetReflection.hpp"
 #include "assetDatas/ShaderData.h"
-
+#include "IconsFontAwesome6.h"
 
 namespace am {
     enum class AssetFormat {
@@ -22,70 +22,32 @@ namespace am {
     };
 
     enum class AssetType {
-        Mesh,
-        Model,
-        Texture,
-        Shader,
-        ShaderProgram,
-        Animation,
-        Material,
-        Animator,
-        Scene,
-        Prefab,
-        Config,
-        Other // Just for testing
+        Mesh [[=AssetExtension{".mesh"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_CUBE}]],
+        Model [[=AssetExtension{".model"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_CUBE}]],
+        Texture [[=AssetExtension{".texture"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_FILE_IMAGE}]],
+        Shader [[=AssetExtension{".shader"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_FILE_CODE}]],
+        ShaderProgram [[=AssetExtension{".shaderprogram"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_FILE_CODE}]],
+        Animation [[=AssetExtension{".animation"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_PERSON_RUNNING}]],
+        Material [[=AssetExtension{".material"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_PALETTE}]],
+        Animator [[=AssetExtension{".animator"}, =SavesToBinary{true}, =AssetIcon{ICON_FA_PERSON_RUNNING}]],
+        Scene [[=AssetExtension{".scene"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_GLOBE}]],
+        Prefab [[=AssetExtension{".prefab"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_BOXES_STACKED}]],
+        Config [[=AssetExtension{".config"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_GEAR}]],
+        Other [[=AssetExtension{".other"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_FILE}]] // Just for testing
     };
 
-    inline std::ostream &operator<<(std::ostream &os, const AssetType &type) {
-        switch (type) {
-            case AssetType::Mesh:
-                return os << "Mesh";
-            case AssetType::Model:
-                return os << "Model";
-            case AssetType::Texture:
-                return os << "Texture";
-            case AssetType::Shader:
-                return os << "Shader";
-            case AssetType::ShaderProgram:
-                return os << "ShaderProgram";
-            case AssetType::Animation:
-                return os << "Animation";
-            case AssetType::Animator:
-                return os << "Animator";
-            case AssetType::Other:
-                return os << "Other";
-            case AssetType::Material:
-                return os << "Material";
-            case AssetType::Scene:
-                return os << "Scene";
-            case AssetType::Prefab:
-                return os << "Prefab";
-            case AssetType::Config:
-                return os << "Config";
-            default:
-                return os << "Unknown";
-        }
-    }
-
     inline std::string AssetTypeToString(AssetType type) {
-        std::stringstream ss;
-        ss << type;
-        return ss.str();
+        std::string_view sv = EnumToString(type);
+        return std::string(sv);
     }
 
     inline AssetType StringToAssetType(const std::string& str) {
-        if (str == "Mesh") return AssetType::Mesh;
-        if (str == "Model") return AssetType::Model;
-        if (str == "Texture") return AssetType::Texture;
-        if (str == "Shader") return AssetType::Shader;
-        if (str == "ShaderProgram") return AssetType::ShaderProgram;
-        if (str == "Animation") return AssetType::Animation;
-        if (str == "Material") return AssetType::Material;
-        if (str == "Animator") return AssetType::Animator;
-        if (str == "Scene") return AssetType::Scene;
-        if (str == "Prefab") return AssetType::Prefab;
-        if (str == "Config") return AssetType::Config;
-        return AssetType::Other;
+        auto val = StringToEnum<AssetType>(str);
+        return val.value_or(AssetType::Other);
+    }
+
+    inline std::ostream &operator<<(std::ostream &os, const AssetType &type) {
+        return os << AssetTypeToString(type);
     }
 
     inline AssetOwnership StringToAssetOwnership(const std::string& str)
@@ -98,27 +60,27 @@ namespace am {
             ext = "." + ext.substr(lastUnderscore + 1);
         }
         
-        if (ext == ".fbx")       return AssetOwnership::Import;
-        if (ext == ".png")       return AssetOwnership::Import;
-        if (ext == ".spv")       return AssetOwnership::Import;
-        if (ext == ".spdv")      return AssetOwnership::Import;
-        if (ext == ".frag")      return AssetOwnership::Import;
-        if (ext == ".vert")      return AssetOwnership::Import;
-        if (ext == ".geom")      return AssetOwnership::Import;
-        if (ext == ".shaderImport") return AssetOwnership::Import;
-        if (ext == ".shader")    return AssetOwnership::Managed;
-        if (ext == ".model")     return AssetOwnership::Managed;
-        if (ext == ".material")  return AssetOwnership::Managed;
-        if (ext == ".mesh")      return AssetOwnership::Managed;
-        if (ext == ".texture")   return AssetOwnership::Managed;
-        if (ext == ".scene")     return AssetOwnership::Managed;
-        if (ext == ".prefab")    return AssetOwnership::Managed;
-        if (ext == ".config")    return AssetOwnership::Managed;
+        if (ext == ".fbx" || ext == ".blend" || ext == ".blend1" || ext == ".obj" || ext == ".gltf" || ext == ".glb" ||
+            ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr" ||
+            ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl" ||
+            ext == ".shaderImport") {
+            return AssetOwnership::Import;
+        }
+
+        static constexpr auto enums = get_enumerators_array<AssetType>();
+        template for (constexpr auto e : enums) {
+            constexpr auto annot = get_annotation<AssetExtension>(e);
+            if constexpr (annot.has_value()) {
+                if (ext == annot->ext) {
+                    return AssetOwnership::Managed;
+                }
+            }
+        }
+
         return AssetOwnership::Unmanaged;
     }
     
     inline AssetType GetAssetTypeFromExtension(const std::string& extension) {
-
         std::string ext = extension; // make a copy
 
         // Strip prefixes
@@ -127,74 +89,93 @@ namespace am {
             ext = "." + ext.substr(lastUnderscore + 1);
         }
 
-        if (ext == ".fbx")       return AssetType::Model;
-        if (ext == ".png")       return AssetType::Texture;
-        if (ext == ".spv")       return AssetType::Shader;
-        if (ext == ".spdv")      return AssetType::Shader;
-        if (ext == ".frag")      return AssetType::Shader;
-        if (ext == ".vert")      return AssetType::Shader;
-        if (ext == ".geom")      return AssetType::Shader;
+        static constexpr auto enums = get_enumerators_array<AssetType>();
+        template for (constexpr auto e : enums) {
+            constexpr auto annot = get_annotation<AssetExtension>(e);
+            if constexpr (annot.has_value()) {
+                if (ext == annot->ext) {
+                    return [:e:];
+                }
+            }
+        }
+
+        if (ext == ".fbx" || ext == ".blend" || ext == ".blend1" || ext == ".obj" || ext == ".gltf" || ext == ".glb") return AssetType::Model;
+        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr") return AssetType::Texture;
+        if (ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl") return AssetType::Shader;
         if (ext == ".shaderImport") return AssetType::ShaderProgram;
-        if (ext == ".shader")    return AssetType::ShaderProgram;
-        if (ext == ".model")     return AssetType::Model;
-        if (ext == ".material")  return AssetType::Material;
-        if (ext == ".mesh")      return AssetType::Mesh;
-        if (ext == ".texture")   return AssetType::Texture;
-        if (ext == ".scene")     return AssetType::Scene;
-        if (ext == ".prefab")    return AssetType::Prefab;
-        if (ext == ".config")    return AssetType::Config;
 
         return AssetType::Other;
     }
 
-    inline std::string GetExtensionFromAssetType(AssetType type) {
-        switch (type) {
-            case AssetType::Mesh:          return ".mesh";
-            case AssetType::Model:         return ".model";
-            case AssetType::Texture:       return ".texture";
-            case AssetType::Shader:        return ".shader";
-            case AssetType::ShaderProgram: return ".shaderprogram";
-            case AssetType::Animation:     return ".animation";
-            case AssetType::Material:      return ".material";
-            case AssetType::Animator:      return ".animator";
-            case AssetType::Scene:         return ".scene";
-            case AssetType::Prefab:        return ".prefab";
-            case AssetType::Config:        return ".config";
-            default:                       return ".other";
+    inline const char* GetIconFromAssetType(AssetType type) {
+        static constexpr auto enums = get_enumerators_array<AssetType>();
+        template for (constexpr auto e : enums) {
+            if (type == [:e:]) {
+                static constexpr auto annot = get_annotation<AssetIcon>(e);
+                if constexpr (annot.has_value()) {
+                    return annot->icon;
+                }
+            }
         }
+        return ICON_FA_FILE;
+    }
+
+    inline const char* GetAssetIcon(const std::filesystem::path& path) {
+        std::string ext = path.extension().string();
+
+        if (ext == ".meta" || ext == ".json" || ext == ".txt" || ext == ".md" || ext == ".log") {
+            return ICON_FA_FILE_LINES;
+        }
+        if (ext == ".fnt" || ext == ".ttf" || ext == ".otf") {
+            return ICON_FA_FONT;
+        }
+        if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac") {
+            return ICON_FA_FILE_AUDIO;
+        }
+
+        AssetType type = GetAssetTypeFromExtension(ext);
+        return GetIconFromAssetType(type);
+    }
+
+    inline std::string GetExtensionFromAssetType(AssetType type) {
+        static constexpr auto enums = get_enumerators_array<AssetType>();
+        template for (constexpr auto e : enums) {
+            if (type == [:e:]) {
+                constexpr auto annot = get_annotation<AssetExtension>(e);
+                if constexpr (annot.has_value()) {
+                    return annot->ext;
+                }
+            }
+        }
+        return ".other";
     }
 
     inline bool GetEditorSavesToBin(AssetType type) {
-        switch (type) {
-        case AssetType::Mesh:          return true;
-        case AssetType::Model:         return false;
-        case AssetType::Texture:       return true;
-        case AssetType::Shader:        return true;
-        case AssetType::ShaderProgram: return false;
-        case AssetType::Animation:     return true;
-        case AssetType::Material:      return false;
-        case AssetType::Animator:      return true;
-        case AssetType::Scene:         return false;
-        case AssetType::Prefab:        return false;
-        case AssetType::Config:        return false;
-        default:                       return false;
+        static constexpr auto enums = get_enumerators_array<AssetType>();
+        template for (constexpr auto e : enums) {
+            if (type == [:e:]) {
+                constexpr auto annot = get_annotation<SavesToBinary>(e);
+                if constexpr (annot.has_value()) {
+                    return annot->value;
+                }
+            }
         }
+        return false;
     }
 
     inline std::string GetShaderSufix(ShaderStage shaderStage)
     {
-        switch (shaderStage)
-        {
-            case ShaderStage::Vertex: return "vs"; break;
-            case ShaderStage::TessellationControl: return "tcs"; break;
-            case ShaderStage::TessellationEvaluation: return "tes"; break;
-            case ShaderStage::Fragment: return "fs"; break;
-            case ShaderStage::Geometry: return "gs"; break;
-            case ShaderStage::Compute: return "cs"; break;
-            default: return "";
+        static constexpr auto enums = get_enumerators_array<ShaderStage>();
+        template for (constexpr auto e : enums) {
+            if (shaderStage == [:e:]) {
+                constexpr auto annot = get_annotation<ShaderSuffix>(e);
+                if constexpr (annot.has_value()) {
+                    return annot->suffix;
+                }
+            }
         }
+        return "";
     }
-
 
     inline std::string GetBinPath(const std::string& importPath, std::string additionalSufix) {
         std::filesystem::path p = std::filesystem::path(importPath).lexically_normal();
@@ -209,6 +190,5 @@ namespace am {
         return (p.parent_path() / filename).string();
     }
 }
-
 
 #endif //ASSETTYPES_HPP

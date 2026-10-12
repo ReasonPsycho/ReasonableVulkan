@@ -1,0 +1,66 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "uuid": "bdea2fa7-7abb-48cc-ac09-afaa14301b2d",
+  "boundingBoxMin": [
+    -0.5,
+    -0.5,
+    -0.5
+  ],
+  "boundingBoxMax": [
+    0.5,
+    0.5,
+    0.5
+  ],
+  "rootNode": {
+    "name": "RootNode",
+    "transformation": [
+      -1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "meshes": [],
+    "children": [
+      {
+        "name": "Cube",
+        "transformation": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "meshes": [
+          "582d631e-18d2-4b9a-b2d8-8cef005b67eb"
+        ],
+        "children": []
+      }
+    ]
+  }
+}

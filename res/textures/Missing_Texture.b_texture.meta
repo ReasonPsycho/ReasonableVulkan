@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "d77cf7bd-9ad5-44ad-bb04-7827bea6db78",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\textures\\Missing_Texture.b_texture",
+  "type": "Texture",
+  "lookUpName": "Missing_Texture.texture",
+  "contentHash": 2103556943625828512,
+  "thumbnailPath": ".cache/thumbnails/d77cf7bd-9ad5-44ad-bb04-7827bea6db78.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\textures\\Missing_Texture.png",
+    "assetType": "Texture",
+    "assimpIndex": 0
+  }
+}
