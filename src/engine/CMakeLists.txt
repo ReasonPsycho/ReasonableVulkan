@@ -1,7 +1,7 @@
 message(STATUS "Running engine cmake")
 cmake_policy(SET CMP0167 NEW)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(ENABLE_IMGUI)
@@ -44,7 +44,7 @@ list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
 # Create the interface target
 add_library(engine_interface INTERFACE)
-target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(engine_interface INTERFACE vks_interface am_interface platform_interface)
 
 # Create static library
@@ -52,12 +52,14 @@ add_library(engine STATIC ${BASE_SRC})
 
 # Configure include directories
 target_include_directories(engine
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 
-add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
+add_definitions(-DGLM_ENABLE_EXPERIMENTAL -DIMGUI_DEFINE_MATH_OPERATORS)
 
 
 # Platform specific linking
@@ -73,6 +75,7 @@ target_link_libraries(engine PUBLIC
         spdlog::spdlog
         imgui::imgui
         imguizmo::imguizmo
+        renderDocManager
 )
 
 # Enable tests in Debug mode by default or when explicitly enabled

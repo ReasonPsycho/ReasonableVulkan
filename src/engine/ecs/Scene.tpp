@@ -25,7 +25,7 @@ void Scene::AddComponent(Entity entity, T component)
 {
     ComponentID componentId;
 
-    if constexpr (std::is_same<T, TransformComponent>::value)
+    if constexpr (has_annotation<Integral>(^^T))
     {
        componentId = GetIntegralComponentArray<T>()->AddComponentToEntity(entity, component);
     }
@@ -53,14 +53,20 @@ void Scene::AddComponent(Entity entity, T component)
 template <typename T>
 void Scene::RemoveComponent(Entity entity)
 {
+    auto typeIdx = std::type_index(typeid(T));
+    auto it = componentArrays.find(typeIdx);
+    if (it == componentArrays.end()) {
+        return;
+    }
+
     ComponentID componentId;
-    if constexpr (std::is_same<T, TransformComponent>::value)
+    if constexpr (has_annotation<Integral>(^^T))
     {
-       componentId=  GetIntegralComponentArray<T>()->RemoveComponentFronEntity(entity);
+       componentId = static_cast<IntegralComponentArray<T>*>(it->second.get())->RemoveComponentFronEntity(entity);
     }
     else
     {
-      componentId =  GetComponentArray<T>()->RemoveComponentFronEntity(entity);
+       componentId = static_cast<ComponentArray<T>*>(it->second.get())->RemoveComponentFronEntity(entity);
     }
 
     Signature& signature = entitySignatures[entity];
@@ -81,46 +87,60 @@ void Scene::RemoveComponent(Entity entity)
 template <typename T>
 bool Scene::HasComponent(Entity entity)
 {
-    if constexpr (std::is_same<T, TransformComponent>::value)
+    auto typeIdx = std::type_index(typeid(T));
+    auto it = componentArrays.find(typeIdx);
+    if (it == componentArrays.end()) {
+        return false;
+    }
+    if constexpr (has_annotation<Integral>(^^T))
     {
-    return GetIntegralComponentArray<T>()->HasComponent(entity);
+        return static_cast<IntegralComponentArray<T>*>(it->second.get())->HasComponent(entity);
     }
     else
     {
-     return GetComponentArray<T>()->HasComponent(entity);
+        return static_cast<ComponentArray<T>*>(it->second.get())->HasComponent(entity);
     }
 }
 
 template <typename T>
 void Scene::SetComponentActive(Entity entity,bool active )
 {
-    if constexpr (std::is_same<T, TransformComponent>::value)
-    {
-        GetIntegralComponentArray<T>()->SetComponentActive(entity,active);
-    }
-    else
-    {
-        GetComponentArray<T>()->SetComponentActive(entity,active);
+    auto typeIdx = std::type_index(typeid(T));
+    auto it = componentArrays.find(typeIdx);
+    if (it != componentArrays.end()) {
+        if constexpr (has_annotation<Integral>(^^T))
+        {
+            static_cast<IntegralComponentArray<T>*>(it->second.get())->SetComponentActive(entity, active);
+        }
+        else
+        {
+            static_cast<ComponentArray<T>*>(it->second.get())->SetComponentActive(entity, active);
+        }
     }
 }
 
 template <typename T>
 bool Scene::IsComponentActive(Entity entity)
 {
-    if constexpr (std::is_same<T, TransformComponent>::value)
+    auto typeIdx = std::type_index(typeid(T));
+    auto it = componentArrays.find(typeIdx);
+    if (it == componentArrays.end()) {
+        return false;
+    }
+    if constexpr (has_annotation<Integral>(^^T))
     {
-        return GetIntegralComponentArray<T>()->IsComponentActive(entity);
+        return static_cast<IntegralComponentArray<T>*>(it->second.get())->IsComponentActive(entity);
     }
     else
     {
-        return GetComponentArray<T>()->IsComponentActive(entity);
+        return static_cast<ComponentArray<T>*>(it->second.get())->IsComponentActive(entity);
     }
 }
 
 template <typename T>
 auto Scene::GetComponent(Entity entity) -> T&
 {
-    if constexpr (std::is_same<T, TransformComponent>::value)
+    if constexpr (has_annotation<Integral>(^^T))
     {
         return GetIntegralComponentArray<T>()->GetComponentFromEntity(entity);
     }
@@ -144,33 +164,31 @@ std::shared_ptr<T> Scene::RegisterSystem(Args&&... args)
 template <typename T>
 void  Scene::RegisterIntegralComponent()
 {
-    assert(componentArrays.find( typeid(T)) == componentArrays.end() && "Component already registered.");
-
     std::type_index typeIdx = typeid(T);
-    componentArrays[typeIdx] = std::make_unique<IntegralComponentArray<T>>();
-
-    ComponentTypeID componentTypeId = GetComponentTypeID<T>();
-    indexToType.insert_or_assign(componentTypeId, typeIdx);
-
+    if (componentArrays.find(typeIdx) == componentArrays.end()) {
+        componentArrays[typeIdx] = std::make_shared<IntegralComponentArray<T>>();
+    }
 }
 
 template <typename T>
 void Scene::RegisterComponent()
 {
-    assert(componentArrays.find( typeid(T)) == componentArrays.end() && "Component already registered.");
-
     std::type_index typeIdx = typeid(T);
-    componentArrays[typeIdx] = std::make_unique<ComponentArray<T>>();
-
-    ComponentTypeID componentTypeId = GetComponentTypeID<T>();
-    indexToType.insert_or_assign(componentTypeId, typeIdx);
+    if (componentArrays.find(typeIdx) == componentArrays.end()) {
+        componentArrays[typeIdx] = std::make_shared<ComponentArray<T>>();
+    }
 }
 
 template <typename T>
 std::shared_ptr<ComponentArray<T>> Scene::GetComponentArray()
 {
-    // Cast from IComponentArray to ComponentArray<T>
-    auto basePtr = componentArrays[ typeid(T)].get();
+    auto typeIdx = std::type_index(typeid(T));
+    auto it = componentArrays.find(typeIdx);
+    if (it == componentArrays.end()) {
+        AddComponent(typeIdx);
+        it = componentArrays.find(typeIdx);
+    }
+    auto basePtr = it->second.get();
     return std::shared_ptr<ComponentArray<T>>(static_cast<ComponentArray<T>*>(basePtr),
                                               [](ComponentArray<T>*){}); // do-nothing deleter
 }
@@ -178,8 +196,13 @@ std::shared_ptr<ComponentArray<T>> Scene::GetComponentArray()
 template <typename T>
 std::shared_ptr<IntegralComponentArray<T>> Scene::GetIntegralComponentArray()
 {
-    // Cast from IComponentArray to ComponentArray<T>
-    auto basePtr = componentArrays[ typeid(T)].get();
+    auto typeIdx = std::type_index(typeid(T));
+    auto it = componentArrays.find(typeIdx);
+    if (it == componentArrays.end()) {
+        AddComponent(typeIdx);
+        it = componentArrays.find(typeIdx);
+    }
+    auto basePtr = it->second.get();
     return std::shared_ptr<IntegralComponentArray<T>>(static_cast<IntegralComponentArray<T>*>(basePtr),
                                               [](IntegralComponentArray<T>*){}); // do-nothing deleter
 }

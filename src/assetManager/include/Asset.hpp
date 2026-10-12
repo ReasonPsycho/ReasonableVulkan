@@ -24,7 +24,11 @@ namespace am {
 
         template<typename T>
         T* getAssetDataAs() {
-            return std::any_cast<T*>(getAssetData());
+            std::any data = getAssetData();
+            if (auto* ptr = std::any_cast<T*>(&data)) {
+                return *ptr;
+            }
+            return nullptr;
         }
 
         virtual void SaveAssetToJson(rapidjson::Document& document) = 0;

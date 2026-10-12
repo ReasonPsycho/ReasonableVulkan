@@ -1,0 +1,102 @@
+//
+// Created by redkc on 10/10/2026.
+//
+
+#ifndef IMGUIFILEBROWSER_HPP
+#define IMGUIFILEBROWSER_HPP
+
+#include "ImguiFileBrowserInterface.h"
+#include <string>
+#include <vector>
+#include <filesystem>
+#include <imgui.h>
+
+namespace am {
+
+    class AssetManager;
+
+    class FileBrowser : public ImguiFileBrowserInterface {
+    public:
+        explicit FileBrowser(AssetManager* assetManager);
+        ~FileBrowser() override = default;
+
+        void ImguiFileBrowser(std::string windowName) override;
+        void ImguiFileInspector(std::string windowName = "File Inspector") override;
+
+        void setSelectedFile(const std::filesystem::path& path) override;
+        std::filesystem::path getSelectedFile() const override;
+        const std::vector<std::filesystem::path>& getSelectedFiles() const override;
+        void setSelectedFiles(const std::vector<std::filesystem::path>& paths) override;
+        void addSelectedFile(const std::filesystem::path& path) override;
+        void removeSelectedFile(const std::filesystem::path& path) override;
+        void clearSelectedFiles() override;
+        bool isFileSelected(const std::filesystem::path& path) const override;
+
+        void copyFileToClipboard(const std::filesystem::path& path) override;
+        void cutFileToClipboard(const std::filesystem::path& path) override;
+        void copyFilesToClipboard(const std::vector<std::filesystem::path>& paths) override;
+        void cutFilesToClipboard(const std::vector<std::filesystem::path>& paths) override;
+        const std::vector<std::filesystem::path>& getClipboardPaths() const override;
+        bool pasteFileFromClipboard(const std::filesystem::path& targetDir) override;
+        bool duplicateFile(const std::filesystem::path& path) override;
+        bool duplicateFiles(const std::vector<std::filesystem::path>& paths) override;
+        bool deleteFile(const std::filesystem::path& path) override;
+        bool deleteFiles(const std::vector<std::filesystem::path>& paths) override;
+        bool copyFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) override;
+        bool moveFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite = false) override;
+        std::filesystem::path getUniqueCopyPath(const std::filesystem::path& targetPath) const override;
+        std::filesystem::path getClipboardPath() const override;
+        bool isClipboardCut() const override;
+
+        void saveFileBrowserConfig();
+        void loadFileBrowserConfig();
+
+        float fileBrowserScale = 1.0f;
+        float fileBrowserLetterScale = 1.0f;
+        std::string fileBrowserConfigLookupName = "fileBrowserConfig";
+        std::filesystem::path currentPath;
+        std::filesystem::path selectedFile;
+        std::vector<std::filesystem::path> selectedFiles;
+        std::filesystem::path clipboardPath;
+        std::vector<std::filesystem::path> clipboardPaths;
+        bool clipboardIsCut = false;
+
+        struct FileActionRecord {
+            enum class Type {
+                Move,
+                Copy,
+                CreateFolder,
+                CreateMaterial,
+                Delete
+            };
+            Type type = Type::Move;
+            std::filesystem::path sourcePath;
+            std::filesystem::path targetPath;
+            std::filesystem::path trashBackupPath;
+            std::string description;
+        };
+
+        void undoFileAction();
+        void redoFileAction();
+        bool canUndoFileAction() const;
+        bool canRedoFileAction() const;
+        std::string getUndoFileActionName() const;
+        std::string getRedoFileActionName() const;
+        void clearFileActionHistory();
+        void pushFileAction(const FileActionRecord& record);
+
+        std::vector<FileActionRecord> fileUndoStack;
+        std::vector<FileActionRecord> fileRedoStack;
+
+        bool isBoxSelecting = false;
+        ImVec2 boxSelectStartPos = {0.0f, 0.0f};
+        std::vector<std::filesystem::path> boxSelectPreSelection;
+        bool requestInspectorFocus = false;
+
+    private:
+        AssetManager* assetManager = nullptr;
+    };
+
+} // namespace am
+
+#endif // IMGUIFILEBROWSER_HPP

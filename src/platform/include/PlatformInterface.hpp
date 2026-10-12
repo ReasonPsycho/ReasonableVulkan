@@ -5,6 +5,7 @@
 #include <string>
 #include <functional>
 #include <chrono>
+#include <optional>
 namespace am { class AssetManagerInterface; }
 
 namespace  plt
@@ -99,6 +100,11 @@ namespace  plt
         virtual bool IsKeyPressed(int keyCode) const = 0;
         virtual bool IsMouseButtonPressed(uint8_t button) const = 0;
         virtual void GetMousePosition(float& x, float& y) const = 0;
+
+        // System utility functions
+        virtual bool OpenFileInDefaultApp(const std::string& path) = 0;
+        virtual bool OpenFileInIDE(const std::string& path) = 0;
+        virtual std::optional<std::string> SaveFileDialog(const std::string& defaultPath = "", const std::string& filterName = "", const std::string& filterExtension = "") = 0;
 
     protected:
         PlatformInterface() = default;

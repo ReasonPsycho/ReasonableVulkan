@@ -16,7 +16,7 @@ namespace am
     };
 
     struct TextureData {
-        std::vector<std::uint32_t> pixels;
+        std::vector<std::uint8_t> pixels;
         uint32_t width{0};
         uint32_t height{0};
         uint32_t channels{0};

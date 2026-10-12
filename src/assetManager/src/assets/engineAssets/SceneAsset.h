@@ -3,13 +3,17 @@
 
 #include "../../../include/Asset.hpp"
 #include "../../JsonHelpers.hpp"
+#include "assetDatas/EngineAssets.h"
 
 namespace am {
     const char SCENE_MAGIC[] = "RSCNE";
 
     class SceneAsset : public Asset {
     public:
-        rapidjson::Document sceneData;
+        static constexpr AssetType StaticType = AssetType::Scene;
+        using DataType = rapidjson::Document;
+
+        SceneData sceneData;
 
         explicit SceneAsset(const boost::uuids::uuid& id, std::string path);
 

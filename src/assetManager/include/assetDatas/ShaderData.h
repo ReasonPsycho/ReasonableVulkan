@@ -7,17 +7,18 @@
 #include <cstdint>
 #include <map>
 #include <vector>
-
+#include <string>
+#include "AssetReflection.hpp"
 
 namespace am
 {
     enum class ShaderStage : uint32_t {
-        Vertex = 0,
-        Fragment = 1,
-        Compute = 2,
-        Geometry = 3,
-        TessellationControl = 4,
-        TessellationEvaluation = 5
+        Vertex [[=ShaderSuffix{"vs"}]] = 0,
+        Fragment [[=ShaderSuffix{"fs"}]] = 1,
+        Compute [[=ShaderSuffix{"cs"}]] = 2,
+        Geometry [[=ShaderSuffix{"gs"}]] = 3,
+        TessellationControl [[=ShaderSuffix{"tcs"}]] = 4,
+        TessellationEvaluation [[=ShaderSuffix{"tes"}]] = 5
     };
 
     struct ShaderData {

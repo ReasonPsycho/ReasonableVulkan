@@ -18,6 +18,9 @@ namespace am {
 
 class MaterialAsset : public am::Asset {
 public:
+    static constexpr AssetType StaticType = AssetType::Material;
+    using DataType = MaterialData;
+
     explicit MaterialAsset(const boost::uuids::uuid& id, std::string path);
     explicit MaterialAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData);
     explicit MaterialAsset(const std::string& path, AssetFormat format);

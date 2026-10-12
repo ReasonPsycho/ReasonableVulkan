@@ -11,6 +11,7 @@
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 
+#include "Handle.hpp"
 #include "ecs/System.h"
 
 namespace engine::ecs
@@ -46,16 +47,38 @@ namespace engine::ecs
         void DrawCube(glm::vec3 pos, glm::vec3 scale, glm::vec3 color);
         void DrawCube(glm::vec3 pos, glm::vec3 scale, glm::vec3 color, float duration);
 
+        [[=NonSerialized{}]]
         std::vector<GizmoRenderCommand> gizmoRenderCommandQueue;
 
+        [[=NonSerialized{}]]
         boost::uuids::uuid rayAssetUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
         boost::uuids::uuid cubeAssetUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
+        boost::uuids::uuid rayMeshUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
+        boost::uuids::uuid cubeMeshUuid = boost::uuids::nil_uuid();
 
+        [[=NonSerialized{}]]
         boost::uuids::uuid rayShaderUuid = boost::uuids::nil_uuid();
+        [[=NonSerialized{}]]
         boost::uuids::uuid cubeShaderUuid = boost::uuids::nil_uuid();
 
-        boost::uuids::uuid ModelUUIDByGizmoType(GizmoType type);
+        [[=NonSerialized{}]]
+        gfx::MeshHandle rayMeshHandle = gfx::MeshHandle::invalid();
+        [[=NonSerialized{}]]
+        gfx::MeshHandle cubeMeshHandle = gfx::MeshHandle::invalid();
+
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle rayShaderHandle = gfx::ShaderProgramHandle::invalid();
+        [[=NonSerialized{}]]
+        gfx::ShaderProgramHandle cubeShaderHandle = gfx::ShaderProgramHandle::invalid();
+
+        boost::uuids::uuid MeshUUIDByGizmoType(GizmoType type);
         boost::uuids::uuid ShaderUUIDByGizmoType(GizmoType type);
+
+        gfx::MeshHandle MeshHandleByGizmoType(GizmoType type);
+        gfx::ShaderProgramHandle ShaderHandleByGizmoType(GizmoType type);
 
     protected:
         void OnComponentAdded(ComponentID componentID, std::type_index type) override {}

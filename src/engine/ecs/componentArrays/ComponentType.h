@@ -5,21 +5,53 @@
 #ifndef COMPONENTTYPE_H
 #define COMPONENTTYPE_H
 
+#include <cstddef>
+#include <limits>
+#include <tuple>
+#include "ecs/Reflection.hpp"
+
 namespace engine::ecs
 {
     using ComponentTypeID = std::size_t;
 
-    inline ComponentTypeID GetUniqueComponentTypeID()
-    {
-        static ComponentTypeID lastID = 0u;
-        return lastID++;
-    }
+    struct TransformComponent;
+    struct MeshComponent;
+    struct RendererComponent;
+    struct CameraComponent;
+    struct LightComponent;
+    struct NameComponent;
+    struct TagComponent;
+    struct ThumbnailComponent;
+
+    class RenderSystem;
+    class GizmoSystem;
+    class TransformSystem;
+    class CollisionSystem;
+
+    using EngineComponents = std::tuple<
+        TransformComponent,
+        MeshComponent,
+        RendererComponent,
+        CameraComponent,
+        LightComponent,
+        NameComponent,
+        TagComponent,
+        ThumbnailComponent
+    >;
+
+    using EngineSystems = std::tuple<
+        RenderSystem,
+        GizmoSystem,
+        TransformSystem,
+        CollisionSystem
+    >;
 
     template<typename T>
-    ComponentTypeID GetComponentTypeID()
+    consteval ComponentTypeID GetComponentTypeID()
     {
-        static ComponentTypeID typeID = GetUniqueComponentTypeID();
-        return typeID;
+        constexpr auto id = IndexInTuple<T, EngineComponents>();
+        static_assert(id != std::numeric_limits<std::size_t>::max(), "Component not in EngineComponents list!");
+        return id;
     }
 }
 #endif //COMPONENTTYPE_H

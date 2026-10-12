@@ -9,18 +9,19 @@
 #include <rapidjson/writer.h>
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>  // For to_string
+#include "AssetTypes.hpp"
+#include "AssetReflection.hpp"
 
 namespace am {
     class Asset; // Forward declaration
     class AssetManager;
-    enum class AssetType;
 
     struct ImportContext {
-        std::string importPath;
-        AssetType assetType;
-        int assimpIndex;
+        [[=JsonName{"importPath"}]] std::string importPath;
+        [[=JsonName{"assetType"}]]  AssetType assetType = AssetType::Other;
+        [[=JsonName{"assimpIndex"}]] int assimpIndex = 0;
 
-        // Constructor to initialize the reference and other members
+        ImportContext() = default;
         ImportContext(std::string p, AssetType type, int assimpIndex = 0)
             :
                importPath(std::move(p))
@@ -39,6 +40,7 @@ namespace am {
         std::string lookUpName;
         size_t contentHash;
         ImportContext importContext;
+        std::string thumbnailPath;
         bool isLoaded = false;
         Asset *loadedAsset = nullptr;
 
@@ -48,13 +50,15 @@ namespace am {
                   AssetType t,
                   size_t hash,
                   ImportContext factoryData,
-                  std::string lookUpName)
+                  std::string lookUpName,
+                  std::string thumbPath = "")
             : id(uuid)
               , path(std::move(p))
               , type(t)
               , contentHash(hash)
               , importContext(std::move(factoryData))
-              , lookUpName(std::move(lookUpName)) {
+              , lookUpName(std::move(lookUpName))
+              , thumbnailPath(std::move(thumbPath)) {
         }
 
         // Method to get or load asset
@@ -62,12 +66,17 @@ namespace am {
 
         bool isAssetLoaded() const;
 
+        AssetInfo(const AssetInfo& other) = default;
+        AssetInfo& operator=(const AssetInfo& other) = default;
+        AssetInfo& operator=(AssetInfo&& other) noexcept = default;
+
         AssetInfo(AssetInfo &&other) noexcept
             : id(other.id)
               , path(std::move(other.path))
               , type(other.type)
               , contentHash(other.contentHash)
               , importContext(std::move(other.importContext))
+              , thumbnailPath(std::move(other.thumbnailPath))
               , loadedAsset(other.loadedAsset)
               , lookUpName(other.lookUpName)
               , isLoaded(other.isLoaded) {
@@ -75,11 +84,19 @@ namespace am {
             other.isLoaded = false;
         }
 
-    void SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
+        void SerializeAssetInfoToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const;
 
         // Add this static method for deserialization
-    static AssetInfo DeserializeAssetInfoFromJson(const rapidjson::Value& obj);
+        static AssetInfo DeserializeAssetInfoFromJson(const rapidjson::Value& obj);
     };
+
+    inline boost::uuids::uuid GetAssetInfoId(const std::shared_ptr<AssetInfo>& info) {
+        return info ? info->id : boost::uuids::uuid{};
+    }
+
+    inline size_t GetAssetInfoContentHash(const std::shared_ptr<AssetInfo>& info) {
+        return info ? info->contentHash : 0;
+    }
 }
 
 

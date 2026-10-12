@@ -2,8 +2,11 @@
 #pragma once
 #include <boost/uuid/uuid.hpp>
 #include <memory>
+#include <string>
 #include <glm/detail/type_mat4x4.hpp>
 #include <vulkan/vulkan_core.h>
+#include <unordered_map>
+#include <boost/functional/hash.hpp>
 
 #include "include/GraphicsEngine.hpp"
 #include "src/imguiManager/ImguiManager.hpp"
@@ -29,11 +32,20 @@ namespace vks {
 
 		void setCameraData(uint32_t cameraIndex, const glm::mat4& projection, const glm::mat4& view, const glm::vec3 cameraPos) override;
 		void setActiveCameraCount(uint32_t count) override;
-		void loadModel(boost::uuids::uuid uuid) override;
-		void loadShader(boost::uuids::uuid uuid) override;
-		void loadTexture(boost::uuids::uuid uuid) override;
-		void drawModel(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId, const glm::mat4& transform) override;
-		void drawSkybox(uint32_t cameraIndex, boost::uuids::uuid modelId, boost::uuids::uuid shaderId) override;
+
+		gfx::ModelHandle loadModel(boost::uuids::uuid uuid) override;
+		gfx::MeshHandle loadMesh(boost::uuids::uuid uuid) override;
+		gfx::ShaderProgramHandle loadShader(boost::uuids::uuid uuid) override;
+		gfx::TextureHandle loadTexture(boost::uuids::uuid uuid) override;
+		gfx::MaterialHandle loadMaterial(boost::uuids::uuid uuid) override;
+
+		gfx::ModelHandle getModelHandle(const std::string& lookUpName) override;
+		gfx::MeshHandle getMeshHandle(const std::string& lookUpName) override;
+		gfx::ShaderProgramHandle getShaderHandle(const std::string& lookUpName) override;
+		gfx::MaterialHandle getMaterialHandle(const std::string& lookUpName) override;
+
+		void drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle shaderHandle, const glm::mat4& transform) override;
+		void drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle shaderHandle) override;
 		void drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform) override;
@@ -48,6 +60,9 @@ namespace vks {
 
 		void* getViewportTexturePointer() override;
 		void* getViewportTexturePointer(uint32_t cameraIndex) override;
+
+		void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) override;
+		bool captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth = 128, int targetHeight = 128) override;
 
 		void cleanup();
 		void waitIdle();
@@ -65,7 +80,15 @@ namespace vks {
 #if ENABLE_IMGUI
 		std::unique_ptr<ImguiManager> imguiManager;
 #endif
-		boost::uuids::uuid pbrShaderId;
-		boost::uuids::uuid skyboxShaderId;
+		gfx::ShaderProgramHandle pbrShaderHandle{gfx::ShaderProgramHandle::invalid()};
+		gfx::ShaderProgramHandle skyboxShaderHandle{gfx::ShaderProgramHandle::invalid()};
+
+		struct ThumbnailTextureResource {
+			VkImage image = VK_NULL_HANDLE;
+			VkDeviceMemory memory = VK_NULL_HANDLE;
+			VkImageView view = VK_NULL_HANDLE;
+			VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+		};
+		std::unordered_map<boost::uuids::uuid, ThumbnailTextureResource, boost::hash<boost::uuids::uuid>> thumbnailCache;
 	};
 }

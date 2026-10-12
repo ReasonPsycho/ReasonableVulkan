@@ -17,5 +17,9 @@ layout(location = 0) out vec4 outFragColor;
 
 void main()
 {
-    outFragColor = vec4(inColor, 1.0);
+    vec3 col = inColor;
+    if (dot(col, col) < 0.001) {
+        col = vec3(0.9, 0.9, 0.9);
+    }
+    outFragColor = vec4(col, 1.0);
 }
