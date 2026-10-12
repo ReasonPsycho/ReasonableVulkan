@@ -167,6 +167,14 @@ namespace engine::ecs
         void Redo() override { history.Redo(); }
         bool CanUndo() const override { return history.CanUndo(); }
         bool CanRedo() const override { return history.CanRedo(); }
+
+        bool IsPlaying() const override;
+        bool IsPaused() const override;
+        void StartPlayMode() override;
+        void StopPlayMode() override;
+        void SetPaused(bool paused) override;
+        void TogglePlay() override;
+        void TogglePause() override;
         editor::CommandHistory& GetHistory() { return history; }
         const editor::CommandHistory& GetHistory() const { return history; }
         void ExecuteCommand(std::shared_ptr<editor::ICommand> cmd) { history.Execute(cmd); }
@@ -232,6 +240,9 @@ namespace engine::ecs
         void ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize);
         void ImguiToolbar();
         void ImGuiScriptBuildLogWindow();
+        void PollPluginBridge();
+
+        uint64_t lastProcessedStateTimestamp = 0;
 
         std::atomic<bool> isScriptCompiling{false};
         std::atomic<bool> scriptCompilePendingReload{false};

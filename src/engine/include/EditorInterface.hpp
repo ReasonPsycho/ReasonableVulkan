@@ -65,6 +65,15 @@ namespace engine::editor {
         virtual bool CanUndo() const = 0;
         virtual bool CanRedo() const = 0;
 
+        // Play/Pause mode
+        virtual bool IsPlaying() const { return false; }
+        virtual bool IsPaused() const { return false; }
+        virtual void StartPlayMode() {}
+        virtual void StopPlayMode() {}
+        virtual void SetPaused(bool /*paused*/) {}
+        virtual void TogglePlay() {}
+        virtual void TogglePause() {}
+
     protected:
         EditorInterface() = default;
     };

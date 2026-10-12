@@ -1313,7 +1313,38 @@ namespace am {
                         ImGui::Text("Dimensions: %u x %u", texData->width, texData->height);
                         ImGui::Text("Channels: %u", texData->channels);
                         ImGui::Text("Has Alpha: %s", texData->hasAlpha ? "Yes" : "No");
-                        ImGui::Text("Texture Type: %s", texData->type == TextureType::Texture2D ? "2D" : "Cube Map");
+
+                        std::string typeStr;
+                        switch (texData->type) {
+                            case TextureType::Texture2D: typeStr = "Texture2D"; break;
+                            case TextureType::TextureCube: typeStr = "TextureCube"; break;
+                        }
+
+                        if (ImGui::BeginCombo("Texture Type", typeStr.c_str())) {
+                            bool is2DSelected = (texData->type == TextureType::Texture2D);
+                            if (ImGui::Selectable("Texture2D", is2DSelected)) {
+                                if (texData->type != TextureType::Texture2D) {
+                                    texData->type = TextureType::Texture2D;
+                                    if (assetManager) assetManager->saveAsset(fileUuid.value());
+                                }
+                            }
+                            if (is2DSelected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+
+                            bool isCubeSelected = (texData->type == TextureType::TextureCube);
+                            if (ImGui::Selectable("TextureCube", isCubeSelected)) {
+                                if (texData->type != TextureType::TextureCube) {
+                                    texData->type = TextureType::TextureCube;
+                                    if (assetManager) assetManager->saveAsset(fileUuid.value());
+                                }
+                            }
+                            if (isCubeSelected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+
+                            ImGui::EndCombo();
+                        }
                     }
                 } else if (assetType == AssetType::Model) {
                     auto modelData = assetManager ? assetManager->getAssetData<ModelData>(fileUuid.value()) : nullptr;

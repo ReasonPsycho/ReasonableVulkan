@@ -104,6 +104,7 @@ namespace  plt
         // System utility functions
         virtual bool OpenFileInDefaultApp(const std::string& path) = 0;
         virtual bool OpenFileInIDE(const std::string& path) = 0;
+        virtual bool NotifyIDEState(const std::string& state) { return false; }
         virtual std::optional<std::string> SaveFileDialog(const std::string& defaultPath = "", const std::string& filterName = "", const std::string& filterExtension = "") = 0;
 
     protected:

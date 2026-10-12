@@ -28,7 +28,7 @@ namespace engine::ecs {
             glm::vec3 leftDirection;
             if (useLocalSpace) {
                 // Local left is the negative right vector of the local transform
-                leftDirection = -(transform.rotation * glm::vec3(1.0f, 0.0f, 0.0f));
+                leftDirection = (transform.rotation * glm::vec3(0.0f, 1.0f, 0.0f));
             } else {
                 // World left (-X axis)
                 leftDirection = glm::vec3(1.0f, 0.0f, 0.0f);

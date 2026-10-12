@@ -3,3 +3,15 @@
 **/tests/
 /.junie/output.txt
 /res/.cache/
+.rv_command
+.rv_command.signal
+.rv_control
+.rv_control.signal
+.rv_state
+.rv_state.signal
+rv_command
+rv_command.signal
+rv_control
+rv_control.signal
+rv_state
+rv_state.signal

@@ -68,6 +68,15 @@ namespace engine {
         // Global update loop
         virtual void Update(float deltaTime) = 0;
 
+        // Play/Pause mode
+        virtual bool IsPlaying() const { return false; }
+        virtual bool IsPaused() const { return false; }
+        virtual void StartPlayMode() {}
+        virtual void StopPlayMode() {}
+        virtual void SetPaused(bool /*paused*/) {}
+        virtual void TogglePlay() {}
+        virtual void TogglePause() {}
+
     protected:
         EngineInterface() = default;
     };

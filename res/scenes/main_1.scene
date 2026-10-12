@@ -4,99 +4,15 @@
     "maxEntityIndex": 3,
     "activeEntities": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111",
     "signatures": {
-      "2": "0000000000100111",
+      "0": "0000000000101001",
       "1": "0000000000110001",
-      "0": "0000000000101001"
+      "2": "0000000000100111"
     }
   },
   "components": {
-    "MeshComponent": {
-      "size": 1,
-      "components": [
-        {
-          "entity": 2,
-          "data": {
-            "meshUuid": "582d631e-18d2-4b9a-b2d8-8cef005b67eb"
-          },
-          "active": true
-        }
-      ]
-    },
-    "NameComponent": {
-      "components": [
-        {
-          "entity": 0,
-          "data": {
-            "name": "Camera"
-          }
-        },
-        {
-          "entity": 1,
-          "data": {
-            "name": "Light"
-          }
-        },
-        {
-          "entity": 2,
-          "data": {
-            "name": "Model"
-          }
-        }
-      ]
-    },
-    "CameraComponent": {
-      "size": 1,
-      "components": [
-        {
-          "entity": 0,
-          "data": {
-            "fov": 45.0,
-            "aspectRatio": 1.806208848953247,
-            "nearPlane": 0.10000000149011612,
-            "farPlane": 1000.0,
-            "skyboxMaterialId": "00000000-0000-0000-0000-000000000000",
-            "active": true
-          },
-          "active": true
-        }
-      ]
-    },
-    "LightComponent": {
-      "size": 1,
-      "components": [
-        {
-          "entity": 1,
-          "data": {
-            "type": 0,
-            "color": [
-              1.0,
-              1.0,
-              1.0
-            ],
-            "intensity": 0.1860000044107437,
-            "hasShadow": false,
-            "showGizmo": true,
-            "data": {
-              "shadowBias": 0.004999999888241291,
-              "shadowStrength": 1.0
-            }
-          },
-          "active": true
-        }
-      ]
-    },
-    "RendererComponent": {
-      "size": 1,
-      "components": [
-        {
-          "entity": 2,
-          "data": {
-            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452",
-            "materialUuid": "199ce209-5c6a-49a5-9de7-c35dacbbb2d3"
-          },
-          "active": true
-        }
-      ]
+    "ThumbnailComponent": {
+      "size": 0,
+      "components": []
     },
     "TransformComponent": {
       "components": [
@@ -104,13 +20,13 @@
           "entity": 0,
           "data": {
             "position": [
-              0.0,
-              -0.014061659574508667,
-              -0.31763797998428345
+              -0.31464481353759766,
+              1.7083663940429688,
+              3.5329294204711914
             ],
             "rotation": [
-              1.0,
-              0.0,
+              0.9846474528312683,
+              -0.17455492913722992,
               0.0,
               0.0
             ],
@@ -164,9 +80,102 @@
           }
         }
       ]
+    },
+    "RendererComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 2,
+          "data": {
+            "shaderUuid": "5c40fcd0-42cb-4098-8372-ad76faaba452",
+            "materialUuid": "199ce209-5c6a-49a5-9de7-c35dacbbb2d3"
+          },
+          "active": true
+        }
+      ]
+    },
+    "LightComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 1,
+          "data": {
+            "type": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "intensity": 0.1860000044107437,
+            "hasShadow": true,
+            "showGizmo": true,
+            "data": {
+              "shadowBias": 0.004999999888241291,
+              "shadowStrength": 1.0
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    "CameraComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 0,
+          "data": {
+            "fov": 45.0,
+            "aspectRatio": 1.806208848953247,
+            "nearPlane": 0.10000000149011612,
+            "farPlane": 1000.0,
+            "skyboxMaterialId": "6f1a7ad8-101a-40eb-917f-fc4903a72499",
+            "active": true,
+            "showGizmo": true
+          },
+          "active": true
+        }
+      ]
+    },
+    "NameComponent": {
+      "components": [
+        {
+          "entity": 0,
+          "data": {
+            "name": "Camera"
+          }
+        },
+        {
+          "entity": 1,
+          "data": {
+            "name": "Light"
+          }
+        },
+        {
+          "entity": 2,
+          "data": {
+            "name": "Model"
+          }
+        }
+      ]
+    },
+    "MeshComponent": {
+      "size": 1,
+      "components": [
+        {
+          "entity": 2,
+          "data": {
+            "meshUuid": "582d631e-18d2-4b9a-b2d8-8cef005b67eb"
+          },
+          "active": true
+        }
+      ]
     }
   },
   "systems": {
+    "ScriptSystem": {
+      "name": "ScriptSystem",
+      "extraData": {}
+    },
     "CollisionSystem": {
       "name": "CollisionSystem",
       "extraData": {}

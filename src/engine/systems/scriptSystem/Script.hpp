@@ -6,6 +6,10 @@
 #include "ecs/Types.h"
 #include "ecs/Reflection.hpp"
 
+namespace engine {
+    class Engine;
+}
+
 namespace engine::ecs {
 
     class Scene;
@@ -66,6 +70,7 @@ namespace engine::ecs {
         std::string typeName{"Script"};
 
     private:
+        friend class ::engine::Engine;
         friend class ScriptSystem;
         friend struct ScriptComponent;
         friend class ScriptRegistry;

@@ -79,12 +79,25 @@ bool Scene::IsActive() const {
 }
 
 void Scene::Update(float deltaTime) { //TODO prob i will need to extend update with diffrent forms (late update for example) or enums
+    bool isPlaying = engine.IsPlaying();
+    bool isPaused = engine.IsPaused();
+    float simDeltaTime = (isPlaying && !isPaused) ? deltaTime : 0.0f;
+
     for (auto& [type, system] : systems) {
         if (type == std::type_index(typeid(RenderSystem))) {
             continue;
         }
+
+        if (type == std::type_index(typeid(ScriptSystem))) {
+            if (!isPlaying || isPaused) {
+                continue;
+            }
+        }
+
+        float dt = (type == std::type_index(typeid(GizmoSystem)) && !isPlaying) ? deltaTime : simDeltaTime;
+
         ZoneTransientN(zoneName,(system->name).c_str(),true);
-        system->Update(deltaTime);
+        system->Update(dt);
     }
 }
 

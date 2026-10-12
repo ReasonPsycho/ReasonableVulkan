@@ -206,6 +206,117 @@ namespace engine {
         }
     }
 
+    void Engine::StartPlayMode()
+    {
+        if (isPlaying) {
+            if (isPaused) {
+                SetPaused(false);
+            }
+            return;
+        }
+
+        // Save snapshots of all active editable scenes
+        sceneSnapshots.clear();
+        auto activeScenes = GetActiveScenes();
+        for (const auto& scene : activeScenes) {
+            if (scene && scene->IsEditable() && scene->GetSceneType() != ecs::SceneType::Thumbnail) {
+                rapidjson::Document doc;
+                scene->SerializeToJson(doc);
+                sceneSnapshots[scene->GetName()] = std::move(doc);
+            }
+        }
+
+        isPlaying = true;
+        isPaused = false;
+        if (platform) {
+            platform->NotifyIDEState("PLAYING");
+        }
+        spdlog::info("Entered Play Mode");
+    }
+
+    void Engine::StopPlayMode()
+    {
+        if (!isPlaying) return;
+
+        // 1. Destroy running script instances across scenes
+        auto activeScenes = GetActiveScenes();
+        for (const auto& scene : activeScenes) {
+            if (scene) {
+                auto scriptCompArray = scene->GetComponentArray<ScriptComponent>();
+                if (scriptCompArray) {
+                    auto& comps = scriptCompArray->GetComponents();
+                    for (size_t i = 0; i < scriptCompArray->GetArraySize(); ++i) {
+                        if (scriptCompArray->IsComponentActive(i)) {
+                            for (auto& script : comps[i].scripts) {
+                                if (script && script->started) {
+                                    script->OnDestroy();
+                                    script->started = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Restore scenes from snapshots
+        for (const auto& [sceneName, snapshot] : sceneSnapshots) {
+            auto scene = GetScene(sceneName);
+            if (scene) {
+                scene->DeserializeFromJson(snapshot);
+            }
+        }
+        sceneSnapshots.clear();
+
+        isPlaying = false;
+        isPaused = false;
+        if (platform) {
+            platform->NotifyIDEState("STOPPED");
+        }
+
+        // 3. Validate selected entities in editor
+        if (editorSystem) {
+            auto target = editorSystem->GetTargetScene();
+            if (target) {
+                auto sel = editorSystem->GetSelectedEntities();
+                std::vector<Entity> validSel;
+                for (Entity e : sel) {
+                    if (target->IsEntityActive(e)) {
+                        validSel.push_back(e);
+                    }
+                }
+                editorSystem->SetSelectedEntities(validSel);
+            }
+        }
+
+        spdlog::info("Exited Play Mode (Scene restored)");
+    }
+
+    void Engine::SetPaused(bool paused)
+    {
+        if (!isPlaying) return;
+        isPaused = paused;
+        if (platform) {
+            platform->NotifyIDEState(isPaused ? "PAUSED" : "PLAYING");
+        }
+        spdlog::info(isPaused ? "Play Mode Paused" : "Play Mode Resumed");
+    }
+
+    void Engine::TogglePlay()
+    {
+        if (isPlaying) {
+            StopPlayMode();
+        } else {
+            StartPlayMode();
+        }
+    }
+
+    void Engine::TogglePause()
+    {
+        if (!isPlaying) return;
+        SetPaused(!isPaused);
+    }
+
     std::shared_ptr<IComponentArray> Engine::CreateComponentArray(const std::type_index& type) const
     {
         return CreateComponentArrayFromType<EngineComponents>(type);
@@ -250,6 +361,12 @@ namespace engine {
 
     void Engine::SaveScene()
     {
+        if (isPlaying)
+        {
+            spdlog::warn("Cannot save scene while in Play mode. Exit Play mode to save changes.");
+            return;
+        }
+
         auto activeScene = GetActiveScene();
         if (!activeScene)
         {

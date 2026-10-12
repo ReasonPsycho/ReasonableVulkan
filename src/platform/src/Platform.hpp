@@ -61,6 +61,7 @@ public:
     // System utility functions
     bool OpenFileInDefaultApp(const std::string& path) override;
     bool OpenFileInIDE(const std::string& path) override;
+    bool NotifyIDEState(const std::string& state) override;
     std::optional<std::string> SaveFileDialog(const std::string& defaultPath = "", const std::string& filterName = "", const std::string& filterExtension = "") override;
 
 private:
