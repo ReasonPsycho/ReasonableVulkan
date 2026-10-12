@@ -11,6 +11,8 @@ ScriptSystem::ScriptSystem(Scene* scene) : System(scene) {
 }
 
 void ScriptSystem::Update(float deltaTime) {
+    if (!scene || !scene->engine.IsPlaying() || scene->engine.IsPaused()) return;
+
     auto scriptCompArray = scene->GetComponentArray<ScriptComponent>();
     if (!scriptCompArray) return;
 

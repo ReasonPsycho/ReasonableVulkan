@@ -21,6 +21,7 @@
 #include "systems/scriptSystem/ScriptHotReloadManager.hpp"
 #include "systems/scriptSystem/ScriptRegistry.hpp"
 #include <thread>
+#include <fstream>
 #if defined(_WIN32)
     #ifndef WIN32_LEAN_AND_MEAN
         #define WIN32_LEAN_AND_MEAN
@@ -820,11 +821,95 @@ void EditorSystem::ImguiToolbar()
         }
     }
 
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 2.0f);
+    ImGui::SameLine();
+
+    bool isPlaying = engine ? engine->IsPlaying() : false;
+    bool isPaused = engine ? engine->IsPaused() : false;
+
+    // Play button
+    if (isPlaying) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.65f, 0.25f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.75f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.55f, 0.2f, 1.0f));
+    }
+    if (ImGui::Button(isPlaying ? (ICON_FA_PLAY " Playing") : (ICON_FA_PLAY " Play"))) {
+        if (engine) engine->TogglePlay();
+    }
+    if (isPlaying) {
+        ImGui::PopStyleColor(3);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(isPlaying ? "Stop Game (Ctrl+P)" : "Play Game (Ctrl+P)");
+    }
+
+    ImGui::SameLine();
+
+    // Pause button
+    if (!isPlaying) ImGui::BeginDisabled(true);
+    if (isPaused) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.6f, 0.15f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.7f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.75f, 0.5f, 0.1f, 1.0f));
+    }
+    if (ImGui::Button(isPaused ? (ICON_FA_PAUSE " Paused") : (ICON_FA_PAUSE " Pause"))) {
+        if (engine) engine->TogglePause();
+    }
+    if (isPaused) {
+        ImGui::PopStyleColor(3);
+    }
+    if (!isPlaying) ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip(isPaused ? "Resume Game (Ctrl+Shift+P)" : "Pause Game (Ctrl+Shift+P)");
+    }
+
+    ImGui::SameLine();
+
+    // Stop button
+    if (!isPlaying) ImGui::BeginDisabled(true);
+    if (ImGui::Button(ICON_FA_STOP " Stop")) {
+        if (engine) engine->StopPlayMode();
+    }
+    if (!isPlaying) ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("Stop Game and reset scene state");
+    }
+
     ImGui::End();
 }
 
 EditorSystem::EditorSystem(::engine::Engine* engine) : engine(engine)
 {
+    lastProcessedStateTimestamp = 0;
+}
+
+bool EditorSystem::IsPlaying() const {
+    return engine ? engine->IsPlaying() : false;
+}
+
+bool EditorSystem::IsPaused() const {
+    return engine ? engine->IsPaused() : false;
+}
+
+void EditorSystem::StartPlayMode() {
+    if (engine) engine->StartPlayMode();
+}
+
+void EditorSystem::StopPlayMode() {
+    if (engine) engine->StopPlayMode();
+}
+
+void EditorSystem::SetPaused(bool paused) {
+    if (engine) engine->SetPaused(paused);
+}
+
+void EditorSystem::TogglePlay() {
+    if (engine) engine->TogglePlay();
+}
+
+void EditorSystem::TogglePause() {
+    if (engine) engine->TogglePause();
 }
 
 void EditorSystem::ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize)
@@ -851,6 +936,8 @@ void EditorSystem::Update(float deltaTime)
     if (!engine || engine->minimized)
         return;
 
+    PollPluginBridge();
+
     if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
         rd::RenderDocManager::getInstance().requestCapture();
     }
@@ -873,6 +960,14 @@ void EditorSystem::Update(float deltaTime)
         if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_R))
         {
             TriggerScriptRebuild();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_P))
+        {
+            if (engine) engine->TogglePlay();
+        }
+        if (isCtrlOrCmd && isShift && ImGui::IsKeyPressed(ImGuiKey_P))
+        {
+            if (engine) engine->TogglePause();
         }
     }
 
@@ -2709,6 +2804,10 @@ bool EditorSystem::CreateScriptAsset(const std::string& scriptName, const std::f
         engine->assetManagerInterface->createAsset(am::AssetType::Script, filePath.string());
     }
 
+    if (engine && engine->platform) {
+        engine->platform->OpenFileInIDE(filePath.string());
+    }
+
     spdlog::info("Created script asset: {}", filePath.string());
     return true;
 }
@@ -2835,6 +2934,93 @@ void EditorSystem::ImGuiScriptBuildLogWindow()
         ImGui::EndChild();
     }
     ImGui::End();
+}
+
+void EditorSystem::PollPluginBridge()
+{
+    // Poll command / control signals from IDE plugin
+    std::vector<std::filesystem::path> cmdSignalPaths = {
+        ".rv_control.signal",
+        ".rv_control",
+        "rv_control.signal",
+        "rv_control",
+        ".rv_command.signal",
+        ".rv_command",
+        "rv_command.signal",
+        "rv_command",
+        ".rv_state.signal",
+        ".rv_state",
+        "rv_state.signal",
+        "rv_state",
+        std::filesystem::temp_directory_path() / ".rv_control.signal",
+        std::filesystem::temp_directory_path() / ".rv_control",
+        std::filesystem::temp_directory_path() / "rv_control.signal",
+        std::filesystem::temp_directory_path() / "rv_control",
+        std::filesystem::temp_directory_path() / ".rv_command.signal",
+        std::filesystem::temp_directory_path() / ".rv_command",
+        std::filesystem::temp_directory_path() / "rv_command.signal",
+        std::filesystem::temp_directory_path() / "rv_command",
+        std::filesystem::temp_directory_path() / ".rv_state.signal",
+        std::filesystem::temp_directory_path() / ".rv_state",
+        std::filesystem::temp_directory_path() / "rv_state.signal",
+        std::filesystem::temp_directory_path() / "rv_state"
+    };
+
+    for (const auto& path : cmdSignalPaths) {
+        std::error_code ec;
+        if (std::filesystem::exists(path, ec)) {
+            uint64_t signalTs = 0;
+            std::string content;
+            std::ifstream file(path);
+            if (file.is_open()) {
+                std::stringstream buffer;
+                buffer << file.rdbuf();
+                content = buffer.str();
+                file.close();
+            }
+
+            std::string cmd = content;
+            try {
+                auto colonPos = content.find(';');
+                if (colonPos != std::string::npos) {
+                    cmd = content.substr(0, colonPos);
+                    signalTs = std::stoull(content.substr(colonPos + 1));
+                } else if (content.find("\"timestamp\"") != std::string::npos) {
+                    auto tsPos = content.find("\"timestamp\"");
+                    auto numStart = content.find_first_of("0123456789", tsPos);
+                    if (numStart != std::string::npos) {
+                        auto numEnd = content.find_first_not_of("0123456789", numStart);
+                        std::string tsStr = content.substr(numStart, numEnd - numStart);
+                        signalTs = std::stoull(tsStr);
+                    }
+                }
+            } catch (...) {}
+
+            std::filesystem::remove(path, ec);
+
+            if (signalTs == 0 || signalTs > lastProcessedStateTimestamp) {
+                if (signalTs > 0) {
+                    lastProcessedStateTimestamp = signalTs;
+                }
+                spdlog::info("EditorSystem: Received command '{}' from IDE plugin", cmd);
+
+                std::string cmdUpper = cmd;
+                for (char& c : cmdUpper) c = (char)std::toupper((unsigned char)c);
+
+                if (cmdUpper.find("STOP") != std::string::npos) {
+                    StopPlayMode();
+                } else if (cmdUpper.find("TOGGLE_PLAY") != std::string::npos) {
+                    TogglePlay();
+                } else if (cmdUpper.find("TOGGLE_PAUSE") != std::string::npos) {
+                    TogglePause();
+                } else if (cmdUpper.find("PAUSE") != std::string::npos) {
+                    SetPaused(true);
+                } else if (cmdUpper.find("PLAY") != std::string::npos || cmdUpper.find("START") != std::string::npos || cmdUpper.find("RESUME") != std::string::npos) {
+                    StartPlayMode();
+                }
+            }
+        }
+    }
 }
 
 } // namespace engine::ecs

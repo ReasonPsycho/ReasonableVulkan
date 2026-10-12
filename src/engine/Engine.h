@@ -58,6 +58,15 @@ namespace engine {
         // Global update loop
         void Update(float deltaTime) override;
 
+        // Play/Pause mode
+        bool IsPlaying() const override { return isPlaying; }
+        bool IsPaused() const override { return isPaused; }
+        void StartPlayMode() override;
+        void StopPlayMode() override;
+        void SetPaused(bool paused) override;
+        void TogglePlay() override;
+        void TogglePause() override;
+
         am::AssetManagerInterface* assetManagerInterface;
         gfx::GraphicsEngine* graphicsEngine;
         plt::PlatformInterface* platform;
@@ -102,6 +111,10 @@ namespace engine {
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
         std::vector<std::string> sceneOrder;
         std::shared_ptr<ecs::EditorSystem> editorSystem = nullptr;
+
+        bool isPlaying = false;
+        bool isPaused = false;
+        std::unordered_map<std::string, rapidjson::Document> sceneSnapshots;
     };
 
 } // namespace engine
