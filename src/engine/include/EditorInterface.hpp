@@ -51,6 +51,13 @@ namespace engine::editor {
         virtual void ClearSelectedEntities() = 0;
         virtual bool IsEntitySelected(ecs::Entity entity) const = 0;
 
+        // Copy / Paste / Duplicate
+        virtual void CopySelectedEntities(ecs::Scene* sourceScene = nullptr) {}
+        virtual void PasteEntities(ecs::Scene* targetScene = nullptr) {}
+        virtual void PasteEntities(ecs::Scene* targetScene, ecs::Entity parent) {}
+        virtual void DuplicateSelectedEntities(ecs::Scene* targetScene = nullptr) {}
+        virtual bool HasEntitiesInClipboard() const { return false; }
+
         // Target / active scene in editor
         virtual ecs::Scene* GetTargetScene() const = 0;
         virtual std::shared_ptr<ecs::Scene> GetSelectedScene() const = 0;

@@ -454,6 +454,14 @@ namespace engine::editor
 
     std::string InstantiateEntitiesCommand::GetName() const
     {
+        if (sourceName.rfind("Instantiate ", 0) == 0 ||
+            sourceName.rfind("Paste ", 0) == 0 ||
+            sourceName.rfind("Duplicate ", 0) == 0 ||
+            sourceName.rfind("Pasted ", 0) == 0 ||
+            sourceName.rfind("Duplicated ", 0) == 0)
+        {
+            return sourceName;
+        }
         return "Instantiate " + sourceName;
     }
 

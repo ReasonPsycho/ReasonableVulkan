@@ -124,6 +124,12 @@ namespace engine::ecs
             return std::find(selectedEntities.begin(), selectedEntities.end(), entity) != selectedEntities.end();
         }
 
+        void CopySelectedEntities(Scene* sourceScene = nullptr) override;
+        void PasteEntities(Scene* targetScene = nullptr) override { PasteEntities(targetScene, MAX_ENTITIES); }
+        void PasteEntities(Scene* targetScene, Entity parent) override;
+        void DuplicateSelectedEntities(Scene* targetScene = nullptr) override;
+        bool HasEntitiesInClipboard() const override { return !entityClipboard.empty(); }
+
         Scene* GetTargetScene() const override;
         std::shared_ptr<Scene> GetSelectedScene() const override { return selectedScene.lock(); }
         void SetTargetScene(std::shared_ptr<Scene> scene) override { selectedScene = scene; }
@@ -214,6 +220,13 @@ namespace engine::ecs
         std::unordered_map<std::string, EditorCameraState> sceneEditorCameras;
         std::unordered_map<Entity, std::string> named_entities;
         std::vector<Entity> selectedEntities;
+
+        struct EntityClipboardItem {
+            std::shared_ptr<rapidjson::Document> doc;
+            std::string name;
+            Entity originalParent = MAX_ENTITIES;
+        };
+        std::vector<EntityClipboardItem> entityClipboard;
         Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
         char renameBuf[256] = "";
         bool renameFocusRequested = false;
