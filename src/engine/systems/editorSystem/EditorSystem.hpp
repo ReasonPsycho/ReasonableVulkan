@@ -23,6 +23,7 @@
 #include "ecs/Types.h"
 #include "CommandHistory.hpp"
 #include "EditorCommands.hpp"
+#include "EditorInterface.hpp"
 
 namespace plt
 {
@@ -37,11 +38,17 @@ namespace engine::ecs
     struct Component;
     class Scene;
 
-    class EditorSystem
+    class EditorSystem : public ::engine::editor::EditorInterface
     {
     public:
         explicit EditorSystem(::engine::Engine* engine);
-        void Update(float deltaTime);
+        void Update(float deltaTime) override;
+        void ProcessThumbnailCaptures() override;
+
+        void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
+        bool QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath) override;
+        std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) override;
+        bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
 
         struct ComponentInfo {
             std::string displayName;
@@ -81,36 +88,43 @@ namespace engine::ecs
             registeredComponentTypes[typeid(T)] = std::move(info);
         }
 
-        void SetEntityName(Entity entity, const std::string& name, Scene* targetScene = nullptr);
-        std::string GetEntityName(Entity entity, Scene* targetScene = nullptr) const;
-        std::string GetEntityRawName(Entity entity, Scene* targetScene = nullptr) const;
+        void SetEntityName(Entity entity, const std::string& name, Scene* targetScene = nullptr) override;
+        std::string GetEntityName(Entity entity, Scene* targetScene = nullptr) const override;
+        std::string GetEntityRawName(Entity entity, Scene* targetScene = nullptr) const override;
 
-        Entity GetSelectedEntity() const { return selectedEntities.empty() ? std::numeric_limits<std::uint32_t>::max() : selectedEntities.back(); }
-        void SetSelectedEntity(Entity entity) {
+        Entity GetSelectedEntity() const override { return selectedEntities.empty() ? std::numeric_limits<std::uint32_t>::max() : selectedEntities.back(); }
+        void SetSelectedEntity(Entity entity) override {
             selectedEntities.clear();
             if (entity != std::numeric_limits<std::uint32_t>::max()) {
                 selectedEntities.push_back(entity);
+                requestInspectorFocus = true;
             }
         }
-        const std::vector<Entity>& GetSelectedEntities() const { return selectedEntities; }
-        void SetSelectedEntities(const std::vector<Entity>& entities) { selectedEntities = entities; }
-        void AddSelectedEntity(Entity entity) {
+        const std::vector<Entity>& GetSelectedEntities() const override { return selectedEntities; }
+        void SetSelectedEntities(const std::vector<Entity>& entities) override {
+            selectedEntities = entities;
+            if (!selectedEntities.empty()) {
+                requestInspectorFocus = true;
+            }
+        }
+        void AddSelectedEntity(Entity entity) override {
             if (entity == std::numeric_limits<std::uint32_t>::max()) return;
             if (std::find(selectedEntities.begin(), selectedEntities.end(), entity) == selectedEntities.end()) {
                 selectedEntities.push_back(entity);
+                requestInspectorFocus = true;
             }
         }
-        void RemoveSelectedEntity(Entity entity) {
+        void RemoveSelectedEntity(Entity entity) override {
             selectedEntities.erase(std::remove(selectedEntities.begin(), selectedEntities.end(), entity), selectedEntities.end());
         }
-        void ClearSelectedEntities() { selectedEntities.clear(); }
-        bool IsEntitySelected(Entity entity) const {
+        void ClearSelectedEntities() override { selectedEntities.clear(); }
+        bool IsEntitySelected(Entity entity) const override {
             return std::find(selectedEntities.begin(), selectedEntities.end(), entity) != selectedEntities.end();
         }
 
-        Scene* GetTargetScene() const;
-        std::shared_ptr<Scene> GetSelectedScene() const { return selectedScene.lock(); }
-        void SetTargetScene(std::shared_ptr<Scene> scene) { selectedScene = scene; }
+        Scene* GetTargetScene() const override;
+        std::shared_ptr<Scene> GetSelectedScene() const override { return selectedScene.lock(); }
+        void SetTargetScene(std::shared_ptr<Scene> scene) override { selectedScene = scene; }
 
         [[=NonSerialized{}]]
         CameraComponent camera = CameraComponent();
@@ -145,12 +159,12 @@ namespace engine::ecs
         gfx::ShaderProgramHandle wiremeshTexturedShaderHandle = gfx::ShaderProgramHandle::invalid();
 
         void SetUpCameraControls();
-        void FocusCameraOnBounds(const glm::vec3& center, float distance, Scene* scene = nullptr);
+        void FocusCameraOnBounds(const glm::vec3& center, float distance, Scene* scene = nullptr) override;
 
-        void Undo() { history.Undo(); }
-        void Redo() { history.Redo(); }
-        bool CanUndo() const { return history.CanUndo(); }
-        bool CanRedo() const { return history.CanRedo(); }
+        void Undo() override { history.Undo(); }
+        void Redo() override { history.Redo(); }
+        bool CanUndo() const override { return history.CanUndo(); }
+        bool CanRedo() const override { return history.CanRedo(); }
         editor::CommandHistory& GetHistory() { return history; }
         const editor::CommandHistory& GetHistory() const { return history; }
         void ExecuteCommand(std::shared_ptr<editor::ICommand> cmd) { history.Execute(cmd); }
@@ -191,6 +205,7 @@ namespace engine::ecs
         Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
         char renameBuf[256] = "";
         bool renameFocusRequested = false;
+        bool requestInspectorFocus = false;
         std::unordered_map<std::type_index,ComponentInfo> registeredComponentTypes;
 
         struct SceneGraphNodeRect {

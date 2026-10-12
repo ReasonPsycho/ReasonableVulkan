@@ -573,34 +573,15 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 }
             }
         }
-        else if (info->type == AssetType::Model || info->type == AssetType::Mesh) {
+        else if (info->type == AssetType::Model || info->type == AssetType::Mesh || info->type == AssetType::Material) {
             std::filesystem::path thumbDir = std::filesystem::path(resourceFolder) / ".cache" / "thumbnails";
             std::error_code ec;
             std::filesystem::create_directories(thumbDir, ec);
 
             std::filesystem::path destPath = thumbDir / (boost::uuids::to_string(id) + ".png");
 
-            if (engine) {
-                if (engine->CaptureModelThumbnail(id, destPath.string())) {
-                    info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
-                    saveAssetMetadata(id);
-                    return true;
-                }
-            }
-        }
-        else if (info->type == AssetType::Material) {
-            std::filesystem::path thumbDir = std::filesystem::path(resourceFolder) / ".cache" / "thumbnails";
-            std::error_code ec;
-            std::filesystem::create_directories(thumbDir, ec);
-
-            std::filesystem::path destPath = thumbDir / (boost::uuids::to_string(id) + ".png");
-
-            if (engine) {
-                if (engine->CaptureMaterialThumbnail(id, destPath.string())) {
-                    info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
-                    saveAssetMetadata(id);
-                    return true;
-                }
+            if (editor) {
+                return editor->QueueThumbnailGeneration(id, destPath.string());
             }
         }
         return false;
@@ -608,10 +589,6 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     void* AssetManager::getThumbnailTexture(const boost::uuids::uuid& id)
     {
-        if (!engine) {
-            return nullptr;
-        }
-
         std::string thumbPath = getThumbnailPath(id);
         if (thumbPath.empty() || !std::filesystem::exists(thumbPath)) {
             if (generateThumbnail(id)) {
@@ -620,7 +597,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         }
 
         if (!thumbPath.empty() && std::filesystem::exists(thumbPath)) {
-            return engine->GetThumbnailTexture(id, thumbPath);
+            if (editor) {
+                return editor->GetThumbnailTexture(id, thumbPath);
+            }
         }
 
         return nullptr;
@@ -870,6 +849,17 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     void AssetManager::setEngine(engine::EngineInterface* engineInterface)
     {
         this->engine = engineInterface;
+        if (this->engine && !this->editor) {
+            auto editorShared = this->engine->GetEditor();
+            if (editorShared) {
+                this->editor = editorShared.get();
+            }
+        }
+    }
+
+    void AssetManager::setEditor(editor::EditorInterface* editorInterface)
+    {
+        this->editor = editorInterface;
     }
 
     static bool isSamePath(const std::string& pathA, const std::string& pathB, const std::string& resourceFolder)
@@ -1183,10 +1173,10 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 engine->LoadScene(sceneUuid.value());
                 return;
             }
-        } else if ((type == AssetType::Model || type == AssetType::Mesh) && engine) {
-            auto modelUuid = getAssetUuidByPath(path);
-            if (modelUuid) {
-                engine->OpenModelPreviewScene(modelUuid.value());
+        } else if ((type == AssetType::Model || type == AssetType::Mesh || type == AssetType::Material) && editor) {
+            auto assetUuid = getAssetUuidByPath(path);
+            if (assetUuid) {
+                editor->OpenAssetPreviewScene(assetUuid.value());
                 return;
             }
         }

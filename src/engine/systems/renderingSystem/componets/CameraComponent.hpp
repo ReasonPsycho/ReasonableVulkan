@@ -43,6 +43,9 @@ namespace engine::ecs
         [[=Tooltip{"Whether camera is active"}]]
         bool active{false};
 
+        [[=Tooltip{"Show gizmo in editor"}]]
+        bool showGizmo{true};
+
         CameraComponent() = default;
     };
 
@@ -133,6 +136,16 @@ inline void updateProjectionMatrix(CameraComponent& camera)
     inline bool isDirty(const CameraComponent& camera)
     {
         return camera.isDirty;
+    }
+
+    inline bool getShowGizmo(const CameraComponent& camera)
+    {
+        return camera.showGizmo;
+    }
+
+    inline void setShowGizmo(CameraComponent& camera, bool showGizmo)
+    {
+        camera.showGizmo = showGizmo;
     }
 
 }

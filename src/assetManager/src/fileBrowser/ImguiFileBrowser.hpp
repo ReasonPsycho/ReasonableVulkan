@@ -91,6 +91,7 @@ namespace am {
         bool isBoxSelecting = false;
         ImVec2 boxSelectStartPos = {0.0f, 0.0f};
         std::vector<std::filesystem::path> boxSelectPreSelection;
+        bool requestInspectorFocus = false;
 
     private:
         AssetManager* assetManager = nullptr;

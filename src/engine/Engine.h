@@ -52,8 +52,8 @@ namespace engine {
         const std::vector<std::string>& GetSceneOrder() const override { return sceneOrder; }
         std::shared_ptr<Scene> GetTopEditableScene() override;
 
-        std::shared_ptr<ecs::EditorSystem> GetEditorSystem() override;
-
+        std::shared_ptr<editor::EditorInterface> GetEditor() override;
+        std::shared_ptr<ecs::EditorSystem> GetEditorSystem();
 
         // Global update loop
         void Update(float deltaTime) override;
@@ -69,7 +69,6 @@ namespace engine {
         template <class T>
         void RegisterSystemType() {}
 
-
         // Factory getters
         std::shared_ptr<IComponentArray> CreateComponentArray(const std::type_index& type) const;
         std::shared_ptr<SystemBase> CreateSystem(const std::type_index& type, Scene* scene) const;
@@ -78,16 +77,12 @@ namespace engine {
         void LoadScene(boost::uuids::uuid sceneId) override;
         void CloseScene(const std::string& name) override;
         void CloseScene(boost::uuids::uuid sceneId) override;
-        bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
 
         void SaveConfig() override;
         void LoadConfig() override;
         std::string configLookupName = "engineConfig";
 
-        void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
-        bool CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath) override;
-        bool CaptureMaterialThumbnail(const boost::uuids::uuid& materialId, const std::string& outputPath) override;
-        std::shared_ptr<ecs::Scene> OpenModelPreviewScene(const boost::uuids::uuid& modelOrMeshId) override;
+        bool SetupAssetInScene(ecs::Scene* scene, const boost::uuids::uuid& assetId);
 
         // Get registered types
         const std::set<std::type_index>& GetRegisteredComponentTypes() const;

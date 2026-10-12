@@ -21,6 +21,7 @@ namespace engine::ecs
     struct LightComponent;
     struct NameComponent;
     struct TagComponent;
+    struct ThumbnailComponent;
 
     class RenderSystem;
     class GizmoSystem;
@@ -34,7 +35,8 @@ namespace engine::ecs
         CameraComponent,
         LightComponent,
         NameComponent,
-        TagComponent
+        TagComponent,
+        ThumbnailComponent
     >;
 
     using EngineSystems = std::tuple<

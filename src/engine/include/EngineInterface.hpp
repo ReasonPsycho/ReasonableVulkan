@@ -10,6 +10,7 @@
 #include <vector>
 #include <filesystem>
 #include <boost/uuid/uuid.hpp>
+#include "EditorInterface.hpp"
 
 namespace plt {
     class PlatformInterface;
@@ -25,7 +26,6 @@ namespace am {
 
 namespace engine::ecs {
     class Scene;
-    class EditorSystem;
     using Entity = uint32_t;
     struct SceneEntityPayload {
         Entity entity{0};
@@ -55,21 +55,15 @@ namespace engine {
         virtual const std::vector<std::string>& GetSceneOrder() const { static const std::vector<std::string> empty; return empty; }
         virtual std::shared_ptr<ecs::Scene> GetTopEditableScene() { return nullptr; }
 
-        virtual std::shared_ptr<ecs::EditorSystem> GetEditorSystem() = 0;
+        virtual std::shared_ptr<editor::EditorInterface> GetEditor() = 0;
 
         virtual void SaveScene() = 0;
         virtual void LoadScene(boost::uuids::uuid sceneId) = 0;
         virtual void CloseScene(const std::string& name) = 0;
         virtual void CloseScene(boost::uuids::uuid sceneId) = 0;
-        virtual bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) { return false; }
 
         virtual void SaveConfig() {}
         virtual void LoadConfig() {}
-
-        virtual void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) { return nullptr; }
-        virtual bool CaptureModelThumbnail(const boost::uuids::uuid& modelId, const std::string& outputPath) { return false; }
-        virtual bool CaptureMaterialThumbnail(const boost::uuids::uuid& materialId, const std::string& outputPath) { return false; }
-        virtual std::shared_ptr<ecs::Scene> OpenModelPreviewScene(const boost::uuids::uuid& modelOrMeshId) { return nullptr; }
 
         // Global update loop
         virtual void Update(float deltaTime) = 0;

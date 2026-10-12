@@ -47,6 +47,55 @@ namespace engine::editor
     }
 
     // ==========================================
+    // EntitiesTransformCommand
+    // ==========================================
+    EntitiesTransformCommand::EntitiesTransformCommand(ecs::Scene* scene, const std::vector<EntityTransformRecord>& records)
+        : scene(scene), records(records)
+    {
+    }
+
+    void EntitiesTransformCommand::Execute()
+    {
+        if (!scene) return;
+        auto transformArray = scene->GetIntegralComponentArray<ecs::TransformComponent>();
+        if (!transformArray) return;
+
+        for (const auto& rec : records)
+        {
+            if (rec.entity == ecs::MAX_ENTITIES) continue;
+            if (!scene->HasComponent<ecs::TransformComponent>(rec.entity)) continue;
+
+            auto& transform = transformArray->GetComponentFromEntity(rec.entity);
+            setLocalMatrix(transform, rec.newLocalMatrix);
+        }
+    }
+
+    void EntitiesTransformCommand::Undo()
+    {
+        if (!scene) return;
+        auto transformArray = scene->GetIntegralComponentArray<ecs::TransformComponent>();
+        if (!transformArray) return;
+
+        for (const auto& rec : records)
+        {
+            if (rec.entity == ecs::MAX_ENTITIES) continue;
+            if (!scene->HasComponent<ecs::TransformComponent>(rec.entity)) continue;
+
+            auto& transform = transformArray->GetComponentFromEntity(rec.entity);
+            setLocalMatrix(transform, rec.oldLocalMatrix);
+        }
+    }
+
+    std::string EntitiesTransformCommand::GetName() const
+    {
+        if (records.size() == 1)
+        {
+            return "Transform Entity #" + std::to_string(records[0].entity);
+        }
+        return "Transform " + std::to_string(records.size()) + " Entities";
+    }
+
+    // ==========================================
     // CreateEntityCommand
     // ==========================================
     CreateEntityCommand::CreateEntityCommand(ecs::Scene* scene, ecs::Entity entity, ecs::Entity parent, const std::string& name)

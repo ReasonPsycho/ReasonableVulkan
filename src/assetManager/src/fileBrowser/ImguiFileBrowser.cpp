@@ -194,7 +194,7 @@ namespace am {
                 }
                 else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
                 {
-                    if (assetManager && assetManager->engine)
+                    if (assetManager && assetManager->getEditor())
                     {
                         std::vector<engine::ecs::Entity> ents;
                         engine::ecs::Scene* scn = nullptr;
@@ -209,7 +209,7 @@ namespace am {
                             ents.push_back(*(const engine::ecs::Entity*)payload->Data);
                         }
                         for (auto entity : ents) {
-                            assetManager->engine->SaveEntityAsPrefab(entity, currentPath.parent_path(), scn);
+                            assetManager->getEditor()->SaveEntityAsPrefab(entity, currentPath.parent_path(), scn);
                         }
                     }
                 }
@@ -525,7 +525,7 @@ namespace am {
                     }
                     else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
                     {
-                        if (assetManager && assetManager->engine)
+                        if (assetManager && assetManager->getEditor())
                         {
                             std::vector<engine::ecs::Entity> ents;
                             engine::ecs::Scene* scn = nullptr;
@@ -540,7 +540,7 @@ namespace am {
                                 ents.push_back(*(const engine::ecs::Entity*)payload->Data);
                             }
                             for (auto entity : ents) {
-                                assetManager->engine->SaveEntityAsPrefab(entity, path, scn);
+                                assetManager->getEditor()->SaveEntityAsPrefab(entity, path, scn);
                             }
                         }
                     }
@@ -700,16 +700,16 @@ namespace am {
                     bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
                     AssetType type = GetAssetTypeFromExtension(path.extension().string());
 
-                    if (type == AssetType::Scene && assetManager && assetManager->engine) {
+                    if (type == AssetType::Scene && assetManager && assetManager->getEngine()) {
                         if (ImGui::BeginPopupContextItem("##SceneContext")) {
                             if (selectedFiles.size() <= 1 || !isSelected) {
                                 setSelectedFile(path);
                                 if (isRegistered) {
                                     if (ImGui::MenuItem("Open Scene")) {
-                                        assetManager->engine->LoadScene(fileUuid.value());
+                                        assetManager->getEngine()->LoadScene(fileUuid.value());
                                     }
                                     if (ImGui::MenuItem("Close Scene")) {
-                                        assetManager->engine->CloseScene(fileUuid.value());
+                                        assetManager->getEngine()->CloseScene(fileUuid.value());
                                     }
                                     if (ImGui::MenuItem("Reimport")) {
                                         assetManager->reimportAsset(path);
@@ -729,13 +729,13 @@ namespace am {
                             renderCommonFileContextMenu();
                             ImGui::EndPopup();
                         }
-                    } else if ((type == AssetType::Model || type == AssetType::Mesh) && assetManager && assetManager->engine) {
+                    } else if ((type == AssetType::Model || type == AssetType::Mesh || type == AssetType::Material) && assetManager && assetManager->getEditor()) {
                         if (ImGui::BeginPopupContextItem("##ModelContext")) {
                             if (selectedFiles.size() <= 1 || !isSelected) {
                                 setSelectedFile(path);
                                 if (isRegistered) {
                                     if (ImGui::MenuItem("Open in Preview Scene")) {
-                                        assetManager->engine->OpenModelPreviewScene(fileUuid.value());
+                                        assetManager->getEditor()->OpenAssetPreviewScene(fileUuid.value());
                                     }
                                     if (ImGui::MenuItem("Regenerate Thumbnail")) {
                                         assetManager->generateThumbnail(fileUuid.value());
@@ -886,7 +886,7 @@ namespace am {
                     }
                     else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
                     {
-                        if (assetManager && assetManager->engine)
+                        if (assetManager && assetManager->getEditor())
                         {
                             std::vector<engine::ecs::Entity> ents;
                             engine::ecs::Scene* scn = nullptr;
@@ -901,7 +901,7 @@ namespace am {
                                 ents.push_back(*(const engine::ecs::Entity*)payload->Data);
                             }
                             for (auto entity : ents) {
-                                assetManager->engine->SaveEntityAsPrefab(entity, currentPath, scn);
+                                assetManager->getEditor()->SaveEntityAsPrefab(entity, currentPath, scn);
                             }
                         }
                     }
@@ -1028,7 +1028,7 @@ namespace am {
             }
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
             {
-                if (assetManager && assetManager->engine)
+                if (assetManager && assetManager->getEditor())
                 {
                     std::vector<engine::ecs::Entity> ents;
                     engine::ecs::Scene* scn = nullptr;
@@ -1043,7 +1043,7 @@ namespace am {
                         ents.push_back(*(const engine::ecs::Entity*)payload->Data);
                     }
                     for (auto entity : ents) {
-                        assetManager->engine->SaveEntityAsPrefab(entity, currentPath, scn);
+                        assetManager->getEditor()->SaveEntityAsPrefab(entity, currentPath, scn);
                     }
                 }
             }
@@ -1062,6 +1062,10 @@ namespace am {
 
     void FileBrowser::ImguiFileInspector(std::string windowName)
     {
+        if (requestInspectorFocus) {
+            ImGui::SetNextWindowFocus();
+            requestInspectorFocus = false;
+        }
         ImGui::Begin(windowName.c_str());
 
         if (selectedFiles.empty() && selectedFile.empty()) {
@@ -1534,6 +1538,7 @@ namespace am {
         selectedFiles.clear();
         if (!path.empty()) {
             selectedFiles.push_back(path);
+            requestInspectorFocus = true;
         }
         selectedFile = path;
     }
@@ -1555,6 +1560,9 @@ namespace am {
     {
         selectedFiles = paths;
         selectedFile = selectedFiles.empty() ? std::filesystem::path() : selectedFiles.back();
+        if (!selectedFiles.empty()) {
+            requestInspectorFocus = true;
+        }
     }
 
     void FileBrowser::addSelectedFile(const std::filesystem::path& path)
@@ -1566,6 +1574,7 @@ namespace am {
         }
         selectedFiles.push_back(path);
         selectedFile = path;
+        requestInspectorFocus = true;
     }
 
     void FileBrowser::removeSelectedFile(const std::filesystem::path& path)

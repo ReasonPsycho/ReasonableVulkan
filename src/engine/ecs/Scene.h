@@ -24,6 +24,12 @@ namespace engine::ecs
 {
     struct TransformComponent;
 
+    enum class SceneType {
+        Default,
+        Preview,
+        Thumbnail
+    };
+
     struct CameraObject
     {
         CameraComponent* camera;
@@ -36,6 +42,7 @@ namespace engine::ecs
         explicit Scene(::engine::Engine& engine);
 
         void Update(float deltaTime);
+        void Render(float deltaTime);
 
         //Entity
         Entity CreateEntity(Entity parentEntity = -1);
@@ -115,8 +122,13 @@ namespace engine::ecs
         bool IsActive() const;
         bool active = false;
 
-        // Editable state
-        bool IsEditable() const { return isEditable; }
+        // Scene Type & Editable state
+        SceneType GetSceneType() const { return sceneType; }
+        void SetSceneType(SceneType type) {
+            sceneType = type;
+            isEditable = (type == SceneType::Default);
+        }
+        bool IsEditable() const { return isEditable && sceneType == SceneType::Default; }
         void SetEditable(bool editable) { isEditable = editable; }
         bool isEditable = true;
 
@@ -144,6 +156,7 @@ namespace engine::ecs
 
         boost::uuids::uuid sceneId{boost::uuids::nil_uuid()};
     private:
+        SceneType sceneType = SceneType::Default;
 
         //Entities
         uint32_t maxEntityIndex = 0;
