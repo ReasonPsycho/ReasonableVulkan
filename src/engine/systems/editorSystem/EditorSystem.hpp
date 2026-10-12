@@ -13,6 +13,7 @@
 #include <utility>
 #include <memory>
 #include <cmath>
+#include <atomic>
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
@@ -171,6 +172,8 @@ namespace engine::ecs
         void ExecuteCommand(std::shared_ptr<editor::ICommand> cmd) { history.Execute(cmd); }
         void PushCommand(std::shared_ptr<editor::ICommand> cmd) { history.Push(cmd); }
         void ImGuiHistoryWindow(const std::string& windowName = "History");
+        void TriggerScriptRebuild();
+        std::filesystem::path FindCMakeBuildDir() const;
 
         struct EditorCameraState {
             CameraComponent camera = CameraComponent();
@@ -228,6 +231,13 @@ namespace engine::ecs
         void ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState, const ImVec2& viewportPos, const ImVec2& viewportSize);
         void ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize);
         void ImguiToolbar();
+        void ImGuiScriptBuildLogWindow();
+
+        std::atomic<bool> isScriptCompiling{false};
+        std::atomic<bool> scriptCompilePendingReload{false};
+        bool lastScriptBuildSuccess{true};
+        std::string lastScriptBuildOutput;
+        bool showScriptBuildLogWindow{false};
 
         bool isRightMousePressed = false;
         bool isLeftMousePressed = false;

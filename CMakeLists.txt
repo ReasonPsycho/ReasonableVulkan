@@ -73,6 +73,7 @@ add_definitions(-DGLM_FORCE_DEPTH_ZERO_TO_ONE)
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 engine_interface vks_interface am_interface platform_interface engine vks am platform renderDocManager)
+add_dependencies(${PROJECT_NAME} gameplay_scripts)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder

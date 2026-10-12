@@ -17,6 +17,16 @@
 #include "systems/renderingSystem/componets/ThumbnailComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "systems/scriptSystem/components/ScriptComponent.hpp"
+#include "systems/scriptSystem/ScriptSystem.hpp"
+#include "systems/scriptSystem/ScriptHotReloadManager.hpp"
+#include "systems/scriptSystem/ScriptRegistry.hpp"
+#include <thread>
+#if defined(_WIN32)
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
+#endif
 #include "ecs/NameComponent.hpp"
 #include "ecs/TagComponent.hpp"
 #include "PlatformInterface.hpp"
@@ -360,7 +370,12 @@ void EditorSystem::ImGuiInspector()
                             if (scene->HasComponent<ScriptComponent>(selectedEntity))
                             {
                                 auto& scriptComp = scene->GetComponent<ScriptComponent>(selectedEntity);
-                                scriptComp.AddScriptByName(scriptName);
+                                auto script = scriptComp.AddScriptByName(scriptName);
+                                if (script) {
+                                    script->scene = scene;
+                                    script->entity = selectedEntity;
+                                    script->OnAwake();
+                                }
                             }
                         }
                     }
@@ -775,6 +790,36 @@ void EditorSystem::ImguiToolbar()
         }
     }
 
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 2.0f);
+    ImGui::SameLine();
+
+    if (isScriptCompiling.load()) {
+        ImGui::BeginDisabled(true);
+        ImGui::Button(ICON_FA_SPINNER " Compiling Scripts...");
+        ImGui::EndDisabled();
+    } else {
+        if (ImGui::Button(ICON_FA_ROTATE " Recompile Scripts (Ctrl+R)")) {
+            TriggerScriptRebuild();
+        }
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("Asynchronously compile and hot-reload gameplay scripts (Ctrl+R)");
+    }
+
+    if (!lastScriptBuildOutput.empty()) {
+        ImGui::SameLine();
+        if (lastScriptBuildSuccess) {
+            ImGui::TextColored(ImVec4(0.2f, 0.85f, 0.2f, 1.0f), "[Reloaded]");
+        } else {
+            ImGui::TextColored(ImVec4(0.9f, 0.2f, 0.2f, 1.0f), "[Build Error]");
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Log")) {
+            showScriptBuildLogWindow = true;
+        }
+    }
+
     ImGui::End();
 }
 
@@ -824,6 +869,51 @@ void EditorSystem::Update(float deltaTime)
             (isCtrlOrCmd && ImGui::IsKeyPressed(ImGuiKey_Y)))
         {
             Redo();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_R))
+        {
+            TriggerScriptRebuild();
+        }
+    }
+
+    if (scriptCompilePendingReload.load()) {
+        scriptCompilePendingReload = false;
+        spdlog::info("EditorSystem: Triggering hot reload across active scenes...");
+        if (engine) {
+            auto activeScenes = engine->GetActiveScenes();
+            struct SceneSnapshot {
+                std::shared_ptr<ScriptSystem> system;
+                rapidjson::Document doc;
+            };
+            std::vector<SceneSnapshot> snapshots;
+            for (auto& scn : activeScenes) {
+                if (scn) {
+                    if (auto ss = scn->GetSystem<ScriptSystem>()) {
+                        SceneSnapshot snap;
+                        snap.system = ss;
+                        snap.doc = ss->BeginHotReload();
+                        snapshots.push_back(std::move(snap));
+                    }
+                }
+            }
+            bool reloadSuccess = ScriptHotReloadManager::Instance().ReloadScriptLibrary();
+            for (auto& snap : snapshots) {
+                if (snap.system) {
+                    snap.system->EndHotReload(snap.doc);
+                }
+            }
+            if (reloadSuccess) {
+                spdlog::info("EditorSystem: Hot reload completed successfully across active scenes");
+            } else {
+                spdlog::warn("EditorSystem: Script library reload failed");
+            }
+        } else {
+            auto targetScene = GetTargetScene();
+            if (targetScene) {
+                ScriptSystem::PerformHotReloadForScene(targetScene);
+            } else {
+                ScriptHotReloadManager::Instance().ReloadScriptLibrary();
+            }
         }
     }
 
@@ -1349,6 +1439,7 @@ void EditorSystem::Update(float deltaTime)
     ImGuiInspector();
     ImGuiSystemSettings();
     ImGuiHistoryWindow("History");
+    ImGuiScriptBuildLogWindow();
 
     ImGui::End();
 }
@@ -2620,6 +2711,130 @@ bool EditorSystem::CreateScriptAsset(const std::string& scriptName, const std::f
 
     spdlog::info("Created script asset: {}", filePath.string());
     return true;
+}
+
+std::filesystem::path EditorSystem::FindCMakeBuildDir() const
+{
+    std::filesystem::path exeDir;
+#if defined(_WIN32)
+    char modulePath[MAX_PATH];
+    if (GetModuleFileNameA(nullptr, modulePath, MAX_PATH) > 0) {
+        exeDir = std::filesystem::path(modulePath).parent_path();
+    }
+#endif
+    if (exeDir.empty()) {
+        exeDir = std::filesystem::current_path();
+    }
+
+    const std::vector<std::filesystem::path> candidates = {
+        exeDir,
+        exeDir.parent_path(),
+        std::filesystem::current_path(),
+        std::filesystem::current_path() / "out" / "build" / "debug",
+        std::filesystem::current_path() / "out" / "build" / "release",
+        std::filesystem::current_path() / "build"
+    };
+
+    for (const auto& candidate : candidates) {
+        std::error_code ec;
+        if (std::filesystem::exists(candidate / "CMakeCache.txt", ec)) {
+            return std::filesystem::absolute(candidate);
+        }
+    }
+
+    return exeDir;
+}
+
+void EditorSystem::TriggerScriptRebuild()
+{
+    if (isScriptCompiling.load()) {
+        spdlog::warn("EditorSystem: Script compilation is already in progress");
+        return;
+    }
+
+    isScriptCompiling = true;
+    scriptCompilePendingReload = false;
+
+    std::thread([this]() {
+        std::filesystem::path buildDir = FindCMakeBuildDir();
+        std::string cmd;
+        if (!buildDir.empty()) {
+            cmd = "cmake --build \"" + buildDir.string() + "\" --target gameplay_scripts 2>&1";
+        } else {
+            cmd = "cmake --build . --target gameplay_scripts 2>&1";
+        }
+
+        spdlog::info("EditorSystem: Spawning background script build: {}", cmd);
+
+        std::string output;
+        int exitCode = -1;
+
+#if defined(_WIN32)
+        FILE* pipe = _popen(cmd.c_str(), "r");
+#else
+        FILE* pipe = popen(cmd.c_str(), "r");
+#endif
+        if (pipe) {
+            char buffer[512];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+#if defined(_WIN32)
+            exitCode = _pclose(pipe);
+#else
+            exitCode = pclose(pipe);
+#endif
+        } else {
+            output = "Failed to spawn cmake build process.";
+        }
+
+        lastScriptBuildOutput = output;
+        lastScriptBuildSuccess = (exitCode == 0);
+
+        if (exitCode == 0) {
+            spdlog::info("EditorSystem: Script compilation succeeded:\n{}", output);
+            scriptCompilePendingReload = true;
+        } else {
+            spdlog::error("EditorSystem: Script compilation failed with exit code {}:\n{}", exitCode, output);
+            showScriptBuildLogWindow = true;
+        }
+
+        isScriptCompiling = false;
+    }).detach();
+}
+
+void EditorSystem::ImGuiScriptBuildLogWindow()
+{
+    if (!showScriptBuildLogWindow) return;
+
+    ImGui::SetNextWindowSize(ImVec2(600, 350), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Script Build Output", &showScriptBuildLogWindow)) {
+        if (isScriptCompiling.load()) {
+            ImGui::BeginDisabled(true);
+            ImGui::Button("Compiling...");
+            ImGui::EndDisabled();
+        } else {
+            if (ImGui::Button("Recompile (Ctrl+R)")) {
+                TriggerScriptRebuild();
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Clear")) {
+            lastScriptBuildOutput.clear();
+        }
+        ImGui::SameLine();
+        if (lastScriptBuildSuccess) {
+            ImGui::TextColored(ImVec4(0.2f, 0.85f, 0.2f, 1.0f), "Status: Success");
+        } else {
+            ImGui::TextColored(ImVec4(0.9f, 0.2f, 0.2f, 1.0f), "Status: Build Failed");
+        }
+
+        ImGui::Separator();
+        ImGui::BeginChild("BuildOutputScrollRegion", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::TextUnformatted(lastScriptBuildOutput.c_str());
+        ImGui::EndChild();
+    }
+    ImGui::End();
 }
 
 } // namespace engine::ecs

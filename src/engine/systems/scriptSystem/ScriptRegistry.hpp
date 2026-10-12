@@ -10,6 +10,16 @@
 #include "Script.hpp"
 #include "ecs/Reflection.hpp"
 
+#if defined(_WIN32)
+    #if defined(GAMEPLAY_SCRIPTS_EXPORTS)
+        #define SCRIPT_API __declspec(dllexport)
+    #else
+        #define SCRIPT_API __declspec(dllimport)
+    #endif
+#else
+    #define SCRIPT_API __attribute__((visibility("default")))
+#endif
+
 namespace engine::ecs {
 
     struct ScriptTypeInfo {
@@ -31,6 +41,11 @@ namespace engine::ecs {
             return instance;
         }
 
+        void Clear() {
+            factories.clear();
+            typeInfos.clear();
+        }
+
         void Register(std::string_view name, ScriptFactory factory) {
             std::string nameStr(name);
             factories[nameStr] = std::move(factory);
@@ -45,6 +60,7 @@ namespace engine::ecs {
             info.name = nameStr;
             info.create = [nameStr]() -> std::shared_ptr<Script> {
                 auto script = std::make_shared<T>();
+                script->typeName = nameStr;
                 return script;
             };
             info.serialize = [](const Script* s, rapidjson::Value& outObj, rapidjson::Document::AllocatorType& alloc) {
@@ -127,5 +143,8 @@ namespace engine::ecs {
     };
 
     void InitializeScriptRegistry();
+
+    using RegisterDynamicScriptsFn = void (*)(ScriptRegistry*);
+    extern "C" SCRIPT_API void RegisterDynamicScripts(engine::ecs::ScriptRegistry* registry);
 
 } // namespace engine::ecs
