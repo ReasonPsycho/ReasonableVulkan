@@ -57,9 +57,12 @@ file(GLOB_RECURSE RES_SCRIPT_HEADERS
 )
 
 set(SCRIPT_INCLUDES "")
+set(SCRIPT_REGISTRATIONS "")
 foreach(HEADER_FILE ${RES_SCRIPT_HEADERS})
     file(TO_CMAKE_PATH "${HEADER_FILE}" NORMALIZED_HEADER)
+    get_filename_component(SCRIPT_CLASS_NAME "${HEADER_FILE}" NAME_WLE)
     string(APPEND SCRIPT_INCLUDES "#include \"${NORMALIZED_HEADER}\"\n")
+    string(APPEND SCRIPT_REGISTRATIONS "    if (registry) registry->RegisterScript<engine::ecs::${SCRIPT_CLASS_NAME}>();\n")
 endforeach()
 
 set(GENERATED_SCRIPT_REGISTRY "${CMAKE_CURRENT_BINARY_DIR}/GeneratedScriptRegistry.cpp")
@@ -67,10 +70,9 @@ file(GENERATE OUTPUT "${GENERATED_SCRIPT_REGISTRY}" CONTENT "
 #include \"systems/scriptSystem/ScriptRegistry.hpp\"
 ${SCRIPT_INCLUDES}
 
-namespace engine::ecs {
-    void AutoRegisterGeneratedScripts() {
-        // Includes above trigger REGISTER_SCRIPT static initializers
-    }
+extern \"C\" SCRIPT_API void RegisterDynamicScripts(engine::ecs::ScriptRegistry* registry) {
+    if (!registry) return;
+${SCRIPT_REGISTRATIONS}
 }
 ")
 
@@ -79,8 +81,46 @@ add_library(engine_interface INTERFACE)
 target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(engine_interface INTERFACE vks_interface am_interface platform_interface)
 
+# Create gameplay_scripts shared library
+add_library(gameplay_scripts SHARED ${RES_SCRIPT_FILES} ${GENERATED_SCRIPT_REGISTRY})
+target_compile_definitions(gameplay_scripts PRIVATE GAMEPLAY_SCRIPTS_EXPORTS GLM_ENABLE_EXPERIMENTAL IMGUI_DEFINE_MATH_OPERATORS)
+if(ENABLE_IMGUI)
+    target_compile_definitions(gameplay_scripts PRIVATE ENABLE_IMGUI)
+endif()
+if(EDITOR_ENABLED)
+    target_compile_definitions(gameplay_scripts PRIVATE EDITOR_ENABLED)
+endif()
+if(SPDLOG_DISABLE_LOGGING)
+    target_compile_definitions(gameplay_scripts PRIVATE SPDLOG_DISABLE_LOGGING)
+endif()
+if(DEFINED SPDLOG_ACTIVE_LEVEL)
+    target_compile_definitions(gameplay_scripts PRIVATE SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
+endif()
+
+target_include_directories(gameplay_scripts
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/res
+        ${CMAKE_SOURCE_DIR}/res/scripts
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 # Create static library
-add_library(engine STATIC ${BASE_SRC} ${RES_SCRIPT_FILES} ${GENERATED_SCRIPT_REGISTRY})
+add_library(engine STATIC ${BASE_SRC})
+
+target_link_libraries(gameplay_scripts PUBLIC
+        engine
+        am
+        vks
+        platform
+        renderDocManager
+        engine_interface
+        glm::glm
+        RapidJSON
+        spdlog::spdlog
+        imgui::imgui
+)
 
 # Configure include directories
 target_include_directories(engine

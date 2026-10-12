@@ -12,6 +12,7 @@ namespace engine::ecs {
     class ScriptSystem;
     struct ScriptComponent;
     class ScriptRegistry;
+    class EditorSystem;
 
     class Script {
     public:
@@ -68,11 +69,26 @@ namespace engine::ecs {
         friend class ScriptSystem;
         friend struct ScriptComponent;
         friend class ScriptRegistry;
+        friend class EditorSystem;
 
         Entity entity{MAX_ENTITIES};
         Scene* scene{nullptr};
         bool started{false};
         bool enabled{true};
+    };
+
+    template <typename Derived>
+    class ScriptTemplate : public Script {
+    public:
+        ScriptTemplate() {
+            constexpr auto name = std::meta::identifier_of(^^Derived);
+            typeName = name;
+        }
+
+        std::string_view GetTypeName() const override {
+            constexpr auto name = std::meta::identifier_of(^^Derived);
+            return name;
+        }
     };
 
     #define REFLECT_SCRIPT(ScriptType) \

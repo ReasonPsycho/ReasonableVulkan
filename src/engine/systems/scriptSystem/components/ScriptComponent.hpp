@@ -22,6 +22,8 @@ namespace engine::ecs {
         template<typename T, typename... Args>
         std::shared_ptr<T> AddScript(Args&&... args) {
             auto script = std::make_shared<T>(std::forward<Args>(args)...);
+            constexpr auto name = std::meta::identifier_of(^^T);
+            script->typeName = name;
             scripts.push_back(script);
             return script;
         }
@@ -99,7 +101,11 @@ namespace engine::ecs {
             outObj.AddMember("scripts", scriptArray, allocator);
         }
 
-        void CustomDeserialize(const rapidjson::Value& inObj) {
+        void CaptureStateSnapshot(rapidjson::Value& outObj, rapidjson::Document::AllocatorType& allocator) const {
+            CustomSerialize(outObj, allocator);
+        }
+
+        void CustomDeserialize(const rapidjson::Value& inObj, Scene* scene = nullptr) {
             scripts.clear();
             if (!inObj.IsObject() || !inObj.HasMember("scripts") || !inObj["scripts"].IsArray()) {
                 return;
@@ -120,14 +126,18 @@ namespace engine::ecs {
                     }
                     if (item.HasMember("fields") && item["fields"].IsObject()) {
                         if (auto info = ScriptRegistry::Instance().GetTypeInfo(typeName)) {
-                            info->deserialize(script.get(), item["fields"], nullptr);
+                            info->deserialize(script.get(), item["fields"], scene);
                         } else {
-                            script->Deserialize(item["fields"], nullptr);
+                            script->Deserialize(item["fields"], scene);
                         }
                     }
                     scripts.push_back(script);
                 }
             }
+        }
+
+        void RestoreStateSnapshot(const rapidjson::Value& inObj, Scene* scene = nullptr) {
+            CustomDeserialize(inObj, scene);
         }
 
 #ifdef ENABLE_IMGUI
@@ -170,7 +180,10 @@ namespace engine::ecs {
                 if (ImGui::BeginCombo("Add Script", "Select Script...")) {
                     for (const auto& name : registeredNames) {
                         if (ImGui::Selectable(name.c_str())) {
-                            AddScriptByName(name);
+                            auto script = AddScriptByName(name);
+                            if (script && scene) {
+                                script->scene = scene;
+                            }
                         }
                     }
                     ImGui::EndCombo();
