@@ -19,10 +19,6 @@ namespace engine::ecs {
         }
 
         void OnUpdate(float deltaTime) override {
-            if (!HasComponent<TransformComponent>()) {
-                return;
-            }
-
             auto& transform = GetComponent<TransformComponent>();
 
             glm::vec3 leftDirection;

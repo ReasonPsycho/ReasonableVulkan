@@ -160,6 +160,25 @@ void EditorSystem::ImGuiInspector()
                 return;
             }
 
+            if (ImGui::Button("Copy Selected (Ctrl+C)"))
+            {
+                CopySelectedEntities(scene);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Duplicate Selected (Ctrl+D)"))
+            {
+                DuplicateSelectedEntities(scene);
+            }
+
+            if (HasEntitiesInClipboard())
+            {
+                ImGui::SameLine();
+                if (ImGui::Button("Paste (Ctrl+V)"))
+                {
+                    PasteEntities(scene);
+                }
+            }
+
             ImGui::Separator();
             if (ImGui::Button("Delete All Selected (Del)"))
             {
@@ -271,6 +290,29 @@ void EditorSystem::ImGuiInspector()
                 scene->AddComponent<TagComponent>(selectedEntity, TagComponent{"Untagged"});
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add TagComponent to entity");
+        }
+
+        // Entity actions row: Copy, Duplicate, Paste
+        if (ImGui::SmallButton("Copy (Ctrl+C)"))
+        {
+            CopySelectedEntities(scene);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Copy Entity to Clipboard (Ctrl+C)");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Duplicate (Ctrl+D)"))
+        {
+            DuplicateSelectedEntities(scene);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Duplicate Entity (Ctrl+D)");
+
+        if (HasEntitiesInClipboard())
+        {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Paste (Ctrl+V)"))
+            {
+                PasteEntities(scene);
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Paste Entities from Clipboard (Ctrl+V)");
         }
 
         ImGui::Separator();
@@ -942,7 +984,7 @@ void EditorSystem::Update(float deltaTime)
         rd::RenderDocManager::getInstance().requestCapture();
     }
 
-    // Keyboard shortcuts for Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z / Ctrl+Y)
+    // Keyboard shortcuts for Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z / Ctrl+Y), Copy (Ctrl+C), Paste (Ctrl+V), Duplicate (Ctrl+D)
     bool isCtrlOrCmd = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
     bool isShift = ImGui::GetIO().KeyShift;
 
@@ -956,6 +998,18 @@ void EditorSystem::Update(float deltaTime)
             (isCtrlOrCmd && ImGui::IsKeyPressed(ImGuiKey_Y)))
         {
             Redo();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_C))
+        {
+            CopySelectedEntities();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_V))
+        {
+            PasteEntities();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_D))
+        {
+            DuplicateSelectedEntities();
         }
         if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_R))
         {
@@ -1623,6 +1677,145 @@ std::string EditorSystem::GetEntityName(Entity entity, Scene* targetScene) const
     return "(#" + std::to_string(entity) + ") " + GetEntityRawName(entity, targetScene);
 }
 
+void EditorSystem::CopySelectedEntities(Scene* sourceScene)
+{
+    Scene* scene = sourceScene ? sourceScene : GetTargetScene();
+    if (!scene || selectedEntities.empty()) return;
+
+    auto isDescendant = [scene](Entity e, Entity ancestor) -> bool {
+        if (!scene || e == MAX_ENTITIES || ancestor == MAX_ENTITIES) return false;
+        Entity current = scene->GetParent(e);
+        while (current != MAX_ENTITIES && current != (Entity)-1) {
+            if (current == ancestor) return true;
+            current = scene->GetParent(current);
+        }
+        return false;
+    };
+
+    std::vector<Entity> topLevelSelected;
+    for (Entity e : selectedEntities) {
+        if (!scene->IsEntityActive(e) && !scene->HasComponent<TransformComponent>(e)) continue;
+        bool hasSelectedAncestor = false;
+        for (Entity other : selectedEntities) {
+            if (other != e && isDescendant(e, other)) {
+                hasSelectedAncestor = true;
+                break;
+            }
+        }
+        if (!hasSelectedAncestor) {
+            if (std::find(topLevelSelected.begin(), topLevelSelected.end(), e) == topLevelSelected.end()) {
+                topLevelSelected.push_back(e);
+            }
+        }
+    }
+
+    if (topLevelSelected.empty()) return;
+
+    entityClipboard.clear();
+    for (Entity e : topLevelSelected) {
+        EntityClipboardItem item;
+        item.name = GetEntityRawName(e, scene);
+        item.originalParent = scene->GetParent(e);
+        item.doc = std::make_shared<rapidjson::Document>();
+        scene->SerializeObjectToJson(e, *item.doc);
+        entityClipboard.push_back(std::move(item));
+    }
+}
+
+void EditorSystem::PasteEntities(Scene* targetScene, Entity parent)
+{
+    if (entityClipboard.empty()) return;
+
+    Scene* scene = targetScene ? targetScene : GetTargetScene();
+    if (!scene || !scene->IsEditable()) return;
+
+    std::vector<Entity> createdEntities;
+    for (const auto& item : entityClipboard) {
+        if (!item.doc) continue;
+
+        Entity targetParent = parent;
+        if (targetParent == MAX_ENTITIES || targetParent == (Entity)-1) {
+            if (item.originalParent != MAX_ENTITIES && item.originalParent != (Entity)-1) {
+                if (scene->sceneGraph.find(item.originalParent) != scene->sceneGraph.end()) {
+                    targetParent = item.originalParent;
+                }
+            }
+        }
+
+        Entity newEnt = scene->DeserializeObjectFromJson(*item.doc, targetParent);
+        if (newEnt != MAX_ENTITIES) {
+            createdEntities.push_back(newEnt);
+        }
+    }
+
+    if (!createdEntities.empty()) {
+        std::string srcName = (createdEntities.size() == 1) ? GetEntityRawName(createdEntities[0], scene) : (std::to_string(createdEntities.size()) + " Entities");
+        auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(scene, createdEntities, "Paste " + srcName, this);
+        history.Push(cmd);
+        SetSelectedEntities(createdEntities);
+        if (engine) {
+            selectedScene = engine->GetScene(scene->GetName());
+        }
+    }
+}
+
+void EditorSystem::DuplicateSelectedEntities(Scene* targetScene)
+{
+    Scene* scene = targetScene ? targetScene : GetTargetScene();
+    if (!scene || !scene->IsEditable() || selectedEntities.empty()) return;
+
+    auto isDescendant = [scene](Entity e, Entity ancestor) -> bool {
+        if (!scene || e == MAX_ENTITIES || ancestor == MAX_ENTITIES) return false;
+        Entity current = scene->GetParent(e);
+        while (current != MAX_ENTITIES && current != (Entity)-1) {
+            if (current == ancestor) return true;
+            current = scene->GetParent(current);
+        }
+        return false;
+    };
+
+    std::vector<Entity> topLevelSelected;
+    for (Entity e : selectedEntities) {
+        if (!scene->IsEntityActive(e) && !scene->HasComponent<TransformComponent>(e)) continue;
+        bool hasSelectedAncestor = false;
+        for (Entity other : selectedEntities) {
+            if (other != e && isDescendant(e, other)) {
+                hasSelectedAncestor = true;
+                break;
+            }
+        }
+        if (!hasSelectedAncestor) {
+            if (std::find(topLevelSelected.begin(), topLevelSelected.end(), e) == topLevelSelected.end()) {
+                topLevelSelected.push_back(e);
+            }
+        }
+    }
+
+    if (topLevelSelected.empty()) return;
+
+    std::vector<Entity> duplicatedEntities;
+    for (Entity e : topLevelSelected) {
+        rapidjson::Document doc;
+        scene->SerializeObjectToJson(e, doc);
+
+        Entity parent = scene->GetParent(e);
+        Entity newEnt = scene->DeserializeObjectFromJson(doc, parent);
+        if (newEnt != MAX_ENTITIES) {
+            duplicatedEntities.push_back(newEnt);
+        }
+    }
+
+    if (!duplicatedEntities.empty()) {
+        std::string srcName = (duplicatedEntities.size() == 1) ? GetEntityRawName(duplicatedEntities[0], scene) : (std::to_string(duplicatedEntities.size()) + " Entities");
+        auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(scene, duplicatedEntities, "Duplicate " + srcName, this);
+        history.Push(cmd);
+        SetSelectedEntities(duplicatedEntities);
+        if (engine) {
+            selectedScene = engine->GetScene(scene->GetName());
+        }
+    }
+}
+
 void EditorSystem::Initialize()
 {
     InitializeScriptRegistry();
@@ -1890,6 +2083,14 @@ void EditorSystem::ImGuiSceneGraph()
                     auto cmd = std::make_shared<editor::CreateEntityCommand>(scn.get(), newEnt, MAX_ENTITIES, GetEntityRawName(newEnt, scn.get()));
                     history.Push(cmd);
                 }
+                if (HasEntitiesInClipboard())
+                {
+                    if (ImGui::MenuItem("Paste Entities", "Ctrl+V"))
+                    {
+                        selectedScene = scn;
+                        PasteEntities(scn.get());
+                    }
+                }
             }
             if (ImGui::MenuItem(isCurrentActive ? "Deactivate Scene" : "Activate Scene"))
             {
@@ -2020,12 +2221,30 @@ void EditorSystem::ImGuiSceneGraph()
     {
         if (!selectedEntities.empty())
         {
+            std::string copyLabel = selectedEntities.size() > 1 ? ("Copy (" + std::to_string(selectedEntities.size()) + " entities)") : "Copy";
+            if (ImGui::MenuItem(copyLabel.c_str(), "Ctrl+C"))
+            {
+                CopySelectedEntities(targetScene);
+            }
+            std::string dupLabel = selectedEntities.size() > 1 ? ("Duplicate (" + std::to_string(selectedEntities.size()) + " entities)") : "Duplicate";
+            if (ImGui::MenuItem(dupLabel.c_str(), "Ctrl+D"))
+            {
+                DuplicateSelectedEntities(targetScene);
+            }
             std::string delLabel = selectedEntities.size() > 1 ? ("Delete (" + std::to_string(selectedEntities.size()) + " entities)") : "Delete Entity";
             if (ImGui::MenuItem(delLabel.c_str(), "Del"))
             {
                 auto toDel = selectedEntities;
                 auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(targetScene, toDel, this);
                 history.Execute(cmd);
+            }
+            ImGui::Separator();
+        }
+        if (HasEntitiesInClipboard())
+        {
+            if (ImGui::MenuItem("Paste", "Ctrl+V"))
+            {
+                PasteEntities(targetScene);
             }
             ImGui::Separator();
         }
@@ -2246,8 +2465,26 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         {
             if (selectedEntities.size() > 1 && IsEntitySelected(entity))
             {
+                std::string copyLabel = "Copy (" + std::to_string(selectedEntities.size()) + " entities)";
+                std::string dupLabel = "Duplicate (" + std::to_string(selectedEntities.size()) + " entities)";
                 std::string delLabel = "Delete (" + std::to_string(selectedEntities.size()) + " entities)";
                 std::string saveLabel = "Save (" + std::to_string(selectedEntities.size()) + " entities) as Prefabs";
+                if (ImGui::MenuItem(copyLabel.c_str(), "Ctrl+C"))
+                {
+                    CopySelectedEntities(currentScene);
+                }
+                if (ImGui::MenuItem(dupLabel.c_str(), "Ctrl+D"))
+                {
+                    DuplicateSelectedEntities(currentScene);
+                }
+                if (HasEntitiesInClipboard())
+                {
+                    if (ImGui::MenuItem("Paste", "Ctrl+V"))
+                    {
+                        PasteEntities(currentScene);
+                    }
+                }
+                ImGui::Separator();
                 if (ImGui::MenuItem(saveLabel.c_str()))
                 {
                     for (Entity e : selectedEntities) {
@@ -2286,6 +2523,26 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
             }
             else
             {
+                if (ImGui::MenuItem("Copy", "Ctrl+C"))
+                {
+                    CopySelectedEntities(currentScene);
+                }
+                if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
+                {
+                    DuplicateSelectedEntities(currentScene);
+                }
+                if (HasEntitiesInClipboard())
+                {
+                    if (ImGui::MenuItem("Paste", "Ctrl+V"))
+                    {
+                        PasteEntities(currentScene);
+                    }
+                    if (ImGui::MenuItem("Paste as Child"))
+                    {
+                        PasteEntities(currentScene, entity);
+                    }
+                }
+                ImGui::Separator();
                 if (ImGui::MenuItem("Rename", "F2"))
                 {
                     renamingEntity = entity;
