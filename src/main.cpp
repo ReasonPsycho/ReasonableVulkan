@@ -16,13 +16,7 @@
 #include "ecs/Scene.h"
 #include "EngineInterface.hpp"
 #include "engine/Engine.h"
-#include "systems/renderingSystem/componets/CameraComponent.hpp"
-#include "systems/renderingSystem/componets/LightComponent.hpp"
-#include "systems/renderingSystem/componets/MeshComponent.hpp"
-#include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "vks/VulkanRenderer.h"
-#include "Config.hpp"
-
 
 namespace am
 {

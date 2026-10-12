@@ -119,9 +119,34 @@ vks::MeshDescriptor::MeshDescriptor(const boost::uuids::uuid& assetId, Descripto
     VK_CHECK_RESULT(vkMapMemory(vulkanContext.getDevice(), uniformBuffer.buffer.memory, 
         0, sizeof(UniformBlock), 0, &uniformBuffer.mapped));
     memcpy(uniformBuffer.mapped, &uniformBlock, sizeof(UniformBlock));
+
+    // Create indirect draw command buffer
+    indirect.command.indexCount = static_cast<uint32_t>(meshData.indices.size());
+    indirect.command.instanceCount = 1;
+    indirect.command.firstIndex = 0;
+    indirect.command.vertexOffset = 0;
+    indirect.command.firstInstance = 0;
+
+    VkDeviceSize indirectBufferSize = sizeof(VkDrawIndexedIndirectCommand);
+    vulkanContext.createBuffer(
+        indirectBufferSize,
+        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        indirect.buffer.buffer,
+        indirect.buffer.memory);
+
+    void* indirectData = nullptr;
+    vkMapMemory(vulkanContext.getDevice(), indirect.buffer.memory, 0, indirectBufferSize, 0, &indirectData);
+    memcpy(indirectData, &indirect.command, sizeof(VkDrawIndexedIndirectCommand));
+    vkUnmapMemory(vulkanContext.getDevice(), indirect.buffer.memory);
 }
 
 vks::MeshDescriptor::~MeshDescriptor() {
+
+    if (indirect.buffer.buffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, indirect.buffer.buffer, nullptr);
+        vkFreeMemory(device, indirect.buffer.memory, nullptr);
+    }
 
     if (uniformBuffer.buffer.buffer != VK_NULL_HANDLE) {
         vkDestroyBuffer(device, uniformBuffer.buffer.buffer, nullptr);
@@ -140,23 +165,6 @@ vks::MeshDescriptor::~MeshDescriptor() {
 }
 
 void vks::MeshDescriptor::setUpDescriptorSet(VkDescriptorSetLayout meshUniformLayout,VkDescriptorPool meshDescriptorPool) {
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = meshDescriptorPool;
-    allocInfo.pSetLayouts = &meshUniformLayout;
-    allocInfo.descriptorSetCount = 1;
-    
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &uniformBuffer.descriptorSet));
-
-    VkWriteDescriptorSet writeDescriptorSet{};
-    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    writeDescriptorSet.descriptorCount = 1;
-    writeDescriptorSet.dstSet = uniformBuffer.descriptorSet;
-    writeDescriptorSet.dstBinding = 0;
-    writeDescriptorSet.pBufferInfo = &uniformBuffer.descriptor;
-
-    vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 }
 
 

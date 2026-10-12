@@ -9,7 +9,7 @@
   "lookUpName": "raycast.shader",
   "contentHash": 14484873410992813000,
   "assetFactoryData": {
-    "importPath": "res/shaders/glsl/entry/raycast.frag",
+    "importPath": "res\\shaders\\glsl\\entry\\raycast.frag",
     "assetType": "Shader",
     "assimpIndex": 0
   }

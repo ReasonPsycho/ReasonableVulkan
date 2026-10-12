@@ -19,24 +19,6 @@ void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeDe
                 MeshDescriptor* meshHandle =  assetHandleManager->getOrLoadResource<MeshDescriptor>(node.meshes[i]->id);
                 model.meshes.push_back(meshHandle);
 				newNode->meshes.push_back(meshHandle);
-        	VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
-        	descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        	descriptorSetAllocInfo.descriptorPool = assetHandleManager->meshPool;
-        	descriptorSetAllocInfo.pSetLayouts = &assetHandleManager->meshUniformLayout;
-        	descriptorSetAllocInfo.descriptorSetCount = 1;
-        	VK_CHECK_RESULT(
-				vkAllocateDescriptorSets(vulkanContext.getDevice(), &descriptorSetAllocInfo, &meshHandle->uniformBuffer.descriptorSet));
-
-        	VkWriteDescriptorSet writeDescriptorSet{};
-        	writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        	writeDescriptorSet.descriptorCount = 1;
-        	writeDescriptorSet.dstSet = meshHandle->uniformBuffer.descriptorSet;
-        	writeDescriptorSet.dstBinding = 0;
-        	writeDescriptorSet.pBufferInfo = &meshHandle->uniformBuffer.descriptor;
-
-        	vkUpdateDescriptorSets(vulkanContext.getDevice(), 1, &writeDescriptorSet, 0, nullptr);
-
         }
 
     if (parent) {

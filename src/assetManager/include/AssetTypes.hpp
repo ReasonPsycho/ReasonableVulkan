@@ -33,6 +33,7 @@ namespace am {
         Scene [[=AssetExtension{".scene"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_GLOBE}]],
         Prefab [[=AssetExtension{".prefab"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_BOXES_STACKED}]],
         Config [[=AssetExtension{".config"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_GEAR}]],
+        Script [[=AssetExtension{".hpp"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_FILE_CODE}]],
         Other [[=AssetExtension{".other"}, =SavesToBinary{false}, =AssetIcon{ICON_FA_FILE}]] // Just for testing
     };
 
@@ -63,7 +64,7 @@ namespace am {
         if (ext == ".fbx" || ext == ".blend" || ext == ".blend1" || ext == ".obj" || ext == ".gltf" || ext == ".glb" ||
             ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr" ||
             ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl" ||
-            ext == ".shaderImport") {
+            ext == ".shaderImport" || ext == ".h" || ext == ".cpp") {
             return AssetOwnership::Import;
         }
 
@@ -103,6 +104,7 @@ namespace am {
         if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr") return AssetType::Texture;
         if (ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl") return AssetType::Shader;
         if (ext == ".shaderImport") return AssetType::ShaderProgram;
+        if (ext == ".h" || ext == ".cpp") return AssetType::Script;
 
         return AssetType::Other;
     }

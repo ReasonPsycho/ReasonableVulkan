@@ -12,7 +12,15 @@
 #include "tracy/Tracy.hpp"
 #include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
-
+#include "systems/transformSystem/TransformSystem.h"
+#include "systems/renderingSystem/RenderSystem.h"
+#include "systems/scriptSystem/ScriptSystem.hpp"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "systems/renderingSystem/componets/MeshComponent.hpp"
+#include "systems/renderingSystem/componets/RendererComponent.hpp"
+#include "systems/scriptSystem/components/ScriptComponent.hpp"
+#include "NameComponent.hpp"
+#include "TagComponent.hpp"
 
 using namespace engine::ecs;
 
@@ -20,14 +28,6 @@ am::AssetManagerInterface* engine::ecs::GetAssetManagerFromScene(Scene* scene) {
     if (!scene) return nullptr;
     return scene->engine.assetManagerInterface;
 }
-
-#include "systems/transformSystem/TransformSystem.h"
-#include "systems/renderingSystem/RenderSystem.h"
-#include "systems/renderingSystem/componets/CameraComponent.hpp"
-#include "systems/renderingSystem/componets/MeshComponent.hpp"
-#include "systems/renderingSystem/componets/RendererComponent.hpp"
-#include "NameComponent.hpp"
-#include "TagComponent.hpp"
 
 void Scene::AddComponent(Entity entity, std::type_index typeIdx)
 {
