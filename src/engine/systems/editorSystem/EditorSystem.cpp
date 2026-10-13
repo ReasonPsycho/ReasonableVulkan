@@ -42,6 +42,7 @@
 #include "visualizers/LightGizmoVisualizer.hpp"
 #include "visualizers/CameraGizmoVisualizer.hpp"
 #include "IconsFontAwesome6.h"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
 
 namespace engine::ecs {
 
@@ -1344,10 +1345,10 @@ void EditorSystem::Update(float deltaTime)
                                 Ray ray = collisionSystem->ScreenToWorldRay(camState.camera, mousePos.x - viewportPos.x,
                                                                             mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
 
-                                auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
+                                /*auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
                                 if (gizmoSystem) {
                                     gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f), 5);
-                                }
+                                }*/
 
                                 auto hit = collisionSystem->RayCastClosest(ray);
 
@@ -1827,15 +1828,6 @@ void EditorSystem::Initialize()
     SetUpCameraControls();
 
     if (engine && engine->assetManagerInterface && engine->graphicsEngine) {
-        auto skyboxModelData = engine->assetManagerInterface->getAssetData<am::ModelData>("skyboxModel");
-        if (skyboxModelData && !skyboxModelData->rootNode.mChildren.empty() && !skyboxModelData->rootNode.mChildren[0].meshes.empty()) {
-            auto skyboxMeshData = engine->assetManagerInterface->getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
-            /*if (skyboxMeshData && skyboxMeshData->material) { //TODO add an seperate skybox for the editor
-                camera.skyboxMaterialId = skyboxMeshData->material.get()->id;
-                camera.runtimeSkyboxMaterialHandle = engine->graphicsEngine->loadMaterial(camera.skyboxMaterialId);
-            }*/
-        }
-
         auto wiremeshOpt = engine->assetManagerInterface->getAssetUuid("wiremeshShader");
         if (wiremeshOpt) {
             wiremeshShaderId = wiremeshOpt.value();
@@ -1886,6 +1878,8 @@ EditorSystem::EditorCameraState& EditorSystem::GetEditorCameraState(const std::s
         state.cameraYaw = 0.0f;
         state.cameraPitch = 45.0f;
         state.cameraTarget = glm::vec3(0.0f);
+        state.camera.skyboxType = CameraComponent::SkyboxType::Color;
+        state.camera.skyboxData = SkyboxColorData{glm::vec4(0.2f, 0.2f, 0.2f, 1.0f)};
         state.UpdateCameraPosition();
         sceneEditorCameras[sceneName] = state;
         return sceneEditorCameras[sceneName];

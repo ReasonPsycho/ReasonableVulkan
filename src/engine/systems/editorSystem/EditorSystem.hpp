@@ -135,7 +135,7 @@ namespace engine::ecs
         void SetTargetScene(std::shared_ptr<Scene> scene) override { selectedScene = scene; }
 
         [[=NonSerialized{}]]
-        CameraComponent camera = CameraComponent();
+        CameraComponent camera = CameraComponent(); //TODO check if it realy needed
         [[=NonSerialized{}]]
         TransformComponent cameraTransform = TransformComponent();
 

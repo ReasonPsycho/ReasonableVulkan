@@ -34,6 +34,7 @@ namespace vks
         void cleanup();
         void createPipelineCache();
         void initialize(void* windowHandle, std::vector<VkImageView> swapChainImagesViews);
+        void setupGreyStyle();
         void createDescriptorPool();
         void imguiBeginFrame();
         void imguiEndFrame();

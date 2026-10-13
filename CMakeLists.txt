@@ -58,12 +58,17 @@ add_subdirectory(src/engine)
 # Create the main executable target
 message(STATUS "Creating main executable target: ${PROJECT_NAME}")
 
+set(APP_RESOURCES "")
+if (WIN32)
+    set(APP_RESOURCES ReasonableVulkan.rc)
+endif ()
+
 if (MSVC)
     # Add executable with specific flags for MSVC
-    add_executable(${PROJECT_NAME} src/main.cpp)
+    add_executable(${PROJECT_NAME} src/main.cpp ${APP_RESOURCES})
     target_link_options(${PROJECT_NAME} PRIVATE "/SUBSYSTEM:CONSOLE" "/ENTRY:mainCRTStartup")
 else ()
-    add_executable(${PROJECT_NAME} src/main.cpp)
+    add_executable(${PROJECT_NAME} src/main.cpp ${APP_RESOURCES})
 endif ()
 
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
