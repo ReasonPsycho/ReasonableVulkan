@@ -1,0 +1,17 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "cc28eeb3-c112-4498-ab2e-24ebe49297e7",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\monkey\\neglected-worn-wall_albedo.b_texture",
+  "type": "Texture",
+  "lookUpName": "neglected-worn-wall_albedo_0.texture",
+  "contentHash": 13353548637416218233,
+  "thumbnailPath": ".cache/thumbnails/cc28eeb3-c112-4498-ab2e-24ebe49297e7.png",
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\monkey\\neglected-worn-wall_albedo.png",
+    "assetType": "Texture",
+    "assimpIndex": 0
+  }
+}

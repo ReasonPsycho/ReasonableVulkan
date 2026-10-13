@@ -616,7 +616,7 @@ namespace engine {
                 lightTransform.rotation = glm::quatLookAt(glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f)), glm::vec3(0, 1, 0));
                 ecs::Entity lightEntity = scene->CreateEntity("Directional Light", lightTransform);
 
-                LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 2.5f);
+                LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 0.2f);
                 scene->AddComponent<LightComponent>(lightEntity, lightComp);
             }
 
@@ -707,7 +707,7 @@ namespace engine {
             lightTransform.rotation = glm::quatLookAt(glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f)), glm::vec3(0, 1, 0));
             ecs::Entity lightEntity = scene->CreateEntity("Directional Light", lightTransform);
 
-            LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 2.5f);
+            LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 0.2f);
             scene->AddComponent<LightComponent>(lightEntity, lightComp);
 
             // 3. Create Camera Entity

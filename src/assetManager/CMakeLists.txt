@@ -25,6 +25,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(glslang CONFIG REQUIRED)
+find_package(Tracy CONFIG REQUIRED)
 
 # Find Boost with required components
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
@@ -74,6 +75,7 @@ target_link_libraries(am
         spdlog::spdlog
         imgui::imgui
         glslang::glslang glslang::glslang-default-resource-limits glslang::SPIRV glslang::SPVRemapper
+        Tracy::TracyClient
 )
 
 # Enable tests in Debug mode by default or when explicitly enabled
