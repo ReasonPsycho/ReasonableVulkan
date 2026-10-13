@@ -6,18 +6,7 @@
 #include "../common/scene_ubo.glsl"
 #include "../common/vertex_io.glsl"
 #include "../common/model_pc.glsl"
-
-struct GPUInstanceData {
-    mat4 modelMatrix;
-    uint materialIndex;
-    uint customData;
-    uint padding0;
-    uint padding1;
-};
-
-layout(std430, binding = 4, set = 1) readonly buffer InstanceBuffer {
-    GPUInstanceData instances[];
-};
+#include "../common/instance_ssbo.glsl"
 
 VSOutput VertexTransform(VSInput vInput)
 {

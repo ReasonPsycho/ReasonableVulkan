@@ -2,15 +2,34 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 #include <glm/glm.hpp>
+#include <glm/vec4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <boost/uuid/nil_generator.hpp>
+#include <variant>
 #include "Handle.hpp"
 #include "ecs/Component.hpp"
 
 namespace engine::ecs
 {
+    struct SkyboxImageData
+    {
+        [[=Tooltip{"Skybox Material/Texture UUID"}, =LookupName{am::AssetType::Material}]]
+        boost::uuids::uuid skyboxMaterialId{boost::uuids::nil_uuid()};
+
+        [[=NonSerialized{}]]
+        gfx::MaterialHandle runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+    };
+
+    struct SkyboxColorData
+    {
+        [[=Color{}, =Tooltip{"Background clear color"}]]
+        glm::vec4 color{0.0f, 0.0f, 0.0f, 1.0f};
+    };
+
     struct CameraComponent : public Component
     {
+        enum class SkyboxType { Image, Color };
+
         // Camera parameters
         [[=Range{1.0f, 179.0f, 0.5f}, =Tooltip{"Field of view in degrees"}]]
         float fov{45.0f};
@@ -31,11 +50,11 @@ namespace engine::ecs
         [[=NonSerialized{}, =ReadOnly{}, =Tooltip{"View matrix"}]]
         glm::mat4 view{1.0f};
 
-        [[=Tooltip{"Skybox Material/Texture UUID"}, =LookupName{am::AssetType::Material}]]
-        boost::uuids::uuid skyboxMaterialId{boost::uuids::nil_uuid()};
+        [[=Tooltip{"Skybox type"}]]
+        SkyboxType skyboxType{SkyboxType::Image};
 
-        [[=NonSerialized{}]]
-        gfx::MaterialHandle runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+        [[=Tooltip{"Type-specific skybox settings"}]]
+        std::variant<SkyboxImageData, SkyboxColorData> skyboxData{SkyboxImageData{}};
 
         [[=NonSerialized{}, =HidenInInspector{}]]
         bool isDirty{true};
@@ -45,6 +64,50 @@ namespace engine::ecs
 
         [[=Tooltip{"Show gizmo in editor"}]]
         bool showGizmo{true};
+
+        SkyboxType getSkyboxType() const { return skyboxType; }
+        void setSkyboxType(SkyboxType t) {
+            switch (t) {
+                case SkyboxType::Image:
+                    if (!std::holds_alternative<SkyboxImageData>(skyboxData)) skyboxData = SkyboxImageData{};
+                    break;
+                case SkyboxType::Color:
+                    if (!std::holds_alternative<SkyboxColorData>(skyboxData)) skyboxData = SkyboxColorData{};
+                    break;
+            }
+            skyboxType = t;
+        }
+
+        void PostDeserialize() {
+            setSkyboxType(skyboxType);
+        }
+
+        void PostModify() {
+            setSkyboxType(skyboxType);
+        }
+
+        void CustomDeserialize(const rapidjson::Value& inObj) {
+            if (!inObj.IsObject()) return;
+            if (inObj.HasMember("fov")) DeserializeValueFromJson(fov, inObj["fov"]);
+            if (inObj.HasMember("aspectRatio")) DeserializeValueFromJson(aspectRatio, inObj["aspectRatio"]);
+            if (inObj.HasMember("nearPlane")) DeserializeValueFromJson(nearPlane, inObj["nearPlane"]);
+            if (inObj.HasMember("farPlane")) DeserializeValueFromJson(farPlane, inObj["farPlane"]);
+            if (inObj.HasMember("active")) DeserializeValueFromJson(active, inObj["active"]);
+            if (inObj.HasMember("showGizmo")) DeserializeValueFromJson(showGizmo, inObj["showGizmo"]);
+            if (inObj.HasMember("skyboxType")) {
+                DeserializeValueFromJson(skyboxType, inObj["skyboxType"]);
+                setSkyboxType(skyboxType);
+            }
+            if (inObj.HasMember("skyboxData")) {
+                DeserializeValueFromJson(skyboxData, inObj["skyboxData"]);
+            } else if (inObj.HasMember("skyboxMaterialId")) {
+                skyboxType = SkyboxType::Image;
+                SkyboxImageData imgData{};
+                DeserializeValueFromJson(imgData.skyboxMaterialId, inObj["skyboxMaterialId"]);
+                skyboxData = imgData;
+            }
+            isDirty = true;
+        }
 
         CameraComponent() = default;
     };
@@ -125,12 +188,37 @@ inline void updateProjectionMatrix(CameraComponent& camera)
 
     inline void setSkyboxTextureId(CameraComponent& camera, const boost::uuids::uuid& textureId)
     {
-        camera.skyboxMaterialId = textureId;
+        camera.setSkyboxType(CameraComponent::SkyboxType::Image);
+        if (auto* imgData = std::get_if<SkyboxImageData>(&camera.skyboxData)) {
+            imgData->skyboxMaterialId = textureId;
+            imgData->runtimeSkyboxMaterialHandle = gfx::MaterialHandle::invalid();
+        }
+        camera.isDirty = true;
     }
 
-    inline const boost::uuids::uuid& getSkyboxTextureId(const CameraComponent& camera)
+    inline boost::uuids::uuid getSkyboxTextureId(const CameraComponent& camera)
     {
-        return camera.skyboxMaterialId;
+        if (auto* imgData = std::get_if<SkyboxImageData>(&camera.skyboxData)) {
+            return imgData->skyboxMaterialId;
+        }
+        return boost::uuids::nil_uuid();
+    }
+
+    inline void setSkyboxColor(CameraComponent& camera, const glm::vec4& color)
+    {
+        camera.setSkyboxType(CameraComponent::SkyboxType::Color);
+        if (auto* colData = std::get_if<SkyboxColorData>(&camera.skyboxData)) {
+            colData->color = color;
+        }
+        camera.isDirty = true;
+    }
+
+    inline glm::vec4 getSkyboxColor(const CameraComponent& camera)
+    {
+        if (auto* colData = std::get_if<SkyboxColorData>(&camera.skyboxData)) {
+            return colData->color;
+        }
+        return glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
     inline bool isDirty(const CameraComponent& camera)

@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
 
     plt::PlatformInterface* platform = new plt::Platform();
     // 1. Initialize platform (SDL window, input, etc.)
-    if (!platform->Init("My Game Engine", &assetManager)) {
+    if (!platform->Init("Reasonable Vulkan", &assetManager)) {
         return EXIT_FAILURE;
     }
 

@@ -774,7 +774,7 @@ namespace vks
         int maxSet = 0;
         for (auto def : combinedDefines) {
             if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
-            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL || def == ShaderDefinesEnum::INSTANCE_SSBO_GLSL) maxSet = std::max(maxSet, 1);
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
             else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL || def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
         }
@@ -789,6 +789,7 @@ namespace vks
             case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL:
             case ShaderDefinesEnum::WIREMESH_GLSL:
             case ShaderDefinesEnum::MESH_VERTEX_GLSL:
+            case ShaderDefinesEnum::INSTANCE_SSBO_GLSL:
                 combinedLayouts[1] = descriptorManager->getBindlessLayout(); break;
             case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
             case ShaderDefinesEnum::LIGHTING_COMMON_GLSL:
@@ -910,7 +911,7 @@ namespace vks
         int maxSet = 0;
         for (auto def : combinedDefines) {
             if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
-            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL || def == ShaderDefinesEnum::INSTANCE_SSBO_GLSL) maxSet = std::max(maxSet, 1);
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
             else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL || def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
         }
@@ -925,6 +926,7 @@ namespace vks
             case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL:
             case ShaderDefinesEnum::WIREMESH_GLSL:
             case ShaderDefinesEnum::MESH_VERTEX_GLSL:
+            case ShaderDefinesEnum::INSTANCE_SSBO_GLSL:
                 combinedLayouts[1] = descriptorManager->getBindlessLayout(); break;
             case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
             case ShaderDefinesEnum::LIGHTING_COMMON_GLSL:

@@ -128,6 +128,11 @@ namespace vks {
         renderManager->drawSkybox(cameraIndex, materialHandle, shaderHandle);
     }
 
+    void VulkanRenderer::drawSkybox(uint32_t cameraIndex, const glm::vec4& color)
+    {
+        renderManager->drawSkybox(cameraIndex, color);
+    }
+
 
     void VulkanRenderer::drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform)
     {
