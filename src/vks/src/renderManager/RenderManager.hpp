@@ -36,6 +36,12 @@ namespace vks {
         gfx::ShaderProgramHandle renderProgramHandle;
     };
 
+    struct SkyboxClearCommand
+    {
+        uint32_t cameraIndex;
+        glm::vec4 color;
+    };
+
     class RenderManager {
 
 private:
@@ -71,8 +77,10 @@ private:
         // Core rendering functions
         void drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform);
         void drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
+        void drawSkybox(uint32_t cameraIndex, const glm::vec4& color);
         void submitRenderCommand(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform);
         void submitSkyboxRenderCommand(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
+        void submitSkyboxRenderCommand(uint32_t cameraIndex, const glm::vec4& color);
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
@@ -111,6 +119,7 @@ private:
     private:
         std::vector<RenderCommand> renderQueue;
         std::vector<SkyboxRenderCommand> skyboxRenderQueue;
+        std::vector<SkyboxClearCommand> skyboxClearQueue;
         std::vector<DirectionalLightBufferData> directionalLightQueue;
         std::vector<PointLightBufferData> pointLightQueue;
         std::vector<SpotLightBufferData> spotLightQueue;

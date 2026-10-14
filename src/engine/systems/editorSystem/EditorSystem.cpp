@@ -16,6 +16,18 @@
 #include "systems/renderingSystem/componets/LightComponent.hpp"
 #include "systems/renderingSystem/componets/ThumbnailComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "systems/scriptSystem/components/ScriptComponent.hpp"
+#include "systems/scriptSystem/ScriptSystem.hpp"
+#include "systems/scriptSystem/ScriptHotReloadManager.hpp"
+#include "systems/scriptSystem/ScriptRegistry.hpp"
+#include <thread>
+#include <fstream>
+#if defined(_WIN32)
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
+#endif
 #include "ecs/NameComponent.hpp"
 #include "ecs/TagComponent.hpp"
 #include "PlatformInterface.hpp"
@@ -30,6 +42,7 @@
 #include "visualizers/LightGizmoVisualizer.hpp"
 #include "visualizers/CameraGizmoVisualizer.hpp"
 #include "IconsFontAwesome6.h"
+#include "systems/renderingSystem/componets/CameraComponent.hpp"
 
 namespace engine::ecs {
 
@@ -148,6 +161,25 @@ void EditorSystem::ImGuiInspector()
                 return;
             }
 
+            if (ImGui::Button("Copy Selected (Ctrl+C)"))
+            {
+                CopySelectedEntities(scene);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Duplicate Selected (Ctrl+D)"))
+            {
+                DuplicateSelectedEntities(scene);
+            }
+
+            if (HasEntitiesInClipboard())
+            {
+                ImGui::SameLine();
+                if (ImGui::Button("Paste (Ctrl+V)"))
+                {
+                    PasteEntities(scene);
+                }
+            }
+
             ImGui::Separator();
             if (ImGui::Button("Delete All Selected (Del)"))
             {
@@ -261,6 +293,29 @@ void EditorSystem::ImGuiInspector()
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add TagComponent to entity");
         }
 
+        // Entity actions row: Copy, Duplicate, Paste
+        if (ImGui::SmallButton("Copy (Ctrl+C)"))
+        {
+            CopySelectedEntities(scene);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Copy Entity to Clipboard (Ctrl+C)");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Duplicate (Ctrl+D)"))
+        {
+            DuplicateSelectedEntities(scene);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Duplicate Entity (Ctrl+D)");
+
+        if (HasEntitiesInClipboard())
+        {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Paste (Ctrl+V)"))
+            {
+                PasteEntities(scene);
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Paste Entities from Clipboard (Ctrl+V)");
+        }
+
         ImGui::Separator();
 
         // 3. Components list
@@ -340,6 +395,36 @@ void EditorSystem::ImGuiInspector()
             if (!anyAvailable)
             {
                 ImGui::TextDisabled("No more components available");
+            }
+
+            auto registeredScripts = ScriptRegistry::Instance().GetRegisteredNames();
+            if (!registeredScripts.empty())
+            {
+                if (ImGui::BeginMenu("Scripts"))
+                {
+                    for (const auto& scriptName : registeredScripts)
+                    {
+                        if (ImGui::MenuItem(scriptName.c_str()))
+                        {
+                            if (!scene->HasComponent<ScriptComponent>(selectedEntity))
+                            {
+                                auto cmd = std::make_shared<editor::AddComponentCommand>(scene, selectedEntity, typeid(ScriptComponent), "ScriptComponent");
+                                history.Execute(cmd);
+                            }
+                            if (scene->HasComponent<ScriptComponent>(selectedEntity))
+                            {
+                                auto& scriptComp = scene->GetComponent<ScriptComponent>(selectedEntity);
+                                auto script = scriptComp.AddScriptByName(scriptName);
+                                if (script) {
+                                    script->scene = scene;
+                                    script->entity = selectedEntity;
+                                    script->OnAwake();
+                                }
+                            }
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
             }
 
             ImGui::EndPopup();
@@ -644,10 +729,10 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
                     }
                     glm::mat4 eNewGlobal = deltaMatrix * eInitialGlobal;
 
-                    auto it = scene->sceneGraph.find(e);
-                    if (it != scene->sceneGraph.end() && it->second.parent != MAX_ENTITIES)
+                    Entity p = scene->GetParent(e);
+                    if (p != MAX_ENTITIES)
                     {
-                        auto& parentTransform = transformArray->GetComponentFromEntity(it->second.parent);
+                        auto& parentTransform = transformArray->GetComponentFromEntity(p);
                         setLocalMatrixFromGlobal(eTransform, eNewGlobal, parentTransform.globalMatrix);
                     }
                     else
@@ -722,13 +807,14 @@ void EditorSystem::ImguiToolbar()
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 2.0f);
     ImGui::SameLine();
 
-    if (!CanUndo()) ImGui::BeginDisabled(true);
+    bool canUndo = CanUndo();
+    ImGui::BeginDisabled(!canUndo);
     if (ImGui::Button(ICON_FA_ROTATE_LEFT " Undo")) {
         Undo();
     }
-    if (!CanUndo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        if (CanUndo()) {
+        if (canUndo) {
             ImGui::SetTooltip("Undo: %s (Ctrl+Z)", history.GetUndoName().c_str());
         } else {
             ImGui::SetTooltip("Nothing to undo (Ctrl+Z)");
@@ -736,17 +822,103 @@ void EditorSystem::ImguiToolbar()
     }
 
     ImGui::SameLine();
-    if (!CanRedo()) ImGui::BeginDisabled(true);
+    bool canRedo = CanRedo();
+    ImGui::BeginDisabled(!canRedo);
     if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Redo")) {
         Redo();
     }
-    if (!CanRedo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        if (CanRedo()) {
+        if (canRedo) {
             ImGui::SetTooltip("Redo: %s (Ctrl+Shift+Z / Ctrl+Y)", history.GetRedoName().c_str());
         } else {
             ImGui::SetTooltip("Nothing to redo (Ctrl+Shift+Z / Ctrl+Y)");
         }
+    }
+
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 2.0f);
+    ImGui::SameLine();
+
+    if (isScriptCompiling.load()) {
+        ImGui::BeginDisabled(true);
+        ImGui::Button(ICON_FA_SPINNER " Compiling Scripts...");
+        ImGui::EndDisabled();
+    } else {
+        if (ImGui::Button(ICON_FA_ROTATE " Recompile Scripts (Ctrl+R)")) {
+            TriggerScriptRebuild();
+        }
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("Asynchronously compile and hot-reload gameplay scripts (Ctrl+R)");
+    }
+
+    if (!lastScriptBuildOutput.empty()) {
+        ImGui::SameLine();
+        if (lastScriptBuildSuccess) {
+            ImGui::TextColored(ImVec4(0.2f, 0.85f, 0.2f, 1.0f), "[Reloaded]");
+        } else {
+            ImGui::TextColored(ImVec4(0.9f, 0.2f, 0.2f, 1.0f), "[Build Error]");
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Log")) {
+            showScriptBuildLogWindow = true;
+        }
+    }
+
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 2.0f);
+    ImGui::SameLine();
+
+    bool isPlaying = engine ? engine->IsPlaying() : false;
+    bool isPaused = engine ? engine->IsPaused() : false;
+
+    // Play button
+    if (isPlaying) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.65f, 0.25f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.75f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.55f, 0.2f, 1.0f));
+    }
+    if (ImGui::Button(isPlaying ? (ICON_FA_PLAY " Playing") : (ICON_FA_PLAY " Play"))) {
+        if (engine) engine->TogglePlay();
+    }
+    if (isPlaying) {
+        ImGui::PopStyleColor(3);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(isPlaying ? "Stop Game (Ctrl+P)" : "Play Game (Ctrl+P)");
+    }
+
+    ImGui::SameLine();
+
+    // Pause button
+    ImGui::BeginDisabled(!isPlaying);
+    if (isPaused) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.6f, 0.15f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.7f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.75f, 0.5f, 0.1f, 1.0f));
+    }
+    if (ImGui::Button(isPaused ? (ICON_FA_PAUSE " Paused") : (ICON_FA_PAUSE " Pause"))) {
+        if (engine) engine->TogglePause();
+    }
+    if (isPaused) {
+        ImGui::PopStyleColor(3);
+    }
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip(isPaused ? "Resume Game (Ctrl+Shift+P)" : "Pause Game (Ctrl+Shift+P)");
+    }
+
+    ImGui::SameLine();
+
+    // Stop button
+    ImGui::BeginDisabled(!isPlaying);
+    if (ImGui::Button(ICON_FA_STOP " Stop")) {
+        if (engine) engine->StopPlayMode();
+    }
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("Stop Game and reset scene state");
     }
 
     ImGui::End();
@@ -754,6 +926,35 @@ void EditorSystem::ImguiToolbar()
 
 EditorSystem::EditorSystem(::engine::Engine* engine) : engine(engine)
 {
+    lastProcessedStateTimestamp = 0;
+}
+
+bool EditorSystem::IsPlaying() const {
+    return engine ? engine->IsPlaying() : false;
+}
+
+bool EditorSystem::IsPaused() const {
+    return engine ? engine->IsPaused() : false;
+}
+
+void EditorSystem::StartPlayMode() {
+    if (engine) engine->StartPlayMode();
+}
+
+void EditorSystem::StopPlayMode() {
+    if (engine) engine->StopPlayMode();
+}
+
+void EditorSystem::SetPaused(bool paused) {
+    if (engine) engine->SetPaused(paused);
+}
+
+void EditorSystem::TogglePlay() {
+    if (engine) engine->TogglePlay();
+}
+
+void EditorSystem::TogglePause() {
+    if (engine) engine->TogglePause();
 }
 
 void EditorSystem::ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize)
@@ -780,11 +981,13 @@ void EditorSystem::Update(float deltaTime)
     if (!engine || engine->minimized)
         return;
 
+    PollPluginBridge();
+
     if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
         rd::RenderDocManager::getInstance().requestCapture();
     }
 
-    // Keyboard shortcuts for Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z / Ctrl+Y)
+    // Keyboard shortcuts for Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z / Ctrl+Y), Copy (Ctrl+C), Paste (Ctrl+V), Duplicate (Ctrl+D)
     bool isCtrlOrCmd = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
     bool isShift = ImGui::GetIO().KeyShift;
 
@@ -798,6 +1001,71 @@ void EditorSystem::Update(float deltaTime)
             (isCtrlOrCmd && ImGui::IsKeyPressed(ImGuiKey_Y)))
         {
             Redo();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_C))
+        {
+            CopySelectedEntities();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_V))
+        {
+            PasteEntities();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_D))
+        {
+            DuplicateSelectedEntities();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_R))
+        {
+            TriggerScriptRebuild();
+        }
+        if (isCtrlOrCmd && !isShift && ImGui::IsKeyPressed(ImGuiKey_P))
+        {
+            if (engine) engine->TogglePlay();
+        }
+        if (isCtrlOrCmd && isShift && ImGui::IsKeyPressed(ImGuiKey_P))
+        {
+            if (engine) engine->TogglePause();
+        }
+    }
+
+    if (scriptCompilePendingReload.load()) {
+        scriptCompilePendingReload = false;
+        spdlog::info("EditorSystem: Triggering hot reload across active scenes...");
+        if (engine) {
+            auto activeScenes = engine->GetActiveScenes();
+            struct SceneSnapshot {
+                std::shared_ptr<ScriptSystem> system;
+                rapidjson::Document doc;
+            };
+            std::vector<SceneSnapshot> snapshots;
+            for (auto& scn : activeScenes) {
+                if (scn) {
+                    if (auto ss = scn->GetSystem<ScriptSystem>()) {
+                        SceneSnapshot snap;
+                        snap.system = ss;
+                        snap.doc = ss->BeginHotReload();
+                        snapshots.push_back(std::move(snap));
+                    }
+                }
+            }
+            bool reloadSuccess = ScriptHotReloadManager::Instance().ReloadScriptLibrary();
+            for (auto& snap : snapshots) {
+                if (snap.system) {
+                    snap.system->EndHotReload(snap.doc);
+                }
+            }
+            if (reloadSuccess) {
+                spdlog::info("EditorSystem: Hot reload completed successfully across active scenes");
+            } else {
+                spdlog::warn("EditorSystem: Script library reload failed");
+            }
+        } else {
+            auto targetScene = GetTargetScene();
+            if (targetScene) {
+                ScriptSystem::PerformHotReloadForScene(targetScene);
+            } else {
+                ScriptHotReloadManager::Instance().ReloadScriptLibrary();
+            }
         }
     }
 
@@ -1079,10 +1347,10 @@ void EditorSystem::Update(float deltaTime)
                                 Ray ray = collisionSystem->ScreenToWorldRay(camState.camera, mousePos.x - viewportPos.x,
                                                                             mousePos.y - viewportPos.y, viewportPanelSize.x, viewportPanelSize.y);
 
-                                auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
+                                /*auto gizmoSystem = currentScene->GetSystem<GizmoSystem>();
                                 if (gizmoSystem) {
                                     gizmoSystem->DrawRay(ray.origin, ray.direction * 100.0f, glm::vec3(1.0f, 0.0f, 0.0f), 5);
-                                }
+                                }*/
 
                                 auto hit = collisionSystem->RayCastClosest(ray);
 
@@ -1323,6 +1591,7 @@ void EditorSystem::Update(float deltaTime)
     ImGuiInspector();
     ImGuiSystemSettings();
     ImGuiHistoryWindow("History");
+    ImGuiScriptBuildLogWindow();
 
     ImGui::End();
 }
@@ -1411,8 +1680,149 @@ std::string EditorSystem::GetEntityName(Entity entity, Scene* targetScene) const
     return "(#" + std::to_string(entity) + ") " + GetEntityRawName(entity, targetScene);
 }
 
+void EditorSystem::CopySelectedEntities(Scene* sourceScene)
+{
+    Scene* scene = sourceScene ? sourceScene : GetTargetScene();
+    if (!scene || selectedEntities.empty()) return;
+
+    auto isDescendant = [scene](Entity e, Entity ancestor) -> bool {
+        if (!scene || e == MAX_ENTITIES || ancestor == MAX_ENTITIES) return false;
+        Entity current = scene->GetParent(e);
+        while (current != MAX_ENTITIES && current != (Entity)-1) {
+            if (current == ancestor) return true;
+            current = scene->GetParent(current);
+        }
+        return false;
+    };
+
+    std::vector<Entity> topLevelSelected;
+    for (Entity e : selectedEntities) {
+        if (!scene->IsEntityActive(e) && !scene->HasComponent<TransformComponent>(e)) continue;
+        bool hasSelectedAncestor = false;
+        for (Entity other : selectedEntities) {
+            if (other != e && isDescendant(e, other)) {
+                hasSelectedAncestor = true;
+                break;
+            }
+        }
+        if (!hasSelectedAncestor) {
+            if (std::find(topLevelSelected.begin(), topLevelSelected.end(), e) == topLevelSelected.end()) {
+                topLevelSelected.push_back(e);
+            }
+        }
+    }
+
+    if (topLevelSelected.empty()) return;
+
+    entityClipboard.clear();
+    for (Entity e : topLevelSelected) {
+        EntityClipboardItem item;
+        item.name = GetEntityRawName(e, scene);
+        item.originalParent = scene->GetParent(e);
+        item.doc = std::make_shared<rapidjson::Document>();
+        scene->SerializeObjectToJson(e, *item.doc);
+        entityClipboard.push_back(std::move(item));
+    }
+}
+
+void EditorSystem::PasteEntities(Scene* targetScene, Entity parent)
+{
+    if (entityClipboard.empty()) return;
+
+    Scene* scene = targetScene ? targetScene : GetTargetScene();
+    if (!scene || !scene->IsEditable()) return;
+
+    std::vector<Entity> createdEntities;
+    for (const auto& item : entityClipboard) {
+        if (!item.doc) continue;
+
+        Entity targetParent = parent;
+        if (targetParent == MAX_ENTITIES || targetParent == (Entity)-1) {
+            if (item.originalParent != MAX_ENTITIES && item.originalParent != (Entity)-1) {
+                if (scene->IsEntityActive(item.originalParent)) {
+                    targetParent = item.originalParent;
+                }
+            }
+        }
+
+        Entity newEnt = scene->DeserializeObjectFromJson(*item.doc, targetParent);
+        if (newEnt != MAX_ENTITIES) {
+            createdEntities.push_back(newEnt);
+        }
+    }
+
+    if (!createdEntities.empty()) {
+        std::string srcName = (createdEntities.size() == 1) ? GetEntityRawName(createdEntities[0], scene) : (std::to_string(createdEntities.size()) + " Entities");
+        auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(scene, createdEntities, "Paste " + srcName, this);
+        history.Push(cmd);
+        SetSelectedEntities(createdEntities);
+        if (engine) {
+            selectedScene = engine->GetScene(scene->GetName());
+        }
+    }
+}
+
+void EditorSystem::DuplicateSelectedEntities(Scene* targetScene)
+{
+    Scene* scene = targetScene ? targetScene : GetTargetScene();
+    if (!scene || !scene->IsEditable() || selectedEntities.empty()) return;
+
+    auto isDescendant = [scene](Entity e, Entity ancestor) -> bool {
+        if (!scene || e == MAX_ENTITIES || ancestor == MAX_ENTITIES) return false;
+        Entity current = scene->GetParent(e);
+        while (current != MAX_ENTITIES && current != (Entity)-1) {
+            if (current == ancestor) return true;
+            current = scene->GetParent(current);
+        }
+        return false;
+    };
+
+    std::vector<Entity> topLevelSelected;
+    for (Entity e : selectedEntities) {
+        if (!scene->IsEntityActive(e) && !scene->HasComponent<TransformComponent>(e)) continue;
+        bool hasSelectedAncestor = false;
+        for (Entity other : selectedEntities) {
+            if (other != e && isDescendant(e, other)) {
+                hasSelectedAncestor = true;
+                break;
+            }
+        }
+        if (!hasSelectedAncestor) {
+            if (std::find(topLevelSelected.begin(), topLevelSelected.end(), e) == topLevelSelected.end()) {
+                topLevelSelected.push_back(e);
+            }
+        }
+    }
+
+    if (topLevelSelected.empty()) return;
+
+    std::vector<Entity> duplicatedEntities;
+    for (Entity e : topLevelSelected) {
+        rapidjson::Document doc;
+        scene->SerializeObjectToJson(e, doc);
+
+        Entity parent = scene->GetParent(e);
+        Entity newEnt = scene->DeserializeObjectFromJson(doc, parent);
+        if (newEnt != MAX_ENTITIES) {
+            duplicatedEntities.push_back(newEnt);
+        }
+    }
+
+    if (!duplicatedEntities.empty()) {
+        std::string srcName = (duplicatedEntities.size() == 1) ? GetEntityRawName(duplicatedEntities[0], scene) : (std::to_string(duplicatedEntities.size()) + " Entities");
+        auto cmd = std::make_shared<editor::InstantiateEntitiesCommand>(scene, duplicatedEntities, "Duplicate " + srcName, this);
+        history.Push(cmd);
+        SetSelectedEntities(duplicatedEntities);
+        if (engine) {
+            selectedScene = engine->GetScene(scene->GetName());
+        }
+    }
+}
+
 void EditorSystem::Initialize()
 {
+    InitializeScriptRegistry();
+
     ForEachType<EngineComponents>([this]<typename T>() {
         this->RegisterComponentType<T>();
     });
@@ -1420,15 +1830,6 @@ void EditorSystem::Initialize()
     SetUpCameraControls();
 
     if (engine && engine->assetManagerInterface && engine->graphicsEngine) {
-        auto skyboxModelData = engine->assetManagerInterface->getAssetData<am::ModelData>("skyboxModel");
-        if (skyboxModelData && !skyboxModelData->rootNode.mChildren.empty() && !skyboxModelData->rootNode.mChildren[0].meshes.empty()) {
-            auto skyboxMeshData = engine->assetManagerInterface->getAssetData<am::MeshData>(skyboxModelData->rootNode.mChildren[0].meshes[0].get()->id);
-            /*if (skyboxMeshData && skyboxMeshData->material) { //TODO add an seperate skybox for the editor
-                camera.skyboxMaterialId = skyboxMeshData->material.get()->id;
-                camera.runtimeSkyboxMaterialHandle = engine->graphicsEngine->loadMaterial(camera.skyboxMaterialId);
-            }*/
-        }
-
         auto wiremeshOpt = engine->assetManagerInterface->getAssetUuid("wiremeshShader");
         if (wiremeshOpt) {
             wiremeshShaderId = wiremeshOpt.value();
@@ -1479,6 +1880,8 @@ EditorSystem::EditorCameraState& EditorSystem::GetEditorCameraState(const std::s
         state.cameraYaw = 0.0f;
         state.cameraPitch = 45.0f;
         state.cameraTarget = glm::vec3(0.0f);
+        state.camera.skyboxType = CameraComponent::SkyboxType::Color;
+        state.camera.skyboxData = SkyboxColorData{glm::vec4(0.2f, 0.2f, 0.2f, 1.0f)};
         state.UpdateCameraPosition();
         sceneEditorCameras[sceneName] = state;
         return sceneEditorCameras[sceneName];
@@ -1676,6 +2079,14 @@ void EditorSystem::ImGuiSceneGraph()
                     auto cmd = std::make_shared<editor::CreateEntityCommand>(scn.get(), newEnt, MAX_ENTITIES, GetEntityRawName(newEnt, scn.get()));
                     history.Push(cmd);
                 }
+                if (HasEntitiesInClipboard())
+                {
+                    if (ImGui::MenuItem("Paste Entities", "Ctrl+V"))
+                    {
+                        selectedScene = scn;
+                        PasteEntities(scn.get());
+                    }
+                }
             }
             if (ImGui::MenuItem(isCurrentActive ? "Deactivate Scene" : "Activate Scene"))
             {
@@ -1690,7 +2101,7 @@ void EditorSystem::ImGuiSceneGraph()
 
         if (sceneNodeOpen)
         {
-            auto rootsCopy = scn->rootEntities;
+            auto rootsCopy = scn->GetRootEntities();
             for (Entity root : rootsCopy)
             {
                 ImGuiGraphEntity(scn.get(), root);
@@ -1806,12 +2217,30 @@ void EditorSystem::ImGuiSceneGraph()
     {
         if (!selectedEntities.empty())
         {
+            std::string copyLabel = selectedEntities.size() > 1 ? ("Copy (" + std::to_string(selectedEntities.size()) + " entities)") : "Copy";
+            if (ImGui::MenuItem(copyLabel.c_str(), "Ctrl+C"))
+            {
+                CopySelectedEntities(targetScene);
+            }
+            std::string dupLabel = selectedEntities.size() > 1 ? ("Duplicate (" + std::to_string(selectedEntities.size()) + " entities)") : "Duplicate";
+            if (ImGui::MenuItem(dupLabel.c_str(), "Ctrl+D"))
+            {
+                DuplicateSelectedEntities(targetScene);
+            }
             std::string delLabel = selectedEntities.size() > 1 ? ("Delete (" + std::to_string(selectedEntities.size()) + " entities)") : "Delete Entity";
             if (ImGui::MenuItem(delLabel.c_str(), "Del"))
             {
                 auto toDel = selectedEntities;
                 auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(targetScene, toDel, this);
                 history.Execute(cmd);
+            }
+            ImGui::Separator();
+        }
+        if (HasEntitiesInClipboard())
+        {
+            if (ImGui::MenuItem("Paste", "Ctrl+V"))
+            {
+                PasteEntities(targetScene);
             }
             ImGui::Separator();
         }
@@ -1932,8 +2361,8 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
 {
     if (!currentScene) return;
     std::string nameStr = GetEntityName(entity, currentScene);
-    auto it = currentScene->sceneGraph.find(entity);
-    bool hasChildren = it != currentScene->sceneGraph.end() && !it->second.children.empty();
+    auto children = currentScene->GetChildren(entity);
+    bool hasChildren = !children.empty();
 
     ImGuiTreeNodeFlags flags = hasChildren ? 0 : ImGuiTreeNodeFlags_Leaf;
     flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
@@ -2032,8 +2461,26 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         {
             if (selectedEntities.size() > 1 && IsEntitySelected(entity))
             {
+                std::string copyLabel = "Copy (" + std::to_string(selectedEntities.size()) + " entities)";
+                std::string dupLabel = "Duplicate (" + std::to_string(selectedEntities.size()) + " entities)";
                 std::string delLabel = "Delete (" + std::to_string(selectedEntities.size()) + " entities)";
                 std::string saveLabel = "Save (" + std::to_string(selectedEntities.size()) + " entities) as Prefabs";
+                if (ImGui::MenuItem(copyLabel.c_str(), "Ctrl+C"))
+                {
+                    CopySelectedEntities(currentScene);
+                }
+                if (ImGui::MenuItem(dupLabel.c_str(), "Ctrl+D"))
+                {
+                    DuplicateSelectedEntities(currentScene);
+                }
+                if (HasEntitiesInClipboard())
+                {
+                    if (ImGui::MenuItem("Paste", "Ctrl+V"))
+                    {
+                        PasteEntities(currentScene);
+                    }
+                }
+                ImGui::Separator();
                 if (ImGui::MenuItem(saveLabel.c_str()))
                 {
                     for (Entity e : selectedEntities) {
@@ -2072,6 +2519,26 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
             }
             else
             {
+                if (ImGui::MenuItem("Copy", "Ctrl+C"))
+                {
+                    CopySelectedEntities(currentScene);
+                }
+                if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
+                {
+                    DuplicateSelectedEntities(currentScene);
+                }
+                if (HasEntitiesInClipboard())
+                {
+                    if (ImGui::MenuItem("Paste", "Ctrl+V"))
+                    {
+                        PasteEntities(currentScene);
+                    }
+                    if (ImGui::MenuItem("Paste as Child"))
+                    {
+                        PasteEntities(currentScene, entity);
+                    }
+                }
+                ImGui::Separator();
                 if (ImGui::MenuItem("Rename", "F2"))
                 {
                     renamingEntity = entity;
@@ -2267,12 +2734,9 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
 
     if (nodeOpen) {
         ImGui::Indent();
-        auto itNode = currentScene->sceneGraph.find(entity);
-        if (itNode != currentScene->sceneGraph.end()) {
-            auto childrenCopy = itNode->second.children;
-            for (Entity child : childrenCopy) {
-                ImGuiGraphEntity(currentScene, child);
-            }
+        auto childrenCopy = currentScene->GetChildren(entity);
+        for (Entity child : childrenCopy) {
+            ImGuiGraphEntity(currentScene, child);
         }
         ImGui::Unindent();
         ImGui::TreePop();
@@ -2291,26 +2755,29 @@ void EditorSystem::ImGuiHistoryWindow(const std::string& windowName)
     const auto& redoStack = history.GetRedoStack();
 
     // Top action bar
-    if (!CanUndo()) ImGui::BeginDisabled(true);
+    bool canUndo = CanUndo();
+    ImGui::BeginDisabled(!canUndo);
     if (ImGui::Button(ICON_FA_ROTATE_LEFT " Undo (Ctrl+Z)")) {
         Undo();
     }
-    if (!CanUndo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
 
-    if (!CanRedo()) ImGui::BeginDisabled(true);
+    bool canRedo = CanRedo();
+    ImGui::BeginDisabled(!canRedo);
     if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Redo (Ctrl+Shift+Z)")) {
         Redo();
     }
-    if (!CanRedo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (undoStack.empty() && redoStack.empty()) ImGui::BeginDisabled(true);
+    bool canClear = !undoStack.empty() || !redoStack.empty();
+    ImGui::BeginDisabled(!canClear);
     if (ImGui::Button("Clear")) {
         history.Clear();
     }
-    if (undoStack.empty() && redoStack.empty()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
     ImGui::Separator();
 
@@ -2379,6 +2846,13 @@ void* EditorSystem::GetThumbnailTexture(const boost::uuids::uuid& assetId, const
     return nullptr;
 }
 
+void EditorSystem::InvalidateThumbnail(const boost::uuids::uuid& assetId)
+{
+    if (engine && engine->graphicsEngine) {
+        engine->graphicsEngine->invalidateThumbnail(assetId);
+    }
+}
+
 bool EditorSystem::QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath)
 {
     if (!engine) return false;
@@ -2412,8 +2886,9 @@ std::shared_ptr<ecs::Scene> EditorSystem::OpenAssetPreviewScene(const boost::uui
     if (existingScene) {
         existingScene->SetActive(true);
         SetTargetScene(existingScene);
-        if (!existingScene->rootEntities.empty()) {
-            SetSelectedEntity(existingScene->rootEntities[0]);
+        auto roots = existingScene->GetRootEntities();
+        if (!roots.empty()) {
+            SetSelectedEntity(roots[0]);
         }
         return existingScene;
     }
@@ -2428,8 +2903,9 @@ std::shared_ptr<ecs::Scene> EditorSystem::OpenAssetPreviewScene(const boost::uui
     }
 
     SetTargetScene(scene);
-    if (!scene->rootEntities.empty()) {
-        SetSelectedEntity(scene->rootEntities[0]);
+    auto roots = scene->GetRootEntities();
+    if (!roots.empty()) {
+        SetSelectedEntity(roots[0]);
     }
     auto cameraObj = scene->GetActiveCamera();
     if (cameraObj.transform) {
@@ -2536,6 +3012,277 @@ bool EditorSystem::SaveEntityAsPrefab(uint32_t entity, const std::filesystem::pa
     }
 
     return true;
+}
+
+bool EditorSystem::CreateScriptAsset(const std::string& scriptName, const std::filesystem::path& targetDir)
+{
+    std::filesystem::path scriptDir = targetDir.empty() ? (std::filesystem::path("res") / "scripts") : targetDir;
+    std::error_code ec;
+    std::filesystem::create_directories(scriptDir, ec);
+
+    std::filesystem::path filePath = scriptDir / (scriptName + ".hpp");
+    if (std::filesystem::exists(filePath, ec)) {
+        spdlog::warn("Script {} already exists at {}", scriptName, filePath.string());
+        return false;
+    }
+
+    std::string sanitizedClassName;
+    for (char c : scriptName) {
+        if (isalnum(static_cast<unsigned char>(c)) || c == '_') {
+            sanitizedClassName.push_back(c);
+        }
+    }
+    if (sanitizedClassName.empty() || isdigit(static_cast<unsigned char>(sanitizedClassName[0]))) {
+        sanitizedClassName = "Script_" + sanitizedClassName;
+    }
+
+    std::ofstream outFile(filePath);
+    if (!outFile.is_open()) {
+        spdlog::error("Failed to open file for writing script: {}", filePath.string());
+        return false;
+    }
+
+    outFile << "#pragma once\n\n"
+            << "#include \"systems/scriptSystem/Script.hpp\"\n"
+            << "#include \"systems/scriptSystem/ScriptRegistry.hpp\"\n"
+            << "#include \"systems/transformSystem/componets/TransformComponent.hpp\"\n\n"
+            << "namespace engine::ecs {\n\n"
+            << "    class " << sanitizedClassName << " : public Script {\n"
+            << "    public:\n"
+            << "        [[=Range{0.0f, 100.0f, 0.1f}, =Tooltip{\"Speed parameter\"}]]\n"
+            << "        float speed = 1.0f;\n\n"
+            << "        void OnStart() override {\n"
+            << "            // Called once when the script starts\n"
+            << "        }\n\n"
+            << "        void OnUpdate(float deltaTime) override {\n"
+            << "            // Called every frame\n"
+            << "        }\n"
+            << "    };\n\n"
+            << "    REGISTER_SCRIPT(" << sanitizedClassName << ")\n\n"
+            << "} // namespace engine::ecs\n";
+    outFile.close();
+
+    if (engine && engine->assetManagerInterface) {
+        engine->assetManagerInterface->createAsset(am::AssetType::Script, filePath.string());
+    }
+
+    if (engine && engine->platform) {
+        engine->platform->OpenFileInIDE(filePath.string());
+    }
+
+    spdlog::info("Created script asset: {}", filePath.string());
+    return true;
+}
+
+std::filesystem::path EditorSystem::FindCMakeBuildDir() const
+{
+    std::filesystem::path exeDir;
+#if defined(_WIN32)
+    char modulePath[MAX_PATH];
+    if (GetModuleFileNameA(nullptr, modulePath, MAX_PATH) > 0) {
+        exeDir = std::filesystem::path(modulePath).parent_path();
+    }
+#endif
+    if (exeDir.empty()) {
+        exeDir = std::filesystem::current_path();
+    }
+
+    const std::vector<std::filesystem::path> candidates = {
+        exeDir,
+        exeDir.parent_path(),
+        std::filesystem::current_path(),
+        std::filesystem::current_path() / "out" / "build" / "debug",
+        std::filesystem::current_path() / "out" / "build" / "release",
+        std::filesystem::current_path() / "build"
+    };
+
+    for (const auto& candidate : candidates) {
+        std::error_code ec;
+        if (std::filesystem::exists(candidate / "CMakeCache.txt", ec)) {
+            return std::filesystem::absolute(candidate);
+        }
+    }
+
+    return exeDir;
+}
+
+void EditorSystem::TriggerScriptRebuild()
+{
+    if (isScriptCompiling.load()) {
+        spdlog::warn("EditorSystem: Script compilation is already in progress");
+        return;
+    }
+
+    isScriptCompiling = true;
+    scriptCompilePendingReload = false;
+
+    std::thread([this]() {
+        std::filesystem::path buildDir = FindCMakeBuildDir();
+        std::string cmd;
+        if (!buildDir.empty()) {
+            cmd = "cmake --build \"" + buildDir.string() + "\" --target gameplay_scripts 2>&1";
+        } else {
+            cmd = "cmake --build . --target gameplay_scripts 2>&1";
+        }
+
+        spdlog::info("EditorSystem: Spawning background script build: {}", cmd);
+
+        std::string output;
+        int exitCode = -1;
+
+#if defined(_WIN32)
+        FILE* pipe = _popen(cmd.c_str(), "r");
+#else
+        FILE* pipe = popen(cmd.c_str(), "r");
+#endif
+        if (pipe) {
+            char buffer[512];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+#if defined(_WIN32)
+            exitCode = _pclose(pipe);
+#else
+            exitCode = pclose(pipe);
+#endif
+        } else {
+            output = "Failed to spawn cmake build process.";
+        }
+
+        lastScriptBuildOutput = output;
+        lastScriptBuildSuccess = (exitCode == 0);
+
+        if (exitCode == 0) {
+            spdlog::info("EditorSystem: Script compilation succeeded:\n{}", output);
+            scriptCompilePendingReload = true;
+        } else {
+            spdlog::error("EditorSystem: Script compilation failed with exit code {}:\n{}", exitCode, output);
+            showScriptBuildLogWindow = true;
+        }
+
+        isScriptCompiling = false;
+    }).detach();
+}
+
+void EditorSystem::ImGuiScriptBuildLogWindow()
+{
+    if (!showScriptBuildLogWindow) return;
+
+    ImGui::SetNextWindowSize(ImVec2(600, 350), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Script Build Output", &showScriptBuildLogWindow)) {
+        if (isScriptCompiling.load()) {
+            ImGui::BeginDisabled(true);
+            ImGui::Button("Compiling...");
+            ImGui::EndDisabled();
+        } else {
+            if (ImGui::Button("Recompile (Ctrl+R)")) {
+                TriggerScriptRebuild();
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Clear")) {
+            lastScriptBuildOutput.clear();
+        }
+        ImGui::SameLine();
+        if (lastScriptBuildSuccess) {
+            ImGui::TextColored(ImVec4(0.2f, 0.85f, 0.2f, 1.0f), "Status: Success");
+        } else {
+            ImGui::TextColored(ImVec4(0.9f, 0.2f, 0.2f, 1.0f), "Status: Build Failed");
+        }
+
+        ImGui::Separator();
+        ImGui::BeginChild("BuildOutputScrollRegion", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::TextUnformatted(lastScriptBuildOutput.c_str());
+        ImGui::EndChild();
+    }
+    ImGui::End();
+}
+
+void EditorSystem::PollPluginBridge()
+{
+    // Poll command / control signals from IDE plugin
+    std::vector<std::filesystem::path> cmdSignalPaths = {
+        ".rv_control.signal",
+        ".rv_control",
+        "rv_control.signal",
+        "rv_control",
+        ".rv_command.signal",
+        ".rv_command",
+        "rv_command.signal",
+        "rv_command",
+        ".rv_state.signal",
+        ".rv_state",
+        "rv_state.signal",
+        "rv_state",
+        std::filesystem::temp_directory_path() / ".rv_control.signal",
+        std::filesystem::temp_directory_path() / ".rv_control",
+        std::filesystem::temp_directory_path() / "rv_control.signal",
+        std::filesystem::temp_directory_path() / "rv_control",
+        std::filesystem::temp_directory_path() / ".rv_command.signal",
+        std::filesystem::temp_directory_path() / ".rv_command",
+        std::filesystem::temp_directory_path() / "rv_command.signal",
+        std::filesystem::temp_directory_path() / "rv_command",
+        std::filesystem::temp_directory_path() / ".rv_state.signal",
+        std::filesystem::temp_directory_path() / ".rv_state",
+        std::filesystem::temp_directory_path() / "rv_state.signal",
+        std::filesystem::temp_directory_path() / "rv_state"
+    };
+
+    for (const auto& path : cmdSignalPaths) {
+        std::error_code ec;
+        if (std::filesystem::exists(path, ec)) {
+            uint64_t signalTs = 0;
+            std::string content;
+            std::ifstream file(path);
+            if (file.is_open()) {
+                std::stringstream buffer;
+                buffer << file.rdbuf();
+                content = buffer.str();
+                file.close();
+            }
+
+            std::string cmd = content;
+            try {
+                auto colonPos = content.find(';');
+                if (colonPos != std::string::npos) {
+                    cmd = content.substr(0, colonPos);
+                    signalTs = std::stoull(content.substr(colonPos + 1));
+                } else if (content.find("\"timestamp\"") != std::string::npos) {
+                    auto tsPos = content.find("\"timestamp\"");
+                    auto numStart = content.find_first_of("0123456789", tsPos);
+                    if (numStart != std::string::npos) {
+                        auto numEnd = content.find_first_not_of("0123456789", numStart);
+                        std::string tsStr = content.substr(numStart, numEnd - numStart);
+                        signalTs = std::stoull(tsStr);
+                    }
+                }
+            } catch (...) {}
+
+            std::filesystem::remove(path, ec);
+
+            if (signalTs == 0 || signalTs > lastProcessedStateTimestamp) {
+                if (signalTs > 0) {
+                    lastProcessedStateTimestamp = signalTs;
+                }
+                spdlog::info("EditorSystem: Received command '{}' from IDE plugin", cmd);
+
+                std::string cmdUpper = cmd;
+                for (char& c : cmdUpper) c = (char)std::toupper((unsigned char)c);
+
+                if (cmdUpper.find("STOP") != std::string::npos) {
+                    StopPlayMode();
+                } else if (cmdUpper.find("TOGGLE_PLAY") != std::string::npos) {
+                    TogglePlay();
+                } else if (cmdUpper.find("TOGGLE_PAUSE") != std::string::npos) {
+                    TogglePause();
+                } else if (cmdUpper.find("PAUSE") != std::string::npos) {
+                    SetPaused(true);
+                } else if (cmdUpper.find("PLAY") != std::string::npos || cmdUpper.find("START") != std::string::npos || cmdUpper.find("RESUME") != std::string::npos) {
+                    StartPlayMode();
+                }
+            }
+        }
+    }
 }
 
 } // namespace engine::ecs

@@ -3,6 +3,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <memory>
 #include <string>
+#include <glm/vec4.hpp>
 #include <glm/detail/type_mat4x4.hpp>
 #include <vulkan/vulkan_core.h>
 #include <unordered_map>
@@ -46,6 +47,7 @@ namespace vks {
 
 		void drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle shaderHandle, const glm::mat4& transform) override;
 		void drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle shaderHandle) override;
+		void drawSkybox(uint32_t cameraIndex, const glm::vec4& color) override;
 		void drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform) override;
@@ -62,6 +64,7 @@ namespace vks {
 		void* getViewportTexturePointer(uint32_t cameraIndex) override;
 
 		void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) override;
+		void invalidateThumbnail(const boost::uuids::uuid& id) override;
 		bool captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth = 128, int targetHeight = 128) override;
 
 		void cleanup();

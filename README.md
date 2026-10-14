@@ -1,10 +1,53 @@
+<img src="c66c4532-d051-4024-9ed0-e7098c933931.png" width="100" />
+
 # ReasonableVulkan
 
-My attempt at transitioning my game engine called ReasonableGL used during ZTGK onto vulkan and also splitting it into a
-proper modular game engine structure aaaandd adding test.
+My custom modular ECS game engine.
 
-Prerequisites
--------------
+![EngineScreenshoot.png](showcase/EngineScreenshoot.png)
+
+---
+## Showcase
+
+### Editor Functionality
+- **Hierarchical Scene Graph**: Intuitive entity hierarchy with transform inheritance across nested objects.
+![SceneGraph.gif](showcase/SceneGraph.gif)
+- **Integrated File Browser**: Fully functional asset browser for managing textures, models, shaders, and project resources.
+![FileBrowser.gif](showcase/FileBrowser.gif)
+- **Undo / Redo System**: Command-based history supporting `Ctrl+Z` / `Ctrl+Y` actions across entity and scene modifications.
+![History.gif](showcase/History.gif)
+- **Multi-Scene & Prefabs**: Seamlessly switch between active scenes and instantiate reusable prefab templates.
+![Prefabs.gif](showcase/Prefabs.gif)
+- **CLion Plugin Integration**: Direct IDE connection for synchronized workflows, project control, and development convenience.
+![Plugin.gif](showcase/Plugin.gif)
+- **Scripting with Hot Reloading**: Rapid iteration via dynamic script reloading without restarting the engine.
+![Scripts.gif](showcase/Scripts.gif)
+
+### Optimization & Performance
+- **Bindless Vulkan Architecture**: High-throughput rendering with reduced CPU-GPU synchronization and flexible descriptor management.
+- **High-Performance ECS**: Minimal-overhead Entity-Component-System architecture utilizing cache-friendly contiguous component storage.
+![FPS.gif](showcase/FPS.gif)
+A high level of optimization and performance allows for scenes containing 100k objects with nine mesh+material variants and one directional light while still maintaining a stable 20+ FPS.
+- **Fast Compilation Times**: Modular architecture and decoupled template implementations to minimize developer build friction.
+![Speed.gif](showcase/Speed.gif)
+Allowing the build tyme of 30k+ lines of code in just above 30 seconds.
+- **Custom Engine Asset Formats**: Streamlined binary formats and UUID-based caching for near-instant asset startup.
+![Speed2.gif](showcase/Speed2.gif)
+Makes so startup time is only a couple seconds.
+### Testing & Profiling
+gif
+- **Automated Test Suite**: Unit and integration test coverage for core systems, ECS lifecycle, and asset management.
+- **RenderDoc Integration**: Native support for in-depth Vulkan frame captures and graphics debugging.
+![Tracy.gif](showcase/Tracy.gif)
+
+- **Tracy Profiler Integration**: Comprehensive real-time CPU/GPU performance tracing and frame budget analysis.
+![Tracy.gif](showcase/Tracy.gif)
+
+## Installation
+
+---
+
+### Prerequisites
 
 Before you begin, make sure you have:
 
@@ -13,8 +56,7 @@ Before you begin, make sure you have:
 - **vcpkg** installed and the environment variable `VCPKG_ROOT` set to your vcpkg directory.
 - **Vulkan SDK** installed and added to PATH
 
-Build Presets
--------------
+### Build Presets
 
 This project uses CMake presets to simplify configuration. Presets are defined in `CMakePresets.json`.
 
@@ -24,8 +66,10 @@ Available presets:
 - ``debug-with-tests`` — Debug build with unit and integration tests
 - ``release`` — Optimized release build
 
-Notes
+### Notes
+
 -----
 
 - After build, a symbolic link to the ``res/`` folder is created in the build directory.
 - Implicit Vulkan layers are disabled via `VK_LOADER_LAYERS_DISABLE=~implicit~` in CMake presets because they caused Vulkan validation layers to crash.
+- There is plugin available for Clion here: https://github.com/ReasonPsycho/ReasonableVulkanPlugin

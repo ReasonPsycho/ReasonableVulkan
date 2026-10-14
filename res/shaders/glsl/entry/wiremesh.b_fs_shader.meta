@@ -7,9 +7,9 @@
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\wiremesh.b_fs_shader",
   "type": "Shader",
   "lookUpName": "wiremesh.shader",
-  "contentHash": 14484873410992813000,
+  "contentHash": 1062838217860813284,
   "assetFactoryData": {
-    "importPath": "res/shaders/glsl/entry/wiremesh.frag",
+    "importPath": "res\\shaders\\glsl\\entry\\wiremesh.frag",
     "assetType": "Shader",
     "assimpIndex": 0
   }

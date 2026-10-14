@@ -12,7 +12,7 @@ namespace engine::ecs
     struct [[=Integral{}]] TransformComponent: public Component
     {
         [[=Range{-1000.0f, 1000.0f, 0.1f}, =Tooltip{"Local position translation"}]]
-        glm::vec3 position{0.0f};
+        glm::vec3 position{0.0f}; //TODO ensure somehow we can edit it only throught methods
 
         [[=Tooltip{"Orientation quaternion"}]]
         glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
@@ -50,16 +50,20 @@ namespace engine::ecs
     // Local matrix construction
     inline glm::mat4 getLocalModelMatrix(const TransformComponent& t)
     {
-        return glm::translate(glm::mat4(1.0f), t.position) *
-               glm::toMat4(t.rotation) *
-               glm::scale(glm::mat4(1.0f), t.scale);
+        glm::mat4 m = glm::toMat4(t.rotation);
+        m[0] *= t.scale.x;
+        m[1] *= t.scale.y;
+        m[2] *= t.scale.z;
+        m[3] = glm::vec4(t.position, 1.0f);
+        return m;
     }
 
     // Local matrix without scale (for direction vectors)
     inline glm::mat4 getLocalTranslationMatrix(const TransformComponent& t)
     {
-        return glm::translate(glm::mat4(1.0f), t.position) *
-               glm::toMat4(t.rotation);
+        glm::mat4 m = glm::toMat4(t.rotation);
+        m[3] = glm::vec4(t.position, 1.0f);
+        return m;
     }
 
     // Matrix computations

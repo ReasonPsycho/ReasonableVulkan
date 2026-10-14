@@ -774,11 +774,9 @@ namespace vks
         int maxSet = 0;
         for (auto def : combinedDefines) {
             if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
-            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL) maxSet = std::max(maxSet, 1);
-            else if (def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL || def == ShaderDefinesEnum::INSTANCE_SSBO_GLSL) maxSet = std::max(maxSet, 1);
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
-            else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL) maxSet = std::max(maxSet, 3);
-            else if (def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
+            else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL || def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
         }
 
         combinedLayouts.resize(maxSet + 1, VK_NULL_HANDLE);
@@ -787,11 +785,16 @@ namespace vks
         for (auto def : combinedDefines) {
             switch (def) {
             case ShaderDefinesEnum::SCENE_UBO_GLSL: combinedLayouts[0] = descriptorManager->getSceneLayout(); break;
-            case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getPbrMaterialLayout(); break;
-            case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL: combinedLayouts[1] = descriptorManager->getSkyboxMaterialLayout(); break;
+            case ShaderDefinesEnum::MATERIAL_PBR_GLSL:
+            case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL:
+            case ShaderDefinesEnum::WIREMESH_GLSL:
+            case ShaderDefinesEnum::MESH_VERTEX_GLSL:
+            case ShaderDefinesEnum::INSTANCE_SSBO_GLSL:
+                combinedLayouts[1] = descriptorManager->getBindlessLayout(); break;
             case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
-            case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
-            case ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
+            case ShaderDefinesEnum::LIGHTING_COMMON_GLSL:
+            case ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL:
+                combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
             }
         }
 
@@ -799,8 +802,11 @@ namespace vks
         // If a shader uses Set N, it must have valid layouts for 0..N-1
         for (int i = 0; i <= maxSet; ++i) {
             if (combinedLayouts[i] == VK_NULL_HANDLE) {
-                // Use scene layout as a placeholder for missing sets
-                combinedLayouts[i] = descriptorManager->getSceneLayout();
+                if (i == 0) combinedLayouts[i] = descriptorManager->getSceneLayout();
+                else if (i == 1) combinedLayouts[i] = descriptorManager->getBindlessLayout();
+                else if (i == 2) combinedLayouts[i] = descriptorManager->getMeshUniformLayout();
+                else if (i == 3) combinedLayouts[i] = descriptorManager->getLightsLayout();
+                else combinedLayouts[i] = descriptorManager->getSceneLayout();
             }
         }
 
@@ -905,11 +911,9 @@ namespace vks
         int maxSet = 0;
         for (auto def : combinedDefines) {
             if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
-            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL) maxSet = std::max(maxSet, 1);
-            else if (def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL || def == ShaderDefinesEnum::INSTANCE_SSBO_GLSL) maxSet = std::max(maxSet, 1);
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
-            else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL) maxSet = std::max(maxSet, 3);
-            else if (def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
+            else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL || def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
         }
 
         combinedLayouts.resize(maxSet + 1, VK_NULL_HANDLE);
@@ -918,18 +922,27 @@ namespace vks
         for (auto def : combinedDefines) {
             switch (def) {
             case ShaderDefinesEnum::SCENE_UBO_GLSL: combinedLayouts[0] = descriptorManager->getSceneLayout(); break;
-            case ShaderDefinesEnum::MATERIAL_PBR_GLSL: combinedLayouts[1] = descriptorManager->getPbrMaterialLayout(); break;
-            case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL: combinedLayouts[1] = descriptorManager->getSkyboxMaterialLayout(); break;
+            case ShaderDefinesEnum::MATERIAL_PBR_GLSL:
+            case ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL:
+            case ShaderDefinesEnum::WIREMESH_GLSL:
+            case ShaderDefinesEnum::MESH_VERTEX_GLSL:
+            case ShaderDefinesEnum::INSTANCE_SSBO_GLSL:
+                combinedLayouts[1] = descriptorManager->getBindlessLayout(); break;
             case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
-            case ShaderDefinesEnum::LIGHTING_COMMON_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
-            case ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL: combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
+            case ShaderDefinesEnum::LIGHTING_COMMON_GLSL:
+            case ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL:
+                combinedLayouts[3] = descriptorManager->getLightsLayout(); break;
             }
         }
 
         // Check for any null layouts in the sequence (up to maxSet)
         for (int i = 0; i <= maxSet; ++i) {
             if (combinedLayouts[i] == VK_NULL_HANDLE) {
-                combinedLayouts[i] = descriptorManager->getSceneLayout();
+                if (i == 0) combinedLayouts[i] = descriptorManager->getSceneLayout();
+                else if (i == 1) combinedLayouts[i] = descriptorManager->getBindlessLayout();
+                else if (i == 2) combinedLayouts[i] = descriptorManager->getMeshUniformLayout();
+                else if (i == 3) combinedLayouts[i] = descriptorManager->getLightsLayout();
+                else combinedLayouts[i] = descriptorManager->getSceneLayout();
             }
         }
 
@@ -945,8 +958,8 @@ namespace vks
 
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
         {
-            // Define push constant range for the vertex shader transform matrix
-            modelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+            // Define push constant range for vertex & fragment stages
+            modelPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
             modelPCRange.offset = 0;
             modelPCRange.size = sizeof(ModelPushConstant);
             pushConstantRanges.push_back(modelPCRange);

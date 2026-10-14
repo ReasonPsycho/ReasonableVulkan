@@ -42,18 +42,92 @@ file(GLOB_RECURSE TEST_FILES
 
 list(REMOVE_ITEM BASE_SRC ${TEST_FILES})
 
+# Auto-discover script files in res/scripts
+file(GLOB_RECURSE RES_SCRIPT_FILES
+        CONFIGURE_DEPENDS
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.cpp"
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.hpp"
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.h"
+)
+
+file(GLOB_RECURSE RES_SCRIPT_HEADERS
+        CONFIGURE_DEPENDS
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.hpp"
+        "${CMAKE_SOURCE_DIR}/res/scripts/*.h"
+)
+
+set(SCRIPT_INCLUDES "")
+set(SCRIPT_REGISTRATIONS "")
+foreach(HEADER_FILE ${RES_SCRIPT_HEADERS})
+    file(TO_CMAKE_PATH "${HEADER_FILE}" NORMALIZED_HEADER)
+    get_filename_component(SCRIPT_CLASS_NAME "${HEADER_FILE}" NAME_WLE)
+    string(APPEND SCRIPT_INCLUDES "#include \"${NORMALIZED_HEADER}\"\n")
+    string(APPEND SCRIPT_REGISTRATIONS "    if (registry) registry->RegisterScript<engine::ecs::${SCRIPT_CLASS_NAME}>();\n")
+endforeach()
+
+set(GENERATED_SCRIPT_REGISTRY "${CMAKE_CURRENT_BINARY_DIR}/GeneratedScriptRegistry.cpp")
+file(GENERATE OUTPUT "${GENERATED_SCRIPT_REGISTRY}" CONTENT "
+#include \"systems/scriptSystem/ScriptRegistry.hpp\"
+${SCRIPT_INCLUDES}
+
+extern \"C\" SCRIPT_API void RegisterDynamicScripts(engine::ecs::ScriptRegistry* registry) {
+    if (!registry) return;
+${SCRIPT_REGISTRATIONS}
+}
+")
+
 # Create the interface target
 add_library(engine_interface INTERFACE)
 target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(engine_interface INTERFACE vks_interface am_interface platform_interface)
 
+# Create gameplay_scripts shared library
+add_library(gameplay_scripts SHARED ${RES_SCRIPT_FILES} ${GENERATED_SCRIPT_REGISTRY})
+target_compile_definitions(gameplay_scripts PRIVATE GAMEPLAY_SCRIPTS_EXPORTS GLM_ENABLE_EXPERIMENTAL IMGUI_DEFINE_MATH_OPERATORS)
+if(ENABLE_IMGUI)
+    target_compile_definitions(gameplay_scripts PRIVATE ENABLE_IMGUI)
+endif()
+if(EDITOR_ENABLED)
+    target_compile_definitions(gameplay_scripts PRIVATE EDITOR_ENABLED)
+endif()
+if(SPDLOG_DISABLE_LOGGING)
+    target_compile_definitions(gameplay_scripts PRIVATE SPDLOG_DISABLE_LOGGING)
+endif()
+if(DEFINED SPDLOG_ACTIVE_LEVEL)
+    target_compile_definitions(gameplay_scripts PRIVATE SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
+endif()
+
+target_include_directories(gameplay_scripts
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/res
+        ${CMAKE_SOURCE_DIR}/res/scripts
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 # Create static library
 add_library(engine STATIC ${BASE_SRC})
+
+target_link_libraries(gameplay_scripts PUBLIC
+        engine
+        am
+        vks
+        platform
+        renderDocManager
+        engine_interface
+        glm::glm
+        RapidJSON
+        spdlog::spdlog
+        imgui::imgui
+)
 
 # Configure include directories
 target_include_directories(engine
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/res
+        ${CMAKE_SOURCE_DIR}/res/scripts
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -80,35 +154,36 @@ target_link_libraries(engine PUBLIC
 
 # Enable tests in Debug mode by default or when explicitly enabled
 if (ENGINE_ENABLE_TESTS)
-    message(STATUS "Configuring asset manager tests")
-    add_compile_definitions(ENGINE_ENABLE_TESTS)
-
-    # Find Boost with test components
-    find_package(Boost REQUIRED COMPONENTS unit_test_framework)
-
     # Define test sources using GLOB_RECURSE
     file(GLOB_RECURSE TEST_SRC
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.hpp"
     )
 
-    # Create test executable
-    add_executable(engine_test ${TEST_SRC})
+    if (TEST_SRC)
+        message(STATUS "Configuring engine tests")
+        add_compile_definitions(ENGINE_ENABLE_TESTS)
 
+        # Find Boost with test components
+        find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
-    target_link_libraries(engine_test
-            PRIVATE
-            engine
-            Boost::unit_test_framework
-    )
+        # Create test executable
+        add_executable(engine_test ${TEST_SRC})
 
-    # Add test directory to include paths for test executable
-    target_include_directories(engine_test
-            PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests
-    )
+        target_link_libraries(engine_test
+                PRIVATE
+                engine
+                Boost::unit_test_framework
+        )
 
-    # Enable CTest
-    enable_testing()
-    add_test(NAME engine_test COMMAND engine_test WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        # Add test directory to include paths for test executable
+        target_include_directories(engine_test
+                PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests
+        )
+
+        # Enable CTest
+        enable_testing()
+        add_test(NAME engine_test COMMAND engine_test WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    endif ()
 endif ()

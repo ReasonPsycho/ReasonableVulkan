@@ -26,9 +26,14 @@ namespace vks
 
     void DescriptorManager::initialize()
     {
-        createDescriptorPools();
-        createDescriptorSetLayouts();
         createDefaultSampler();
+        createDefaultTexture();
+        createDefaultCubeTexture();
+        createMaterialSSBO();
+        createInstanceSSBO();
+        createDescriptorSetLayouts();
+        createDescriptorPools();
+        initBindlessDescriptorSet();
         createSceneUBO();
         createLightsData();
     }
@@ -100,6 +105,32 @@ namespace vks
             vkFreeMemory(device, cubeMapShadowMapArray.buffer.memory, nullptr);
         }
 
+        if (materialSSBO.buffer.buffer != VK_NULL_HANDLE)
+        {
+            if (materialSSBO.buffer.mapped)
+            {
+                vkUnmapMemory(device, materialSSBO.buffer.memory);
+                materialSSBO.buffer.mapped = nullptr;
+            }
+            vkDestroyBuffer(device, materialSSBO.buffer.buffer, nullptr);
+            vkFreeMemory(device, materialSSBO.buffer.memory, nullptr);
+            materialSSBO.buffer.buffer = VK_NULL_HANDLE;
+            materialSSBO.buffer.memory = VK_NULL_HANDLE;
+        }
+
+        if (instanceSSBO.buffer.buffer != VK_NULL_HANDLE)
+        {
+            if (instanceSSBO.buffer.mapped)
+            {
+                vkUnmapMemory(device, instanceSSBO.buffer.memory);
+                instanceSSBO.buffer.mapped = nullptr;
+            }
+            vkDestroyBuffer(device, instanceSSBO.buffer.buffer, nullptr);
+            vkFreeMemory(device, instanceSSBO.buffer.memory, nullptr);
+            instanceSSBO.buffer.buffer = VK_NULL_HANDLE;
+            instanceSSBO.buffer.memory = VK_NULL_HANDLE;
+        }
+
         if (defaultSampler != VK_NULL_HANDLE)
         {
             vkDestroySampler(device, defaultSampler, nullptr);
@@ -122,72 +153,77 @@ namespace vks
         uuidToMeshMap.clear();
 
         // Destroy descriptor sets layouts
-        if (pbrMaterialLayout != VK_NULL_HANDLE)
+        if (bindlessLayout != VK_NULL_HANDLE)
         {
-            vkDestroyDescriptorSetLayout(device, pbrMaterialLayout, nullptr);
+            vkDestroyDescriptorSetLayout(device, bindlessLayout, nullptr);
+            bindlessLayout = VK_NULL_HANDLE;
+            pbrMaterialLayout = VK_NULL_HANDLE;
+            skyboxMaterialLayout = VK_NULL_HANDLE;
         }
         if (meshUniformLayout != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorSetLayout(device, meshUniformLayout, nullptr);
+            meshUniformLayout = VK_NULL_HANDLE;
         }
         if (sceneLayout != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorSetLayout(device, sceneLayout, nullptr);
+            sceneLayout = VK_NULL_HANDLE;
         }
         if (lightsLayout != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorSetLayout(device, lightsLayout, nullptr);
+            lightsLayout = VK_NULL_HANDLE;
         }
 
         // Destroy descriptor pools
+        if (bindlessDescriptorPool != VK_NULL_HANDLE)
+        {
+            vkDestroyDescriptorPool(device, bindlessDescriptorPool, nullptr);
+            bindlessDescriptorPool = VK_NULL_HANDLE;
+            bindlessDescriptorSet = VK_NULL_HANDLE;
+        }
         if (pbrMaterialPool != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorPool(device, pbrMaterialPool, nullptr);
+            pbrMaterialPool = VK_NULL_HANDLE;
         }
         if (meshPool != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorPool(device, meshPool, nullptr);
+            meshPool = VK_NULL_HANDLE;
         }
         if (scenePool != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorPool(device, scenePool, nullptr);
+            scenePool = VK_NULL_HANDLE;
         }
         if (lightPool != VK_NULL_HANDLE)
         {
             vkDestroyDescriptorPool(device, lightPool, nullptr);
+            lightPool = VK_NULL_HANDLE;
         }
     }
 
     void DescriptorManager::createDescriptorPools()
     {
-        std::vector<VkDescriptorPoolSize> materialPoolSizes = {
-            {VK_DESCRIPTOR_TYPE_SAMPLER, 100},
-            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100},
+        // Bindless global pool
+        std::vector<VkDescriptorPoolSize> bindlessPoolSizes = {
+            {VK_DESCRIPTOR_TYPE_SAMPLER, 10},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_BINDLESS_TEXTURES + MAX_BINDLESS_CUBE_TEXTURES + 100},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10}
         };
 
-        VkDescriptorPoolCreateInfo materialPoolInfo{};
-        materialPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        materialPoolInfo.poolSizeCount = static_cast<uint32_t>(materialPoolSizes.size());
-        materialPoolInfo.pPoolSizes = materialPoolSizes.data();
-        materialPoolInfo.maxSets = 100;
+        VkDescriptorPoolCreateInfo bindlessPoolInfo{};
+        bindlessPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        bindlessPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+        bindlessPoolInfo.poolSizeCount = static_cast<uint32_t>(bindlessPoolSizes.size());
+        bindlessPoolInfo.pPoolSizes = bindlessPoolSizes.data();
+        bindlessPoolInfo.maxSets = 1;
 
-        if (vkCreateDescriptorPool(context->getDevice(), &materialPoolInfo, nullptr, &pbrMaterialPool) != VK_SUCCESS)
+        if (vkCreateDescriptorPool(context->getDevice(), &bindlessPoolInfo, nullptr, &bindlessDescriptorPool) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create material descriptor pool!");
-        }
-
-        // Mesh pool (no changes needed)
-        VkDescriptorPoolSize meshPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000};
-        VkDescriptorPoolCreateInfo meshPoolInfo{};
-        meshPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        meshPoolInfo.poolSizeCount = 1;
-        meshPoolInfo.pPoolSizes = &meshPoolSize;
-        meshPoolInfo.maxSets = 1000;
-
-        if (vkCreateDescriptorPool(context->getDevice(), &meshPoolInfo, nullptr, &meshPool) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create mesh descriptor pool!");
+            throw std::runtime_error("failed to create bindless descriptor pool!");
         }
 
         // Scene pool
@@ -557,8 +593,8 @@ namespace vks
                 throw std::runtime_error("failed to create scene descriptor set layout!");
             }
 
-            // Set 1: pbr Material descriptors (sampler + images)
-            std::vector<VkDescriptorSetLayoutBinding> pbrMaterialBindings = {
+            // Set 1: Bindless descriptors (sampler + sampled image arrays + material SSBO + instance SSBO)
+            std::vector<VkDescriptorSetLayoutBinding> bindlessBindings = {
                 {
                     .binding = 0,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
@@ -569,64 +605,60 @@ namespace vks
                 {
                     .binding = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .descriptorCount = 1,
+                    .descriptorCount = MAX_BINDLESS_TEXTURES,
                     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 },
                 {
                     .binding = 2,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .descriptorCount = 1,
+                    .descriptorCount = MAX_BINDLESS_CUBE_TEXTURES,
                     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 3,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT,
+                    .pImmutableSamplers = nullptr
+                },
+                {
+                    .binding = 4,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                     .pImmutableSamplers = nullptr
                 }
             };
 
-            VkDescriptorSetLayoutCreateInfo pbrMaterialLayoutInfo{};
-            pbrMaterialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            pbrMaterialLayoutInfo.bindingCount = static_cast<uint32_t>(pbrMaterialBindings.size());
-            pbrMaterialLayoutInfo.pBindings = pbrMaterialBindings.data();
+            std::vector<VkDescriptorBindingFlags> bindingFlags = {
+                0,
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
+                0,
+                0
+            };
 
-            if (vkCreateDescriptorSetLayout(context->getDevice(), &pbrMaterialLayoutInfo, nullptr, &pbrMaterialLayout) !=
-                VK_SUCCESS)
+            VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{};
+            bindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+            bindingFlagsInfo.bindingCount = static_cast<uint32_t>(bindingFlags.size());
+            bindingFlagsInfo.pBindingFlags = bindingFlags.data();
+
+            VkDescriptorSetLayoutCreateInfo bindlessLayoutInfo{};
+            bindlessLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            bindlessLayoutInfo.pNext = &bindingFlagsInfo;
+            bindlessLayoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+            bindlessLayoutInfo.bindingCount = static_cast<uint32_t>(bindlessBindings.size());
+            bindlessLayoutInfo.pBindings = bindlessBindings.data();
+
+            if (vkCreateDescriptorSetLayout(context->getDevice(), &bindlessLayoutInfo, nullptr, &bindlessLayout) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to create material descriptor set layout!");
+                throw std::runtime_error("failed to create bindless descriptor set layout!");
             }
 
-        // Set pbr: pbr Material descriptors (sampler + images)
-        std::vector<VkDescriptorSetLayoutBinding> skyboxMaterialBindings = {
-                {
-                    .binding = 0,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-                    .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .pImmutableSamplers = nullptr
-                },
-                {
-                    .binding = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .pImmutableSamplers = nullptr
-                },{
-                    .binding = 2,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .descriptorCount = 1,
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .pImmutableSamplers = nullptr
-                }
-        };
-
-        VkDescriptorSetLayoutCreateInfo skyboxMaterialLayoutInfo{};
-        skyboxMaterialLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        skyboxMaterialLayoutInfo.bindingCount = static_cast<uint32_t>(skyboxMaterialBindings.size());
-        skyboxMaterialLayoutInfo.pBindings = skyboxMaterialBindings.data();
-
-        if (vkCreateDescriptorSetLayout(context->getDevice(), &skyboxMaterialLayoutInfo, nullptr, &skyboxMaterialLayout) !=
-            VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create material descriptor set layout!");
-        }
+            pbrMaterialLayout = bindlessLayout;
+            skyboxMaterialLayout = bindlessLayout;
 
             // Set 2: Mesh/Vertex shader uniforms
             VkDescriptorSetLayoutBinding meshBinding{};
@@ -716,6 +748,210 @@ namespace vks
                 throw std::runtime_error("failed to create lights descriptor set layout!");
             }
         }
+
+    void DescriptorManager::initBindlessDescriptorSet()
+    {
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = bindlessDescriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &bindlessLayout;
+
+        if (vkAllocateDescriptorSets(context->getDevice(), &allocInfo, &bindlessDescriptorSet) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to allocate bindless descriptor set!");
+        }
+
+        // Write default sampler to binding 0
+        VkDescriptorImageInfo samplerInfo{};
+        samplerInfo.sampler = defaultSampler;
+
+        VkWriteDescriptorSet samplerWrite{};
+        samplerWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        samplerWrite.dstSet = bindlessDescriptorSet;
+        samplerWrite.dstBinding = 0;
+        samplerWrite.dstArrayElement = 0;
+        samplerWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+        samplerWrite.descriptorCount = 1;
+        samplerWrite.pImageInfo = &samplerInfo;
+
+        // Write default 2D texture (white) to binding 1, slot 0
+        VkDescriptorImageInfo default2DInfo{};
+        default2DInfo.sampler = VK_NULL_HANDLE;
+        default2DInfo.imageView = defaultImageView;
+        default2DInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet default2DWrite{};
+        default2DWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        default2DWrite.dstSet = bindlessDescriptorSet;
+        default2DWrite.dstBinding = 1;
+        default2DWrite.dstArrayElement = 0;
+        default2DWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        default2DWrite.descriptorCount = 1;
+        default2DWrite.pImageInfo = &default2DInfo;
+
+        // Write default Cube texture to binding 2, slot 0
+        VkDescriptorImageInfo defaultCubeInfo{};
+        defaultCubeInfo.sampler = VK_NULL_HANDLE;
+        defaultCubeInfo.imageView = cubeImageView;
+        defaultCubeInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet defaultCubeWrite{};
+        defaultCubeWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        defaultCubeWrite.dstSet = bindlessDescriptorSet;
+        defaultCubeWrite.dstBinding = 2;
+        defaultCubeWrite.dstArrayElement = 0;
+        defaultCubeWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        defaultCubeWrite.descriptorCount = 1;
+        defaultCubeWrite.pImageInfo = &defaultCubeInfo;
+
+        // Write Material SSBO to binding 3
+        VkWriteDescriptorSet materialSSBOWrite{};
+        materialSSBOWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        materialSSBOWrite.dstSet = bindlessDescriptorSet;
+        materialSSBOWrite.dstBinding = 3;
+        materialSSBOWrite.dstArrayElement = 0;
+        materialSSBOWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        materialSSBOWrite.descriptorCount = 1;
+        materialSSBOWrite.pBufferInfo = &materialSSBO.buffer.descriptor;
+
+        // Write Instance SSBO to binding 4
+        VkWriteDescriptorSet instanceSSBOWrite{};
+        instanceSSBOWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        instanceSSBOWrite.dstSet = bindlessDescriptorSet;
+        instanceSSBOWrite.dstBinding = 4;
+        instanceSSBOWrite.dstArrayElement = 0;
+        instanceSSBOWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        instanceSSBOWrite.descriptorCount = 1;
+        instanceSSBOWrite.pBufferInfo = &instanceSSBO.buffer.descriptor;
+
+        std::array<VkWriteDescriptorSet, 5> writes = { samplerWrite, default2DWrite, defaultCubeWrite, materialSSBOWrite, instanceSSBOWrite };
+        vkUpdateDescriptorSets(context->getDevice(), static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    }
+
+    void DescriptorManager::createInstanceSSBO()
+    {
+        VkDeviceSize bufferSize = MAX_INSTANCES * sizeof(GPUInstanceData);
+        context->createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            instanceSSBO.buffer.buffer,
+            instanceSSBO.buffer.memory);
+
+        instanceSSBO.buffer.descriptor.buffer = instanceSSBO.buffer.buffer;
+        instanceSSBO.buffer.descriptor.offset = 0;
+        instanceSSBO.buffer.descriptor.range = bufferSize;
+
+        VK_CHECK_RESULT(vkMapMemory(context->getDevice(), instanceSSBO.buffer.memory,
+            0, bufferSize, 0, &instanceSSBO.buffer.mapped));
+
+        std::vector<GPUInstanceData> defaultInstances(MAX_INSTANCES);
+        memcpy(instanceSSBO.buffer.mapped, defaultInstances.data(), bufferSize);
+    }
+
+    void DescriptorManager::updateInstanceData(uint32_t index, const GPUInstanceData& data)
+    {
+        if (instanceSSBO.buffer.mapped == nullptr || index >= MAX_INSTANCES) return;
+        auto* dest = static_cast<GPUInstanceData*>(instanceSSBO.buffer.mapped);
+        dest[index] = data;
+    }
+
+    void DescriptorManager::updateInstancesData(uint32_t firstIndex, const GPUInstanceData* data, size_t count)
+    {
+        if (!data || count == 0 || instanceSSBO.buffer.mapped == nullptr) return;
+        if (firstIndex + count > MAX_INSTANCES) {
+            count = (firstIndex < MAX_INSTANCES) ? (MAX_INSTANCES - firstIndex) : 0;
+        }
+        if (count == 0) return;
+        auto* dest = static_cast<GPUInstanceData*>(instanceSSBO.buffer.mapped);
+        memcpy(&dest[firstIndex], data, count * sizeof(GPUInstanceData));
+    }
+
+    void DescriptorManager::createMaterialSSBO()
+    {
+        VkDeviceSize bufferSize = MAX_MATERIALS * sizeof(GPUMaterialData);
+        context->createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            materialSSBO.buffer.buffer,
+            materialSSBO.buffer.memory);
+
+        materialSSBO.buffer.descriptor.buffer = materialSSBO.buffer.buffer;
+        materialSSBO.buffer.descriptor.offset = 0;
+        materialSSBO.buffer.descriptor.range = bufferSize;
+
+        VK_CHECK_RESULT(vkMapMemory(context->getDevice(), materialSSBO.buffer.memory,
+            0, bufferSize, 0, &materialSSBO.buffer.mapped));
+
+        // Initialize slot 0 with default material
+        GPUMaterialData defaultMat{};
+        defaultMat.baseColorFactor = glm::vec4(1.0f);
+        defaultMat.metallicFactor = 1.0f;
+        defaultMat.roughnessFactor = 1.0f;
+        defaultMat.alphaCutoff = 1.0f;
+        defaultMat.baseColorTexIndex = 0;
+        defaultMat.normalTexIndex = 0;
+        defaultMat.metallicRoughnessTexIndex = 0;
+        defaultMat.emissiveTexIndex = 0;
+        defaultMat.occlusionTexIndex = 0;
+        defaultMat.flags = 0;
+        memcpy(materialSSBO.buffer.mapped, &defaultMat, sizeof(GPUMaterialData));
+    }
+
+    uint32_t DescriptorManager::registerMaterial(MaterialDescriptor* material)
+    {
+        uint32_t slot = nextMaterialSlot++;
+        material->materialIndex = slot;
+        updateMaterial(material);
+        return slot;
+    }
+
+    void DescriptorManager::updateMaterial(MaterialDescriptor* material)
+    {
+        if (!material || materialSSBO.buffer.mapped == nullptr) return;
+        if (material->materialIndex >= MAX_MATERIALS) return;
+
+        GPUMaterialData data = material->getGPUMaterialData();
+        updateMaterialData(material->materialIndex, data);
+    }
+
+    void DescriptorManager::updateMaterialData(uint32_t slotIndex, const GPUMaterialData& data)
+    {
+        if (materialSSBO.buffer.mapped == nullptr || slotIndex >= MAX_MATERIALS) return;
+        auto* dest = static_cast<GPUMaterialData*>(materialSSBO.buffer.mapped);
+        dest[slotIndex] = data;
+    }
+
+    uint32_t DescriptorManager::registerTexture(TextureDescriptor* texture, bool isCube)
+    {
+        uint32_t slot = isCube ? nextCubeTextureSlot++ : nextTextureSlot++;
+        texture->setSlotIndex(slot);
+        updateTextureDescriptor(slot, texture->view, isCube);
+        return slot;
+    }
+
+    void DescriptorManager::updateTextureDescriptor(uint32_t slotIndex, VkImageView imageView, bool isCube)
+    {
+        if (bindlessDescriptorSet == VK_NULL_HANDLE || imageView == VK_NULL_HANDLE) return;
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.sampler = VK_NULL_HANDLE;
+        imageInfo.imageView = imageView;
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = bindlessDescriptorSet;
+        write.dstBinding = isCube ? 2 : 1;
+        write.dstArrayElement = slotIndex;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        write.descriptorCount = 1;
+        write.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(context->getDevice(), 1, &write, 0, nullptr);
+    }
 
 
     std::vector<VkDescriptorSetLayout> DescriptorManager::getAllLayouts() const
@@ -1061,10 +1297,10 @@ namespace vks
                 layouts.push_back(meshUniformLayout);
                 break;
             case MATERIAL_PBR_GLSL:
-                layouts.push_back(pbrMaterialLayout);
-                break;
             case MATERIAL_SKYBOX_GLSL:
-                layouts.push_back(skyboxMaterialLayout);
+            case WIREMESH_GLSL:
+            case MESH_VERTEX_GLSL:
+                layouts.push_back(bindlessLayout);
                 break;
             }
         }
@@ -1134,7 +1370,6 @@ namespace vks
         auto assetPtr = assetInfo->get()->getAsset();
 
         auto mesh = std::make_unique<MeshDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::MeshData>(), glm::mat4(1), *context);
-        mesh->setUpDescriptorSet(meshUniformLayout, meshPool);
         gfx::MeshHandle handle = meshResourcePool.insert(std::move(mesh));
         uuidToMeshMap[assetId] = handle;
         return handle;
@@ -1178,7 +1413,12 @@ namespace vks
         if (!assetInfo.has_value()) throw std::runtime_error("Texture asset not found");
         auto assetPtr = assetInfo->get()->getAsset();
 
-        auto texture = std::make_unique<TextureDescriptor>(assetId, this, *assetPtr->getAssetDataAs<am::TextureData>(), *context);
+        auto textureData = assetPtr->getAssetDataAs<am::TextureData>();
+        bool isCube = (textureData && textureData->type == am::TextureType::TextureCube);
+
+        auto texture = std::make_unique<TextureDescriptor>(assetId, this, *textureData, *context);
+        registerTexture(texture.get(), isCube);
+
         gfx::TextureHandle handle = texturePool.insert(std::move(texture));
         uuidToTextureMap[assetId] = handle;
         return handle;

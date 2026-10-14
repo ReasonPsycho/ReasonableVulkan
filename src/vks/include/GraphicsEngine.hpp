@@ -4,6 +4,7 @@
 #include <boost/mp11/integral.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <glm/fwd.hpp>
+#include <glm/vec4.hpp>
 #include <glm/detail/type_mat4x4.hpp>
 #include <string>
 
@@ -36,6 +37,7 @@ namespace gfx {
         // Rendering commands using Handles
         virtual void drawModel(uint32_t cameraIndex, MeshHandle meshHandle, MaterialHandle materialHandle, ShaderProgramHandle shaderHandle, const glm::mat4& transform) = 0;
         virtual void drawSkybox(uint32_t cameraIndex, MaterialHandle materialHandle, ShaderProgramHandle shaderHandle) = 0;
+        virtual void drawSkybox(uint32_t cameraIndex, const glm::vec4& color) = 0;
         virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(DirectionalLightData directionalLightData, const glm::mat4& transform) = 0;
@@ -53,6 +55,7 @@ namespace gfx {
         virtual MaterialHandle getMaterialHandle(const std::string& lookUpName) = 0;
 
         virtual void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) { return nullptr; }
+        virtual void invalidateThumbnail(const boost::uuids::uuid& id) {}
         virtual bool captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth = 128, int targetHeight = 128) { return false; }
 
         virtual void beginFrame() = 0;
