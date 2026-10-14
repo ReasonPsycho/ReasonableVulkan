@@ -42,9 +42,8 @@ A high level of optimization and performance allows for scenes containing 100k s
 Allowing the build time of 30k+ lines of code in just above 30 seconds.
 - **Custom Engine Asset Formats**: Streamlined binary formats and UUID-based caching for near-instant engine startup.
 ![Speed2.gif](showcase/Speed2.gif)
-Makes so startup time is only a couple seconds.
+
 ### Testing & Profiling
-gif
 - **Automated Test Suite**: Unit and integration test coverage for core systems, ECS lifecycle, and asset management.
 ![Tests.png](showcase/Tests.png)
 - **RenderDoc Integration**: Native support for in-depth Vulkan frame captures and graphics debugging.
