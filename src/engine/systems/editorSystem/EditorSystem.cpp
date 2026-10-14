@@ -729,10 +729,10 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
                     }
                     glm::mat4 eNewGlobal = deltaMatrix * eInitialGlobal;
 
-                    auto it = scene->sceneGraph.find(e);
-                    if (it != scene->sceneGraph.end() && it->second.parent != MAX_ENTITIES)
+                    Entity p = scene->GetParent(e);
+                    if (p != MAX_ENTITIES)
                     {
-                        auto& parentTransform = transformArray->GetComponentFromEntity(it->second.parent);
+                        auto& parentTransform = transformArray->GetComponentFromEntity(p);
                         setLocalMatrixFromGlobal(eTransform, eNewGlobal, parentTransform.globalMatrix);
                     }
                     else
@@ -1739,7 +1739,7 @@ void EditorSystem::PasteEntities(Scene* targetScene, Entity parent)
         Entity targetParent = parent;
         if (targetParent == MAX_ENTITIES || targetParent == (Entity)-1) {
             if (item.originalParent != MAX_ENTITIES && item.originalParent != (Entity)-1) {
-                if (scene->sceneGraph.find(item.originalParent) != scene->sceneGraph.end()) {
+                if (scene->IsEntityActive(item.originalParent)) {
                     targetParent = item.originalParent;
                 }
             }
@@ -2101,7 +2101,7 @@ void EditorSystem::ImGuiSceneGraph()
 
         if (sceneNodeOpen)
         {
-            auto rootsCopy = scn->rootEntities;
+            auto rootsCopy = scn->GetRootEntities();
             for (Entity root : rootsCopy)
             {
                 ImGuiGraphEntity(scn.get(), root);
@@ -2361,8 +2361,8 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
 {
     if (!currentScene) return;
     std::string nameStr = GetEntityName(entity, currentScene);
-    auto it = currentScene->sceneGraph.find(entity);
-    bool hasChildren = it != currentScene->sceneGraph.end() && !it->second.children.empty();
+    auto children = currentScene->GetChildren(entity);
+    bool hasChildren = !children.empty();
 
     ImGuiTreeNodeFlags flags = hasChildren ? 0 : ImGuiTreeNodeFlags_Leaf;
     flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
@@ -2734,12 +2734,9 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
 
     if (nodeOpen) {
         ImGui::Indent();
-        auto itNode = currentScene->sceneGraph.find(entity);
-        if (itNode != currentScene->sceneGraph.end()) {
-            auto childrenCopy = itNode->second.children;
-            for (Entity child : childrenCopy) {
-                ImGuiGraphEntity(currentScene, child);
-            }
+        auto childrenCopy = currentScene->GetChildren(entity);
+        for (Entity child : childrenCopy) {
+            ImGuiGraphEntity(currentScene, child);
         }
         ImGui::Unindent();
         ImGui::TreePop();
@@ -2889,8 +2886,9 @@ std::shared_ptr<ecs::Scene> EditorSystem::OpenAssetPreviewScene(const boost::uui
     if (existingScene) {
         existingScene->SetActive(true);
         SetTargetScene(existingScene);
-        if (!existingScene->rootEntities.empty()) {
-            SetSelectedEntity(existingScene->rootEntities[0]);
+        auto roots = existingScene->GetRootEntities();
+        if (!roots.empty()) {
+            SetSelectedEntity(roots[0]);
         }
         return existingScene;
     }
@@ -2905,8 +2903,9 @@ std::shared_ptr<ecs::Scene> EditorSystem::OpenAssetPreviewScene(const boost::uui
     }
 
     SetTargetScene(scene);
-    if (!scene->rootEntities.empty()) {
-        SetSelectedEntity(scene->rootEntities[0]);
+    auto roots = scene->GetRootEntities();
+    if (!roots.empty()) {
+        SetSelectedEntity(roots[0]);
     }
     auto cameraObj = scene->GetActiveCamera();
     if (cameraObj.transform) {

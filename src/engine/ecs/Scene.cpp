@@ -143,49 +143,123 @@ void Scene::SetParent(Entity child, Entity parent) {
         return;
     }
 
-    // Remove child from previous parent and from rootEntities if needed
-    RemoveParent(child);
+    if (child >= entityToFlatIndex.size() || parent >= entityToFlatIndex.size()) {
+        return;
+    }
 
-    // Set new parent
-    sceneGraph[child].parent = parent;
-    sceneGraph[parent].children.push_back(child);
+    int32_t childIdx = entityToFlatIndex[child];
+    int32_t parentIdx = entityToFlatIndex[parent];
+    if (childIdx < 0 || parentIdx < 0) return;
 
-    // Remove child from rootEntities because it now has a parent
-    rootEntities.erase(std::remove(rootEntities.begin(), rootEntities.end(), child), rootEntities.end());
+    // Collect child and all its descendants (subtree)
+    std::vector<int32_t> subtreeIndices;
+    std::vector<bool> inSubtree(flatHierarchy.size(), false);
+    inSubtree[childIdx] = true;
+    subtreeIndices.push_back(childIdx);
+
+    for (size_t i = childIdx + 1; i < flatHierarchy.size(); ++i) {
+        Entity p = flatHierarchy[i].parent;
+        if (p != MAX_ENTITIES && p < entityToFlatIndex.size()) {
+            int32_t pIdx = entityToFlatIndex[p];
+            if (pIdx >= 0 && inSubtree[pIdx]) {
+                inSubtree[i] = true;
+                subtreeIndices.push_back(static_cast<int32_t>(i));
+            }
+        }
+    }
+
+    // Set child's parent
+    flatHierarchy[childIdx].parent = parent;
+
+    // If child's index is currently before parent's index, we must move the subtree after parent
+    if (childIdx < parentIdx) {
+        std::vector<FlatTransformEntry> subtreeEntries;
+        for (int32_t idx : subtreeIndices) {
+            subtreeEntries.push_back(flatHierarchy[idx]);
+        }
+
+        // Remove subtree entries from flatHierarchy (in reverse index order)
+        for (auto it = subtreeIndices.rbegin(); it != subtreeIndices.rend(); ++it) {
+            flatHierarchy.erase(flatHierarchy.begin() + *it);
+        }
+
+        // Find new index of parent
+        int32_t newParentIdx = -1;
+        for (size_t i = 0; i < flatHierarchy.size(); ++i) {
+            if (flatHierarchy[i].entity == parent) {
+                newParentIdx = static_cast<int32_t>(i);
+                break;
+            }
+        }
+
+        // Insert subtree right after parent
+        size_t insertPos = newParentIdx + 1;
+        flatHierarchy.insert(flatHierarchy.begin() + insertPos, subtreeEntries.begin(), subtreeEntries.end());
+    }
+
+    // Refresh index mapping and parentIndex links
+    for (size_t i = 0; i < flatHierarchy.size(); ++i) {
+        if (flatHierarchy[i].entity < entityToFlatIndex.size()) {
+            entityToFlatIndex[flatHierarchy[i].entity] = static_cast<int32_t>(i);
+        }
+    }
+    for (size_t i = 0; i < flatHierarchy.size(); ++i) {
+        if (flatHierarchy[i].parent != MAX_ENTITIES && flatHierarchy[i].parent < entityToFlatIndex.size()) {
+            flatHierarchy[i].parentIndex = entityToFlatIndex[flatHierarchy[i].parent];
+        } else {
+            flatHierarchy[i].parentIndex = -1;
+        }
+    }
 }
 
 
 void Scene::RemoveParent(Entity child) {
     assert(child < maxEntityIndex);
-
-    auto& node = sceneGraph[child];
-    if (node.parent != MAX_ENTITIES) {
-        auto& siblings = sceneGraph[node.parent].children;
-        siblings.erase(std::remove(siblings.begin(), siblings.end(), child), siblings.end());
-        node.parent = MAX_ENTITIES;
-
-        // Add child to rootEntities since it lost its parent
-        rootEntities.push_back(child);
+    if (child < entityToFlatIndex.size()) {
+        int32_t idx = entityToFlatIndex[child];
+        if (idx >= 0 && idx < static_cast<int32_t>(flatHierarchy.size())) {
+            flatHierarchy[idx].parent = MAX_ENTITIES;
+            flatHierarchy[idx].parentIndex = -1;
+        }
     }
 }
 
 Entity Scene::GetParent(Entity entity) const {
-    auto it = sceneGraph.find(entity);
-    if (it != sceneGraph.end()) {
-        return it->second.parent;
+    if (entity < entityToFlatIndex.size()) {
+        int32_t idx = entityToFlatIndex[entity];
+        if (idx >= 0 && idx < static_cast<int32_t>(flatHierarchy.size())) {
+            return flatHierarchy[idx].parent;
+        }
     }
     return MAX_ENTITIES;
 }
 
-const std::vector<Entity>& Scene::GetChildren(Entity entity) const {
-    static const std::vector<Entity> empty{};
-    auto it = sceneGraph.find(entity);
-    return it != sceneGraph.end() ? it->second.children : empty;
+std::vector<Entity> Scene::GetChildren(Entity entity) const {
+    std::vector<Entity> children;
+    if (entity >= entityToFlatIndex.size()) return children;
+    int32_t idx = entityToFlatIndex[entity];
+    if (idx < 0 || idx >= static_cast<int32_t>(flatHierarchy.size())) return children;
+
+    for (size_t i = idx + 1; i < flatHierarchy.size(); ++i) {
+        if (flatHierarchy[i].parent == entity) {
+            children.push_back(flatHierarchy[i].entity);
+        }
+    }
+    return children;
+}
+
+std::vector<Entity> Scene::GetRootEntities() const {
+    std::vector<Entity> roots;
+    for (const auto& entry : flatHierarchy) {
+        if (entry.parent == MAX_ENTITIES) {
+            roots.push_back(entry.entity);
+        }
+    }
+    return roots;
 }
 
 bool Scene::HasParent(Entity entity) const {
-    auto it = sceneGraph.find(entity);
-    return it != sceneGraph.end() && it->second.parent != MAX_ENTITIES;
+    return GetParent(entity) != MAX_ENTITIES;
 }
 
 
@@ -198,18 +272,27 @@ Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
         entity = maxEntityIndex++;
     }
 
+    if (entity >= entityToFlatIndex.size()) {
+        entityToFlatIndex.resize(entity + 1, -1);
+    }
+
     AddComponent<TransformComponent>(entity, transform);
     AddComponent<NameComponent>(entity, NameComponent{"Entity"});
 
-    if (parentEntity < 0 || parentEntity >= MAX_ENTITIES)
-    {
-        rootEntities.push_back(entity);
-        sceneGraph[entity] = TransformNode{MAX_ENTITIES, {}};
-    }else
-    {
-        sceneGraph[entity] = TransformNode{parentEntity, {}};
-        sceneGraph[parentEntity].children.push_back(entity);
+    int32_t parentIdx = -1;
+    Entity parent = MAX_ENTITIES;
+
+    if (parentEntity != MAX_ENTITIES && parentEntity != (Entity)-1 && parentEntity < entityToFlatIndex.size()) {
+        int32_t pIdx = entityToFlatIndex[parentEntity];
+        if (pIdx >= 0 && pIdx < static_cast<int32_t>(flatHierarchy.size())) {
+            parent = parentEntity;
+            parentIdx = pIdx;
+        }
     }
+
+    int32_t newIdx = static_cast<int32_t>(flatHierarchy.size());
+    flatHierarchy.push_back(FlatTransformEntry{entity, parent, parentIdx, true});
+    entityToFlatIndex[entity] = newIdx;
 
     activeEntities.set(entity, true);
     return entity;
@@ -229,15 +312,36 @@ Entity Scene::CreateEntity(std::string entityName, TransformComponent transform,
 
 void Scene::DestroyEntity(Entity entity) {
     RemoveParent(entity);
-    auto it = sceneGraph.find(entity);
-    if (it != sceneGraph.end()) {
-        for (Entity child : it->second.children) {
-            sceneGraph[child].parent = MAX_ENTITIES;
-            rootEntities.push_back(child);
+
+    if (entity < entityToFlatIndex.size()) {
+        int32_t idx = entityToFlatIndex[entity];
+        if (idx >= 0 && idx < static_cast<int32_t>(flatHierarchy.size())) {
+            // Any children of this entity become roots
+            for (size_t i = idx + 1; i < flatHierarchy.size(); ++i) {
+                if (flatHierarchy[i].parent == entity) {
+                    flatHierarchy[i].parent = MAX_ENTITIES;
+                    flatHierarchy[i].parentIndex = -1;
+                }
+            }
+
+            flatHierarchy.erase(flatHierarchy.begin() + idx);
+            entityToFlatIndex[entity] = -1;
+
+            // Re-index remaining entities
+            for (size_t i = idx; i < flatHierarchy.size(); ++i) {
+                if (flatHierarchy[i].entity < entityToFlatIndex.size()) {
+                    entityToFlatIndex[flatHierarchy[i].entity] = static_cast<int32_t>(i);
+                }
+            }
+            for (size_t i = idx; i < flatHierarchy.size(); ++i) {
+                if (flatHierarchy[i].parent != MAX_ENTITIES && flatHierarchy[i].parent < entityToFlatIndex.size()) {
+                    flatHierarchy[i].parentIndex = entityToFlatIndex[flatHierarchy[i].parent];
+                } else {
+                    flatHierarchy[i].parentIndex = -1;
+                }
+            }
         }
-        sceneGraph.erase(it);
     }
-    rootEntities.erase(std::remove(rootEntities.begin(), rootEntities.end(), entity), rootEntities.end());
 
     Signature signature = entitySignatures[entity]; // Get entity signature
     std::type_index componentIndex(typeid(void)); // Initialize with a dummy type
@@ -386,29 +490,29 @@ void Scene::SerializeSystems(rapidjson::Value& obj, rapidjson::Document::Allocat
 void Scene::SerializeSceneGraph(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const {
     // Store root entities
     rapidjson::Value rootEntitiesArray(rapidjson::kArrayType);
-    for (Entity entity : rootEntities) {
+    for (Entity entity : GetRootEntities()) {
         rootEntitiesArray.PushBack(static_cast<uint64_t>(entity), allocator);
     }
     obj.AddMember("rootEntities", rootEntitiesArray, allocator);
 
     // Store scene graph nodes
     rapidjson::Value nodesObj(rapidjson::kObjectType);
-    for (const auto& [entity, node] : sceneGraph) {
+    for (const auto& entry : flatHierarchy) {
         rapidjson::Value nodeObj(rapidjson::kObjectType);
 
         // Store parent
-        nodeObj.AddMember("parent", static_cast<uint64_t>(node.parent), allocator);
+        nodeObj.AddMember("parent", static_cast<uint64_t>(entry.parent), allocator);
 
         // Store children
         rapidjson::Value childrenArray(rapidjson::kArrayType);
-        for (Entity child : node.children) {
+        for (Entity child : GetChildren(entry.entity)) {
             childrenArray.PushBack(static_cast<uint64_t>(child), allocator);
         }
         nodeObj.AddMember("children", childrenArray, allocator);
 
         // Add node to nodes object
         rapidjson::Value entityStr;
-        std::string entityKey = std::to_string(entity);
+        std::string entityKey = std::to_string(entry.entity);
         entityStr.SetString(entityKey.c_str(), allocator);
         nodesObj.AddMember(entityStr, nodeObj, allocator);
     }
@@ -417,11 +521,8 @@ void Scene::SerializeSceneGraph(rapidjson::Value& obj, rapidjson::Document::Allo
 
 void Scene::CollectSubtreeEntities(Entity root, std::vector<Entity>& outSubtree) const {
     outSubtree.push_back(root);
-    auto it = sceneGraph.find(root);
-    if (it != sceneGraph.end()) {
-        for (Entity child : it->second.children) {
-            CollectSubtreeEntities(child, outSubtree);
-        }
+    for (Entity child : GetChildren(root)) {
+        CollectSubtreeEntities(child, outSubtree);
     }
 }
 
@@ -509,29 +610,22 @@ void Scene::SerializeObjectSceneGraph(Entity rootEntity, const std::vector<Entit
     // Store scene graph nodes for subtree entities
     rapidjson::Value nodesObj(rapidjson::kObjectType);
     for (Entity entity : subtree) {
-        auto it = sceneGraph.find(entity);
         rapidjson::Value nodeObj(rapidjson::kObjectType);
 
-        if (it != sceneGraph.end()) {
-            Entity parent = it->second.parent;
-            if (entity == rootEntity || subtreeSet.find(parent) == subtreeSet.end()) {
-                nodeObj.AddMember("parent", static_cast<uint64_t>(MAX_ENTITIES), allocator);
-            } else {
-                nodeObj.AddMember("parent", static_cast<uint64_t>(parent), allocator);
-            }
-
-            rapidjson::Value childrenArray(rapidjson::kArrayType);
-            for (Entity child : it->second.children) {
-                if (subtreeSet.find(child) != subtreeSet.end()) {
-                    childrenArray.PushBack(static_cast<uint64_t>(child), allocator);
-                }
-            }
-            nodeObj.AddMember("children", childrenArray, allocator);
-        } else {
+        Entity parent = GetParent(entity);
+        if (entity == rootEntity || subtreeSet.find(parent) == subtreeSet.end()) {
             nodeObj.AddMember("parent", static_cast<uint64_t>(MAX_ENTITIES), allocator);
-            rapidjson::Value childrenArray(rapidjson::kArrayType);
-            nodeObj.AddMember("children", childrenArray, allocator);
+        } else {
+            nodeObj.AddMember("parent", static_cast<uint64_t>(parent), allocator);
         }
+
+        rapidjson::Value childrenArray(rapidjson::kArrayType);
+        for (Entity child : GetChildren(entity)) {
+            if (subtreeSet.find(child) != subtreeSet.end()) {
+                childrenArray.PushBack(static_cast<uint64_t>(child), allocator);
+            }
+        }
+        nodeObj.AddMember("children", childrenArray, allocator);
 
         rapidjson::Value entityStr;
         std::string entityKey = std::to_string(entity);
@@ -598,6 +692,12 @@ Entity Scene::InstantiatePrefab(const rapidjson::Document& doc, Entity parentEnt
             } else {
                 newEntity = maxEntityIndex++;
             }
+            if (newEntity >= entityToFlatIndex.size()) {
+                entityToFlatIndex.resize(newEntity + 1, -1);
+            }
+            entityToFlatIndex[newEntity] = static_cast<int32_t>(flatHierarchy.size());
+            flatHierarchy.push_back(FlatTransformEntry{newEntity, MAX_ENTITIES, -1, true});
+
             activeEntities.set(newEntity, true);
             oldToNewEntityMap[oldEntity] = newEntity;
         }
@@ -613,6 +713,12 @@ Entity Scene::InstantiatePrefab(const rapidjson::Document& doc, Entity parentEnt
             } else {
                 newEntity = maxEntityIndex++;
             }
+            if (newEntity >= entityToFlatIndex.size()) {
+                entityToFlatIndex.resize(newEntity + 1, -1);
+            }
+            entityToFlatIndex[newEntity] = static_cast<int32_t>(flatHierarchy.size());
+            flatHierarchy.push_back(FlatTransformEntry{newEntity, MAX_ENTITIES, -1, true});
+
             activeEntities.set(newEntity, true);
             oldToNewEntityMap[oldEntity] = newEntity;
         }
@@ -646,21 +752,12 @@ Entity Scene::InstantiatePrefab(const rapidjson::Document& doc, Entity parentEnt
             } else if (oldEntity == prefabRootEntity) {
                 if (parentEntity != -1 && parentEntity != MAX_ENTITIES) {
                     SetParent(newEntity, parentEntity);
-                } else {
-                    sceneGraph[newEntity] = TransformNode{MAX_ENTITIES, {}};
-                    rootEntities.push_back(newEntity);
                 }
-            } else {
-                sceneGraph[newEntity] = TransformNode{MAX_ENTITIES, {}};
-                rootEntities.push_back(newEntity);
             }
         }
     } else {
         if (parentEntity != -1 && parentEntity != MAX_ENTITIES) {
             SetParent(createdRootEntity, parentEntity);
-        } else {
-            sceneGraph[createdRootEntity] = TransformNode{MAX_ENTITIES, {}};
-            rootEntities.push_back(createdRootEntity);
         }
     }
 
@@ -858,9 +955,9 @@ void Scene::DeserializeFromJson(const rapidjson::Document& doc) {
     }
 
     //TODO here are going to be problems if there are different systems
-    sceneGraph.clear();
+    flatHierarchy.clear();
+    entityToFlatIndex.clear();
     componentArrays.clear();
-    rootEntities.clear();
     maxEntityIndex = 0;
     freeEntities = std::queue<Entity>{};
     entitySignatures.clear();
@@ -1035,37 +1132,75 @@ void Scene::DeserializeSystems(const rapidjson::Value& obj) {
 }
 
 void Scene::DeserializeSceneGraph(const rapidjson::Value& obj) {
-    // Restore root entities
-    if (obj.HasMember("rootEntities") && obj["rootEntities"].IsArray()) {
-        const auto& rootArray = obj["rootEntities"];
-        for (rapidjson::SizeType i = 0; i < rootArray.Size(); i++) {
-            rootEntities.push_back(static_cast<Entity>(rootArray[i].GetUint64()));
+    if (!obj.HasMember("nodes") || !obj["nodes"].IsObject()) {
+        return;
+    }
+
+    const auto& nodes = obj["nodes"];
+    std::unordered_map<Entity, Entity> parentMap;
+    for (auto it = nodes.MemberBegin(); it != nodes.MemberEnd(); ++it) {
+        Entity entity = std::stoul(it->name.GetString());
+        const auto& nodeObj = it->value;
+        if (nodeObj.HasMember("parent") && nodeObj["parent"].IsUint64()) {
+            parentMap[entity] = static_cast<Entity>(nodeObj["parent"].GetUint64());
         }
     }
 
-    // Restore scene graph nodes
-    if (obj.HasMember("nodes") && obj["nodes"].IsObject()) {
-        const auto& nodes = obj["nodes"];
-        for (auto it = nodes.MemberBegin(); it != nodes.MemberEnd(); ++it) {
-            Entity entity = std::stoul(it->name.GetString());
-            const auto& nodeObj = it->value;
+    flatHierarchy.clear();
+    entityToFlatIndex.assign(maxEntityIndex, -1);
 
-            TransformNode node;
+    std::vector<Entity> currentRoots;
+    if (obj.HasMember("rootEntities") && obj["rootEntities"].IsArray()) {
+        const auto& rootArray = obj["rootEntities"];
+        for (rapidjson::SizeType i = 0; i < rootArray.Size(); i++) {
+            currentRoots.push_back(static_cast<Entity>(rootArray[i].GetUint64()));
+        }
+    } else {
+        for (const auto& [e, p] : parentMap) {
+            if (p == MAX_ENTITIES) currentRoots.push_back(e);
+        }
+    }
 
-            // Restore parent
-            if (nodeObj.HasMember("parent") && nodeObj["parent"].IsUint64()) {
-                node.parent = static_cast<Entity>(nodeObj["parent"].GetUint64());
+    for (Entity root : currentRoots) {
+        flatHierarchy.push_back(FlatTransformEntry{root, MAX_ENTITIES, -1, true});
+    }
+
+    size_t head = 0;
+    while (head < flatHierarchy.size()) {
+        Entity parent = flatHierarchy[head].entity;
+        int32_t pIdx = static_cast<int32_t>(head);
+        head++;
+
+        for (const auto& [e, p] : parentMap) {
+            if (p == parent) {
+                flatHierarchy.push_back(FlatTransformEntry{e, parent, pIdx, true});
             }
+        }
+    }
 
-            // Restore children
-            if (nodeObj.HasMember("children") && nodeObj["children"].IsArray()) {
-                const auto& childrenArray = nodeObj["children"];
-                for (rapidjson::SizeType i = 0; i < childrenArray.Size(); i++) {
-                    node.children.push_back(static_cast<Entity>(childrenArray[i].GetUint64()));
-                }
-            }
+    for (const auto& [e, p] : parentMap) {
+        bool found = false;
+        for (const auto& entry : flatHierarchy) {
+            if (entry.entity == e) { found = true; break; }
+        }
+        if (!found) {
+            flatHierarchy.push_back(FlatTransformEntry{e, MAX_ENTITIES, -1, true});
+        }
+    }
 
-            sceneGraph[entity] = node;
+    if (entityToFlatIndex.size() < maxEntityIndex) {
+        entityToFlatIndex.resize(maxEntityIndex, -1);
+    }
+    for (size_t i = 0; i < flatHierarchy.size(); ++i) {
+        if (flatHierarchy[i].entity < entityToFlatIndex.size()) {
+            entityToFlatIndex[flatHierarchy[i].entity] = static_cast<int32_t>(i);
+        }
+    }
+    for (size_t i = 0; i < flatHierarchy.size(); ++i) {
+        if (flatHierarchy[i].parent != MAX_ENTITIES && flatHierarchy[i].parent < entityToFlatIndex.size()) {
+            flatHierarchy[i].parentIndex = entityToFlatIndex[flatHierarchy[i].parent];
+        } else {
+            flatHierarchy[i].parentIndex = -1;
         }
     }
 }
