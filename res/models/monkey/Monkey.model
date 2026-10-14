@@ -3,7 +3,7 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "uuid": "d93d09ed-8ee8-425f-9f71-3c54806fe1d4",
+  "uuid": "6b7cbcc9-2813-469f-b04c-54b6f262c7ca",
   "boundingBoxMin": [
     -0.68359375,
     -0.4921875,
@@ -57,7 +57,7 @@
           1.0
         ],
         "meshes": [
-          "995db058-168e-46a6-8184-284566cb0b0d"
+          "3c4710f1-d187-4f23-99c9-585bcaae26de"
         ],
         "children": []
       }

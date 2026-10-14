@@ -3,15 +3,15 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "uuid": "a8a64811-7bfb-4cea-9f0a-dfcbbd9f5062",
-  "baseColorTexture": "cc28eeb3-c112-4498-ab2e-24ebe49297e7",
+  "uuid": "350230cf-5cf2-45f0-875c-edb8003c0039",
+  "baseColorTexture": "dbd94501-197e-4648-ba7e-900498ce9c7b",
   "baseColorFactor": [
     1.0,
     1.0,
     1.0,
     1.0
   ],
-  "diffuseTexture": "cc28eeb3-c112-4498-ab2e-24ebe49297e7",
+  "diffuseTexture": "dbd94501-197e-4648-ba7e-900498ce9c7b",
   "metallicFactor": 1.0,
   "roughnessFactor": 0.5,
   "specularFactor": [

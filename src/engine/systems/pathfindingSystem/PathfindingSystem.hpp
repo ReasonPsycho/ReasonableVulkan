@@ -6,15 +6,16 @@
 #define REASONABLEVULKAN_PATHFINDINGSYSTEM_HPP
 #include <typeindex>
 
+#include "componets/PathfindingAgent.hpp"
 #include "ecs/System.h"
 #include "ecs/Types.h"
 
 namespace engine::ecs
 {
-    struct PathfindingAgent;
+
     class Scene;
 
-class PathfindingSystem : public System<PathfindingAgent> {
+class PathfindingSystem : public System<PathfindingSystem,PathfindingAgent> {
 
 
     public:

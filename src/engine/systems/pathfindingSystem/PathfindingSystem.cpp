@@ -3,3 +3,7 @@
 //
 
 #include "PathfindingSystem.hpp"
+
+void engine::ecs::PathfindingSystem::OnComponentAdded(ComponentID componentID, std::type_index type) {
+
+}
