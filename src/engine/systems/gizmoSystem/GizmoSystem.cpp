@@ -23,31 +23,42 @@ namespace engine::ecs
 
     void GizmoSystem::Initialize()
     {
+        if (!scene || !scene->engine.assetManagerInterface) {
+            return;
+        }
+
         auto rayUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("internalRayModel");
         if (!rayUuidOpt.has_value())
         {
-            rayAssetUuid = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalRayModel","internalRayModel").value();
-            auto rayData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(rayAssetUuid);
-            rayMeshUuid = rayData->rootNode.mChildren[0].meshes[0].get()->id;
-            auto meshData = rayData->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>();
-            am::VertexAsset v1{};
-            v1.Position = glm::vec3(0.0f);
-            v1.Color = glm::vec4(1.0f);
+            auto createRes = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalRayModel","internalRayModel");
+            if (createRes.has_value()) {
+                rayAssetUuid = createRes.value();
+                auto rayData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(rayAssetUuid);
+                if (rayData && !rayData->rootNode.mChildren.empty() && !rayData->rootNode.mChildren[0].meshes.empty()) {
+                    rayMeshUuid = rayData->rootNode.mChildren[0].meshes[0].get()->id;
+                    auto meshData = rayData->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>();
+                    if (meshData) {
+                        am::VertexAsset v1{};
+                        v1.Position = glm::vec3(0.0f);
+                        v1.Color = glm::vec4(1.0f);
 
-            am::VertexAsset v2{};  // Z is forward for ray
-            v2.Position = glm::vec3(0.0f, 0.0f, 1.0f);
-            v2.Color = glm::vec4(1.0f);
+                        am::VertexAsset v2{};  // Z is forward for ray
+                        v2.Position = glm::vec3(0.0f, 0.0f, 1.0f);
+                        v2.Color = glm::vec4(1.0f);
 
-            meshData->vertices = {v1, v2};
-            meshData->indices = {0, 1};
+                        meshData->vertices = {v1, v2};
+                        meshData->indices = {0, 1};
 
-            meshData->boundingBoxMin = glm::vec3(0.0f);
-            meshData->boundingBoxMax = glm::vec3(0.0f, 0.0f, 1.0f);
+                        meshData->boundingBoxMin = glm::vec3(0.0f);
+                        meshData->boundingBoxMax = glm::vec3(0.0f, 0.0f, 1.0f);
 
-            rayData->boundingBoxMin = glm::vec3(0.0f);
-            rayData->boundingBoxMax = glm::vec3(0.0f, 0.0f, 1.0f);
+                        rayData->boundingBoxMin = glm::vec3(0.0f);
+                        rayData->boundingBoxMax = glm::vec3(0.0f, 0.0f, 1.0f);
 
-            scene->engine.assetManagerInterface->saveAsset(rayData->rootNode.mChildren[0].meshes[0].get()->id);
+                        scene->engine.assetManagerInterface->saveAsset(rayData->rootNode.mChildren[0].meshes[0].get()->id);
+                    }
+                }
+            }
         }
         else
         {
@@ -61,37 +72,43 @@ namespace engine::ecs
         auto cubeUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("internalCubeModel");
         if (!cubeUuidOpt.has_value())
         {
-            cubeAssetUuid = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalCubeModel","internalCubeModel").value();
-            auto cubeData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(cubeAssetUuid);
-            cubeMeshUuid = cubeData->rootNode.mChildren[0].meshes[0].get()->id;
-            auto meshData = cubeData->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>();
+            auto createRes = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalCubeModel","internalCubeModel");
+            if (createRes.has_value()) {
+                cubeAssetUuid = createRes.value();
+                auto cubeData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(cubeAssetUuid);
+                if (cubeData && !cubeData->rootNode.mChildren.empty() && !cubeData->rootNode.mChildren[0].meshes.empty()) {
+                    cubeMeshUuid = cubeData->rootNode.mChildren[0].meshes[0].get()->id;
+                    auto meshData = cubeData->rootNode.mChildren[0].meshes[0].get()->getAsset()->getAssetDataAs<am::MeshData>();
+                    if (meshData) {
+                        meshData->vertices.resize(8);
+                        for (int i = 0; i < 8; ++i) {
+                            meshData->vertices[i].Position = glm::vec3(
+                                (i & 1) ? 1.0f : -1.0f,
+                                (i & 2) ? 1.0f : -1.0f,
+                                (i & 4) ? 1.0f : -1.0f
+                            );
+                            meshData->vertices[i].Color = glm::vec4(1.0f);
+                        }
 
-            meshData->vertices.resize(8);
-            for (int i = 0; i < 8; ++i) {
-                meshData->vertices[i].Position = glm::vec3(
-                    (i & 1) ? 1.0f : -1.0f,
-                    (i & 2) ? 1.0f : -1.0f,
-                    (i & 4) ? 1.0f : -1.0f
-                );
-                meshData->vertices[i].Color = glm::vec4(1.0f);
+                        meshData->indices = {
+                            0, 2, 3, 0, 3, 1, // Back
+                            4, 5, 7, 4, 7, 6, // Front
+                            0, 4, 6, 0, 6, 2, // Left
+                            1, 3, 7, 1, 7, 5, // Right
+                            0, 1, 5, 0, 5, 4, // Bottom
+                            2, 6, 7, 2, 7, 3  // Top
+                        };
+
+                        meshData->boundingBoxMin = glm::vec3(-1.0f);
+                        meshData->boundingBoxMax = glm::vec3(1.0f);
+
+                        cubeData->boundingBoxMin = glm::vec3(-1.0f);
+                        cubeData->boundingBoxMax = glm::vec3(1.0f);
+
+                        scene->engine.assetManagerInterface->saveAsset(cubeData->rootNode.mChildren[0].meshes[0].get()->id);
+                    }
+                }
             }
-
-            meshData->indices = {
-                0, 2, 3, 0, 3, 1, // Back
-                4, 5, 7, 4, 7, 6, // Front
-                0, 4, 6, 0, 6, 2, // Left
-                1, 3, 7, 1, 7, 5, // Right
-                0, 1, 5, 0, 5, 4, // Bottom
-                2, 6, 7, 2, 7, 3  // Top
-            };
-
-            meshData->boundingBoxMin = glm::vec3(-1.0f);
-            meshData->boundingBoxMax = glm::vec3(1.0f);
-
-            cubeData->boundingBoxMin = glm::vec3(-1.0f);
-            cubeData->boundingBoxMax = glm::vec3(1.0f);
-
-            scene->engine.assetManagerInterface->saveAsset(cubeData->rootNode.mChildren[0].meshes[0].get()->id);
         }
         else
         {
@@ -102,18 +119,26 @@ namespace engine::ecs
             }
         }
 
-        if (rayMeshUuid != boost::uuids::nil_uuid()) {
-            rayMeshHandle = scene->engine.graphicsEngine->loadMesh(rayMeshUuid);
-        }
-        if (cubeMeshUuid != boost::uuids::nil_uuid()) {
-            cubeMeshHandle = scene->engine.graphicsEngine->loadMesh(cubeMeshUuid);
-        }
+        if (scene->engine.graphicsEngine) {
+            if (rayMeshUuid != boost::uuids::nil_uuid()) {
+                rayMeshHandle = scene->engine.graphicsEngine->loadMesh(rayMeshUuid);
+            }
+            if (cubeMeshUuid != boost::uuids::nil_uuid()) {
+                cubeMeshHandle = scene->engine.graphicsEngine->loadMesh(cubeMeshUuid);
+            }
 
-        rayShaderUuid = scene->engine.assetManagerInterface->getAssetUuid("raycastShader").value();
-        rayShaderHandle = scene->engine.graphicsEngine->loadShader(rayShaderUuid);
+            auto rayShaderOpt = scene->engine.assetManagerInterface->getAssetUuid("raycastShader");
+            if (rayShaderOpt.has_value()) {
+                rayShaderUuid = rayShaderOpt.value();
+                rayShaderHandle = scene->engine.graphicsEngine->loadShader(rayShaderUuid);
+            }
 
-        cubeShaderUuid = scene->engine.assetManagerInterface->getAssetUuid("wiremeshShader").value();
-        cubeShaderHandle = scene->engine.graphicsEngine->loadShader(cubeShaderUuid);
+            auto cubeShaderOpt = scene->engine.assetManagerInterface->getAssetUuid("wiremeshShader");
+            if (cubeShaderOpt.has_value()) {
+                cubeShaderUuid = cubeShaderOpt.value();
+                cubeShaderHandle = scene->engine.graphicsEngine->loadShader(cubeShaderUuid);
+            }
+        }
     }
 
     void GizmoSystem::Update(float deltaTime)

@@ -173,6 +173,10 @@ if (ENGINE_ENABLE_TESTS)
         target_link_libraries(engine_test
                 PRIVATE
                 engine
+                am
+                vks
+                platform
+                renderDocManager
                 Boost::unit_test_framework
         )
 
