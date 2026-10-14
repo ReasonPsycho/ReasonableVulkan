@@ -910,10 +910,15 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         }
 
         auto resolveFull = [&](const std::filesystem::path& p) -> std::filesystem::path {
+            std::string pStr = p.string();
             if (p.is_absolute()) {
+                size_t resPos = pStr.find("res\\");
+                if (resPos == std::string::npos) resPos = pStr.find("res/");
+                if (resPos != std::string::npos) {
+                    return (std::filesystem::path(resourceFolder) / pStr.substr(resPos + 4)).lexically_normal();
+                }
                 return p.lexically_normal();
             }
-            std::string pStr = p.string();
             if (pStr.rfind("res/", 0) == 0 || pStr.rfind("res\\", 0) == 0) {
                 return (std::filesystem::path(resourceFolder) / pStr.substr(4)).lexically_normal();
             }
@@ -1467,8 +1472,16 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         std::filesystem::path importP(context.importPath);
         std::error_code ec;
         if (!std::filesystem::exists(importP, ec)) {
-            if (std::filesystem::exists(std::filesystem::path(resourceFolder) / importP, ec)) {
-                importP = std::filesystem::path(resourceFolder) / importP;
+            std::string impStr = importP.string();
+            size_t resPos = impStr.find("res\\");
+            if (resPos == std::string::npos) resPos = impStr.find("res/");
+            if (resPos != std::string::npos) {
+                auto candidate = (std::filesystem::path(resourceFolder) / impStr.substr(resPos + 4)).lexically_normal();
+                if (std::filesystem::exists(candidate, ec)) {
+                    importP = candidate;
+                }
+            } else if (std::filesystem::exists((std::filesystem::path(resourceFolder) / importP).lexically_normal(), ec)) {
+                importP = (std::filesystem::path(resourceFolder) / importP).lexically_normal();
             }
         }
         context.importPath = importP.lexically_normal().string();
