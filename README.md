@@ -37,10 +37,10 @@ My custom modular ECS game engine featuring bindless Vulkan rendering, a fully-f
 - **High-Performance ECS**: Minimal-overhead Entity-Component-System architecture using cache-friendly contiguous component storage.
 ![FPS.gif](showcase/FPS.gif)
 A high level of optimization and performance allows for scenes containing 100k separate entities with nine mesh+material variants and one directional light while still maintaining a stable 20+ FPS.
-- **Fast Compilation Times**: Modular architecture and decoupled template implementations to minimize developer build friction.
+- **Fast Compilation Times**: Modular architecture and decoupled template implementations to minimize developer build times.
 ![Speed.gif](showcase/Speed.gif)
-Allowing the build tyme of 30k+ lines of code in just above 30 seconds.
-- **Custom Engine Asset Formats**: Streamlined binary formats and UUID-based caching for near-instant asset startup.
+Allowing the build time of 30k+ lines of code in just above 30 seconds.
+- **Custom Engine Asset Formats**: Streamlined binary formats and UUID-based caching for near-instant engine startup.
 ![Speed2.gif](showcase/Speed2.gif)
 Makes so startup time is only a couple seconds.
 ### Testing & Profiling
@@ -81,4 +81,4 @@ Available presets:
 
 - After build, a symbolic link to the ``res/`` folder is created in the build directory.
 - Implicit Vulkan layers are disabled via `VK_LOADER_LAYERS_DISABLE=~implicit~` in CMake presets because they caused Vulkan validation layers to crash.
-- There is plugin available for Clion here: https://github.com/ReasonPsycho/ReasonableVulkanPlugin
+- There is a plugin available for Clion here: https://github.com/ReasonPsycho/ReasonableVulkanPlugin
