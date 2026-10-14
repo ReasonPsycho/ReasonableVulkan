@@ -60,7 +60,7 @@ The engine currently supports GLSL using `glslang` for compilation.
 - **Namespaces**: Use module-specific namespaces like `am`, `vks`, `gfx`.
 
 ## Testing
-- For the time being, don't run any tests unless the user requests.
+- Each module should have its own test suite to ensure functionality and compatibility.
 
 ## Documentation & Notes
 ### Project READMEs
