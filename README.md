@@ -13,14 +13,15 @@ My custom modular ECS game engine.
 - **Hierarchical Scene Graph**: Intuitive entity hierarchy with transform inheritance across nested objects.
 ![SceneGraph.gif](showcase/SceneGraph.gif)
 - **Integrated File Browser**: Fully functional asset browser for managing textures, models, shaders, and project resources.
-gif
+![FileBrowser.gif](showcase/FileBrowser.gif)
 - **Undo / Redo System**: Command-based history supporting `Ctrl+Z` / `Ctrl+Y` actions across entity and scene modifications.
-gif
+![History.gif](showcase/History.gif)
 - **Multi-Scene & Prefabs**: Seamlessly switch between active scenes and instantiate reusable prefab templates.
-gif
+![Prefabs.gif](showcase/Prefabs.gif)
 - **CLion Plugin Integration**: Direct IDE connection for synchronized workflows, project control, and development convenience.
-gif
+![Plugin.gif](showcase/Plugin.gif)
 - **Scripting with Hot Reloading**: Rapid iteration via dynamic script reloading without restarting the engine.
+![Scripts.gif](showcase/Scripts.gif)
 
 ### Optimization & Performance
 gif

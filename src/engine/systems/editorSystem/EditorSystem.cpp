@@ -807,13 +807,14 @@ void EditorSystem::ImguiToolbar()
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical, 2.0f);
     ImGui::SameLine();
 
-    if (!CanUndo()) ImGui::BeginDisabled(true);
+    bool canUndo = CanUndo();
+    ImGui::BeginDisabled(!canUndo);
     if (ImGui::Button(ICON_FA_ROTATE_LEFT " Undo")) {
         Undo();
     }
-    if (!CanUndo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        if (CanUndo()) {
+        if (canUndo) {
             ImGui::SetTooltip("Undo: %s (Ctrl+Z)", history.GetUndoName().c_str());
         } else {
             ImGui::SetTooltip("Nothing to undo (Ctrl+Z)");
@@ -821,13 +822,14 @@ void EditorSystem::ImguiToolbar()
     }
 
     ImGui::SameLine();
-    if (!CanRedo()) ImGui::BeginDisabled(true);
+    bool canRedo = CanRedo();
+    ImGui::BeginDisabled(!canRedo);
     if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Redo")) {
         Redo();
     }
-    if (!CanRedo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        if (CanRedo()) {
+        if (canRedo) {
             ImGui::SetTooltip("Redo: %s (Ctrl+Shift+Z / Ctrl+Y)", history.GetRedoName().c_str());
         } else {
             ImGui::SetTooltip("Nothing to redo (Ctrl+Shift+Z / Ctrl+Y)");
@@ -890,7 +892,7 @@ void EditorSystem::ImguiToolbar()
     ImGui::SameLine();
 
     // Pause button
-    if (!isPlaying) ImGui::BeginDisabled(true);
+    ImGui::BeginDisabled(!isPlaying);
     if (isPaused) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.6f, 0.15f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.7f, 0.2f, 1.0f));
@@ -902,7 +904,7 @@ void EditorSystem::ImguiToolbar()
     if (isPaused) {
         ImGui::PopStyleColor(3);
     }
-    if (!isPlaying) ImGui::EndDisabled();
+    ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         ImGui::SetTooltip(isPaused ? "Resume Game (Ctrl+Shift+P)" : "Pause Game (Ctrl+Shift+P)");
     }
@@ -910,11 +912,11 @@ void EditorSystem::ImguiToolbar()
     ImGui::SameLine();
 
     // Stop button
-    if (!isPlaying) ImGui::BeginDisabled(true);
+    ImGui::BeginDisabled(!isPlaying);
     if (ImGui::Button(ICON_FA_STOP " Stop")) {
         if (engine) engine->StopPlayMode();
     }
-    if (!isPlaying) ImGui::EndDisabled();
+    ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         ImGui::SetTooltip("Stop Game and reset scene state");
     }
@@ -2756,26 +2758,29 @@ void EditorSystem::ImGuiHistoryWindow(const std::string& windowName)
     const auto& redoStack = history.GetRedoStack();
 
     // Top action bar
-    if (!CanUndo()) ImGui::BeginDisabled(true);
+    bool canUndo = CanUndo();
+    ImGui::BeginDisabled(!canUndo);
     if (ImGui::Button(ICON_FA_ROTATE_LEFT " Undo (Ctrl+Z)")) {
         Undo();
     }
-    if (!CanUndo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
 
-    if (!CanRedo()) ImGui::BeginDisabled(true);
+    bool canRedo = CanRedo();
+    ImGui::BeginDisabled(!canRedo);
     if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Redo (Ctrl+Shift+Z)")) {
         Redo();
     }
-    if (!CanRedo()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (undoStack.empty() && redoStack.empty()) ImGui::BeginDisabled(true);
+    bool canClear = !undoStack.empty() || !redoStack.empty();
+    ImGui::BeginDisabled(!canClear);
     if (ImGui::Button("Clear")) {
         history.Clear();
     }
-    if (undoStack.empty() && redoStack.empty()) ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
     ImGui::Separator();
 
