@@ -29,6 +29,7 @@ namespace engine::editor {
         // Thumbnails
         virtual void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) = 0;
         virtual bool QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath) = 0;
+        virtual void InvalidateThumbnail(const boost::uuids::uuid& assetId) {}
 
         // Asset preview
         virtual std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) = 0;

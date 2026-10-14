@@ -64,6 +64,7 @@ namespace vks {
 		void* getViewportTexturePointer(uint32_t cameraIndex) override;
 
 		void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) override;
+		void invalidateThumbnail(const boost::uuids::uuid& id) override;
 		bool captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth = 128, int targetHeight = 128) override;
 
 		void cleanup();

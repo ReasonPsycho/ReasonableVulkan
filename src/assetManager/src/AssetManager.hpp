@@ -181,6 +181,7 @@ namespace am {
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, boost::uuids::uuid> lookupNamesToUUIDs;
+        std::unordered_map<std::string, boost::uuids::uuid> pathToUUID;
         std::unordered_map<std::type_index, AssetCreator> creators;
         std::unordered_map<std::type_index, AssetImporter> importers;
         std::unordered_map<std::type_index, AssetJsonSaver> jsonSavers;

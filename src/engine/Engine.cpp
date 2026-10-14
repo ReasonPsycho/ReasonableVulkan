@@ -622,7 +622,7 @@ namespace engine {
 
             // 3. Create Camera Entity
             TransformComponent camTransform;
-            camTransform.position = glm::vec3(0.0f, maxDim * 0.3f, distance);
+            camTransform.position = glm::vec3(0.5f, maxDim * 0.3f, distance);
             camTransform.rotation = glm::quatLookAt(glm::normalize(-camTransform.position), glm::vec3(0, 1, 0));
             ecs::Entity camEntity = scene->CreateEntity("Main Camera", camTransform);
 
@@ -631,6 +631,8 @@ namespace engine {
             camComp.nearPlane = std::max(0.01f, distance * 0.01f);
             camComp.farPlane = distance * 100.0f;
             camComp.active = true;
+            camComp.skyboxType = CameraComponent::SkyboxType::Color;
+            camComp.skyboxData = SkyboxColorData{glm::vec4(0.2f, 0.2f, 0.2f, 1.0f)};
             scene->AddComponent<CameraComponent>(camEntity, camComp);
 
             return true;
@@ -712,7 +714,7 @@ namespace engine {
 
             // 3. Create Camera Entity
             TransformComponent camTransform;
-            camTransform.position = glm::vec3(0.0f, maxDim * 0.3f, distance);
+            camTransform.position = glm::vec3(0.5f, maxDim * 0.3f, distance);
             camTransform.rotation = glm::quatLookAt(glm::normalize(-camTransform.position), glm::vec3(0, 1, 0));
             ecs::Entity camEntity = scene->CreateEntity("Main Camera", camTransform);
 
@@ -721,6 +723,8 @@ namespace engine {
             camComp.nearPlane = std::max(0.01f, distance * 0.01f);
             camComp.farPlane = distance * 100.0f;
             camComp.active = true;
+            camComp.skyboxType = CameraComponent::SkyboxType::Color;
+            camComp.skyboxData = SkyboxColorData{glm::vec4(0.2f, 0.2f, 0.2f, 1.0f)};
             scene->AddComponent<CameraComponent>(camEntity, camComp);
 
             return true;
