@@ -109,11 +109,12 @@ namespace engine::ecs
 
         const      std::unordered_map<std::type_index, std::shared_ptr<SystemBase>>GetSystems();
 
-        // Scene Graph
+        // Scene Graph / Hierarchy
         void SetParent(Entity child, Entity parent);
         void RemoveParent(Entity child);
         Entity GetParent(Entity entity) const;
-        const std::vector<Entity>& GetChildren(Entity entity) const;
+        std::vector<Entity> GetChildren(Entity entity) const;
+        std::vector<Entity> GetRootEntities() const;
         bool HasParent(Entity entity) const;
         bool IsAncestor(Entity potentialAncestor, Entity entity) const;
 
@@ -146,8 +147,10 @@ namespace engine::ecs
         Entity InstantiateModel(boost::uuids::uuid modelOrMeshUuid, Entity parentEntity = -1);
         void AddComponent(const std::type_index& type);
 
-        std::unordered_map<Entity, TransformNode> sceneGraph;
-        std::vector<Entity> rootEntities;
+        std::vector<FlatTransformEntry>& GetFlatHierarchy() { return flatHierarchy; }
+        const std::vector<FlatTransformEntry>& GetFlatHierarchy() const { return flatHierarchy; }
+
+        std::vector<FlatTransformEntry> flatHierarchy;
 
         CameraObject GetActiveCamera();
 
@@ -156,6 +159,7 @@ namespace engine::ecs
 
         boost::uuids::uuid sceneId{boost::uuids::nil_uuid()};
     private:
+        std::vector<int32_t> entityToFlatIndex;
         SceneType sceneType = SceneType::Default;
 
         //Entities

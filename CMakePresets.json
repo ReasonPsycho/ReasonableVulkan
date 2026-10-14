@@ -58,8 +58,10 @@
       "displayName": "Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "GFX_ENABLE_TESTS": "OFF",
-        "SPDLOG_DISABLE_LOGGING": "ON"
+        "SPDLOG_DISABLE_LOGGING": "ON",
+        "EDITOR_ENABLED": "ON",
+        "ENABLE_IMGUI": "ON",
+        "PLATFORM_SDL3": "ON"
       }
     }
   ],
@@ -72,6 +74,11 @@
     {
       "name": "tests-parallel",
       "configurePreset": "tests",
+      "jobs": 0
+    },
+    {
+      "name": "release-parallel",
+      "configurePreset": "release",
       "jobs": 0
     }
   ]

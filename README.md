@@ -24,21 +24,24 @@ My custom modular ECS game engine.
 ![Scripts.gif](showcase/Scripts.gif)
 
 ### Optimization & Performance
-gif
 - **Bindless Vulkan Architecture**: High-throughput rendering with reduced CPU-GPU synchronization and flexible descriptor management.
 - **High-Performance ECS**: Minimal-overhead Entity-Component-System architecture utilizing cache-friendly contiguous component storage.
-gif
+![FPS.gif](showcase/FPS.gif)
+A high level of optimization and performance allows for scenes containing 100k objects with nine mesh+material variants and one directional light while still maintaining a stable 20+ FPS.
 - **Fast Compilation Times**: Modular architecture and decoupled template implementations to minimize developer build friction.
-gif
+![Speed.gif](showcase/Speed.gif)
+Allowing the build tyme of 30k+ lines of code in just above 30 seconds.
 - **Custom Engine Asset Formats**: Streamlined binary formats and UUID-based caching for near-instant asset ingestion.
-
+![Speed2.gif](showcase/Speed2.gif)
+Makes so startup time is only a couple seconds.
 ### Testing & Profiling
 gif
 - **Automated Test Suite**: Unit and integration test coverage for core systems, ECS lifecycle, and asset management.
-gif
 - **RenderDoc Integration**: Native support for in-depth Vulkan frame captures and graphics debugging.
-gif
+![Tracy.gif](showcase/Tracy.gif)
+
 - **Tracy Profiler Integration**: Comprehensive real-time CPU/GPU performance tracing and frame budget analysis.
+![Tracy.gif](showcase/Tracy.gif)
 
 ## Installation
 

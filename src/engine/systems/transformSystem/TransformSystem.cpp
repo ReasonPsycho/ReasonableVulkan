@@ -7,29 +7,27 @@ using namespace engine::ecs;
 void TransformSystem::Update(float /*deltaTime*/)
 {
     auto& transforms = scene->GetIntegralComponentArray<TransformComponent>()->GetComponents();
+    auto& flatHierarchy = scene->GetFlatHierarchy();
 
-    for (Entity root : scene->rootEntities)
+    for (size_t i = 0; i < flatHierarchy.size(); ++i)
     {
-        UpdateTransformRecursive(root, nullptr, transforms);
-    }
-}
+        auto& entry = flatHierarchy[i];
+        TransformComponent& current = transforms[entry.entity];
 
-void TransformSystem::UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<TransformComponent, MAX_ENTITIES>& transforms)
-{
-    TransformComponent& current = transforms[entity];
-    bool isDirty = current.isDirty || (parentMatrix != nullptr);
+        bool parentDirty = (entry.parentIndex >= 0) && flatHierarchy[entry.parentIndex].isDirty;
+        bool isDirty = current.isDirty || parentDirty;
+        entry.isDirty = isDirty;
 
-    if (isDirty)
-    {
-        computeGlobalMatrix(current, parentMatrix ? *parentMatrix : glm::mat4(1.0f));
-    }
-
-    auto it = scene->sceneGraph.find(entity);
-    if (it != scene->sceneGraph.end())
-    {
-        for (Entity child : it->second.children)
+        if (isDirty)
         {
-            UpdateTransformRecursive(child, &current.globalMatrix, transforms);
+            if (entry.parentIndex >= 0)
+            {
+                computeGlobalMatrix(current, transforms[entry.parent].globalMatrix);
+            }
+            else
+            {
+                computeGlobalMatrixRoot(current);
+            }
         }
     }
 }
