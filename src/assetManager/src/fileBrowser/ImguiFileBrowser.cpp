@@ -458,6 +458,12 @@ namespace am {
 
             {
                 ZoneScopedN("FileBrowser_RenderTiles");
+                std::vector<std::filesystem::path> currentDragPaths;
+                const ImGuiPayload* curPayload = ImGui::GetDragDropPayload();
+                if (curPayload && curPayload->IsDataType("AM_FILE_PATH") && curPayload->Data) {
+                    currentDragPaths = ParseFilePathPayload(curPayload);
+                }
+
                 for (size_t i = 0; i < entries.size(); ++i)
                 {
                     const auto& entry = entries[i];
@@ -476,12 +482,9 @@ namespace am {
 
                     // Drag detection
                     bool isBeingDragged = false;
-                    const ImGuiPayload* curPayload = ImGui::GetDragDropPayload();
-                    if (curPayload && curPayload->IsDataType("AM_FILE_PATH") && curPayload->Data) {
-                        auto droppedPaths = ParseFilePathPayload(curPayload);
-                        std::error_code ecDrag;
-                        for (const auto& dp : droppedPaths) {
-                            if (std::filesystem::equivalent(path, dp, ecDrag)) {
+                    if (!currentDragPaths.empty()) {
+                        for (const auto& dp : currentDragPaths) {
+                            if (path == dp) {
                                 isBeingDragged = true;
                                 break;
                             }
@@ -534,7 +537,6 @@ namespace am {
                             ImGui::BeginGroup();
                             void* dragThumb = nullptr;
                             if (!entry.is_directory() && assetManager) {
-                                ZoneScopedN("FileBrowser_GetDragThumbnail");
                                 dragThumb = assetManager->getThumbnailTexture(path);
                             }
                             if (dragThumb != nullptr) {
@@ -756,13 +758,13 @@ namespace am {
                             ImGui::EndPopup();
                         }
                     } else {
-                        auto fileUuid = assetManager ? assetManager->getAssetUuidByPath(path) : std::nullopt;
-                        bool isRegistered = fileUuid.has_value();
-                        bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
                         AssetType type = GetAssetTypeFromExtension(path.extension().string());
 
                         if (type == AssetType::Scene && assetManager && assetManager->getEngine()) {
                             if (ImGui::BeginPopupContextItem("##SceneContext")) {
+                                auto fileUuid = assetManager->getAssetUuidByPath(path);
+                                bool isRegistered = fileUuid.has_value();
+                                bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
                                 if (selectedFiles.size() <= 1 || !isSelected) {
                                     setSelectedFile(path);
                                     if (isRegistered) {
@@ -792,6 +794,9 @@ namespace am {
                             }
                         } else if ((type == AssetType::Model || type == AssetType::Mesh || type == AssetType::Material) && assetManager && assetManager->getEditor()) {
                             if (ImGui::BeginPopupContextItem("##ModelContext")) {
+                                auto fileUuid = assetManager->getAssetUuidByPath(path);
+                                bool isRegistered = fileUuid.has_value();
+                                bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
                                 if (selectedFiles.size() <= 1 || !isSelected) {
                                     setSelectedFile(path);
                                     if (isRegistered) {
@@ -821,6 +826,9 @@ namespace am {
                             }
                         } else {
                             if (ImGui::BeginPopupContextItem("##FileContext")) {
+                                auto fileUuid = assetManager ? assetManager->getAssetUuidByPath(path) : std::nullopt;
+                                bool isRegistered = fileUuid.has_value();
+                                bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
                                 if (selectedFiles.size() <= 1 || !isSelected) {
                                     setSelectedFile(path);
                                     if (isRegistered) {
@@ -870,7 +878,6 @@ namespace am {
 
                     void* thumbTex = nullptr;
                     if (!entry.is_directory() && assetManager) {
-                        ZoneScopedN("FileBrowser_GetThumbnail");
                         thumbTex = assetManager->getThumbnailTexture(path);
                     }
 
@@ -901,10 +908,27 @@ namespace am {
                     bool isTruncated = false;
                     if (textWidth > iconSize) {
                         isTruncated = true;
-                        while (!truncated.empty() && textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, (truncated + "...").c_str()).x > iconSize) {
-                            truncated.pop_back();
+                        float ellipsisWidth = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, "...").x;
+                        float maxPrefixWidth = iconSize - ellipsisWidth;
+                        if (maxPrefixWidth <= 0.0f) {
+                            truncated = "...";
+                        } else {
+                            size_t low = 0, high = truncated.size();
+                            size_t bestLen = 0;
+                            while (low <= high) {
+                                size_t mid = low + (high - low) / 2;
+                                float w = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, truncated.c_str(), truncated.c_str() + mid).x;
+                                if (w <= maxPrefixWidth) {
+                                    bestLen = mid;
+                                    low = mid + 1;
+                                } else {
+                                    if (mid == 0) break;
+                                    high = mid - 1;
+                                }
+                            }
+                            truncated.resize(bestLen);
+                            truncated += "...";
                         }
-                        truncated += "...";
                         textWidth = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, truncated.c_str()).x;
                     }
 
@@ -1021,10 +1045,7 @@ namespace am {
                             std::vector<std::filesystem::path> combined = boxSelectPreSelection;
                             for (const auto& p : inBoxPaths)
                             {
-                                auto it = std::find_if(combined.begin(), combined.end(), [&p](const std::filesystem::path& item) {
-                                    std::error_code ec;
-                                    return item == p || std::filesystem::equivalent(item, p, ec);
-                                });
+                                auto it = std::find(combined.begin(), combined.end(), p);
                                 if (it != combined.end())
                                 {
                                     combined.erase(it);
@@ -1041,10 +1062,7 @@ namespace am {
                             std::vector<std::filesystem::path> combined = boxSelectPreSelection;
                             for (const auto& p : inBoxPaths)
                             {
-                                auto it = std::find_if(combined.begin(), combined.end(), [&p](const std::filesystem::path& item) {
-                                    std::error_code ec;
-                                    return item == p || std::filesystem::equivalent(item, p, ec);
-                                });
+                                auto it = std::find(combined.begin(), combined.end(), p);
                                 if (it == combined.end())
                                 {
                                     combined.push_back(p);
@@ -1665,9 +1683,8 @@ namespace am {
     void FileBrowser::addSelectedFile(const std::filesystem::path& path)
     {
         if (path.empty()) return;
-        std::error_code ec;
         for (const auto& p : selectedFiles) {
-            if (p == path || std::filesystem::equivalent(p, path, ec)) return;
+            if (p == path) return;
         }
         selectedFiles.push_back(path);
         selectedFile = path;
@@ -1676,10 +1693,9 @@ namespace am {
 
     void FileBrowser::removeSelectedFile(const std::filesystem::path& path)
     {
-        std::error_code ec;
         selectedFiles.erase(std::remove_if(selectedFiles.begin(), selectedFiles.end(),
-            [&path, &ec](const std::filesystem::path& p) {
-                return p == path || std::filesystem::equivalent(p, path, ec);
+            [&path](const std::filesystem::path& p) {
+                return p == path;
             }), selectedFiles.end());
         selectedFile = selectedFiles.empty() ? std::filesystem::path() : selectedFiles.back();
     }
@@ -1692,9 +1708,8 @@ namespace am {
 
     bool FileBrowser::isFileSelected(const std::filesystem::path& path) const
     {
-        std::error_code ec;
         for (const auto& p : selectedFiles) {
-            if (p == path || std::filesystem::equivalent(p, path, ec)) {
+            if (p == path) {
                 return true;
             }
         }
@@ -1809,11 +1824,15 @@ namespace am {
                         it->second->path = target.string();
                         assetManager->saveAssetMetadata(uuidOpt.value());
                     }
+                    assetManager->pathToUUID.erase(sourcePath.lexically_normal().string());
+                    assetManager->pathToUUID.erase(sourcePath.generic_string());
+                    assetManager->pathToUUID[target.lexically_normal().string()] = uuidOpt.value();
+                    assetManager->pathToUUID[target.generic_string()] = uuidOpt.value();
                 }
             }
 
             for (auto& p : selectedFiles) {
-                if (p == sourcePath || std::filesystem::equivalent(p, sourcePath, ec)) {
+                if (p == sourcePath) {
                     p = target;
                 }
             }
@@ -1893,6 +1912,8 @@ namespace am {
                 if (uuidOpt.has_value()) {
                     assetManager->metadata.erase(uuidOpt.value());
                     assetManager->assets.erase(uuidOpt.value());
+                    assetManager->pathToUUID.erase(path.lexically_normal().string());
+                    assetManager->pathToUUID.erase(path.generic_string());
                 }
             }
 
@@ -2108,6 +2129,10 @@ namespace am {
                                 it->second->path = rec.sourcePath.string();
                                 assetManager->saveAssetMetadata(uuidOpt.value());
                             }
+                            assetManager->pathToUUID.erase(rec.targetPath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.targetPath.generic_string());
+                            assetManager->pathToUUID[rec.sourcePath.lexically_normal().string()] = uuidOpt.value();
+                            assetManager->pathToUUID[rec.sourcePath.generic_string()] = uuidOpt.value();
                         }
                     }
                     setSelectedFile(rec.sourcePath);
@@ -2125,6 +2150,8 @@ namespace am {
                         if (uuidOpt.has_value()) {
                             assetManager->metadata.erase(uuidOpt.value());
                             assetManager->assets.erase(uuidOpt.value());
+                            assetManager->pathToUUID.erase(rec.targetPath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.targetPath.generic_string());
                         }
                     }
                     std::filesystem::path metaPath = rec.targetPath.string() + ".meta";
@@ -2194,6 +2221,10 @@ namespace am {
                                 it->second->path = rec.targetPath.string();
                                 assetManager->saveAssetMetadata(uuidOpt.value());
                             }
+                            assetManager->pathToUUID.erase(rec.sourcePath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.sourcePath.generic_string());
+                            assetManager->pathToUUID[rec.targetPath.lexically_normal().string()] = uuidOpt.value();
+                            assetManager->pathToUUID[rec.targetPath.generic_string()] = uuidOpt.value();
                         }
                     }
                     setSelectedFile(rec.targetPath);
@@ -2259,6 +2290,8 @@ namespace am {
                         if (uuidOpt.has_value()) {
                             assetManager->metadata.erase(uuidOpt.value());
                             assetManager->assets.erase(uuidOpt.value());
+                            assetManager->pathToUUID.erase(rec.sourcePath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.sourcePath.generic_string());
                         }
                     }
                     removeSelectedFile(rec.sourcePath);

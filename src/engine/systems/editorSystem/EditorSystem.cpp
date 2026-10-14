@@ -2844,6 +2844,13 @@ void* EditorSystem::GetThumbnailTexture(const boost::uuids::uuid& assetId, const
     return nullptr;
 }
 
+void EditorSystem::InvalidateThumbnail(const boost::uuids::uuid& assetId)
+{
+    if (engine && engine->graphicsEngine) {
+        engine->graphicsEngine->invalidateThumbnail(assetId);
+    }
+}
+
 bool EditorSystem::QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath)
 {
     if (!engine) return false;

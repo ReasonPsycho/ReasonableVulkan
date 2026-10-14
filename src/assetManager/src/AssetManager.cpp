@@ -117,6 +117,8 @@ namespace am {
                 metadata.insert(std::make_pair(id, info));
             }
             lookupNamesToUUIDs.insert(std::make_pair(lookupName, id));
+            pathToUUID[std::filesystem::path(info->path).lexically_normal().string()] = id;
+            pathToUUID[std::filesystem::path(info->path).generic_string()] = id;
             assets[id] = std::move(newAsset);
             metadata[id]->loadedAsset = assets[id].get();
             saveAssetMetadata(id);
@@ -313,6 +315,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
         metadata.clear();
         lookupNamesToUUIDs.clear();
+        pathToUUID.clear();
         assets.clear();
 
         // 1. Attempt to load from metadata cache for fast startup
@@ -349,6 +352,12 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                         metadata[infoPtr->id] = infoPtr;
                         lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                        pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
+                        pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                        if (!infoPtr->importContext.importPath.empty()) {
+                            pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
+                            pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                        }
                     }
                 }
             }
@@ -458,6 +467,12 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                 metadata[infoPtr->id] = infoPtr;
                 lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
+                pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                if (!infoPtr->importContext.importPath.empty()) {
+                    pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
+                    pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                }
             }
         }
         return !metadata.empty();
@@ -544,6 +559,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     if (stbi_write_png(destPath.string().c_str(), thumbW, thumbH, 4, thumbPixels.data(), thumbW * 4)) {
                         info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
                         saveAssetMetadata(id);
+                        if (editor) editor->InvalidateThumbnail(id);
                         return true;
                     }
                 }
@@ -568,6 +584,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     if (stbi_write_png(destPath.string().c_str(), thumbW, thumbH, 4, thumbPixels.data(), thumbW * 4)) {
                         info->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(id) + ".png";
                         saveAssetMetadata(id);
+                        if (editor) editor->InvalidateThumbnail(id);
                         return true;
                     }
                 }
@@ -654,6 +671,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         // Clear existing data
         metadata.clear();
         lookupNamesToUUIDs.clear();
+        pathToUUID.clear();
         assets.clear();
 
         // Load metadata
@@ -663,6 +681,12 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
             metadata[infoPtr->id] = infoPtr;
             lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+            pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
+            pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+            if (!infoPtr->importContext.importPath.empty()) {
+                pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
+                pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+            }
         }
 
         return true;
@@ -949,8 +973,32 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     {
         std::filesystem::path normalPath = path.lexically_normal();
         std::string normalPathStr = normalPath.string();
+
+        auto itPath = pathToUUID.find(normalPathStr);
+        if (itPath != pathToUUID.end())
+        {
+            return itPath->second;
+        }
+
+        std::string genPathStr = normalPath.generic_string();
+        if (genPathStr != normalPathStr)
+        {
+            auto itGen = pathToUUID.find(genPathStr);
+            if (itGen != pathToUUID.end())
+            {
+                pathToUUID[normalPathStr] = itGen->second;
+                return itGen->second;
+            }
+        }
+
         auto ext = normalPath.extension().string();
         AssetType expectedType = GetAssetTypeFromExtension(ext);
+
+        auto cacheAndReturn = [this, &normalPathStr, &genPathStr](boost::uuids::uuid foundId) -> boost::uuids::uuid {
+            pathToUUID[normalPathStr] = foundId;
+            if (genPathStr != normalPathStr) pathToUUID[genPathStr] = foundId;
+            return foundId;
+        };
 
         // 1. Direct match on info->path
         for (const auto& [id, info] : metadata)
@@ -958,14 +1006,14 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             if (expectedType != AssetType::Other && info->type != expectedType) continue;
             if (isSamePath(info->path, normalPathStr, resourceFolder))
             {
-                return id;
+                return cacheAndReturn(id);
             }
         }
         for (const auto& [id, info] : metadata)
         {
             if (isSamePath(info->path, normalPathStr, resourceFolder))
             {
-                return id;
+                return cacheAndReturn(id);
             }
         }
 
@@ -975,14 +1023,14 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             if (expectedType != AssetType::Other && info->type != expectedType && info->importContext.assetType != expectedType) continue;
             if (!info->importContext.importPath.empty() && isSamePath(info->importContext.importPath, normalPathStr, resourceFolder))
             {
-                return id;
+                return cacheAndReturn(id);
             }
         }
         for (const auto& [id, info] : metadata)
         {
             if (!info->importContext.importPath.empty() && isSamePath(info->importContext.importPath, normalPathStr, resourceFolder))
             {
-                return id;
+                return cacheAndReturn(id);
             }
         }
 
@@ -991,7 +1039,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         auto it = lookupNamesToUUIDs.find(lookUpName);
         if (it != lookupNamesToUUIDs.end())
         {
-            return it->second;
+            return cacheAndReturn(it->second);
         }
 
         if (expectedType != AssetType::Other)
@@ -1000,7 +1048,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             it = lookupNamesToUUIDs.find(typedLookUpName);
             if (it != lookupNamesToUUIDs.end())
             {
-                return it->second;
+                return cacheAndReturn(it->second);
             }
         }
 
@@ -1008,7 +1056,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         it = lookupNamesToUUIDs.find(stemName);
         if (it != lookupNamesToUUIDs.end())
         {
-            return it->second;
+            return cacheAndReturn(it->second);
         }
 
         // 4. Match by stem and parent path against metadata
@@ -1018,13 +1066,13 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
             if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
             {
-                return id;
+                return cacheAndReturn(id);
             }
             if (!info->importContext.importPath.empty()) {
                 std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
                 if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
                 {
-                    return id;
+                    return cacheAndReturn(id);
                 }
             }
         }
@@ -1033,13 +1081,13 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
             if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
             {
-                return id;
+                return cacheAndReturn(id);
             }
             if (!info->importContext.importPath.empty()) {
                 std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
                 if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
                 {
-                    return id;
+                    return cacheAndReturn(id);
                 }
             }
         }
@@ -1057,7 +1105,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                         metadata[infoPtr->id] = infoPtr;
                         lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-                        return infoPtr->id;
+                        return cacheAndReturn(infoPtr->id);
                     }
                 }
             }
@@ -1071,7 +1119,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                         metadata[infoPtr->id] = infoPtr;
                         lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-                        return infoPtr->id;
+                        return cacheAndReturn(infoPtr->id);
                     }
                 }
             }
@@ -1088,7 +1136,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         metadata[fileId] = assetInfo;
                         lookupNamesToUUIDs[stemName] = fileId;
                         saveAssetMetadata(fileId);
-                        return fileId;
+                        return cacheAndReturn(fileId);
                     }
                 }
             }
@@ -1294,6 +1342,12 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             assets[id] = std::move(newAsset);
             info->loadedAsset = assets[id].get();
             lookupNamesToUUIDs[lookUpName] = id;
+            pathToUUID[std::filesystem::path(info->path).lexically_normal().string()] = id;
+            pathToUUID[std::filesystem::path(info->path).generic_string()] = id;
+            if (!info->importContext.importPath.empty()) {
+                pathToUUID[std::filesystem::path(info->importContext.importPath).lexically_normal().string()] = id;
+                pathToUUID[std::filesystem::path(info->importContext.importPath).generic_string()] = id;
+            }
             saveAssetMetadata(id);
             if (info->type == AssetType::Material)
             {

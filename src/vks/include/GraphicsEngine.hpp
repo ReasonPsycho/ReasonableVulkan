@@ -55,6 +55,7 @@ namespace gfx {
         virtual MaterialHandle getMaterialHandle(const std::string& lookUpName) = 0;
 
         virtual void* getThumbnailTexture(const boost::uuids::uuid& id, const std::string& thumbnailPath) { return nullptr; }
+        virtual void invalidateThumbnail(const boost::uuids::uuid& id) {}
         virtual bool captureOffscreenImage(uint32_t cameraIndex, const std::string& outputPath, int targetWidth = 128, int targetHeight = 128) { return false; }
 
         virtual void beginFrame() = 0;
