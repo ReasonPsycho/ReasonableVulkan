@@ -29,6 +29,7 @@ namespace engine::editor {
         // Thumbnails
         virtual void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) = 0;
         virtual bool QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath) = 0;
+        virtual void InvalidateThumbnail(const boost::uuids::uuid& assetId) {}
 
         // Asset preview
         virtual std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) = 0;
@@ -51,6 +52,13 @@ namespace engine::editor {
         virtual void ClearSelectedEntities() = 0;
         virtual bool IsEntitySelected(ecs::Entity entity) const = 0;
 
+        // Copy / Paste / Duplicate
+        virtual void CopySelectedEntities(ecs::Scene* sourceScene = nullptr) {}
+        virtual void PasteEntities(ecs::Scene* targetScene = nullptr) {}
+        virtual void PasteEntities(ecs::Scene* targetScene, ecs::Entity parent) {}
+        virtual void DuplicateSelectedEntities(ecs::Scene* targetScene = nullptr) {}
+        virtual bool HasEntitiesInClipboard() const { return false; }
+
         // Target / active scene in editor
         virtual ecs::Scene* GetTargetScene() const = 0;
         virtual std::shared_ptr<ecs::Scene> GetSelectedScene() const = 0;
@@ -64,6 +72,15 @@ namespace engine::editor {
         virtual void Redo() = 0;
         virtual bool CanUndo() const = 0;
         virtual bool CanRedo() const = 0;
+
+        // Play/Pause mode
+        virtual bool IsPlaying() const { return false; }
+        virtual bool IsPaused() const { return false; }
+        virtual void StartPlayMode() {}
+        virtual void StopPlayMode() {}
+        virtual void SetPaused(bool /*paused*/) {}
+        virtual void TogglePlay() {}
+        virtual void TogglePause() {}
 
     protected:
         EditorInterface() = default;

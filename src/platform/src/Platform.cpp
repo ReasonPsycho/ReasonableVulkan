@@ -3,6 +3,7 @@
 #include "AssetManagerInterface.h"
 #include <rapidjson/document.h>
 #include <filesystem>
+#include <fstream>
 #ifdef _WIN32
 #include <shellapi.h>
 #pragma comment(lib, "ws2_32.lib")
@@ -498,6 +499,118 @@ namespace  plt
         std::string request = "POST /open HTTP/1.1\r\n"
                               "Host: 127.0.0.1:63456\r\n"
                               "Content-Type: text/plain\r\n"
+                              "Content-Length: " + std::to_string(body.length()) + "\r\n"
+                              "Connection: close\r\n\r\n" + body;
+
+        send(sock, request.c_str(), request.length(), 0);
+
+        char buffer[256];
+        int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        bool success = false;
+        if (bytesReceived > 0) {
+            buffer[bytesReceived] = '\0';
+            if (strstr(buffer, "200 OK") != nullptr) {
+                success = true;
+            }
+        }
+        close(sock);
+        return success;
+#endif
+    }
+
+    bool Platform::NotifyIDEState(const std::string& state) {
+        if (state.empty()) return false;
+
+        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        std::string payload = state + ";" + std::to_string(now);
+        std::string jsonPayload = "{\"state\": \"" + state + "\", \"timestamp\": " + std::to_string(now) + "}";
+
+        try {
+            std::ofstream f1(".rv_state");
+            if (f1.is_open()) f1 << payload;
+            std::ofstream f2(".rv_state.signal");
+            if (f2.is_open()) f2 << jsonPayload;
+
+            auto tempDir = std::filesystem::temp_directory_path();
+            std::ofstream f3(tempDir / "rv_state");
+            if (f3.is_open()) f3 << payload;
+            std::ofstream f4(tempDir / "rv_state.signal");
+            if (f4.is_open()) f4 << jsonPayload;
+        } catch (...) {}
+
+#ifdef _WIN32
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            return false;
+        }
+
+        SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (sock == INVALID_SOCKET) {
+            WSACleanup();
+            return false;
+        }
+
+        DWORD timeout = 250;
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+
+        sockaddr_in serverAddr{};
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(63456);
+        inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+        if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+            closesocket(sock);
+            WSACleanup();
+            return false;
+        }
+
+        std::string body = jsonPayload;
+        std::string request = "POST /state HTTP/1.1\r\n"
+                              "Host: 127.0.0.1:63456\r\n"
+                              "Content-Type: application/json\r\n"
+                              "Content-Length: " + std::to_string(body.length()) + "\r\n"
+                              "Connection: close\r\n\r\n" + body;
+
+        send(sock, request.c_str(), static_cast<int>(request.length()), 0);
+
+        char buffer[256];
+        int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        bool success = false;
+        if (bytesReceived > 0) {
+            buffer[bytesReceived] = '\0';
+            if (strstr(buffer, "200 OK") != nullptr) {
+                success = true;
+            }
+        }
+
+        closesocket(sock);
+        WSACleanup();
+        return success;
+#else
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) return false;
+
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = 250000;
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+
+        sockaddr_in serverAddr{};
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(63456);
+        inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+        if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+            close(sock);
+            return false;
+        }
+
+        std::string body = jsonPayload;
+        std::string request = "POST /state HTTP/1.1\r\n"
+                              "Host: 127.0.0.1:63456\r\n"
+                              "Content-Type: application/json\r\n"
                               "Content-Length: " + std::to_string(body.length()) + "\r\n"
                               "Connection: close\r\n\r\n" + body;
 

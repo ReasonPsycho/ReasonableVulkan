@@ -26,6 +26,10 @@ namespace vks
         VkImageView view;
         uint32_t mipLevels;
         VkDescriptorImageInfo descriptor;
+        uint32_t slotIndex{0};
+
+        uint32_t getSlotIndex() const { return slotIndex; }
+        void setSlotIndex(uint32_t slot) { slotIndex = slot; }
 
         void updateDescriptor();
 

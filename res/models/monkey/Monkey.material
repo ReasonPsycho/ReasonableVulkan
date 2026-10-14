@@ -1,0 +1,37 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "uuid": "350230cf-5cf2-45f0-875c-edb8003c0039",
+  "baseColorTexture": "dbd94501-197e-4648-ba7e-900498ce9c7b",
+  "baseColorFactor": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "diffuseTexture": "dbd94501-197e-4648-ba7e-900498ce9c7b",
+  "metallicFactor": 1.0,
+  "roughnessFactor": 0.5,
+  "specularFactor": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "diffuseFactor": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "glossinessFactor": 1.0,
+  "occlusionStrength": 1.0,
+  "emissiveFactor": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "alphaCutoff": 1.0,
+  "isOpaque": true,
+  "useSpecularGlossiness": false
+}

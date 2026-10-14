@@ -58,12 +58,17 @@ add_subdirectory(src/engine)
 # Create the main executable target
 message(STATUS "Creating main executable target: ${PROJECT_NAME}")
 
+set(APP_RESOURCES "")
+if (WIN32)
+    set(APP_RESOURCES ReasonableVulkan.rc)
+endif ()
+
 if (MSVC)
     # Add executable with specific flags for MSVC
-    add_executable(${PROJECT_NAME} src/main.cpp)
+    add_executable(${PROJECT_NAME} src/main.cpp ${APP_RESOURCES})
     target_link_options(${PROJECT_NAME} PRIVATE "/SUBSYSTEM:CONSOLE" "/ENTRY:mainCRTStartup")
 else ()
-    add_executable(${PROJECT_NAME} src/main.cpp)
+    add_executable(${PROJECT_NAME} src/main.cpp ${APP_RESOURCES})
 endif ()
 
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
@@ -73,6 +78,7 @@ add_definitions(-DGLM_FORCE_DEPTH_ZERO_TO_ONE)
 # Link required libraries to the main executable
 message(STATUS "Linking libraries")
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 engine_interface vks_interface am_interface platform_interface engine vks am platform renderDocManager)
+add_dependencies(${PROJECT_NAME} gameplay_scripts)
 
 # ---- Post build linkage ----
 # Add and link to resource files in build folder
@@ -82,44 +88,51 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         ${CMAKE_CURRENT_BINARY_DIR}/res)
 
 if (ENABLE_INTEGRATION_TESTS)
-    message(STATUS "Configuring integration tests")
-
-    # Find Boost for testing
-    find_package(Boost REQUIRED COMPONENTS unit_test_framework)
-
-    # Create integration test executable
-    add_executable(integration_tests src/tests/integration/main_test.cpp)
-
-    target_link_libraries(integration_tests
-            PRIVATE
-            SDL3::SDL3
-            engine_interface
-            vks_interface
-            am_interface
-            platform_interface
-            engine
-            vks
-            am
-            platform
-            renderDocManager
-            Boost::unit_test_framework
+    file(GLOB_RECURSE INTEGRATION_TEST_SRC
+            "${CMAKE_SOURCE_DIR}/src/tests/integration/*.cpp"
+            "${CMAKE_SOURCE_DIR}/src/tests/integration/*.hpp"
     )
 
-    target_include_directories(integration_tests
-            PRIVATE
-            ${CMAKE_SOURCE_DIR}/src
-    )
+    if (INTEGRATION_TEST_SRC)
+        message(STATUS "Configuring integration tests")
+
+        # Find Boost for testing
+        find_package(Boost REQUIRED COMPONENTS unit_test_framework)
+
+        # Create integration test executable
+        add_executable(integration_tests ${INTEGRATION_TEST_SRC})
+
+        target_link_libraries(integration_tests
+                PRIVATE
+                SDL3::SDL3
+                engine_interface
+                vks_interface
+                am_interface
+                platform_interface
+                engine
+                vks
+                am
+                platform
+                renderDocManager
+                Boost::unit_test_framework
+        )
+
+        target_include_directories(integration_tests
+                PRIVATE
+                ${CMAKE_SOURCE_DIR}/src
+        )
 
 
-    # Copy resources for integration tests
-    add_custom_command(TARGET integration_tests POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E create_symlink
-            ${CMAKE_SOURCE_DIR}/res
-            ${CMAKE_CURRENT_BINARY_DIR}/res
-    )
+        # Copy resources for integration tests
+        add_custom_command(TARGET integration_tests POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E create_symlink
+                ${CMAKE_SOURCE_DIR}/res
+                ${CMAKE_CURRENT_BINARY_DIR}/res
+        )
 
-    # Enable CTest
-    enable_testing()
-    add_test(NAME integration_tests COMMAND integration_tests)
-    set_tests_properties(integration_tests PROPERTIES ENVIRONMENT "VK_LOADER_LAYERS_DISABLE=~implicit~")
+        # Enable CTest
+        enable_testing()
+        add_test(NAME integration_tests COMMAND integration_tests)
+        set_tests_properties(integration_tests PROPERTIES ENVIRONMENT "VK_LOADER_LAYERS_DISABLE=~implicit~")
+    endif ()
 endif ()

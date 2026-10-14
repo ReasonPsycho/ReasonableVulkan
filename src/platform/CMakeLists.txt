@@ -4,7 +4,6 @@ message(STATUS "Running platform cmake")
 file(GLOB_RECURSE BASE_SRC
         "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
@@ -46,32 +45,34 @@ endif ()
 
 # Configure tests
 if (PLATFORM_ENABLE_TESTS)
-    message(STATUS "Configuring Platform tests")
-
-    # Find Boost with test components
-    find_package(Boost REQUIRED COMPONENTS unit_test_framework)
-
     # Define test sources
     file(GLOB_RECURSE TEST_SRC
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.hpp"
     )
 
-    # Create test executable
-    add_executable(platform_tests ${TEST_SRC})
-    target_link_libraries(platform_tests
-            PRIVATE
-            platform
-            Boost::unit_test_framework
-    )
+    if (TEST_SRC)
+        message(STATUS "Configuring Platform tests")
 
-    # Add test directory to include paths for test executable
-    target_include_directories(platform_tests
-            PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests
-    )
+        # Find Boost with test components
+        find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
-    # Enable CTest
-    enable_testing()
-    add_test(NAME platform_tests COMMAND platform_tests)
+        # Create test executable
+        add_executable(platform_tests ${TEST_SRC})
+        target_link_libraries(platform_tests
+                PRIVATE
+                platform
+                Boost::unit_test_framework
+        )
+
+        # Add test directory to include paths for test executable
+        target_include_directories(platform_tests
+                PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests
+        )
+
+        # Enable CTest
+        enable_testing()
+        add_test(NAME platform_tests COMMAND platform_tests)
+    endif ()
 endif ()

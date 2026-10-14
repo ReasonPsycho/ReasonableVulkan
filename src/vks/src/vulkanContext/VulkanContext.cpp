@@ -181,9 +181,20 @@ int VulkanContext::rateDeviceSuitability(VkPhysicalDevice device) {
     enabledFeatures.fillModeNonSolid = VK_TRUE;
     enabledFeatures.imageCubeArray = VK_TRUE;
     enabledFeatures.multiViewport = VK_TRUE;
+    enabledFeatures.multiDrawIndirect = VK_TRUE;
+    enabledFeatures.drawIndirectFirstInstance = VK_TRUE;
+
+    VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
+    descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+    descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    descriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+    descriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+    descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+    descriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
 
     VkPhysicalDeviceMultiviewFeatures multiviewFeatures{};
     multiviewFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES;
+    multiviewFeatures.pNext = &descriptorIndexingFeatures;
     multiviewFeatures.multiview = VK_TRUE;
 
     // Required extensions

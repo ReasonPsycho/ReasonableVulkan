@@ -128,6 +128,11 @@ namespace vks {
         renderManager->drawSkybox(cameraIndex, materialHandle, shaderHandle);
     }
 
+    void VulkanRenderer::drawSkybox(uint32_t cameraIndex, const glm::vec4& color)
+    {
+        renderManager->drawSkybox(cameraIndex, color);
+    }
+
 
     void VulkanRenderer::drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform)
     {
@@ -289,6 +294,9 @@ namespace vks {
 
         auto it = thumbnailCache.find(id);
         if (it != thumbnailCache.end()) {
+            if (it->second.descriptorSet == VK_NULL_HANDLE) {
+                return nullptr;
+            }
             return (void*)it->second.descriptorSet;
         }
 
@@ -301,6 +309,7 @@ namespace vks {
             } else if (std::filesystem::exists(p2)) {
                 resolvedPath = p2;
             } else {
+                thumbnailCache[id] = {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
                 return nullptr;
             }
         }
@@ -309,6 +318,7 @@ namespace vks {
         stbi_set_flip_vertically_on_load(false);
         unsigned char* pixels = stbi_load(resolvedPath.string().c_str(), &width, &height, &channels, 4);
         if (!pixels) {
+            thumbnailCache[id] = {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
             return nullptr;
         }
 
@@ -345,6 +355,7 @@ namespace vks {
         if (vkCreateImage(context->getDevice(), &imageCreateInfo, nullptr, &thumbnailImage) != VK_SUCCESS) {
             vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
             vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+            thumbnailCache[id] = {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
             return nullptr;
         }
 
@@ -361,6 +372,7 @@ namespace vks {
             vkDestroyImage(context->getDevice(), thumbnailImage, nullptr);
             vkDestroyBuffer(context->getDevice(), stagingBuffer, nullptr);
             vkFreeMemory(context->getDevice(), stagingMemory, nullptr);
+            thumbnailCache[id] = {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
             return nullptr;
         }
 
@@ -425,6 +437,7 @@ namespace vks {
         if (vkCreateImageView(context->getDevice(), &viewInfo, nullptr, &thumbnailView) != VK_SUCCESS) {
             vkDestroyImage(context->getDevice(), thumbnailImage, nullptr);
             vkFreeMemory(context->getDevice(), thumbnailMemory, nullptr);
+            thumbnailCache[id] = {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
             return nullptr;
         }
 
@@ -433,6 +446,28 @@ namespace vks {
         return (void*)descriptorSet;
 #else
         return nullptr;
+#endif
+    }
+
+    void VulkanRenderer::invalidateThumbnail(const boost::uuids::uuid& id)
+    {
+#if ENABLE_IMGUI
+        auto it = thumbnailCache.find(id);
+        if (it != thumbnailCache.end()) {
+            if (it->second.descriptorSet != VK_NULL_HANDLE && imguiManager) {
+                imguiManager->removeTexture(it->second.descriptorSet);
+            }
+            if (it->second.view != VK_NULL_HANDLE && context) {
+                vkDestroyImageView(context->getDevice(), it->second.view, nullptr);
+            }
+            if (it->second.image != VK_NULL_HANDLE && context) {
+                vkDestroyImage(context->getDevice(), it->second.image, nullptr);
+            }
+            if (it->second.memory != VK_NULL_HANDLE && context) {
+                vkFreeMemory(context->getDevice(), it->second.memory, nullptr);
+            }
+            thumbnailCache.erase(it);
+        }
 #endif
     }
 

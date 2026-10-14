@@ -91,6 +91,10 @@ namespace vks
                result.push_back(ShaderDefinesEnum::ENABLE_MULTVIEW);
            }else if (key == "RAYCAST_GLSL")  {
                result.push_back(ShaderDefinesEnum::RAYCAST_GLSL);
+           }else if (key == "MESH_VERTEX_GLSL")  {
+               result.push_back(ShaderDefinesEnum::MESH_VERTEX_GLSL);
+           }else if (key == "INSTANCE_SSBO_GLSL")  {
+               result.push_back(ShaderDefinesEnum::INSTANCE_SSBO_GLSL);
            }
        }
         return result;

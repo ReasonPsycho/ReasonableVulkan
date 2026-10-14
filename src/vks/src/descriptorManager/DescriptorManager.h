@@ -22,6 +22,8 @@
 #include "ShaderDefinesEnum.hpp"
 #include "buffers/LightBufferData.hpp"
 #include "buffers/LightSSBO.hpp"
+#include "buffers/MaterialSSBO.hpp"
+#include "buffers/InstanceSSBO.hpp"
 #include "buffers/ShadowMapArray.hpp"
 #include "buffers/SceneUBO.hpp"
 
@@ -46,6 +48,35 @@ namespace vks {
 
         void createDefaultSampler();
 
+        static constexpr uint32_t MAX_BINDLESS_TEXTURES = 4096;
+        static constexpr uint32_t MAX_BINDLESS_CUBE_TEXTURES = 128;
+        static constexpr uint32_t MAX_MATERIALS = 4096;
+        static constexpr uint32_t MAX_INSTANCES = 65536;
+
+        VkDescriptorSetLayout bindlessLayout{VK_NULL_HANDLE};
+        VkDescriptorPool bindlessDescriptorPool{VK_NULL_HANDLE};
+        VkDescriptorSet bindlessDescriptorSet{VK_NULL_HANDLE};
+
+        uint32_t nextTextureSlot = 1;      // Slot 0 is defaultTexture
+        uint32_t nextCubeTextureSlot = 1;  // Slot 0 is defaultCubeTexture
+        uint32_t nextMaterialSlot = 1;     // Slot 0 is defaultMaterial
+
+        MaterialSSBO materialSSBO;
+        InstanceSSBO instanceSSBO;
+
+        VkDescriptorSetLayout getBindlessLayout() const { return bindlessLayout; }
+        VkDescriptorSet getBindlessDescriptorSet() const { return bindlessDescriptorSet; }
+
+        uint32_t registerTexture(TextureDescriptor* texture, bool isCube = false);
+        void updateTextureDescriptor(uint32_t slotIndex, VkImageView imageView, bool isCube = false);
+        uint32_t registerMaterial(MaterialDescriptor* material);
+        void updateMaterial(MaterialDescriptor* material);
+        void updateMaterialData(uint32_t slotIndex, const GPUMaterialData& data);
+        void createMaterialSSBO();
+        void createInstanceSSBO();
+        void updateInstanceData(uint32_t index, const GPUInstanceData& data);
+        void updateInstancesData(uint32_t firstIndex, const GPUInstanceData* data, size_t count);
+        void initBindlessDescriptorSet();
 
         // Get descriptor set layouts
         VkDescriptorSetLayout pbrMaterialLayout{VK_NULL_HANDLE};
@@ -133,8 +164,8 @@ namespace vks {
         VkDescriptorPool lightPool{VK_NULL_HANDLE};
 
         // Descriptor set layouts
-        VkDescriptorSetLayout getPbrMaterialLayout() const { return pbrMaterialLayout; }
-        VkDescriptorSetLayout getSkyboxMaterialLayout() const { return skyboxMaterialLayout; }
+        VkDescriptorSetLayout getPbrMaterialLayout() const { return bindlessLayout; }
+        VkDescriptorSetLayout getSkyboxMaterialLayout() const { return bindlessLayout; }
         VkDescriptorSetLayout getMeshUniformLayout() const { return meshUniformLayout; }
         VkDescriptorSetLayout getSceneLayout() const { return sceneLayout; }
         VkDescriptorSetLayout getLightsLayout() const { return lightsLayout; }

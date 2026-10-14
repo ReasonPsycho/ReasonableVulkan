@@ -7,7 +7,7 @@
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\mesh.b_vs_shader",
   "type": "Shader",
   "lookUpName": "mesh.shader",
-  "contentHash": 4069165301351927497,
+  "contentHash": 3869435668356467532,
   "assetFactoryData": {
     "importPath": "res\\shaders\\glsl\\entry\\mesh.vert",
     "assetType": "Shader",

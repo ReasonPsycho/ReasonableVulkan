@@ -7,6 +7,7 @@
 
 #include <imgui.h>
 #include <spdlog/spdlog.h>
+#include <tracy/Tracy.hpp>
 #include <algorithm>
 #include <chrono>
 #include <ctime>
@@ -47,6 +48,7 @@ namespace am {
 
     void FileBrowser::loadFileBrowserConfig()
     {
+        ZoneScoped;
         if (!assetManager) return;
         auto uuid = assetManager->getAssetUuid(fileBrowserConfigLookupName);
         if (!uuid) return;
@@ -70,6 +72,7 @@ namespace am {
 
     void FileBrowser::saveFileBrowserConfig()
     {
+        ZoneScoped;
         if (!assetManager) return;
         auto uuid = assetManager->getAssetUuid(fileBrowserConfigLookupName);
         if (!uuid) {
@@ -95,6 +98,7 @@ namespace am {
 
     void FileBrowser::ImguiFileBrowser(std::string windowName)
     {
+        ZoneScoped;
         ImGui::Begin(windowName.c_str());
 
         bool isBrowserFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
@@ -113,6 +117,7 @@ namespace am {
             }
             if (isCtrlOrCmd && ImGui::IsKeyPressed(ImGuiKey_A))
             {
+                ZoneScopedN("FileBrowser_SelectAll_Scan");
                 std::vector<std::filesystem::path> allPaths;
                 try {
                     for (const auto& entry : std::filesystem::directory_iterator(currentPath)) {
@@ -332,6 +337,50 @@ namespace am {
                     pushFileAction(rec);
                 }
             }
+            if (ImGui::MenuItem("New C++ Script")) {
+                std::filesystem::path newScriptPath = currentPath / "NewScript.hpp";
+                newScriptPath = getUniqueCopyPath(newScriptPath);
+                std::string scriptClassName = newScriptPath.stem().string();
+                std::string sanitizedClassName;
+                for (char c : scriptClassName) {
+                    if (isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                        sanitizedClassName.push_back(c);
+                    }
+                }
+                if (sanitizedClassName.empty() || isdigit(static_cast<unsigned char>(sanitizedClassName[0]))) {
+                    sanitizedClassName = "Script_" + sanitizedClassName;
+                }
+
+                std::ofstream outFile(newScriptPath);
+                if (outFile.is_open()) {
+                    outFile << "#pragma once\n\n"
+                            << "#include \"systems/scriptSystem/Script.hpp\"\n"
+                            << "#include \"systems/scriptSystem/ScriptRegistry.hpp\"\n"
+                            << "#include \"systems/transformSystem/componets/TransformComponent.hpp\"\n\n"
+                            << "namespace engine::ecs {\n\n"
+                            << "    class " << sanitizedClassName << " : public Script {\n"
+                            << "    public:\n"
+                            << "        [[=Range{0.0f, 100.0f, 0.1f}, =Tooltip{\"Speed parameter\"}]]\n"
+                            << "        float speed = 1.0f;\n\n"
+                            << "        void OnStart() override {\n"
+                            << "            // Called once when the script starts\n"
+                            << "        }\n\n"
+                            << "        void OnUpdate(float deltaTime) override {\n"
+                            << "            // Called every frame\n"
+                            << "        }\n"
+                            << "    };\n\n"
+                            << "    REGISTER_SCRIPT(" << sanitizedClassName << ")\n\n"
+                            << "} // namespace engine::ecs\n";
+                    outFile.close();
+                }
+
+                setSelectedFile(newScriptPath);
+                FileActionRecord rec;
+                rec.type = FileActionRecord::Type::CreateScript;
+                rec.targetPath = newScriptPath;
+                rec.description = "Create Script '" + newScriptPath.filename().string() + "'";
+                pushFileAction(rec);
+            }
             if (ImGui::MenuItem("Open in System File Explorer")) {
                 if (assetManager) assetManager->openFileWithDefaultApp(currentPath);
             }
@@ -367,33 +416,39 @@ namespace am {
             bool anyTileClickedOrActive = false;
 
             std::vector<std::filesystem::directory_entry> entries;
-            try {
-                for (const auto& entry : std::filesystem::directory_iterator(currentPath))
-                {
-                    const auto& path = entry.path();
-                    std::string filename = path.filename().string();
-                    if (filename.empty() || filename[0] == '.') {
-                        continue;
+            {
+                ZoneScopedN("FileBrowser_ScanDirectory");
+                try {
+                    for (const auto& entry : std::filesystem::directory_iterator(currentPath))
+                    {
+                        const auto& path = entry.path();
+                        std::string filename = path.filename().string();
+                        if (filename.empty() || filename[0] == '.') {
+                            continue;
+                        }
+                        if (path.extension() == ".meta") {
+                            continue;
+                        }
+                        entries.push_back(entry);
                     }
-                    if (path.extension() == ".meta") {
-                        continue;
+                } catch (const std::exception& e) {
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: %s", e.what());
+                    if (ImGui::Button("Reset to Resource Folder")) {
+                        if (assetManager) currentPath = assetManager->resourceFolder;
                     }
-                    entries.push_back(entry);
-                }
-            } catch (const std::exception& e) {
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: %s", e.what());
-                if (ImGui::Button("Reset to Resource Folder")) {
-                    if (assetManager) currentPath = assetManager->resourceFolder;
                 }
             }
 
             // Sort: directories first, then alphabetical
-            std::sort(entries.begin(), entries.end(), [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b) {
-                if (a.is_directory() != b.is_directory()) {
-                    return a.is_directory() > b.is_directory();
-                }
-                return a.path().filename().string() < b.path().filename().string();
-            });
+            {
+                ZoneScopedN("FileBrowser_SortEntries");
+                std::sort(entries.begin(), entries.end(), [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b) {
+                    if (a.is_directory() != b.is_directory()) {
+                        return a.is_directory() > b.is_directory();
+                    }
+                    return a.path().filename().string() < b.path().filename().string();
+                });
+            }
 
             ImFont* textFont = ImGui::GetFont();
             float textFontSize = ImGui::GetFontSize() * fileBrowserLetterScale;
@@ -401,469 +456,501 @@ namespace am {
             float totalTileHeight = iconSize + textLineHeight + 4.0f;
             ImVec2 tileSize = ImVec2(iconSize, totalTileHeight);
 
-            for (size_t i = 0; i < entries.size(); ++i)
             {
-                const auto& entry = entries[i];
-                const auto& path = entry.path();
-                std::string filename = path.filename().string();
-
-                ImGui::PushID((int)i);
-
-                std::error_code ecEquiv;
-                bool isSelected = isFileSelected(path);
-
-                ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-                ImVec2 tileContentMin = ImVec2(cursorPos.x - childWindowPos.x + childScroll.x, cursorPos.y - childWindowPos.y + childScroll.y);
-                ImVec2 tileContentMax = ImVec2(tileContentMin.x + iconSize, tileContentMin.y + totalTileHeight);
-                tileRects.push_back({path, tileContentMin, tileContentMax});
-
-                // Drag detection
-                bool isBeingDragged = false;
+                ZoneScopedN("FileBrowser_RenderTiles");
+                std::vector<std::filesystem::path> currentDragPaths;
                 const ImGuiPayload* curPayload = ImGui::GetDragDropPayload();
                 if (curPayload && curPayload->IsDataType("AM_FILE_PATH") && curPayload->Data) {
-                    auto droppedPaths = ParseFilePathPayload(curPayload);
-                    std::error_code ecDrag;
-                    for (const auto& dp : droppedPaths) {
-                        if (std::filesystem::equivalent(path, dp, ecDrag)) {
-                            isBeingDragged = true;
-                            break;
+                    currentDragPaths = ParseFilePathPayload(curPayload);
+                }
+
+                for (size_t i = 0; i < entries.size(); ++i)
+                {
+                    const auto& entry = entries[i];
+                    const auto& path = entry.path();
+                    std::string filename = path.filename().string();
+
+                    ImGui::PushID((int)i);
+
+                    std::error_code ecEquiv;
+                    bool isSelected = isFileSelected(path);
+
+                    ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+                    ImVec2 tileContentMin = ImVec2(cursorPos.x - childWindowPos.x + childScroll.x, cursorPos.y - childWindowPos.y + childScroll.y);
+                    ImVec2 tileContentMax = ImVec2(tileContentMin.x + iconSize, tileContentMin.y + totalTileHeight);
+                    tileRects.push_back({path, tileContentMin, tileContentMax});
+
+                    // Drag detection
+                    bool isBeingDragged = false;
+                    if (!currentDragPaths.empty()) {
+                        for (const auto& dp : currentDragPaths) {
+                            if (path == dp) {
+                                isBeingDragged = true;
+                                break;
+                            }
                         }
                     }
-                }
 
-                // Invisible button covering the entire tile
-                ImGui::InvisibleButton("##tile", tileSize);
-                bool isHovered = ImGui::IsItemHovered();
-                bool isActive = ImGui::IsItemActive();
+                    // Invisible button covering the entire tile
+                    ImGui::InvisibleButton("##tile", tileSize);
+                    bool isHovered = ImGui::IsItemHovered();
+                    bool isActive = ImGui::IsItemActive();
 
-                if (isHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
-                    anyTileClickedOrActive = true;
-                }
-                if (isActive) {
-                    anyTileClickedOrActive = true;
-                }
-
-                // Drag Source on tile
-                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
-                {
-                    std::vector<std::filesystem::path> dragList;
-                    if (isFileSelected(path) && selectedFiles.size() > 1) {
-                        dragList = selectedFiles;
-                    } else {
-                        dragList.push_back(path);
+                    if (isHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+                        anyTileClickedOrActive = true;
+                    }
+                    if (isActive) {
+                        anyTileClickedOrActive = true;
                     }
 
-                    std::string payloadStr;
-                    for (size_t k = 0; k < dragList.size(); ++k) {
-                        if (k > 0) payloadStr += "\n";
-                        payloadStr += dragList[k].string();
-                    }
-                    ImGui::SetDragDropPayload("AM_FILE_PATH", payloadStr.c_str(), payloadStr.size() + 1);
-
-                    // Rich visual indicator tooltip
-                    if (dragList.size() > 1) {
-                        ImGui::BeginGroup();
-                        ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
-                        ImGui::PushFont(iconFont);
-                        ImGui::TextColored(ImVec4(0.40f, 0.75f, 1.0f, 1.0f), "%s", ICON_FA_BOXES_STACKED);
-                        ImGui::PopFont();
-                        ImGui::SameLine();
-                        ImGui::BeginGroup();
-                        ImGui::Text("%zu Items", dragList.size());
-                        ImGui::TextDisabled("Drag to move or instantiate");
-                        ImGui::EndGroup();
-                        ImGui::EndGroup();
-                    } else {
-                        ImGui::BeginGroup();
-                        void* dragThumb = !entry.is_directory() && assetManager ? assetManager->getThumbnailTexture(path) : nullptr;
-                        if (dragThumb != nullptr) {
-                            ImGui::Image((ImTextureID)dragThumb, ImVec2(32, 32));
-                            ImGui::SameLine();
+                    // Drag Source on tile
+                    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+                    {
+                        std::vector<std::filesystem::path> dragList;
+                        if (isFileSelected(path) && selectedFiles.size() > 1) {
+                            dragList = selectedFiles;
                         } else {
+                            dragList.push_back(path);
+                        }
+
+                        std::string payloadStr;
+                        for (size_t k = 0; k < dragList.size(); ++k) {
+                            if (k > 0) payloadStr += "\n";
+                            payloadStr += dragList[k].string();
+                        }
+                        ImGui::SetDragDropPayload("AM_FILE_PATH", payloadStr.c_str(), payloadStr.size() + 1);
+
+                        // Rich visual indicator tooltip
+                        if (dragList.size() > 1) {
+                            ImGui::BeginGroup();
                             ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
                             ImGui::PushFont(iconFont);
-                            ImGui::TextColored(entry.is_directory() ? ImVec4(1.0f, 0.85f, 0.4f, 1.0f) : ImVec4(0.40f, 0.75f, 1.0f, 1.0f),
-                                "%s", entry.is_directory() ? ICON_FA_FOLDER : GetAssetIcon(path));
+                            ImGui::TextColored(ImVec4(0.40f, 0.75f, 1.0f, 1.0f), "%s", ICON_FA_BOXES_STACKED);
                             ImGui::PopFont();
                             ImGui::SameLine();
-                        }
-                        ImGui::BeginGroup();
-                        ImGui::Text("%s", filename.c_str());
-                        std::error_code ecDragSz;
-                        if (!entry.is_directory()) {
-                            auto fsz = std::filesystem::file_size(path, ecDragSz);
-                            if (!ecDragSz) {
-                                if (fsz < 1024) ImGui::TextDisabled("%llu B", static_cast<unsigned long long>(fsz));
-                                else if (fsz < 1024 * 1024) ImGui::TextDisabled("%.1f KB", fsz / 1024.0);
-                                else ImGui::TextDisabled("%.1f MB", fsz / (1024.0 * 1024.0));
-                            }
+                            ImGui::BeginGroup();
+                            ImGui::Text("%zu Items", dragList.size());
+                            ImGui::TextDisabled("Drag to move or instantiate");
+                            ImGui::EndGroup();
+                            ImGui::EndGroup();
                         } else {
-                            ImGui::TextDisabled("Folder");
-                        }
-                        ImGui::EndGroup();
-                        ImGui::EndGroup();
-                    }
-
-                    ImGui::EndDragDropSource();
-                }
-
-                // Drop Target for directories
-                bool isFolderDropTarget = false;
-                if (entry.is_directory() && ImGui::BeginDragDropTarget())
-                {
-                    isFolderDropTarget = true;
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
-                    {
-                        auto droppedPaths = ParseFilePathPayload(payload);
-                        std::error_code ec;
-                        for (const auto& droppedPath : droppedPaths) {
-                            if (std::filesystem::exists(droppedPath, ec) && !std::filesystem::equivalent(droppedPath, path, ec))
-                            {
-                                moveFileOrDirectory(droppedPath, path, false);
+                            ImGui::BeginGroup();
+                            void* dragThumb = nullptr;
+                            if (!entry.is_directory() && assetManager) {
+                                dragThumb = assetManager->getThumbnailTexture(path);
                             }
+                            if (dragThumb != nullptr) {
+                                ImGui::Image((ImTextureID)dragThumb, ImVec2(32, 32));
+                                ImGui::SameLine();
+                            } else {
+                                ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
+                                ImGui::PushFont(iconFont);
+                                ImGui::TextColored(entry.is_directory() ? ImVec4(1.0f, 0.85f, 0.4f, 1.0f) : ImVec4(0.40f, 0.75f, 1.0f, 1.0f),
+                                    "%s", entry.is_directory() ? ICON_FA_FOLDER : GetAssetIcon(path));
+                                ImGui::PopFont();
+                                ImGui::SameLine();
+                            }
+                            ImGui::BeginGroup();
+                            ImGui::Text("%s", filename.c_str());
+                            std::error_code ecDragSz;
+                            if (!entry.is_directory()) {
+                                auto fsz = std::filesystem::file_size(path, ecDragSz);
+                                if (!ecDragSz) {
+                                    if (fsz < 1024) ImGui::TextDisabled("%llu B", static_cast<unsigned long long>(fsz));
+                                    else if (fsz < 1024 * 1024) ImGui::TextDisabled("%.1f KB", fsz / 1024.0);
+                                    else ImGui::TextDisabled("%.1f MB", fsz / (1024.0 * 1024.0));
+                                }
+                            } else {
+                                ImGui::TextDisabled("Folder");
+                            }
+                            ImGui::EndGroup();
+                            ImGui::EndGroup();
                         }
+
+                        ImGui::EndDragDropSource();
                     }
-                    else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+
+                    // Drop Target for directories
+                    bool isFolderDropTarget = false;
+                    if (entry.is_directory() && ImGui::BeginDragDropTarget())
                     {
-                        if (assetManager && assetManager->getEditor())
+                        isFolderDropTarget = true;
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
                         {
-                            std::vector<engine::ecs::Entity> ents;
-                            engine::ecs::Scene* scn = nullptr;
-                            if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
-                                const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
-                                scn = pl->scene;
-                                if (pl->count > 0) {
-                                    for (uint32_t k = 0; k < pl->count; ++k) ents.push_back(pl->entities[k]);
+                            auto droppedPaths = ParseFilePathPayload(payload);
+                            std::error_code ec;
+                            for (const auto& droppedPath : droppedPaths) {
+                                if (std::filesystem::exists(droppedPath, ec) && !std::filesystem::equivalent(droppedPath, path, ec))
+                                {
+                                    moveFileOrDirectory(droppedPath, path, false);
                                 }
                             }
-                            if (ents.empty()) {
-                                ents.push_back(*(const engine::ecs::Entity*)payload->Data);
-                            }
-                            for (auto entity : ents) {
-                                assetManager->getEditor()->SaveEntityAsPrefab(entity, path, scn);
+                        }
+                        else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
+                        {
+                            if (assetManager && assetManager->getEditor())
+                            {
+                                std::vector<engine::ecs::Entity> ents;
+                                engine::ecs::Scene* scn = nullptr;
+                                if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
+                                    const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
+                                    scn = pl->scene;
+                                    if (pl->count > 0) {
+                                        for (uint32_t k = 0; k < pl->count; ++k) ents.push_back(pl->entities[k]);
+                                    }
+                                }
+                                if (ents.empty()) {
+                                    ents.push_back(*(const engine::ecs::Entity*)payload->Data);
+                                }
+                                for (auto entity : ents) {
+                                    assetManager->getEditor()->SaveEntityAsPrefab(entity, path, scn);
+                                }
                             }
                         }
+                        ImGui::EndDragDropTarget();
                     }
-                    ImGui::EndDragDropTarget();
-                }
 
-                // Click interactions
-                if (isHovered && !isBoxSelecting) {
-                    bool isCtrl = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
-                    bool isShift = ImGui::GetIO().KeyShift;
+                    // Click interactions
+                    if (isHovered && !isBoxSelecting) {
+                        bool isCtrl = ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeySuper;
+                        bool isShift = ImGui::GetIO().KeyShift;
 
-                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                        if (entry.is_directory()) {
-                            currentPath = path;
-                            clearSelectedFiles();
-                        } else {
-                            if (assetManager) assetManager->openAssetFile(path);
-                        }
-                    } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                        if (isCtrl) {
-                            if (isSelected) {
-                                removeSelectedFile(path);
+                        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                            if (entry.is_directory()) {
+                                currentPath = path;
+                                clearSelectedFiles();
                             } else {
-                                addSelectedFile(path);
+                                if (assetManager) assetManager->openAssetFile(path);
                             }
-                        } else if (isShift && !selectedFiles.empty()) {
-                            int lastIdx = -1;
-                            for (int k = 0; k < (int)entries.size(); ++k) {
-                                if (entries[k].path() == selectedFile || isFileSelected(entries[k].path())) {
-                                    lastIdx = k;
+                        } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                            if (isCtrl) {
+                                if (isSelected) {
+                                    removeSelectedFile(path);
+                                } else {
+                                    addSelectedFile(path);
+                                }
+                            } else if (isShift && !selectedFiles.empty()) {
+                                int lastIdx = -1;
+                                for (int k = 0; k < (int)entries.size(); ++k) {
+                                    if (entries[k].path() == selectedFile || isFileSelected(entries[k].path())) {
+                                        lastIdx = k;
+                                    }
+                                }
+                                if (lastIdx != -1) {
+                                    int start = std::min(lastIdx, (int)i);
+                                    int end = std::max(lastIdx, (int)i);
+                                    selectedFiles.clear();
+                                    for (int k = start; k <= end; ++k) {
+                                        selectedFiles.push_back(entries[k].path());
+                                    }
+                                    selectedFile = path;
+                                } else {
+                                    setSelectedFile(path);
+                                }
+                            } else {
+                                if (!isSelected) {
+                                    setSelectedFile(path);
                                 }
                             }
-                            if (lastIdx != -1) {
-                                int start = std::min(lastIdx, (int)i);
-                                int end = std::max(lastIdx, (int)i);
-                                selectedFiles.clear();
-                                for (int k = start; k <= end; ++k) {
-                                    selectedFiles.push_back(entries[k].path());
-                                }
-                                selectedFile = path;
-                            } else {
+                        } else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !isCtrl && !isShift && !ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                            if (isSelected && selectedFiles.size() > 1) {
                                 setSelectedFile(path);
                             }
-                        } else {
+                        } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
                             if (!isSelected) {
                                 setSelectedFile(path);
                             }
                         }
-                    } else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !isCtrl && !isShift && !ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                        if (isSelected && selectedFiles.size() > 1) {
-                            setSelectedFile(path);
-                        }
-                    } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-                        if (!isSelected) {
-                            setSelectedFile(path);
-                        }
-                    }
-                }
-
-                auto renderCommonFileContextMenu = [this, &path, &entry]() {
-                    std::error_code ecClip;
-                    bool hasClipboard = (!clipboardPaths.empty() || (!clipboardPath.empty() && std::filesystem::exists(clipboardPath, ecClip)));
-                    if (!hasClipboard) {
-                        const char* sysClip = ImGui::GetClipboardText();
-                        if (sysClip && sysClip[0] != '\0') {
-                            hasClipboard = true;
-                        }
                     }
 
-                    if (selectedFiles.size() > 1 && isFileSelected(path)) {
-                        std::string copyLabel = "Copy (" + std::to_string(selectedFiles.size()) + " items)";
-                        std::string cutLabel = "Cut (" + std::to_string(selectedFiles.size()) + " items)";
-                        std::string dupLabel = "Duplicate (" + std::to_string(selectedFiles.size()) + " items)";
-                        std::string delLabel = "Delete (" + std::to_string(selectedFiles.size()) + " items)";
-
-                        if (ImGui::MenuItem(copyLabel.c_str(), "Ctrl+C")) {
-                            copyFilesToClipboard(selectedFiles);
-                        }
-                        if (ImGui::MenuItem(cutLabel.c_str(), "Ctrl+X")) {
-                            cutFilesToClipboard(selectedFiles);
-                        }
-                        if (ImGui::MenuItem(dupLabel.c_str(), "Ctrl+D")) {
-                            duplicateFiles(selectedFiles);
-                        }
-                        if (ImGui::MenuItem(delLabel.c_str(), "Del")) {
-                            deleteFiles(selectedFiles);
-                            clearSelectedFiles();
-                        }
-                        ImGui::Separator();
-                        if (ImGui::MenuItem("Reimport Selected Assets")) {
-                            for (const auto& p : selectedFiles) {
-                                if (assetManager) assetManager->reimportAsset(p);
+                    auto renderCommonFileContextMenu = [this, &path, &entry]() {
+                        std::error_code ecClip;
+                        bool hasClipboard = (!clipboardPaths.empty() || (!clipboardPath.empty() && std::filesystem::exists(clipboardPath, ecClip)));
+                        if (!hasClipboard) {
+                            const char* sysClip = ImGui::GetClipboardText();
+                            if (sysClip && sysClip[0] != '\0') {
+                                hasClipboard = true;
                             }
                         }
-                        if (ImGui::MenuItem("Open in IDE")) {
-                            for (const auto& p : selectedFiles) {
-                                if (assetManager) assetManager->openFileInIDE(p);
+
+                        if (selectedFiles.size() > 1 && isFileSelected(path)) {
+                            std::string copyLabel = "Copy (" + std::to_string(selectedFiles.size()) + " items)";
+                            std::string cutLabel = "Cut (" + std::to_string(selectedFiles.size()) + " items)";
+                            std::string dupLabel = "Duplicate (" + std::to_string(selectedFiles.size()) + " items)";
+                            std::string delLabel = "Delete (" + std::to_string(selectedFiles.size()) + " items)";
+
+                            if (ImGui::MenuItem(copyLabel.c_str(), "Ctrl+C")) {
+                                copyFilesToClipboard(selectedFiles);
                             }
-                        }
-                        return;
-                    }
-
-                    if (entry.is_directory()) {
-                        if (ImGui::MenuItem("Paste into Folder", "Ctrl+V", false, hasClipboard)) {
-                            pasteFileFromClipboard(path);
-                        }
-                    } else {
-                        if (ImGui::MenuItem("Paste", "Ctrl+V", false, hasClipboard)) {
-                            pasteFileFromClipboard(currentPath);
-                        }
-                    }
-                    ImGui::Separator();
-                    if (ImGui::MenuItem("Copy", "Ctrl+C")) {
-                        copyFileToClipboard(path);
-                    }
-                    if (ImGui::MenuItem("Cut", "Ctrl+X")) {
-                        cutFileToClipboard(path);
-                    }
-                    if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
-                        duplicateFile(path);
-                    }
-                    if (ImGui::MenuItem("Delete", "Del")) {
-                        deleteFile(path);
-                    }
-                    ImGui::Separator();
-                    if (ImGui::MenuItem("Copy Full Path")) {
-                        ImGui::SetClipboardText(path.string().c_str());
-                    }
-                    std::error_code ecRel;
-                    std::string resFolder = assetManager ? assetManager->resourceFolder : "";
-                    std::string relPath = !resFolder.empty() ? std::filesystem::relative(path, resFolder, ecRel).string() : "";
-                    if (!ecRel && !relPath.empty()) {
-                        if (ImGui::MenuItem("Copy Relative Path")) {
-                            ImGui::SetClipboardText(relPath.c_str());
-                        }
-                    }
-                };
-
-                if (entry.is_directory()) {
-                    if (ImGui::BeginPopupContextItem("##FolderContext")) {
-                        if (selectedFiles.size() <= 1 || !isSelected) {
-                            setSelectedFile(path);
-                            if (ImGui::MenuItem("Open Folder")) {
-                                currentPath = path;
+                            if (ImGui::MenuItem(cutLabel.c_str(), "Ctrl+X")) {
+                                cutFilesToClipboard(selectedFiles);
+                            }
+                            if (ImGui::MenuItem(dupLabel.c_str(), "Ctrl+D")) {
+                                duplicateFiles(selectedFiles);
+                            }
+                            if (ImGui::MenuItem(delLabel.c_str(), "Del")) {
+                                deleteFiles(selectedFiles);
                                 clearSelectedFiles();
                             }
-                            if (ImGui::MenuItem("Open in System File Explorer")) {
-                                if (assetManager) assetManager->openFileWithDefaultApp(path);
+                            ImGui::Separator();
+                            if (ImGui::MenuItem("Reimport Selected Assets")) {
+                                for (const auto& p : selectedFiles) {
+                                    if (assetManager) assetManager->reimportAsset(p);
+                                }
                             }
+                            if (ImGui::MenuItem("Open in IDE")) {
+                                for (const auto& p : selectedFiles) {
+                                    if (assetManager) assetManager->openFileInIDE(p);
+                                }
+                            }
+                            return;
                         }
-                        renderCommonFileContextMenu();
-                        ImGui::EndPopup();
-                    }
-                } else {
-                    auto fileUuid = assetManager ? assetManager->getAssetUuidByPath(path) : std::nullopt;
-                    bool isRegistered = fileUuid.has_value();
-                    bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
-                    AssetType type = GetAssetTypeFromExtension(path.extension().string());
 
-                    if (type == AssetType::Scene && assetManager && assetManager->getEngine()) {
-                        if (ImGui::BeginPopupContextItem("##SceneContext")) {
-                            if (selectedFiles.size() <= 1 || !isSelected) {
-                                setSelectedFile(path);
-                                if (isRegistered) {
-                                    if (ImGui::MenuItem("Open Scene")) {
-                                        assetManager->getEngine()->LoadScene(fileUuid.value());
-                                    }
-                                    if (ImGui::MenuItem("Close Scene")) {
-                                        assetManager->getEngine()->CloseScene(fileUuid.value());
-                                    }
-                                    if (ImGui::MenuItem("Reimport")) {
-                                        assetManager->reimportAsset(path);
-                                    }
-                                } else if (canImport) {
-                                    if (ImGui::MenuItem("Import")) {
-                                        assetManager->registerAsset(path.string());
-                                    }
-                                }
-                                if (ImGui::MenuItem("Open in IDE")) {
-                                    assetManager->openFileInIDE(path);
-                                }
-                                if (ImGui::MenuItem("Open in System Default")) {
-                                    assetManager->openFileWithDefaultApp(path);
-                                }
+                        if (entry.is_directory()) {
+                            if (ImGui::MenuItem("Paste into Folder", "Ctrl+V", false, hasClipboard)) {
+                                pasteFileFromClipboard(path);
                             }
-                            renderCommonFileContextMenu();
-                            ImGui::EndPopup();
-                        }
-                    } else if ((type == AssetType::Model || type == AssetType::Mesh || type == AssetType::Material) && assetManager && assetManager->getEditor()) {
-                        if (ImGui::BeginPopupContextItem("##ModelContext")) {
-                            if (selectedFiles.size() <= 1 || !isSelected) {
-                                setSelectedFile(path);
-                                if (isRegistered) {
-                                    if (ImGui::MenuItem("Open in Preview Scene")) {
-                                        assetManager->getEditor()->OpenAssetPreviewScene(fileUuid.value());
-                                    }
-                                    if (ImGui::MenuItem("Regenerate Thumbnail")) {
-                                        assetManager->generateThumbnail(fileUuid.value());
-                                    }
-                                    if (ImGui::MenuItem("Reimport")) {
-                                        assetManager->reimportAsset(path);
-                                    }
-                                } else if (canImport) {
-                                    if (ImGui::MenuItem("Import")) {
-                                        assetManager->registerAsset(path.string());
-                                    }
-                                }
-                                if (ImGui::MenuItem("Open in IDE")) {
-                                    assetManager->openFileInIDE(path);
-                                }
-                                if (ImGui::MenuItem("Open in System Default")) {
-                                    assetManager->openFileWithDefaultApp(path);
-                                }
+                        } else {
+                            if (ImGui::MenuItem("Paste", "Ctrl+V", false, hasClipboard)) {
+                                pasteFileFromClipboard(currentPath);
                             }
-                            renderCommonFileContextMenu();
-                            ImGui::EndPopup();
                         }
-                    } else {
-                        if (ImGui::BeginPopupContextItem("##FileContext")) {
+                        ImGui::Separator();
+                        if (ImGui::MenuItem("Copy", "Ctrl+C")) {
+                            copyFileToClipboard(path);
+                        }
+                        if (ImGui::MenuItem("Cut", "Ctrl+X")) {
+                            cutFileToClipboard(path);
+                        }
+                        if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
+                            duplicateFile(path);
+                        }
+                        if (ImGui::MenuItem("Delete", "Del")) {
+                            deleteFile(path);
+                        }
+                        ImGui::Separator();
+                        if (ImGui::MenuItem("Copy Full Path")) {
+                            ImGui::SetClipboardText(path.string().c_str());
+                        }
+                        std::error_code ecRel;
+                        std::string resFolder = assetManager ? assetManager->resourceFolder : "";
+                        std::string relPath = !resFolder.empty() ? std::filesystem::relative(path, resFolder, ecRel).string() : "";
+                        if (!ecRel && !relPath.empty()) {
+                            if (ImGui::MenuItem("Copy Relative Path")) {
+                                ImGui::SetClipboardText(relPath.c_str());
+                            }
+                        }
+                    };
+
+                    if (entry.is_directory()) {
+                        if (ImGui::BeginPopupContextItem("##FolderContext")) {
                             if (selectedFiles.size() <= 1 || !isSelected) {
                                 setSelectedFile(path);
-                                if (isRegistered) {
-                                    if (type == AssetType::Texture || type == AssetType::Material || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp" || path.extension() == ".mat") {
-                                        if (ImGui::MenuItem("Regenerate Thumbnail")) {
-                                            if (assetManager) assetManager->generateThumbnail(fileUuid.value());
-                                        }
-                                    }
-                                    if (ImGui::MenuItem("Reimport")) {
-                                        if (assetManager) assetManager->reimportAsset(path);
-                                    }
-                                } else if (canImport) {
-                                    if (ImGui::MenuItem("Import")) {
-                                        if (assetManager) assetManager->registerAsset(path.string());
-                                    }
+                                if (ImGui::MenuItem("Open Folder")) {
+                                    currentPath = path;
+                                    clearSelectedFiles();
                                 }
-                                if (ImGui::MenuItem("Open in IDE")) {
-                                    if (assetManager) assetManager->openFileInIDE(path);
-                                }
-                                if (ImGui::MenuItem("Open in System Default")) {
+                                if (ImGui::MenuItem("Open in System File Explorer")) {
                                     if (assetManager) assetManager->openFileWithDefaultApp(path);
                                 }
                             }
                             renderCommonFileContextMenu();
                             ImGui::EndPopup();
                         }
+                    } else {
+                        AssetType type = GetAssetTypeFromExtension(path.extension().string());
+
+                        if (type == AssetType::Scene && assetManager && assetManager->getEngine()) {
+                            if (ImGui::BeginPopupContextItem("##SceneContext")) {
+                                auto fileUuid = assetManager->getAssetUuidByPath(path);
+                                bool isRegistered = fileUuid.has_value();
+                                bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
+                                if (selectedFiles.size() <= 1 || !isSelected) {
+                                    setSelectedFile(path);
+                                    if (isRegistered) {
+                                        if (ImGui::MenuItem("Open Scene")) {
+                                            assetManager->getEngine()->LoadScene(fileUuid.value());
+                                        }
+                                        if (ImGui::MenuItem("Close Scene")) {
+                                            assetManager->getEngine()->CloseScene(fileUuid.value());
+                                        }
+                                        if (ImGui::MenuItem("Reimport")) {
+                                            assetManager->reimportAsset(path);
+                                        }
+                                    } else if (canImport) {
+                                        if (ImGui::MenuItem("Import")) {
+                                            assetManager->registerAsset(path.string());
+                                        }
+                                    }
+                                    if (ImGui::MenuItem("Open in IDE")) {
+                                        assetManager->openFileInIDE(path);
+                                    }
+                                    if (ImGui::MenuItem("Open in System Default")) {
+                                        assetManager->openFileWithDefaultApp(path);
+                                    }
+                                }
+                                renderCommonFileContextMenu();
+                                ImGui::EndPopup();
+                            }
+                        } else if ((type == AssetType::Model || type == AssetType::Mesh || type == AssetType::Material) && assetManager && assetManager->getEditor()) {
+                            if (ImGui::BeginPopupContextItem("##ModelContext")) {
+                                auto fileUuid = assetManager->getAssetUuidByPath(path);
+                                bool isRegistered = fileUuid.has_value();
+                                bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
+                                if (selectedFiles.size() <= 1 || !isSelected) {
+                                    setSelectedFile(path);
+                                    if (isRegistered) {
+                                        if (ImGui::MenuItem("Open in Preview Scene")) {
+                                            assetManager->getEditor()->OpenAssetPreviewScene(fileUuid.value());
+                                        }
+                                        if (ImGui::MenuItem("Regenerate Thumbnail")) {
+                                            assetManager->generateThumbnail(fileUuid.value());
+                                        }
+                                        if (ImGui::MenuItem("Reimport")) {
+                                            assetManager->reimportAsset(path);
+                                        }
+                                    } else if (canImport) {
+                                        if (ImGui::MenuItem("Import")) {
+                                            assetManager->registerAsset(path.string());
+                                        }
+                                    }
+                                    if (ImGui::MenuItem("Open in IDE")) {
+                                        assetManager->openFileInIDE(path);
+                                    }
+                                    if (ImGui::MenuItem("Open in System Default")) {
+                                        assetManager->openFileWithDefaultApp(path);
+                                    }
+                                }
+                                renderCommonFileContextMenu();
+                                ImGui::EndPopup();
+                            }
+                        } else {
+                            if (ImGui::BeginPopupContextItem("##FileContext")) {
+                                auto fileUuid = assetManager ? assetManager->getAssetUuidByPath(path) : std::nullopt;
+                                bool isRegistered = fileUuid.has_value();
+                                bool canImport = (StringToAssetOwnership(path.extension().string()) == AssetOwnership::Import);
+                                if (selectedFiles.size() <= 1 || !isSelected) {
+                                    setSelectedFile(path);
+                                    if (isRegistered) {
+                                        if (type == AssetType::Texture || type == AssetType::Material || path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg" || path.extension() == ".bmp" || path.extension() == ".mat") {
+                                            if (ImGui::MenuItem("Regenerate Thumbnail")) {
+                                                if (assetManager) assetManager->generateThumbnail(fileUuid.value());
+                                            }
+                                        }
+                                        if (ImGui::MenuItem("Reimport")) {
+                                            if (assetManager) assetManager->reimportAsset(path);
+                                        }
+                                    } else if (canImport) {
+                                        if (ImGui::MenuItem("Import")) {
+                                            if (assetManager) assetManager->registerAsset(path.string());
+                                        }
+                                    }
+                                    if (ImGui::MenuItem("Open in IDE")) {
+                                        if (assetManager) assetManager->openFileInIDE(path);
+                                    }
+                                    if (ImGui::MenuItem("Open in System Default")) {
+                                        if (assetManager) assetManager->openFileWithDefaultApp(path);
+                                    }
+                                }
+                                renderCommonFileContextMenu();
+                                ImGui::EndPopup();
+                            }
+                        }
                     }
-                }
 
-                // Render Visuals with DrawList
-                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                    // Render Visuals with DrawList
+                    ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-                if (isFolderDropTarget) {
-                    drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(50, 205, 50, 75), 4.0f);
-                    drawList->AddRect(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(70, 240, 120, 255), 4.0f, 0, 2.5f);
-                } else if (isBeingDragged) {
-                    drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(66, 150, 250, 45), 4.0f);
-                    drawList->AddRect(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(100, 200, 255, 200), 4.0f, 0, 2.0f);
-                } else if (isSelected) {
-                    drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(66, 150, 250, 90), 4.0f);
-                    drawList->AddRect(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(66, 150, 250, 220), 4.0f, 0, 1.5f);
-                } else if (isActive) {
-                    drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(255, 255, 255, 45), 4.0f);
-                } else if (isHovered) {
-                    drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(255, 255, 255, 25), 4.0f);
-                }
+                    if (isFolderDropTarget) {
+                        drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(50, 205, 50, 75), 4.0f);
+                        drawList->AddRect(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(70, 240, 120, 255), 4.0f, 0, 2.5f);
+                    } else if (isBeingDragged) {
+                        drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(66, 150, 250, 45), 4.0f);
+                        drawList->AddRect(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(100, 200, 255, 200), 4.0f, 0, 2.0f);
+                    } else if (isSelected) {
+                        drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(66, 150, 250, 90), 4.0f);
+                        drawList->AddRect(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(66, 150, 250, 220), 4.0f, 0, 1.5f);
+                    } else if (isActive) {
+                        drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(255, 255, 255, 45), 4.0f);
+                    } else if (isHovered) {
+                        drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + totalTileHeight), IM_COL32(255, 255, 255, 25), 4.0f);
+                    }
 
-                void* thumbTex = nullptr;
-                if (!entry.is_directory() && assetManager) {
-                    thumbTex = assetManager->getThumbnailTexture(path);
-                }
+                    void* thumbTex = nullptr;
+                    if (!entry.is_directory() && assetManager) {
+                        thumbTex = assetManager->getThumbnailTexture(path);
+                    }
 
-                if (thumbTex != nullptr) {
-                    float imgPad = 2.0f;
-                    ImU32 imgTint = isBeingDragged ? IM_COL32(255, 255, 255, 120) : IM_COL32_WHITE;
-                    drawList->AddImage((ImTextureID)thumbTex,
-                        ImVec2(cursorPos.x + imgPad, cursorPos.y + imgPad),
-                        ImVec2(cursorPos.x + iconSize - imgPad, cursorPos.y + iconSize - imgPad),
-                        ImVec2(0, 0), ImVec2(1, 1), imgTint);
-                } else {
-                    ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
-                    float iconFontSize = (ImGui::GetIO().Fonts->Fonts.Size > 1 ? 48.0f : ImGui::GetFontSize() * 2.5f) * fileBrowserScale;
-                    const char* iconStr = entry.is_directory() ? ICON_FA_FOLDER : GetAssetIcon(path);
-                    ImVec2 iconTextSize = iconFont->CalcTextSizeA(iconFontSize, FLT_MAX, 0.0f, iconStr);
-                    ImVec2 iconTextPos = ImVec2(
-                        cursorPos.x + (iconSize - iconTextSize.x) * 0.5f,
-                        cursorPos.y + (iconSize - iconTextSize.y) * 0.5f
+                    if (thumbTex != nullptr) {
+                        float imgPad = 2.0f;
+                        ImU32 imgTint = isBeingDragged ? IM_COL32(255, 255, 255, 120) : IM_COL32_WHITE;
+                        drawList->AddImage((ImTextureID)thumbTex,
+                            ImVec2(cursorPos.x + imgPad, cursorPos.y + imgPad),
+                            ImVec2(cursorPos.x + iconSize - imgPad, cursorPos.y + iconSize - imgPad),
+                            ImVec2(0, 0), ImVec2(1, 1), imgTint);
+                    } else {
+                        ImFont* iconFont = (ImGui::GetIO().Fonts->Fonts.Size > 1) ? ImGui::GetIO().Fonts->Fonts[1] : ImGui::GetFont();
+                        float iconFontSize = (ImGui::GetIO().Fonts->Fonts.Size > 1 ? 48.0f : ImGui::GetFontSize() * 2.5f) * fileBrowserScale;
+                        const char* iconStr = entry.is_directory() ? ICON_FA_FOLDER : GetAssetIcon(path);
+                        ImVec2 iconTextSize = iconFont->CalcTextSizeA(iconFontSize, FLT_MAX, 0.0f, iconStr);
+                        ImVec2 iconTextPos = ImVec2(
+                            cursorPos.x + (iconSize - iconTextSize.x) * 0.5f,
+                            cursorPos.y + (iconSize - iconTextSize.y) * 0.5f
+                        );
+                        ImU32 iconColor = isBeingDragged
+                            ? IM_COL32(180, 180, 180, 130)
+                            : (entry.is_directory() ? IM_COL32(245, 205, 110, 255) : IM_COL32(210, 210, 210, 255));
+                        drawList->AddText(iconFont, iconFontSize, iconTextPos, iconColor, iconStr);
+                    }
+
+                    std::string truncated = filename;
+                    float textWidth = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, truncated.c_str()).x;
+                    bool isTruncated = false;
+                    if (textWidth > iconSize) {
+                        isTruncated = true;
+                        float ellipsisWidth = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, "...").x;
+                        float maxPrefixWidth = iconSize - ellipsisWidth;
+                        if (maxPrefixWidth <= 0.0f) {
+                            truncated = "...";
+                        } else {
+                            size_t low = 0, high = truncated.size();
+                            size_t bestLen = 0;
+                            while (low <= high) {
+                                size_t mid = low + (high - low) / 2;
+                                float w = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, truncated.c_str(), truncated.c_str() + mid).x;
+                                if (w <= maxPrefixWidth) {
+                                    bestLen = mid;
+                                    low = mid + 1;
+                                } else {
+                                    if (mid == 0) break;
+                                    high = mid - 1;
+                                }
+                            }
+                            truncated.resize(bestLen);
+                            truncated += "...";
+                        }
+                        textWidth = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, truncated.c_str()).x;
+                    }
+
+                    ImVec2 textPos = ImVec2(
+                        cursorPos.x + (iconSize - textWidth) * 0.5f,
+                        cursorPos.y + iconSize + 2.0f
                     );
-                    ImU32 iconColor = isBeingDragged
-                        ? IM_COL32(180, 180, 180, 130)
-                        : (entry.is_directory() ? IM_COL32(245, 205, 110, 255) : IM_COL32(210, 210, 210, 255));
-                    drawList->AddText(iconFont, iconFontSize, iconTextPos, iconColor, iconStr);
-                }
+                    drawList->AddText(textFont, textFontSize, textPos, isBeingDragged ? IM_COL32(180, 180, 180, 130) : IM_COL32_WHITE, truncated.c_str());
 
-                std::string truncated = filename;
-                float textWidth = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, truncated.c_str()).x;
-                bool isTruncated = false;
-                if (textWidth > iconSize) {
-                    isTruncated = true;
-                    while (!truncated.empty() && textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, (truncated + "...").c_str()).x > iconSize) {
-                        truncated.pop_back();
+                    if (isHovered && isTruncated) {
+                        ImGui::SetTooltip("%s", filename.c_str());
                     }
-                    truncated += "...";
-                    textWidth = textFont->CalcTextSizeA(textFontSize, FLT_MAX, 0.0f, truncated.c_str()).x;
+
+                    float lastButtonX2 = ImGui::GetItemRectMax().x;
+                    float nextButtonX2 = lastButtonX2 + padding + iconSize;
+                    if (i + 1 < entries.size() && nextButtonX2 < windowVisibleX2)
+                    {
+                        ImGui::SameLine(0.0f, padding);
+                    }
+
+                    ImGui::PopID();
                 }
-
-                ImVec2 textPos = ImVec2(
-                    cursorPos.x + (iconSize - textWidth) * 0.5f,
-                    cursorPos.y + iconSize + 2.0f
-                );
-                drawList->AddText(textFont, textFontSize, textPos, isBeingDragged ? IM_COL32(180, 180, 180, 130) : IM_COL32_WHITE, truncated.c_str());
-
-                if (isHovered && isTruncated) {
-                    ImGui::SetTooltip("%s", filename.c_str());
-                }
-
-                float lastButtonX2 = ImGui::GetItemRectMax().x;
-                float nextButtonX2 = lastButtonX2 + padding + iconSize;
-                if (i + 1 < entries.size() && nextButtonX2 < windowVisibleX2)
-                {
-                    ImGui::SameLine(0.0f, padding);
-                }
-
-                ImGui::PopID();
             }
 
             // Drag and drop onto empty folder area
@@ -925,6 +1012,7 @@ namespace am {
 
             if (isBoxSelecting)
             {
+                ZoneScopedN("FileBrowser_BoxSelecting");
                 if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
                 {
                     ImVec2 curContentPos = ImVec2(io.MousePos.x - childWindowPos.x + childScroll.x, io.MousePos.y - childWindowPos.y + childScroll.y);
@@ -957,10 +1045,7 @@ namespace am {
                             std::vector<std::filesystem::path> combined = boxSelectPreSelection;
                             for (const auto& p : inBoxPaths)
                             {
-                                auto it = std::find_if(combined.begin(), combined.end(), [&p](const std::filesystem::path& item) {
-                                    std::error_code ec;
-                                    return item == p || std::filesystem::equivalent(item, p, ec);
-                                });
+                                auto it = std::find(combined.begin(), combined.end(), p);
                                 if (it != combined.end())
                                 {
                                     combined.erase(it);
@@ -977,10 +1062,7 @@ namespace am {
                             std::vector<std::filesystem::path> combined = boxSelectPreSelection;
                             for (const auto& p : inBoxPaths)
                             {
-                                auto it = std::find_if(combined.begin(), combined.end(), [&p](const std::filesystem::path& item) {
-                                    std::error_code ec;
-                                    return item == p || std::filesystem::equivalent(item, p, ec);
-                                });
+                                auto it = std::find(combined.begin(), combined.end(), p);
                                 if (it == combined.end())
                                 {
                                     combined.push_back(p);
@@ -1062,6 +1144,7 @@ namespace am {
 
     void FileBrowser::ImguiFileInspector(std::string windowName)
     {
+        ZoneScoped;
         if (requestInspectorFocus) {
             ImGui::SetNextWindowFocus();
             requestInspectorFocus = false;
@@ -1164,6 +1247,7 @@ namespace am {
         // 1. Preview / Header
         void* thumbTex = nullptr;
         if (!isDirectory && assetManager) {
+            ZoneScopedN("FileInspector_GetThumbnail");
             thumbTex = assetManager->getThumbnailTexture(currentSelected);
         }
 
@@ -1269,7 +1353,38 @@ namespace am {
                         ImGui::Text("Dimensions: %u x %u", texData->width, texData->height);
                         ImGui::Text("Channels: %u", texData->channels);
                         ImGui::Text("Has Alpha: %s", texData->hasAlpha ? "Yes" : "No");
-                        ImGui::Text("Texture Type: %s", texData->type == TextureType::Texture2D ? "2D" : "Cube Map");
+
+                        std::string typeStr;
+                        switch (texData->type) {
+                            case TextureType::Texture2D: typeStr = "Texture2D"; break;
+                            case TextureType::TextureCube: typeStr = "TextureCube"; break;
+                        }
+
+                        if (ImGui::BeginCombo("Texture Type", typeStr.c_str())) {
+                            bool is2DSelected = (texData->type == TextureType::Texture2D);
+                            if (ImGui::Selectable("Texture2D", is2DSelected)) {
+                                if (texData->type != TextureType::Texture2D) {
+                                    texData->type = TextureType::Texture2D;
+                                    if (assetManager) assetManager->saveAsset(fileUuid.value());
+                                }
+                            }
+                            if (is2DSelected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+
+                            bool isCubeSelected = (texData->type == TextureType::TextureCube);
+                            if (ImGui::Selectable("TextureCube", isCubeSelected)) {
+                                if (texData->type != TextureType::TextureCube) {
+                                    texData->type = TextureType::TextureCube;
+                                    if (assetManager) assetManager->saveAsset(fileUuid.value());
+                                }
+                            }
+                            if (isCubeSelected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+
+                            ImGui::EndCombo();
+                        }
                     }
                 } else if (assetType == AssetType::Model) {
                     auto modelData = assetManager ? assetManager->getAssetData<ModelData>(fileUuid.value()) : nullptr;
@@ -1568,9 +1683,8 @@ namespace am {
     void FileBrowser::addSelectedFile(const std::filesystem::path& path)
     {
         if (path.empty()) return;
-        std::error_code ec;
         for (const auto& p : selectedFiles) {
-            if (p == path || std::filesystem::equivalent(p, path, ec)) return;
+            if (p == path) return;
         }
         selectedFiles.push_back(path);
         selectedFile = path;
@@ -1579,10 +1693,9 @@ namespace am {
 
     void FileBrowser::removeSelectedFile(const std::filesystem::path& path)
     {
-        std::error_code ec;
         selectedFiles.erase(std::remove_if(selectedFiles.begin(), selectedFiles.end(),
-            [&path, &ec](const std::filesystem::path& p) {
-                return p == path || std::filesystem::equivalent(p, path, ec);
+            [&path](const std::filesystem::path& p) {
+                return p == path;
             }), selectedFiles.end());
         selectedFile = selectedFiles.empty() ? std::filesystem::path() : selectedFiles.back();
     }
@@ -1595,9 +1708,8 @@ namespace am {
 
     bool FileBrowser::isFileSelected(const std::filesystem::path& path) const
     {
-        std::error_code ec;
         for (const auto& p : selectedFiles) {
-            if (p == path || std::filesystem::equivalent(p, path, ec)) {
+            if (p == path) {
                 return true;
             }
         }
@@ -1628,6 +1740,7 @@ namespace am {
 
     bool FileBrowser::copyFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite)
     {
+        ZoneScoped;
         std::error_code ec;
         if (!std::filesystem::exists(sourcePath, ec)) {
             spdlog::error("copyFileOrDirectory failed: source '{}' does not exist", sourcePath.string());
@@ -1675,6 +1788,7 @@ namespace am {
 
     bool FileBrowser::moveFileOrDirectory(const std::filesystem::path& sourcePath, const std::filesystem::path& destDir, bool overwrite)
     {
+        ZoneScoped;
         std::error_code ec;
         if (!std::filesystem::exists(sourcePath, ec)) {
             spdlog::error("moveFileOrDirectory failed: source '{}' does not exist", sourcePath.string());
@@ -1710,11 +1824,15 @@ namespace am {
                         it->second->path = target.string();
                         assetManager->saveAssetMetadata(uuidOpt.value());
                     }
+                    assetManager->pathToUUID.erase(sourcePath.lexically_normal().string());
+                    assetManager->pathToUUID.erase(sourcePath.generic_string());
+                    assetManager->pathToUUID[target.lexically_normal().string()] = uuidOpt.value();
+                    assetManager->pathToUUID[target.generic_string()] = uuidOpt.value();
                 }
             }
 
             for (auto& p : selectedFiles) {
-                if (p == sourcePath || std::filesystem::equivalent(p, sourcePath, ec)) {
+                if (p == sourcePath) {
                     p = target;
                 }
             }
@@ -1738,6 +1856,7 @@ namespace am {
 
     bool FileBrowser::duplicateFile(const std::filesystem::path& path)
     {
+        ZoneScoped;
         std::error_code ec;
         if (!std::filesystem::exists(path, ec)) {
             return false;
@@ -1747,6 +1866,7 @@ namespace am {
 
     bool FileBrowser::duplicateFiles(const std::vector<std::filesystem::path>& paths)
     {
+        ZoneScoped;
         bool any = false;
         std::vector<std::filesystem::path> newSelection;
         auto pathsCopy = paths;
@@ -1766,6 +1886,7 @@ namespace am {
 
     bool FileBrowser::deleteFile(const std::filesystem::path& path)
     {
+        ZoneScoped;
         std::error_code ec;
         if (!std::filesystem::exists(path, ec)) {
             return false;
@@ -1791,6 +1912,8 @@ namespace am {
                 if (uuidOpt.has_value()) {
                     assetManager->metadata.erase(uuidOpt.value());
                     assetManager->assets.erase(uuidOpt.value());
+                    assetManager->pathToUUID.erase(path.lexically_normal().string());
+                    assetManager->pathToUUID.erase(path.generic_string());
                 }
             }
 
@@ -1812,6 +1935,7 @@ namespace am {
 
     bool FileBrowser::deleteFiles(const std::vector<std::filesystem::path>& paths)
     {
+        ZoneScoped;
         auto pathsCopy = paths;
         bool any = false;
         for (const auto& p : pathsCopy) {
@@ -1824,6 +1948,7 @@ namespace am {
 
     void FileBrowser::copyFilesToClipboard(const std::vector<std::filesystem::path>& paths)
     {
+        ZoneScoped;
         auto pathsCopy = paths;
         clipboardPaths = pathsCopy;
         clipboardPath = clipboardPaths.empty() ? std::filesystem::path() : clipboardPaths.back();
@@ -1840,6 +1965,7 @@ namespace am {
 
     void FileBrowser::cutFilesToClipboard(const std::vector<std::filesystem::path>& paths)
     {
+        ZoneScoped;
         auto pathsCopy = paths;
         clipboardPaths = pathsCopy;
         clipboardPath = clipboardPaths.empty() ? std::filesystem::path() : clipboardPaths.back();
@@ -1871,6 +1997,7 @@ namespace am {
 
     bool FileBrowser::pasteFileFromClipboard(const std::filesystem::path& targetDir)
     {
+        ZoneScoped;
         std::vector<std::filesystem::path> sources = clipboardPaths;
         std::error_code ec;
         if (sources.empty()) {
@@ -1973,6 +2100,7 @@ namespace am {
 
     void FileBrowser::undoFileAction()
     {
+        ZoneScoped;
         if (fileUndoStack.empty()) return;
 
         auto rec = fileUndoStack.back();
@@ -2001,6 +2129,10 @@ namespace am {
                                 it->second->path = rec.sourcePath.string();
                                 assetManager->saveAssetMetadata(uuidOpt.value());
                             }
+                            assetManager->pathToUUID.erase(rec.targetPath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.targetPath.generic_string());
+                            assetManager->pathToUUID[rec.sourcePath.lexically_normal().string()] = uuidOpt.value();
+                            assetManager->pathToUUID[rec.sourcePath.generic_string()] = uuidOpt.value();
                         }
                     }
                     setSelectedFile(rec.sourcePath);
@@ -2010,6 +2142,7 @@ namespace am {
             case FileActionRecord::Type::Copy:
             case FileActionRecord::Type::CreateFolder:
             case FileActionRecord::Type::CreateMaterial:
+            case FileActionRecord::Type::CreateScript:
             {
                 if (std::filesystem::exists(rec.targetPath, ec)) {
                     if (assetManager) {
@@ -2017,6 +2150,8 @@ namespace am {
                         if (uuidOpt.has_value()) {
                             assetManager->metadata.erase(uuidOpt.value());
                             assetManager->assets.erase(uuidOpt.value());
+                            assetManager->pathToUUID.erase(rec.targetPath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.targetPath.generic_string());
                         }
                     }
                     std::filesystem::path metaPath = rec.targetPath.string() + ".meta";
@@ -2057,6 +2192,7 @@ namespace am {
 
     void FileBrowser::redoFileAction()
     {
+        ZoneScoped;
         if (fileRedoStack.empty()) return;
 
         auto rec = fileRedoStack.back();
@@ -2085,6 +2221,10 @@ namespace am {
                                 it->second->path = rec.targetPath.string();
                                 assetManager->saveAssetMetadata(uuidOpt.value());
                             }
+                            assetManager->pathToUUID.erase(rec.sourcePath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.sourcePath.generic_string());
+                            assetManager->pathToUUID[rec.targetPath.lexically_normal().string()] = uuidOpt.value();
+                            assetManager->pathToUUID[rec.targetPath.generic_string()] = uuidOpt.value();
                         }
                     }
                     setSelectedFile(rec.targetPath);
@@ -2121,6 +2261,14 @@ namespace am {
                 setSelectedFile(rec.targetPath);
                 break;
             }
+            case FileActionRecord::Type::CreateScript:
+            {
+                if (!rec.trashBackupPath.empty() && std::filesystem::exists(rec.trashBackupPath, ec)) {
+                    std::filesystem::rename(rec.trashBackupPath, rec.targetPath, ec);
+                    setSelectedFile(rec.targetPath);
+                }
+                break;
+            }
             case FileActionRecord::Type::Delete:
             {
                 if (std::filesystem::exists(rec.sourcePath, ec)) {
@@ -2142,6 +2290,8 @@ namespace am {
                         if (uuidOpt.has_value()) {
                             assetManager->metadata.erase(uuidOpt.value());
                             assetManager->assets.erase(uuidOpt.value());
+                            assetManager->pathToUUID.erase(rec.sourcePath.lexically_normal().string());
+                            assetManager->pathToUUID.erase(rec.sourcePath.generic_string());
                         }
                     }
                     removeSelectedFile(rec.sourcePath);

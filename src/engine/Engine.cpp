@@ -10,12 +10,14 @@
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
+#include "systems/scriptSystem/ScriptSystem.hpp"
 #include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/LightComponent.hpp"
 #include "systems/renderingSystem/componets/ThumbnailComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "systems/scriptSystem/components/ScriptComponent.hpp"
 #include "ecs/NameComponent.hpp"
 #include "ecs/TagComponent.hpp"
 #include <glm/gtc/matrix_transform.hpp>
@@ -204,6 +206,117 @@ namespace engine {
         }
     }
 
+    void Engine::StartPlayMode()
+    {
+        if (isPlaying) {
+            if (isPaused) {
+                SetPaused(false);
+            }
+            return;
+        }
+
+        // Save snapshots of all active editable scenes
+        sceneSnapshots.clear();
+        auto activeScenes = GetActiveScenes();
+        for (const auto& scene : activeScenes) {
+            if (scene && scene->IsEditable() && scene->GetSceneType() != ecs::SceneType::Thumbnail) {
+                rapidjson::Document doc;
+                scene->SerializeToJson(doc);
+                sceneSnapshots[scene->GetName()] = std::move(doc);
+            }
+        }
+
+        isPlaying = true;
+        isPaused = false;
+        if (platform) {
+            platform->NotifyIDEState("PLAYING");
+        }
+        spdlog::info("Entered Play Mode");
+    }
+
+    void Engine::StopPlayMode()
+    {
+        if (!isPlaying) return;
+
+        // 1. Destroy running script instances across scenes
+        auto activeScenes = GetActiveScenes();
+        for (const auto& scene : activeScenes) {
+            if (scene) {
+                auto scriptCompArray = scene->GetComponentArray<ScriptComponent>();
+                if (scriptCompArray) {
+                    auto& comps = scriptCompArray->GetComponents();
+                    for (size_t i = 0; i < scriptCompArray->GetArraySize(); ++i) {
+                        if (scriptCompArray->IsComponentActive(i)) {
+                            for (auto& script : comps[i].scripts) {
+                                if (script && script->started) {
+                                    script->OnDestroy();
+                                    script->started = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Restore scenes from snapshots
+        for (const auto& [sceneName, snapshot] : sceneSnapshots) {
+            auto scene = GetScene(sceneName);
+            if (scene) {
+                scene->DeserializeFromJson(snapshot);
+            }
+        }
+        sceneSnapshots.clear();
+
+        isPlaying = false;
+        isPaused = false;
+        if (platform) {
+            platform->NotifyIDEState("STOPPED");
+        }
+
+        // 3. Validate selected entities in editor
+        if (editorSystem) {
+            auto target = editorSystem->GetTargetScene();
+            if (target) {
+                auto sel = editorSystem->GetSelectedEntities();
+                std::vector<Entity> validSel;
+                for (Entity e : sel) {
+                    if (target->IsEntityActive(e)) {
+                        validSel.push_back(e);
+                    }
+                }
+                editorSystem->SetSelectedEntities(validSel);
+            }
+        }
+
+        spdlog::info("Exited Play Mode (Scene restored)");
+    }
+
+    void Engine::SetPaused(bool paused)
+    {
+        if (!isPlaying) return;
+        isPaused = paused;
+        if (platform) {
+            platform->NotifyIDEState(isPaused ? "PAUSED" : "PLAYING");
+        }
+        spdlog::info(isPaused ? "Play Mode Paused" : "Play Mode Resumed");
+    }
+
+    void Engine::TogglePlay()
+    {
+        if (isPlaying) {
+            StopPlayMode();
+        } else {
+            StartPlayMode();
+        }
+    }
+
+    void Engine::TogglePause()
+    {
+        if (!isPlaying) return;
+        SetPaused(!isPaused);
+    }
+
     std::shared_ptr<IComponentArray> Engine::CreateComponentArray(const std::type_index& type) const
     {
         return CreateComponentArrayFromType<EngineComponents>(type);
@@ -248,6 +361,12 @@ namespace engine {
 
     void Engine::SaveScene()
     {
+        if (isPlaying)
+        {
+            spdlog::warn("Cannot save scene while in Play mode. Exit Play mode to save changes.");
+            return;
+        }
+
         auto activeScene = GetActiveScene();
         if (!activeScene)
         {
@@ -497,13 +616,13 @@ namespace engine {
                 lightTransform.rotation = glm::quatLookAt(glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f)), glm::vec3(0, 1, 0));
                 ecs::Entity lightEntity = scene->CreateEntity("Directional Light", lightTransform);
 
-                LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 2.5f);
+                LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 0.2f);
                 scene->AddComponent<LightComponent>(lightEntity, lightComp);
             }
 
             // 3. Create Camera Entity
             TransformComponent camTransform;
-            camTransform.position = glm::vec3(0.0f, maxDim * 0.3f, distance);
+            camTransform.position = glm::vec3(0.5f, maxDim * 0.3f, distance);
             camTransform.rotation = glm::quatLookAt(glm::normalize(-camTransform.position), glm::vec3(0, 1, 0));
             ecs::Entity camEntity = scene->CreateEntity("Main Camera", camTransform);
 
@@ -512,6 +631,8 @@ namespace engine {
             camComp.nearPlane = std::max(0.01f, distance * 0.01f);
             camComp.farPlane = distance * 100.0f;
             camComp.active = true;
+            camComp.skyboxType = CameraComponent::SkyboxType::Color;
+            camComp.skyboxData = SkyboxColorData{glm::vec4(0.2f, 0.2f, 0.2f, 1.0f)};
             scene->AddComponent<CameraComponent>(camEntity, camComp);
 
             return true;
@@ -588,12 +709,12 @@ namespace engine {
             lightTransform.rotation = glm::quatLookAt(glm::normalize(glm::vec3(-1.0f, -1.2f, -1.0f)), glm::vec3(0, 1, 0));
             ecs::Entity lightEntity = scene->CreateEntity("Directional Light", lightTransform);
 
-            LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 2.5f);
+            LightComponent lightComp(LightComponent::Type::Directional, glm::vec3(1.0f, 1.0f, 1.0f), 0.2f);
             scene->AddComponent<LightComponent>(lightEntity, lightComp);
 
             // 3. Create Camera Entity
             TransformComponent camTransform;
-            camTransform.position = glm::vec3(0.0f, maxDim * 0.3f, distance);
+            camTransform.position = glm::vec3(0.5f, maxDim * 0.3f, distance);
             camTransform.rotation = glm::quatLookAt(glm::normalize(-camTransform.position), glm::vec3(0, 1, 0));
             ecs::Entity camEntity = scene->CreateEntity("Main Camera", camTransform);
 
@@ -602,6 +723,8 @@ namespace engine {
             camComp.nearPlane = std::max(0.01f, distance * 0.01f);
             camComp.farPlane = distance * 100.0f;
             camComp.active = true;
+            camComp.skyboxType = CameraComponent::SkyboxType::Color;
+            camComp.skyboxData = SkyboxColorData{glm::vec4(0.2f, 0.2f, 0.2f, 1.0f)};
             scene->AddComponent<CameraComponent>(camEntity, camComp);
 
             return true;

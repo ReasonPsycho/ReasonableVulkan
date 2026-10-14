@@ -13,6 +13,7 @@
 #include <utility>
 #include <memory>
 #include <cmath>
+#include <atomic>
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
@@ -47,8 +48,10 @@ namespace engine::ecs
 
         void* GetThumbnailTexture(const boost::uuids::uuid& assetId, const std::string& thumbnailPath) override;
         bool QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath) override;
+        void InvalidateThumbnail(const boost::uuids::uuid& assetId) override;
         std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) override;
         bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
+        bool CreateScriptAsset(const std::string& scriptName, const std::filesystem::path& targetDir = "");
 
         struct ComponentInfo {
             std::string displayName;
@@ -122,12 +125,18 @@ namespace engine::ecs
             return std::find(selectedEntities.begin(), selectedEntities.end(), entity) != selectedEntities.end();
         }
 
+        void CopySelectedEntities(Scene* sourceScene = nullptr) override;
+        void PasteEntities(Scene* targetScene = nullptr) override { PasteEntities(targetScene, MAX_ENTITIES); }
+        void PasteEntities(Scene* targetScene, Entity parent) override;
+        void DuplicateSelectedEntities(Scene* targetScene = nullptr) override;
+        bool HasEntitiesInClipboard() const override { return !entityClipboard.empty(); }
+
         Scene* GetTargetScene() const override;
         std::shared_ptr<Scene> GetSelectedScene() const override { return selectedScene.lock(); }
         void SetTargetScene(std::shared_ptr<Scene> scene) override { selectedScene = scene; }
 
         [[=NonSerialized{}]]
-        CameraComponent camera = CameraComponent();
+        CameraComponent camera = CameraComponent(); //TODO check if it realy needed
         [[=NonSerialized{}]]
         TransformComponent cameraTransform = TransformComponent();
 
@@ -165,11 +174,21 @@ namespace engine::ecs
         void Redo() override { history.Redo(); }
         bool CanUndo() const override { return history.CanUndo(); }
         bool CanRedo() const override { return history.CanRedo(); }
+
+        bool IsPlaying() const override;
+        bool IsPaused() const override;
+        void StartPlayMode() override;
+        void StopPlayMode() override;
+        void SetPaused(bool paused) override;
+        void TogglePlay() override;
+        void TogglePause() override;
         editor::CommandHistory& GetHistory() { return history; }
         const editor::CommandHistory& GetHistory() const { return history; }
         void ExecuteCommand(std::shared_ptr<editor::ICommand> cmd) { history.Execute(cmd); }
         void PushCommand(std::shared_ptr<editor::ICommand> cmd) { history.Push(cmd); }
         void ImGuiHistoryWindow(const std::string& windowName = "History");
+        void TriggerScriptRebuild();
+        std::filesystem::path FindCMakeBuildDir() const;
 
         struct EditorCameraState {
             CameraComponent camera = CameraComponent();
@@ -202,6 +221,13 @@ namespace engine::ecs
         std::unordered_map<std::string, EditorCameraState> sceneEditorCameras;
         std::unordered_map<Entity, std::string> named_entities;
         std::vector<Entity> selectedEntities;
+
+        struct EntityClipboardItem {
+            std::shared_ptr<rapidjson::Document> doc;
+            std::string name;
+            Entity originalParent = MAX_ENTITIES;
+        };
+        std::vector<EntityClipboardItem> entityClipboard;
         Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
         char renameBuf[256] = "";
         bool renameFocusRequested = false;
@@ -227,6 +253,16 @@ namespace engine::ecs
         void ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState, const ImVec2& viewportPos, const ImVec2& viewportSize);
         void ImguiShaderOverrideWindow(const ImVec2& viewportPos, const ImVec2& viewportSize);
         void ImguiToolbar();
+        void ImGuiScriptBuildLogWindow();
+        void PollPluginBridge();
+
+        uint64_t lastProcessedStateTimestamp = 0;
+
+        std::atomic<bool> isScriptCompiling{false};
+        std::atomic<bool> scriptCompilePendingReload{false};
+        bool lastScriptBuildSuccess{true};
+        std::string lastScriptBuildOutput;
+        bool showScriptBuildLogWindow{false};
 
         bool isRightMousePressed = false;
         bool isLeftMousePressed = false;

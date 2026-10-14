@@ -7,9 +7,9 @@
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\wiremesh_textured.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "wiremeshTexturedShader",
-  "contentHash": 4437362203882087122,
+  "contentHash": 14735356005098455851,
   "assetFactoryData": {
-    "importPath": "res/shaders/jsons/wiremesh_textured.shaderImport",
+    "importPath": "res\\shaders\\jsons\\wiremesh_textured.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

@@ -2,13 +2,13 @@
 #define TRANSFORMSYSTEM_H
 
 #include <typeindex>
+#include <vector>
 
 #include "componets/TransformComponent.hpp"
 #include "../../ecs/System.h"
 
 namespace engine::ecs
 {
-    struct TransformNode;
     class Scene;
 
     class TransformSystem :  public System<TransformSystem, TransformComponent>
@@ -20,9 +20,6 @@ namespace engine::ecs
     protected:
         void OnComponentAdded(ComponentID componentID, std::type_index type) override {}
         void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
-
-    private:
-        void UpdateTransformRecursive(Entity entity,const glm::mat4* parentMatrix, std::array<TransformComponent, MAX_ENTITIES>& transforms);
     };
 }
 

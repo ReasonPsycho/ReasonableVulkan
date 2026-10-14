@@ -67,6 +67,7 @@ namespace am {
                 Copy,
                 CreateFolder,
                 CreateMaterial,
+                CreateScript,
                 Delete
             };
             Type type = Type::Move;
