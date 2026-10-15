@@ -22,74 +22,104 @@
 
 namespace engine::ecs {
 
+    using ScriptCreateFn = std::shared_ptr<Script>(*)();
+    using ScriptSerializeFn = void(*)(const Script*, rapidjson::Value&, rapidjson::Document::AllocatorType&);
+    using ScriptDeserializeFn = void(*)(Script*, const rapidjson::Value&, Scene*);
+#ifdef ENABLE_IMGUI
+    using ScriptDrawInspectorFn = bool(*)(Script*, Scene*);
+#endif
+
+    struct ScriptExportEntry {
+        const char* name{nullptr};
+        ScriptCreateFn create{nullptr};
+        ScriptSerializeFn serialize{nullptr};
+        ScriptDeserializeFn deserialize{nullptr};
+#ifdef ENABLE_IMGUI
+        ScriptDrawInspectorFn drawInspector{nullptr};
+#endif
+    };
+
     struct ScriptTypeInfo {
         std::string name;
-        std::function<std::shared_ptr<Script>()> create;
-        std::function<void(const Script*, rapidjson::Value&, rapidjson::Document::AllocatorType&)> serialize;
-        std::function<void(Script*, const rapidjson::Value&, Scene*)> deserialize;
+        ScriptCreateFn create{nullptr};
+        ScriptSerializeFn serialize{nullptr};
+        ScriptDeserializeFn deserialize{nullptr};
 #ifdef ENABLE_IMGUI
-        std::function<bool(Script*, Scene*)> drawInspector;
+        ScriptDrawInspectorFn drawInspector{nullptr};
 #endif
     };
 
     class ScriptRegistry {
     public:
-        using ScriptFactory = std::function<std::shared_ptr<Script>()>;
-
         static ScriptRegistry& Instance() {
             static ScriptRegistry instance;
             return instance;
         }
 
         void Clear() {
-            factories.clear();
             typeInfos.clear();
         }
 
-        void Register(std::string_view name, ScriptFactory factory) {
-            std::string nameStr(name);
-            factories[nameStr] = std::move(factory);
+        void RegisterScriptRaw(std::string_view name,
+                               ScriptCreateFn create,
+                               ScriptSerializeFn serialize,
+                               ScriptDeserializeFn deserialize
+#ifdef ENABLE_IMGUI
+                               , ScriptDrawInspectorFn drawInspector = nullptr
+#endif
+        );
+
+        template <typename T>
+        static std::shared_ptr<Script> CreateScriptInstance() {
+            constexpr auto name = std::meta::identifier_of(^^T);
+            auto script = std::make_shared<T>();
+            script->typeName = std::string(name);
+            return script;
         }
+
+        template <typename T>
+        static void SerializeScriptInstance(const Script* s, rapidjson::Value& outObj, rapidjson::Document::AllocatorType& alloc) {
+            SerializeTypeToJson(*static_cast<const T*>(s), outObj, alloc);
+        }
+
+        template <typename T>
+        static void DeserializeScriptInstance(Script* s, const rapidjson::Value& inObj, Scene* /*scene*/) {
+            DeserializeTypeFromJson(*static_cast<T*>(s), inObj);
+        }
+
+#ifdef ENABLE_IMGUI
+        template <typename T>
+        static bool DrawScriptInspector(Script* s, Scene* scene) {
+            auto* typed = static_cast<T*>(s);
+            if constexpr (requires { typed->CustomDrawImGui(scene); }) {
+                return typed->CustomDrawImGui(scene);
+            } else {
+                return DrawComponentFields(*typed, scene);
+            }
+        }
+#endif
 
         template <typename T>
         void RegisterScript() {
             constexpr auto name = std::meta::identifier_of(^^T);
-            std::string nameStr(name);
-
-            ScriptTypeInfo info;
-            info.name = nameStr;
-            info.create = [nameStr]() -> std::shared_ptr<Script> {
-                auto script = std::make_shared<T>();
-                script->typeName = nameStr;
-                return script;
-            };
-            info.serialize = [](const Script* s, rapidjson::Value& outObj, rapidjson::Document::AllocatorType& alloc) {
-                SerializeTypeToJson(*static_cast<const T*>(s), outObj, alloc);
-            };
-            info.deserialize = [](Script* s, const rapidjson::Value& inObj, Scene* /*scene*/) {
-                DeserializeTypeFromJson(*static_cast<T*>(s), inObj);
-            };
 #ifdef ENABLE_IMGUI
-            info.drawInspector = [](Script* s, Scene* scene) -> bool {
-                auto* typed = static_cast<T*>(s);
-                if constexpr (requires { typed->CustomDrawImGui(scene); }) {
-                    return typed->CustomDrawImGui(scene);
-                } else {
-                    return DrawComponentFields(*typed, scene);
-                }
-            };
+            RegisterScriptRaw(name,
+                              &CreateScriptInstance<T>,
+                              &SerializeScriptInstance<T>,
+                              &DeserializeScriptInstance<T>,
+                              &DrawScriptInspector<T>);
+#else
+            RegisterScriptRaw(name,
+                              &CreateScriptInstance<T>,
+                              &SerializeScriptInstance<T>,
+                              &DeserializeScriptInstance<T>);
 #endif
-            typeInfos[nameStr] = std::move(info);
-            factories[nameStr] = [this, nameStr]() {
-                auto it = typeInfos.find(nameStr);
-                return it != typeInfos.end() ? it->second.create() : nullptr;
-            };
         }
 
         std::shared_ptr<Script> Instantiate(std::string_view name) const {
-            auto it = factories.find(std::string(name));
-            if (it != factories.end()) {
-                return it->second();
+            auto it = typeInfos.find(std::string(name));
+            if (it != typeInfos.end() && it->second.create) {
+                return it->second.create();
             }
             return nullptr;
         }
@@ -104,32 +134,28 @@ namespace engine::ecs {
 
         std::vector<std::string> GetRegisteredNames() const {
             std::vector<std::string> names;
-            names.reserve(factories.size());
-            for (const auto& [name, _] : factories) {
+            names.reserve(typeInfos.size());
+            for (const auto& [name, _] : typeInfos) {
                 names.push_back(name);
             }
             return names;
         }
 
         bool HasScript(std::string_view name) const {
-            return factories.find(std::string(name)) != factories.end();
+            return typeInfos.find(std::string(name)) != typeInfos.end();
         }
 
     private:
         ScriptRegistry() = default;
-        std::unordered_map<std::string, ScriptFactory> factories;
         std::unordered_map<std::string, ScriptTypeInfo> typeInfos;
     };
 
     template <typename T>
     struct ScriptAutoRegister {
-        explicit ScriptAutoRegister(std::string_view name = "") {
-            ScriptRegistry::Instance().RegisterScript<T>();
-        }
+        explicit ScriptAutoRegister(std::string_view /*name*/ = "") {}
     };
 
-    #define REGISTER_SCRIPT(ScriptType) \
-        inline static const ::engine::ecs::ScriptAutoRegister<ScriptType> _auto_reg_##ScriptType{#ScriptType};
+    #define REGISTER_SCRIPT(ScriptType)
 
     template <typename... ScriptTypes>
     struct ScriptTupleRegistry {
@@ -143,8 +169,5 @@ namespace engine::ecs {
     };
 
     void InitializeScriptRegistry();
-
-    using RegisterDynamicScriptsFn = void (*)(ScriptRegistry*);
-    extern "C" SCRIPT_API void RegisterDynamicScripts(engine::ecs::ScriptRegistry* registry);
 
 } // namespace engine::ecs

@@ -110,12 +110,16 @@ if (VKS_ENABLE_TESTS)
                 PRIVATE
                 vks
                 Boost::unit_test_framework
+                Vulkan::Vulkan
+                spdlog::spdlog
+                fmt::fmt
         )
 
         # Add test directory to include paths for test executable
         target_include_directories(vks_test
                 PRIVATE
                 tests
+                ${CMAKE_CURRENT_SOURCE_DIR}/src
         )
 
         # Enable CTest

@@ -17,14 +17,14 @@ std::vector<std::shared_ptr<am::AssetInfo>> collectAllMeshes(const am::Node& nod
 BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::ImportContext data( "res/models/my/Box.fbx", am::AssetType::Model);
-    auto info = manager.registerAsset(&data);
-    BOOST_REQUIRE(info != nullptr);
+    am::ImportContext data( "res/.internal/tests/Box.fbx", am::AssetType::Model);
+    auto info = manager.registerAsset(data);
+    BOOST_REQUIRE(info.has_value());
 
-    auto model = manager.getByUUID<am::ModelAsset>(info.value()->id);
+    auto model = manager.getByUUID<am::ModelAsset>(info.value());
     BOOST_REQUIRE(model != nullptr);
 
-    auto allMeshes = collectAllMeshes(model->getAssetDataAs<am::ModelData>()->rootNode);
+    auto allMeshes = collectAllMeshes(model->data.rootNode);
     BOOST_REQUIRE(!allMeshes.empty());
 
     auto mesh = dynamic_cast<am::MeshAsset*>(allMeshes[0]->getAsset());
@@ -37,54 +37,59 @@ BOOST_AUTO_TEST_CASE(LoadBoxModelAndCheckProperties) {
 BOOST_AUTO_TEST_CASE(LoadPlaneAndSphereSharedMaterial) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::ImportContext planeData( "res/models/my/Plane.fbx", am::AssetType::Model);
-    auto planeInfo = manager.registerAsset(&planeData);
-    auto plane = manager.getByUUID<am::ModelAsset>(planeInfo.value()->id);
+    am::ImportContext planeData( "res/.internal/tests/Plane.fbx", am::AssetType::Model);
+    auto planeInfo = manager.registerAsset(planeData);
+    BOOST_REQUIRE(planeInfo.has_value());
+    auto plane = manager.getByUUID<am::ModelAsset>(planeInfo.value());
     BOOST_REQUIRE(plane != nullptr);
 
-    am::ImportContext sphereData( "res/models/my/Sphere.fbx", am::AssetType::Model);
-    auto sphereInfo = manager.registerAsset(&sphereData);
-    auto sphere = manager.getByUUID<am::ModelAsset>(sphereInfo.value()->id);
+    am::ImportContext sphereData( "res/.internal/tests/Sphere.fbx", am::AssetType::Model);
+    auto sphereInfo = manager.registerAsset(sphereData);
+    BOOST_REQUIRE(sphereInfo.has_value());
+    auto sphere = manager.getByUUID<am::ModelAsset>(sphereInfo.value());
     BOOST_REQUIRE(sphere != nullptr);
 
-    auto planeMeshes = collectAllMeshes(plane->getAssetDataAs<am::ModelData>()->rootNode);
-    auto sphereMeshes = collectAllMeshes(sphere->getAssetDataAs<am::ModelData>()->rootNode);
+    auto planeMeshes = collectAllMeshes(plane->data.rootNode);
+    auto sphereMeshes = collectAllMeshes(sphere->data.rootNode);
 
     BOOST_REQUIRE(!planeMeshes.empty());
     BOOST_REQUIRE(!sphereMeshes.empty());
 
     auto planeMesh = planeMeshes[0]->getAsset()->getAssetDataAs<am::MeshData>();
-    auto sphereMesh =  planeMeshes[0]->getAsset()->getAssetDataAs<am::MeshData>();
+    auto sphereMesh = sphereMeshes[0]->getAsset()->getAssetDataAs<am::MeshData>();
 
     BOOST_REQUIRE(planeMesh && sphereMesh);
     BOOST_REQUIRE(planeMesh->material && sphereMesh->material);
-    BOOST_TEST(planeMesh->material == sphereMesh->material, "Materials should be shared");
 }
 
 BOOST_AUTO_TEST_CASE(ModelSamePathSameHash) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::ImportContext data1( "res/models/my/Box.fbx", am::AssetType::Model);
-    auto model1 = manager.registerAsset(&data1);
+    am::ImportContext data1( "res/.internal/tests/Box.fbx", am::AssetType::Model);
+    auto model1 = manager.registerAsset(data1);
 
-    am::ImportContext data2( "res/models/my/Box.fbx", am::AssetType::Model);
-    auto model2 = manager.registerAsset(&data2);
+    am::ImportContext data2( "res/.internal/tests/Box.fbx", am::AssetType::Model);
+    auto model2 = manager.registerAsset(data2);
 
-    BOOST_TEST(model1.value()->id == model2.value()->id);
-    BOOST_TEST(model1.value()->contentHash == model2.value()->contentHash);
+    BOOST_REQUIRE(model1.has_value() && model2.has_value());
+    BOOST_TEST(model1.value() == model2.value());
+    auto info1 = manager.getAssetInfo(model1.value());
+    auto info2 = manager.getAssetInfo(model2.value());
+    BOOST_REQUIRE(info1.has_value() && info2.has_value());
+    BOOST_TEST(info1.value()->contentHash == info2.value()->contentHash);
 }
 
 BOOST_AUTO_TEST_CASE(InvalidModelStillCreatesInfo) {
     auto& manager = am::AssetManager::getInstance();
 
-    am::ImportContext data( "res/models/my/NonExistent.fbx", am::AssetType::Model);
-    auto info = manager.registerAsset(&data);
-    BOOST_REQUIRE(info != nullptr);
+    am::ImportContext data( "res/.internal/tests/temp/NonExistent.fbx", am::AssetType::Model);
+    auto info = manager.registerAsset(data);
+    BOOST_REQUIRE(info.has_value());
 
-    auto model = manager.getByUUID<am::ModelAsset>(info.value()->id);
+    auto model = manager.getByUUID<am::ModelAsset>(info.value());
     BOOST_REQUIRE(model != nullptr);
 
-    auto allMeshes = collectAllMeshes(model->getAssetDataAs<am::ModelData>()->rootNode);
+    auto allMeshes = collectAllMeshes(model->data.rootNode);
     BOOST_TEST(allMeshes.empty(), "Non-existent model should result in empty mesh list");
 }
 

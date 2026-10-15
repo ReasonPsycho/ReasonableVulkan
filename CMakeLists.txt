@@ -34,6 +34,8 @@ endif ()
 # Add option for integration tests
 option(ENABLE_INTEGRATION_TESTS "Enable integration testing" OFF)
 
+enable_testing()
+
 # Find and load SDL3 package with its configurations
 message(STATUS "Searching for packages")
 find_package(SDL3 CONFIG REQUIRED)
@@ -124,7 +126,10 @@ if (ENABLE_INTEGRATION_TESTS)
         target_include_directories(integration_tests
                 PRIVATE
                 ${CMAKE_SOURCE_DIR}/src
+                ${CMAKE_SOURCE_DIR}/src/assetManager/src
+                ${CMAKE_SOURCE_DIR}/src/platform/src
         )
+        add_dependencies(integration_tests gameplay_scripts)
 
 
         # Copy resources for integration tests

@@ -22,7 +22,6 @@ namespace engine::ecs {
     }
 
     ScriptHotReloadManager::~ScriptHotReloadManager() {
-        UnloadScriptLibrary();
         CleanupTempFiles();
     }
 
@@ -135,9 +134,14 @@ namespace engine::ecs {
             return false;
         }
 
-        auto regFn = reinterpret_cast<RegisterDynamicScriptsFn>(GetProcAddress(hModule, "RegisterDynamicScripts"));
-        if (!regFn) {
-            spdlog::error("ScriptHotReloadManager: Could not find 'RegisterDynamicScripts' entry point in {}",
+        using GetCountFn = size_t (*)();
+        using GetEntriesFn = const ScriptExportEntry* (*)();
+
+        auto getCount = reinterpret_cast<GetCountFn>(GetProcAddress(hModule, "GetDynamicScriptCount"));
+        auto getEntries = reinterpret_cast<GetEntriesFn>(GetProcAddress(hModule, "GetDynamicScriptEntries"));
+
+        if (!getCount || !getEntries) {
+            spdlog::error("ScriptHotReloadManager: Could not find script export entry points in {}",
                           shadowPath.string());
             FreeLibrary(hModule);
             std::filesystem::remove(shadowPath, ec);
@@ -149,7 +153,22 @@ namespace engine::ecs {
         libraryHandle = hModule;
         activeDllPath = shadowPath;
 
-        regFn(&ScriptRegistry::Instance());
+        size_t count = getCount();
+        const ScriptExportEntry* entries = getEntries();
+        for (size_t i = 0; i < count; ++i) {
+            if (entries[i].name) {
+                ScriptRegistry::Instance().RegisterScriptRaw(
+                    entries[i].name,
+                    entries[i].create,
+                    entries[i].serialize,
+                    entries[i].deserialize
+#ifdef ENABLE_IMGUI
+                    , entries[i].drawInspector
+#endif
+                );
+            }
+        }
+
         spdlog::info("ScriptHotReloadManager: Successfully loaded and registered dynamic scripts from {}",
                      shadowPath.string());
         return true;

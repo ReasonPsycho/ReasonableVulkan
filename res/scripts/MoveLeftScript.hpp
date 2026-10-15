@@ -36,7 +36,4 @@ namespace engine::ecs {
         }
     };
 
-    // Register script so it appears in the Editor Inspector dropdown and supports JSON serialization
-    REGISTER_SCRIPT(MoveLeftScript)
-
 } // namespace engine::ecs

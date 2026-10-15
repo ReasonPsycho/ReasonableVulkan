@@ -47,7 +47,7 @@ Allowing the build time of 30k+ lines of code in just above 30 seconds.
 - **Automated Test Suite**: Unit and integration test coverage for core systems, ECS lifecycle, and asset management.
 ![Tests.png](showcase/Tests.png)
 - **RenderDoc Integration**: Native support for in-depth Vulkan frame captures and graphics debugging.
-![Tracy.gif](showcase/Tracy.gif)
+![RenderDoc.gif](showcase/RenderDoc.gif)
 - **Tracy Profiler Integration**: Comprehensive real-time CPU/GPU performance tracing and frame budget analysis.
 ![Tracy.gif](showcase/Tracy.gif)
 

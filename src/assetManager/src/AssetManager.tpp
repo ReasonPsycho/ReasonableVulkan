@@ -9,9 +9,12 @@ std::shared_ptr<T> AssetManager::getByUUID(const boost::uuids::uuid& id)
         return std::dynamic_pointer_cast<T>(std::shared_ptr<Asset>(it->second.get(), [](Asset *) {
         }));
     }
-    auto asset = getAssetData(id);
-    return std::dynamic_pointer_cast<T>(std::shared_ptr<Asset>(asset, [](Asset *) {
-    }));
+    auto assetOpt = getAsset(id);
+    if (assetOpt.has_value() && assetOpt.value()) {
+        return std::dynamic_pointer_cast<T>(std::shared_ptr<Asset>(assetOpt.value(), [](Asset *) {
+        }));
+    }
+    return nullptr;
 }
 
 template <typename T>

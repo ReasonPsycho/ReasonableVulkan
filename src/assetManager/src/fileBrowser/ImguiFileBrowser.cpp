@@ -1959,7 +1959,9 @@ namespace am {
                 if (i > 0) allText += "\n";
                 allText += clipboardPaths[i].string();
             }
-            ImGui::SetClipboardText(allText.c_str());
+            if (ImGui::GetCurrentContext()) {
+                ImGui::SetClipboardText(allText.c_str());
+            }
         }
     }
 
@@ -1976,7 +1978,9 @@ namespace am {
                 if (i > 0) allText += "\n";
                 allText += clipboardPaths[i].string();
             }
-            ImGui::SetClipboardText(allText.c_str());
+            if (ImGui::GetCurrentContext()) {
+                ImGui::SetClipboardText(allText.c_str());
+            }
         }
     }
 
@@ -2003,7 +2007,7 @@ namespace am {
         if (sources.empty()) {
             if (!clipboardPath.empty() && std::filesystem::exists(clipboardPath, ec)) {
                 sources.push_back(clipboardPath);
-            } else {
+            } else if (ImGui::GetCurrentContext()) {
                 const char* sysClip = ImGui::GetClipboardText();
                 if (sysClip && sysClip[0] != '\0') {
                     std::stringstream ss(sysClip);

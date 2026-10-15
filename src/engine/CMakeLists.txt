@@ -57,12 +57,17 @@ file(GLOB_RECURSE RES_SCRIPT_HEADERS
 )
 
 set(SCRIPT_INCLUDES "")
-set(SCRIPT_REGISTRATIONS "")
+set(SCRIPT_EXPORT_ENTRIES "")
 foreach(HEADER_FILE ${RES_SCRIPT_HEADERS})
     file(TO_CMAKE_PATH "${HEADER_FILE}" NORMALIZED_HEADER)
     get_filename_component(SCRIPT_CLASS_NAME "${HEADER_FILE}" NAME_WLE)
     string(APPEND SCRIPT_INCLUDES "#include \"${NORMALIZED_HEADER}\"\n")
-    string(APPEND SCRIPT_REGISTRATIONS "    if (registry) registry->RegisterScript<engine::ecs::${SCRIPT_CLASS_NAME}>();\n")
+    string(APPEND SCRIPT_EXPORT_ENTRIES "    {\n")
+    string(APPEND SCRIPT_EXPORT_ENTRIES "        \"${SCRIPT_CLASS_NAME}\",\n")
+    string(APPEND SCRIPT_EXPORT_ENTRIES "        &engine::ecs::ScriptRegistry::CreateScriptInstance<engine::ecs::${SCRIPT_CLASS_NAME}>,\n")
+    string(APPEND SCRIPT_EXPORT_ENTRIES "        &engine::ecs::ScriptRegistry::SerializeScriptInstance<engine::ecs::${SCRIPT_CLASS_NAME}>,\n")
+    string(APPEND SCRIPT_EXPORT_ENTRIES "        &engine::ecs::ScriptRegistry::DeserializeScriptInstance<engine::ecs::${SCRIPT_CLASS_NAME}>\n")
+    string(APPEND SCRIPT_EXPORT_ENTRIES "    },\n")
 endforeach()
 
 set(GENERATED_SCRIPT_REGISTRY "${CMAKE_CURRENT_BINARY_DIR}/GeneratedScriptRegistry.cpp")
@@ -70,9 +75,16 @@ file(GENERATE OUTPUT "${GENERATED_SCRIPT_REGISTRY}" CONTENT "
 #include \"systems/scriptSystem/ScriptRegistry.hpp\"
 ${SCRIPT_INCLUDES}
 
-extern \"C\" SCRIPT_API void RegisterDynamicScripts(engine::ecs::ScriptRegistry* registry) {
-    if (!registry) return;
-${SCRIPT_REGISTRATIONS}
+static const engine::ecs::ScriptExportEntry s_dynamicScriptEntries[] = {
+${SCRIPT_EXPORT_ENTRIES}
+};
+
+extern \"C\" SCRIPT_API size_t GetDynamicScriptCount() {
+    return sizeof(s_dynamicScriptEntries) / sizeof(s_dynamicScriptEntries[0]);
+}
+
+extern \"C\" SCRIPT_API const engine::ecs::ScriptExportEntry* GetDynamicScriptEntries() {
+    return s_dynamicScriptEntries;
 }
 ")
 
@@ -180,12 +192,19 @@ if (ENGINE_ENABLE_TESTS)
                 platform
                 renderDocManager
                 Boost::unit_test_framework
+                spdlog::spdlog
+                glm::glm
+                RapidJSON
+                imgui::imgui
+                imguizmo::imguizmo
         )
 
         # Add test directory to include paths for test executable
         target_include_directories(engine_test
                 PRIVATE
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests
+                ${CMAKE_CURRENT_SOURCE_DIR}
+                ${CMAKE_CURRENT_SOURCE_DIR}/src
         )
 
         # Enable CTest

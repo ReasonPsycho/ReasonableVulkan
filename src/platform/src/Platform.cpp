@@ -87,7 +87,9 @@ namespace  plt
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL3_ProcessEvent(&event);
+            if (ImGui::GetCurrentContext()) {
+                ImGui_ImplSDL3_ProcessEvent(&event);
+            }
 
             switch (event.type) {
             case SDL_EVENT_QUIT:
@@ -526,16 +528,26 @@ namespace  plt
         std::string jsonPayload = "{\"state\": \"" + state + "\", \"timestamp\": " + std::to_string(now) + "}";
 
         try {
-            std::ofstream f1(".rv_state");
+            std::filesystem::create_directories("plugin");
+            std::ofstream f1("plugin/.rv_state");
             if (f1.is_open()) f1 << payload;
-            std::ofstream f2(".rv_state.signal");
+            std::ofstream f2("plugin/.rv_state.signal");
             if (f2.is_open()) f2 << jsonPayload;
+            std::ofstream f1_plain("plugin/rv_state");
+            if (f1_plain.is_open()) f1_plain << payload;
+            std::ofstream f2_plain("plugin/rv_state.signal");
+            if (f2_plain.is_open()) f2_plain << jsonPayload;
 
-            auto tempDir = std::filesystem::temp_directory_path();
+            auto tempDir = std::filesystem::temp_directory_path() / "plugin";
+            std::filesystem::create_directories(tempDir);
             std::ofstream f3(tempDir / "rv_state");
             if (f3.is_open()) f3 << payload;
             std::ofstream f4(tempDir / "rv_state.signal");
             if (f4.is_open()) f4 << jsonPayload;
+            std::ofstream f3_dot(tempDir / ".rv_state");
+            if (f3_dot.is_open()) f3_dot << payload;
+            std::ofstream f4_dot(tempDir / ".rv_state.signal");
+            if (f4_dot.is_open()) f4_dot << jsonPayload;
         } catch (...) {}
 
 #ifdef _WIN32

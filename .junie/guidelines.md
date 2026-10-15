@@ -69,8 +69,8 @@ The engine currently supports GLSL using `glslang` for compilation.
 - **Coverage Execution**:
   - Build with the `tests` preset (`cmake --preset tests` and `cmake --build --preset tests-parallel`) to compile with `--coverage`.
   - Run tests with CTest (`ctest --test-dir out/build/tests --output-on-failure`) or via CLion's **Run with Coverage** action.
-  - Generate reports with `gcovr` (`gcovr -r . --filter "src/" --html --html-details -o coverage.html`)
-  - 
+  - Generate reports with `gcovr` (`python -m gcovr -r . --filter "src/" --html --html-details -o coverage.html`)
+
 ## Documentation & Notes
 ### Project READMEs
 The following README files provide detailed documentation for different parts of the project:

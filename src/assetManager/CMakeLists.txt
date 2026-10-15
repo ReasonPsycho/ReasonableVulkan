@@ -99,12 +99,23 @@ if (AM_ENABLE_TESTS)
                 PRIVATE
                 am
                 Boost::unit_test_framework
+                assimp::assimp
+                fmt::fmt
+                spdlog::spdlog
+                RapidJSON
+                imgui::imgui
+                glslang::glslang
+                glslang::glslang-default-resource-limits
+                glslang::SPIRV
+                glslang::SPVRemapper
         )
 
         # Add test directory to include paths for test executable
         target_include_directories(am_test
                 PRIVATE
                 tests
+                ${CMAKE_CURRENT_SOURCE_DIR}/src
+                ${Stb_INCLUDE_DIR}
         )
 
         # Enable CTest

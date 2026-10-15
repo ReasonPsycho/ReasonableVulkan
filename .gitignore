@@ -3,6 +3,7 @@
 **/tests/
 /.junie/output.txt
 /res/.cache/
+/plugin/
 .rv_command
 .rv_command.signal
 .rv_control
@@ -16,3 +17,4 @@ rv_control.signal
 rv_state
 rv_state.signal
 /tracey/
+res/.internal/tests/temp/

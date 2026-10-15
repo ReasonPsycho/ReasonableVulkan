@@ -45,8 +45,12 @@ namespace am {
         bool setDefineAndRecompile(const std::string& name, const std::string& value);
 
         // Returns a view into the shader bytecode
-        [[nodiscard]] std::span<const std::uint32_t> getBytecode() const;
-        [[nodiscard]] ShaderStage getStage() const;
+        [[nodiscard]] std::span<const std::uint32_t> getBytecode() const {
+            return data.bytecode;
+        }
+        [[nodiscard]] ShaderStage getStage() const {
+            return data.stage;
+        }
 
         void SaveAssetMetadata(rapidjson::Document& document) override {}
         void LoadAssetMetadata(rapidjson::Document& document) override {}
@@ -54,6 +58,9 @@ namespace am {
         std::any getAssetData() override {
             return &data;
         }
+
+        size_t calculateContentHash() const override;
+        [[nodiscard]] AssetType getType() const override;
 
     private:
         ShaderData data;
@@ -63,9 +70,6 @@ namespace am {
            ShaderStage stage,
            const std::map<std::string, std::string>& defines = {}
        ) const;
-
-        size_t calculateContentHash() const override;
-        [[nodiscard]] AssetType getType() const override;
     };
 } // namespace am
 
