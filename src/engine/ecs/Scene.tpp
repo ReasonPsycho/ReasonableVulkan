@@ -19,6 +19,12 @@ std::vector<Entity> Scene::GetEntitiesWith()
     return matching;
 }
 
+template <typename Primary, typename... Secondaries>
+ActiveMultiView<Primary, Secondaries...> Scene::GetActiveView()
+{
+    return ActiveMultiView<Primary, Secondaries...>(this);
+}
+
 
 template <typename T>
 void Scene::AddComponent(Entity entity, T component)
@@ -87,6 +93,9 @@ void Scene::RemoveComponent(Entity entity)
 template <typename T>
 bool Scene::HasComponent(Entity entity)
 {
+    if (entity >= MAX_ENTITIES) {
+        return false;
+    }
     auto typeIdx = std::type_index(typeid(T));
     auto it = componentArrays.find(typeIdx);
     if (it == componentArrays.end()) {
@@ -105,6 +114,9 @@ bool Scene::HasComponent(Entity entity)
 template <typename T>
 void Scene::SetComponentActive(Entity entity,bool active )
 {
+    if (entity >= MAX_ENTITIES) {
+        return;
+    }
     auto typeIdx = std::type_index(typeid(T));
     auto it = componentArrays.find(typeIdx);
     if (it != componentArrays.end()) {
@@ -122,6 +134,9 @@ void Scene::SetComponentActive(Entity entity,bool active )
 template <typename T>
 bool Scene::IsComponentActive(Entity entity)
 {
+    if (entity >= MAX_ENTITIES) {
+        return false;
+    }
     auto typeIdx = std::type_index(typeid(T));
     auto it = componentArrays.find(typeIdx);
     if (it == componentArrays.end()) {
@@ -133,7 +148,7 @@ bool Scene::IsComponentActive(Entity entity)
     }
     else
     {
-        return static_cast<ComponentArray<T>*>(it->second.get())->IsComponentActive(entity);
+        return static_cast<ComponentArray<T>*>(it->second.get())->IsComponentActiveUntyped(entity);
     }
 }
 

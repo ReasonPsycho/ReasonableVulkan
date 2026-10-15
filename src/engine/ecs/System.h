@@ -13,7 +13,7 @@
 #include "componentArrays/ComponentType.h"
 #include "SystemBase.h"
 #include "Types.h"
-#include "Reflection.hpp"
+#include "utility/Reflection.hpp"
 
 namespace engine::ecs
 {

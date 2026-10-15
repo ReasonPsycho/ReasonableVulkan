@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <limits>
 #include <tuple>
-#include "ecs/Reflection.hpp"
+#include "ecs/utility/Reflection.hpp"
 
 namespace engine::ecs
 {

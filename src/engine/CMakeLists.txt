@@ -27,6 +27,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(imguizmo CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS uuid)
 
 # Define source files explicitly, excluding test directory
 file(GLOB_RECURSE BASE_SRC
@@ -156,10 +157,11 @@ target_link_libraries(engine PUBLIC
         vks_interface
         am_interface
         platform_interface
-        PRIVATE
-        Tracy::TracyClient
         glm::glm
         RapidJSON
+        Boost::uuid
+        PRIVATE
+        Tracy::TracyClient
         spdlog::spdlog
         imgui::imgui
         imguizmo::imguizmo

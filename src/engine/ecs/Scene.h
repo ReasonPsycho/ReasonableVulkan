@@ -23,6 +23,8 @@
 namespace engine::ecs
 {
     struct TransformComponent;
+    template <typename Primary, typename... Secondaries>
+    class ActiveMultiView;
 
     enum class SceneType {
         Default,
@@ -64,6 +66,9 @@ namespace engine::ecs
 
         template<typename... Components>
         std::vector<Entity> GetEntitiesWith();
+
+        template<typename Primary, typename... Secondaries>
+        ActiveMultiView<Primary, Secondaries...> GetActiveView();
 
         //Components
         template<typename T>
@@ -199,7 +204,9 @@ namespace engine::ecs
 
 }
 
+#include "utility/ActiveMultiView.hpp"
+#include "utility/ActiveView.hpp"
 #include "Scene.tpp"
-#include "Entity.tpp"
+#include "utility/Entity.tpp"
 
 #endif //REASONABLEGL_SCENE_H

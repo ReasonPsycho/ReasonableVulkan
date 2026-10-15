@@ -10,7 +10,7 @@
 #include <optional>
 #include <functional>
 
-#include "ecs/Reflection.hpp"
+#include "ecs/utility/Reflection.hpp"
 #include "ecs/Scene.h"
 #include "ecs/componentArrays/ComponentType.h"
 #include "systems/transformSystem/componets/TransformComponent.hpp"

@@ -18,8 +18,8 @@
 #include "systems/renderingSystem/componets/ThumbnailComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "systems/scriptSystem/components/ScriptComponent.hpp"
-#include "ecs/NameComponent.hpp"
-#include "ecs/TagComponent.hpp"
+#include "ecs/components/NameComponent.hpp"
+#include "ecs/components/TagComponent.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <boost/uuid/string_generator.hpp>

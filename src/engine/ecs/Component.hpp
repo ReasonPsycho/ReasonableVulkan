@@ -5,7 +5,7 @@
 #ifndef REASONABLEVULKAN_COMPONENT_HPP
 #define REASONABLEVULKAN_COMPONENT_HPP
 
-#include "Reflection.hpp"
+#include "utility/Reflection.hpp"
 
 namespace engine::ecs
 {

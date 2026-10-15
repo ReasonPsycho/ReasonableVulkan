@@ -8,7 +8,7 @@
 #include <vector>
 #include <meta>
 #include "Script.hpp"
-#include "ecs/Reflection.hpp"
+#include "ecs/utility/Reflection.hpp"
 
 #if defined(_WIN32)
     #if defined(GAMEPLAY_SCRIPTS_EXPORTS)

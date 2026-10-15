@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 #include "ecs/Component.hpp"
-#include "ecs/Reflection.hpp"
+#include "ecs/utility/Reflection.hpp"
 #include "../Script.hpp"
 #include "../ScriptRegistry.hpp"
 

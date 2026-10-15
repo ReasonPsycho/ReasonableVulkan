@@ -2,8 +2,8 @@
 #include "../Engine.h"
 #include "ecs/Scene.h"
 #include "TestHelper.hpp"
-#include "ecs/NameComponent.hpp"
-#include "ecs/TagComponent.hpp"
+#include "ecs/components/NameComponent.hpp"
+#include "../ecs/components/TagComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include <algorithm>
 
@@ -223,6 +223,151 @@ BOOST_AUTO_TEST_CASE(EntityHandleShorthandMethodsTest) {
     child2.Destroy();
 
     engine.RemoveScene("EntityHandleTestScene");
+}
+
+BOOST_AUTO_TEST_CASE(ActiveMultiViewIterationAndFilteringTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("ActiveViewTestScene");
+    BOOST_REQUIRE(scene);
+
+    Entity e1 = scene->CreateEntity();
+    e1.AddComponent<TagComponent>(TagComponent{"Tag1"});
+    e1.GetComponent<NameComponent>().name = "Name1";
+    auto& t1 = scene->GetComponent<TransformComponent>(e1);
+    t1.position = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    Entity e2 = scene->CreateEntity();
+    e2.AddComponent<TagComponent>(TagComponent{"Tag2"});
+    scene->RemoveComponent<NameComponent>(e2);
+    auto& t2 = scene->GetComponent<TransformComponent>(e2);
+    t2.position = glm::vec3(2.0f, 2.0f, 2.0f);
+
+    Entity e3 = scene->CreateEntity();
+    e3.AddComponent<TagComponent>(TagComponent{"Tag3"});
+    scene->RemoveComponent<NameComponent>(e3);
+    scene->RemoveComponent<TransformComponent>(e3);
+
+    Entity e4 = scene->CreateEntity();
+    e4.AddComponent<TagComponent>(TagComponent{"Tag4"});
+    scene->RemoveComponent<NameComponent>(e4);
+    auto& t4 = scene->GetComponent<TransformComponent>(e4);
+    t4.position = glm::vec3(4.0f, 4.0f, 4.0f);
+
+    // 1. Single-component active view on standard component (TagComponent)
+    std::vector<Entity> tagEntities;
+    for (auto [entity, tag] : scene->GetActiveView<TagComponent>()) {
+        tagEntities.push_back(entity);
+        tag.tag += "_Modified";
+    }
+    BOOST_CHECK_EQUAL(tagEntities.size(), 4);
+    BOOST_CHECK_EQUAL(scene->GetComponent<TagComponent>(e1).tag, "Tag1_Modified");
+
+    // 2. Multi-component active view (TagComponent + NameComponent)
+    std::vector<Entity> tagAndNameEntities;
+    for (auto [entity, tag, name] : scene->GetActiveView<TagComponent, NameComponent>()) {
+        tagAndNameEntities.push_back(entity);
+        BOOST_CHECK_EQUAL(name.name, "Name1");
+    }
+    BOOST_CHECK_EQUAL(tagAndNameEntities.size(), 1);
+    BOOST_CHECK_EQUAL(tagAndNameEntities[0], e1);
+
+    // 3. Multi-component active view (TagComponent + TransformComponent)
+    std::vector<Entity> multiEntities;
+    for (auto [entity, tag, transform] : scene->GetActiveView<TagComponent, TransformComponent>()) {
+        multiEntities.push_back(entity);
+    }
+    BOOST_CHECK_EQUAL(multiEntities.size(), 3);
+
+    // 4. Test deactivating entity e4
+    scene->SetEntityActive(e4, false);
+    multiEntities.clear();
+    for (auto [entity, tag, transform] : scene->GetActiveView<TagComponent, TransformComponent>()) {
+        multiEntities.push_back(entity);
+    }
+    BOOST_CHECK_EQUAL(multiEntities.size(), 2);
+    BOOST_CHECK(std::find(multiEntities.begin(), multiEntities.end(), e4) == multiEntities.end());
+
+    // 5. Test deactivating component on e2
+    scene->SetComponentActive<TagComponent>(e2, false);
+    multiEntities.clear();
+    for (auto [entity, tag, transform] : scene->GetActiveView<TagComponent, TransformComponent>()) {
+        multiEntities.push_back(entity);
+    }
+    BOOST_CHECK_EQUAL(multiEntities.size(), 1);
+    BOOST_CHECK_EQUAL(multiEntities[0], e1);
+
+    // 6. Test deactivating secondary component on e1
+    scene->SetComponentActive<TransformComponent>(e1, false);
+    multiEntities.clear();
+    for (auto [entity, tag, transform] : scene->GetActiveView<TagComponent, TransformComponent>()) {
+        multiEntities.push_back(entity);
+    }
+    BOOST_CHECK_EQUAL(multiEntities.size(), 0);
+
+    // Re-activate components
+    scene->SetComponentActive<TransformComponent>(e1, true);
+    scene->SetComponentActive<TagComponent>(e2, true);
+    scene->SetEntityActive(e4, true);
+
+    // 7. Test early break in loop
+    int count = 0;
+    for (auto [entity, tag, transform] : scene->GetActiveView<TagComponent, TransformComponent>()) {
+        ++count;
+        if (count == 1) break;
+    }
+    BOOST_CHECK_EQUAL(count, 1);
+
+    // 8. Test Integral as primary component
+    int integralCount = 0;
+    for (auto [entity, transform] : scene->GetActiveView<TransformComponent>()) {
+        ++integralCount;
+    }
+    BOOST_CHECK(integralCount >= 3);
+
+    engine.RemoveScene("ActiveViewTestScene");
+}
+
+BOOST_AUTO_TEST_CASE(InvalidEntityBoundsTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("BoundsTestScene");
+    BOOST_REQUIRE(scene);
+
+    Entity invalidEntity;
+    BOOST_CHECK_EQUAL(invalidEntity.GetID(), MAX_ENTITIES);
+    BOOST_CHECK(!invalidEntity.IsValid());
+
+    // Checking HasComponent on MAX_ENTITIES / invalid entities should safely return false without assertion failure
+    BOOST_CHECK(!scene->HasComponent<TransformComponent>(MAX_ENTITIES));
+    BOOST_CHECK(!scene->HasComponent<NameComponent>(MAX_ENTITIES));
+    BOOST_CHECK(!scene->HasComponent<TagComponent>(MAX_ENTITIES));
+    BOOST_CHECK(!scene->HasComponent<TransformComponent>(invalidEntity));
+    BOOST_CHECK(!scene->HasComponent<NameComponent>(invalidEntity));
+    BOOST_CHECK(!scene->HasComponent<TagComponent>(invalidEntity));
+
+    // Active state checks
+    BOOST_CHECK(!scene->IsEntityActive(MAX_ENTITIES));
+    BOOST_CHECK(!scene->IsEntityActive(invalidEntity));
+    BOOST_CHECK(!scene->IsComponentActive<TransformComponent>(MAX_ENTITIES));
+    BOOST_CHECK(!scene->IsComponentActive<NameComponent>(MAX_ENTITIES));
+    BOOST_CHECK(!scene->IsComponentActive<TagComponent>(MAX_ENTITIES));
+
+    // Name checks
+    BOOST_CHECK_EQUAL(scene->GetEntityName(MAX_ENTITIES), "Entity");
+    BOOST_CHECK_EQUAL(scene->GetEntityName(invalidEntity), "Entity");
+
+    // Safe operations on invalid entities should not crash
+    scene->SetEntityActive(MAX_ENTITIES, true);
+    scene->SetComponentActive<TransformComponent>(MAX_ENTITIES, true);
+    scene->SetComponentActive<TagComponent>(MAX_ENTITIES, true);
+    scene->SetEntityName(MAX_ENTITIES, "TestName");
+
+    // Verify valid entity still works as expected
+    Entity validEntity = scene->CreateEntity("ValidEntity");
+    BOOST_CHECK(scene->HasComponent<TransformComponent>(validEntity));
+    BOOST_CHECK(scene->HasComponent<NameComponent>(validEntity));
+    BOOST_CHECK_EQUAL(scene->GetEntityName(validEntity), "ValidEntity");
+
+    engine.RemoveScene("BoundsTestScene");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

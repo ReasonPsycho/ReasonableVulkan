@@ -13,10 +13,10 @@ ComponentID IntegralComponentArray<T>::AddComponentToEntity(Entity entity, T com
 
 template <typename T>
 ComponentID IntegralComponentArray<T>::RemoveComponentFronEntity(Entity entity) {
-    assert(entity < MAX_ENTITIES);
-    activeComponents[entity] = false;
+    if (entity < MAX_ENTITIES) {
+        activeComponents[entity] = false;
+    }
     return entity;
-
 }
 
 template <typename T>
@@ -28,24 +28,30 @@ T& IntegralComponentArray<T>::GetComponentFromEntity(Entity entity) {
 template <typename T>
 T& IntegralComponentArray<T>::GetComponent(ComponentID componentId)
 {
+    assert(componentId < MAX_ENTITIES);
     return componentArray[componentId];
 }
 
 template <typename T>
 bool IntegralComponentArray<T>::HasComponent(Entity entity) const {
-    assert(entity < MAX_ENTITIES);
+    if (entity >= MAX_ENTITIES) {
+        return false;
+    }
     return true;
 }
 
 template <typename T>
 void IntegralComponentArray<T>::SetComponentActive(Entity entity, bool active) {
-    assert(entity < MAX_ENTITIES);
-    activeComponents[entity] = active;
+    if (entity < MAX_ENTITIES) {
+        activeComponents[entity] = active;
+    }
 }
 
 template <typename T>
 bool IntegralComponentArray<T>::IsComponentActive(Entity entity) const{
-    assert(entity < MAX_ENTITIES);
+    if (entity >= MAX_ENTITIES) {
+        return false;
+    }
     return activeComponents[entity];
 }
 

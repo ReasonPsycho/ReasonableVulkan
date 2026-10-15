@@ -1,7 +1,7 @@
 #ifndef REASONABLEGL_ENTITY_TPP
 #define REASONABLEGL_ENTITY_TPP
 
-#include "Scene.h"
+#include "../Scene.h"
 #include <cassert>
 
 namespace engine::ecs {

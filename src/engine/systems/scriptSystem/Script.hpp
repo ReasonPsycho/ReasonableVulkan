@@ -4,7 +4,7 @@
 #include <string_view>
 #include <rapidjson/document.h>
 #include "ecs/Types.h"
-#include "ecs/Reflection.hpp"
+#include "ecs/utility/Reflection.hpp"
 
 namespace engine {
     class Engine;

@@ -2,6 +2,6 @@
 #define ENTITY_H
 
 #include "EngineTypes.hpp"
-#include "Entity.hpp"
+#include "utility/Entity.hpp"
 
 #endif

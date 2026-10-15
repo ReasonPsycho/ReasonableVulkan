@@ -19,8 +19,8 @@
 #include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "systems/scriptSystem/components/ScriptComponent.hpp"
-#include "NameComponent.hpp"
-#include "TagComponent.hpp"
+#include "components/NameComponent.hpp"
+#include "components/TagComponent.hpp"
 
 using namespace engine::ecs;
 
@@ -370,16 +370,25 @@ void Scene::DestroyEntity(Entity entity) {
 
 void Scene::SetEntityActive(Entity entity, bool active)
 {
+    if (entity >= MAX_ENTITIES) {
+        return;
+    }
     activeEntities[entity] = active;
 }
 
 bool Scene::IsEntityActive(Entity entity) const
 {
+    if (entity >= MAX_ENTITIES) {
+        return false;
+    }
     return activeEntities[entity];
 }
 
 std::string Scene::GetEntityName(Entity entity) const
 {
+    if (entity >= MAX_ENTITIES) {
+        return "Entity";
+    }
     auto it = componentArrays.find(std::type_index(typeid(NameComponent)));
     if (it != componentArrays.end()) {
         auto nameArray = static_cast<IntegralComponentArray<NameComponent>*>(it->second.get());
@@ -395,6 +404,9 @@ std::string Scene::GetEntityName(Entity entity) const
 
 void Scene::SetEntityName(Entity entity, const std::string& name)
 {
+    if (entity >= MAX_ENTITIES) {
+        return;
+    }
     if (HasComponent<NameComponent>(entity)) {
         GetComponent<NameComponent>(entity).name = name;
     } else {

@@ -3,11 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "e2976dac-b034-46f7-a57a-99e607280473",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\.internal\\materialOfmeshOfinternalCubeModel.material",
+  "id": "3732df11-6986-410b-9225-4b5dfa998992",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\.internal\\materialOfmeshOfinternalCubeModel.material",
   "type": "Material",
   "lookUpName": "materialOfmeshOfinternalCubeModel.material",
   "contentHash": 0,
+  "thumbnailPath": ".cache/thumbnails/3732df11-6986-410b-9225-4b5dfa998992.png",
   "assetFactoryData": {
     "importPath": "",
     "assetType": "Material",

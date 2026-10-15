@@ -28,8 +28,8 @@
     #endif
     #include <windows.h>
 #endif
-#include "ecs/NameComponent.hpp"
-#include "ecs/TagComponent.hpp"
+#include "ecs/components/NameComponent.hpp"
+#include "../../ecs/components/TagComponent.hpp"
 #include "PlatformInterface.hpp"
 #include "assetDatas/MeshData.h"
 #include "assetDatas/ModelData.h"

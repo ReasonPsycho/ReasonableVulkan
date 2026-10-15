@@ -64,7 +64,10 @@ bool ComponentArray<T>::HasComponent(Entity entity) const
 template <typename T>
 void ComponentArray<T>::SetComponentActive(Entity entity, bool active)
 {
-    activeComponents[entity] = active;
+    auto it = entityToIndexMap.find(entity);
+    if (it != entityToIndexMap.end()) {
+        activeComponents[it->second] = active;
+    }
 }
 
 template <typename T>
@@ -121,7 +124,11 @@ void ComponentArray<T>::SetComponentActiveUntyped(Entity entity, bool active)
 template <typename T>
 bool ComponentArray<T>::IsComponentActiveUntyped(Entity entity) const
 {
-    return IsComponentActive(entity);
+    auto it = entityToIndexMap.find(entity);
+    if (it != entityToIndexMap.end()) {
+        return activeComponents[it->second];
+    }
+    return false;
 }
 
 template <typename T>
