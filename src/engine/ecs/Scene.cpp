@@ -108,6 +108,14 @@ void Scene::Render(float deltaTime) {
     }
 }
 
+void Scene::OnStart() {
+    for (auto& [type, system] : systems) {
+        if (system) {
+            system->OnStart();
+        }
+    }
+}
+
 Entity Scene::CreateEntity(Entity parentEntity)
 {
     return CreateEntity(TransformComponent(),parentEntity);

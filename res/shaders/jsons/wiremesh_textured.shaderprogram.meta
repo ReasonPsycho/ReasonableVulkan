@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "34af6297-3529-42eb-9335-56602739269d",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\wiremesh_textured.shaderprogram",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\jsons\\wiremesh_textured.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "wiremeshTexturedShader",
   "contentHash": 14735356005098455851,

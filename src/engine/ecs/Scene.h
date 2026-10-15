@@ -45,6 +45,7 @@ namespace engine::ecs
 
         void Update(float deltaTime);
         void Render(float deltaTime);
+        void OnStart();
 
         //Entity
         Entity CreateEntity(Entity parentEntity = -1);

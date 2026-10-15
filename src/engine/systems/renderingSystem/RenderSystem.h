@@ -22,7 +22,7 @@ namespace engine::ecs
         void Update(float deltaTime) override;
 
     protected:
-        void OnComponentAdded(ComponentID componentID, std::type_index type) override;
+        void OnComponentAdded(ComponentID componentID, std::type_index type) override {}
         void OnEntityRemoved(ComponentID componentID, std::type_index type) override {}
     };
 }

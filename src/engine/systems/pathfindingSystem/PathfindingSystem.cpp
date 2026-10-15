@@ -13,6 +13,3 @@ void engine::ecs::PathfindingSystem::Update(float deltaTime) {
     }
 }
 
-void engine::ecs::PathfindingSystem::OnComponentAdded(ComponentID componentID, std::type_index type) {
-
-}

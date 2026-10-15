@@ -239,6 +239,3 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     }
 }
 
-void RenderSystem::OnComponentAdded(ComponentID componentID, std::type_index type)
-{
-}

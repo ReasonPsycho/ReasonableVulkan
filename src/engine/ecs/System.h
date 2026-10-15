@@ -35,14 +35,11 @@ namespace engine::ecs
 
         void AddComponent(ComponentID entity, std::type_index type) override
         {
-
-            // Prob could add them to a list now needed for now
             OnComponentAdded(entity, type);
         }
 
         void RemoveComponent(ComponentID component, std::type_index type) override
         {
-            // Prob could add them to a list now needed for now
             OnEntityRemoved(component, type);
         }
 
@@ -80,8 +77,8 @@ namespace engine::ecs
     protected:
         [[=NonSerialized{}]]
         Scene* scene;
-        virtual void OnComponentAdded(ComponentID componentID, std::type_index type) = 0;
-        virtual void OnEntityRemoved(ComponentID componentID, std::type_index type)  = 0;
+        virtual void OnComponentAdded(ComponentID componentID, std::type_index type) {};
+        virtual void OnEntityRemoved(ComponentID componentID, std::type_index type) {};
 
     };
 }

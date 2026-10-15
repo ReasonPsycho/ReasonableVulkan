@@ -231,6 +231,13 @@ namespace engine {
         if (platform) {
             platform->NotifyIDEState("PLAYING");
         }
+
+        for (const auto& scene : activeScenes) {
+            if (scene && scene->active) {
+                scene->OnStart();
+            }
+        }
+
         spdlog::info("Entered Play Mode");
     }
 

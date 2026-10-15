@@ -370,4 +370,44 @@ BOOST_AUTO_TEST_CASE(InvalidEntityBoundsTest) {
     engine.RemoveScene("BoundsTestScene");
 }
 
+struct TestCustomStartSystem : public System<TestCustomStartSystem> {
+    bool onStartCalled = false;
+    explicit TestCustomStartSystem(Scene* scene) : System(scene) {}
+    void Update(float /*deltaTime*/) override {}
+    void OnStart() override {
+        onStartCalled = true;
+    }
+};
+
+BOOST_AUTO_TEST_CASE(SystemOnStartTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("OnStartTestScene");
+    BOOST_REQUIRE(scene);
+
+    auto customSystem = scene->RegisterSystem<TestCustomStartSystem>();
+    BOOST_REQUIRE(customSystem);
+    BOOST_CHECK(!customSystem->onStartCalled);
+
+    scene->OnStart();
+    BOOST_CHECK(customSystem->onStartCalled);
+
+    engine.RemoveScene("OnStartTestScene");
+}
+
+BOOST_AUTO_TEST_CASE(EngineStartPlayModeInvokesOnStartTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("PlayModeTestScene");
+    BOOST_REQUIRE(scene);
+    engine.SetActiveScene("PlayModeTestScene", true);
+
+    BOOST_CHECK(!engine.IsPlaying());
+    engine.StartPlayMode();
+    BOOST_CHECK(engine.IsPlaying());
+
+    engine.StopPlayMode();
+    BOOST_CHECK(!engine.IsPlaying());
+
+    engine.RemoveScene("PlayModeTestScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

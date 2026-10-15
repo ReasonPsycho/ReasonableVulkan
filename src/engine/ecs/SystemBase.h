@@ -19,6 +19,7 @@ namespace engine::ecs
     public:
         virtual ~SystemBase() = default;
         virtual void Update(float deltaTime) = 0;
+        virtual void OnStart() {}
 
         virtual void AddComponent(ComponentID entity, std::type_index type) = 0;
         virtual void RemoveComponent(ComponentID component, std::type_index type) = 0;
