@@ -1212,77 +1212,70 @@ void EditorSystem::Update(float deltaTime)
 
                         // Determine which entities are inside the marquee box
                         std::vector<EntityID> inBoxEntities;
-                        auto transformArray = currentScene->GetIntegralComponentArray<TransformComponent>().get();
                         auto meshArray = currentScene->GetComponentArray<MeshComponent>().get();
-                        if (transformArray) {
-                            auto& transforms = transformArray->GetComponents();
-                            for (EntityID e = 0; e < MAX_ENTITIES; ++e) {
-                                if (!transformArray->HasComponent(e)) continue;
-                                if (!currentScene->IsEntityActive(e)) continue;
+                        for (auto [e, transform] : currentScene->GetActiveView<TransformComponent>()) {
+                            bool overlaps = false;
+                            // If entity has a mesh component with bounding box, check projected 2D AABB
+                            if (meshArray && meshArray->HasComponent(e)) {
+                                auto& meshComp = meshArray->GetComponentFromEntity(e);
+                                if (meshComp.meshUuid != boost::uuids::nil_uuid()) {
+                                    auto meshData = engine->assetManagerInterface ?
+                                        engine->assetManagerInterface->getAssetData<am::MeshData>(meshComp.meshUuid) : nullptr;
+                                    if (meshData) {
+                                        glm::vec3 bmin = meshData->boundingBoxMin;
+                                        glm::vec3 bmax = meshData->boundingBoxMax;
+                                        glm::vec3 corners[8] = {
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmin.x, bmin.y, bmin.z, 1.0f)),
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmax.x, bmin.y, bmin.z, 1.0f)),
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmin.x, bmax.y, bmin.z, 1.0f)),
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmax.x, bmax.y, bmin.z, 1.0f)),
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmin.x, bmin.y, bmax.z, 1.0f)),
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmax.x, bmin.y, bmax.z, 1.0f)),
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmin.x, bmax.y, bmax.z, 1.0f)),
+                                            glm::vec3(transform.globalMatrix * glm::vec4(bmax.x, bmax.y, bmax.z, 1.0f))
+                                        };
+                                        float minScreenX = std::numeric_limits<float>::max();
+                                        float maxScreenX = -std::numeric_limits<float>::max();
+                                        float minScreenY = std::numeric_limits<float>::max();
+                                        float maxScreenY = -std::numeric_limits<float>::max();
+                                        bool anyFront = false;
 
-                                bool overlaps = false;
-                                // If entity has a mesh component with bounding box, check projected 2D AABB
-                                if (meshArray && meshArray->HasComponent(e)) {
-                                    auto& meshComp = meshArray->GetComponentFromEntity(e);
-                                    if (meshComp.meshUuid != boost::uuids::nil_uuid()) {
-                                        auto meshData = engine->assetManagerInterface ?
-                                            engine->assetManagerInterface->getAssetData<am::MeshData>(meshComp.meshUuid) : nullptr;
-                                        if (meshData) {
-                                            glm::vec3 bmin = meshData->boundingBoxMin;
-                                            glm::vec3 bmax = meshData->boundingBoxMax;
-                                            glm::vec3 corners[8] = {
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmin.y, bmin.z, 1.0f)),
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmin.y, bmin.z, 1.0f)),
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmax.y, bmin.z, 1.0f)),
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmax.y, bmin.z, 1.0f)),
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmin.y, bmax.z, 1.0f)),
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmin.y, bmax.z, 1.0f)),
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmin.x, bmax.y, bmax.z, 1.0f)),
-                                                glm::vec3(transforms[e].globalMatrix * glm::vec4(bmax.x, bmax.y, bmax.z, 1.0f))
-                                            };
-                                            float minScreenX = std::numeric_limits<float>::max();
-                                            float maxScreenX = -std::numeric_limits<float>::max();
-                                            float minScreenY = std::numeric_limits<float>::max();
-                                            float maxScreenY = -std::numeric_limits<float>::max();
-                                            bool anyFront = false;
-
-                                            for (int c = 0; c < 8; ++c) {
-                                                glm::vec4 clip = camState.camera.projection * camState.camera.view * glm::vec4(corners[c], 1.0f);
-                                                if (clip.w > 0.0f) {
-                                                    anyFront = true;
-                                                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                                                    float sx = viewportPos.x + (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
-                                                    float sy = viewportPos.y + (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
-                                                    minScreenX = std::min(minScreenX, sx);
-                                                    maxScreenX = std::max(maxScreenX, sx);
-                                                    minScreenY = std::min(minScreenY, sy);
-                                                    maxScreenY = std::max(maxScreenY, sy);
-                                                }
+                                        for (int c = 0; c < 8; ++c) {
+                                            glm::vec4 clip = camState.camera.projection * camState.camera.view * glm::vec4(corners[c], 1.0f);
+                                            if (clip.w > 0.0f) {
+                                                anyFront = true;
+                                                glm::vec3 ndc = glm::vec3(clip) / clip.w;
+                                                float sx = viewportPos.x + (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
+                                                float sy = viewportPos.y + (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
+                                                minScreenX = std::min(minScreenX, sx);
+                                                maxScreenX = std::max(maxScreenX, sx);
+                                                minScreenY = std::min(minScreenY, sy);
+                                                maxScreenY = std::max(maxScreenY, sy);
                                             }
+                                        }
 
-                                            if (anyFront) {
-                                                overlaps = (bMin.x <= maxScreenX && bMax.x >= minScreenX &&
-                                                            bMin.y <= maxScreenY && bMax.y >= minScreenY);
-                                            }
+                                        if (anyFront) {
+                                            overlaps = (bMin.x <= maxScreenX && bMax.x >= minScreenX &&
+                                                        bMin.y <= maxScreenY && bMax.y >= minScreenY);
                                         }
                                     }
                                 }
+                            }
 
-                                if (!overlaps) {
-                                    // Fallback to testing entity's origin/position
-                                    glm::vec3 worldPos = glm::vec3(transforms[e].globalMatrix[3]);
-                                    glm::vec4 clip = camState.camera.projection * camState.camera.view * glm::vec4(worldPos, 1.0f);
-                                    if (clip.w > 0.0f) {
-                                        glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                                        float sx = viewportPos.x + (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
-                                        float sy = viewportPos.y + (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
-                                        overlaps = (sx >= bMin.x && sx <= bMax.x && sy >= bMin.y && sy <= bMax.y);
-                                    }
+                            if (!overlaps) {
+                                // Fallback to testing entity's origin/position
+                                glm::vec3 worldPos = glm::vec3(transform.globalMatrix[3]);
+                                glm::vec4 clip = camState.camera.projection * camState.camera.view * glm::vec4(worldPos, 1.0f);
+                                if (clip.w > 0.0f) {
+                                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
+                                    float sx = viewportPos.x + (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
+                                    float sy = viewportPos.y + (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
+                                    overlaps = (sx >= bMin.x && sx <= bMax.x && sy >= bMin.y && sy <= bMax.y);
                                 }
+                            }
 
-                                if (overlaps) {
-                                    inBoxEntities.push_back(e);
-                                }
+                            if (overlaps) {
+                                inBoxEntities.push_back(e);
                             }
                         }
 
@@ -1528,15 +1521,11 @@ void EditorSystem::Update(float deltaTime)
     // 2. Render ONE Game window for the top editable active scene
     auto topEditableScene = engine->GetTopEditableScene();
     if (topEditableScene) {
-        auto cameraArray = topEditableScene->GetComponentArray<CameraComponent>();
         bool foundActive = false;
-        if (cameraArray) {
-            auto& cameras = cameraArray->GetComponents();
-            for (int i = 0; i < cameraArray->GetArraySize(); i++) {
-                if (cameraArray->IsComponentActive(i) && cameras[i].active) {
-                    foundActive = true;
-                    break;
-                }
+        for (auto [e, cam] : topEditableScene->GetActiveView<CameraComponent>()) {
+            if (cam.active) {
+                foundActive = true;
+                break;
             }
         }
 
@@ -1550,13 +1539,10 @@ void EditorSystem::Update(float deltaTime)
             void* gameTextureId = engine->graphicsEngine ? engine->graphicsEngine->getViewportTexturePointer(gameCamIdx) : nullptr;
             if (gameTextureId && gameViewportPanelSize.x > 0.0f && gameViewportPanelSize.y > 0.0f) {
                 float camAspect = 1.7777778f;
-                if (cameraArray) {
-                    auto& cameras = cameraArray->GetComponents();
-                    for (int i = 0; i < cameraArray->GetArraySize(); i++) {
-                        if (cameraArray->IsComponentActive(i) && cameras[i].active && cameras[i].aspectRatio > 0.0f) {
-                            camAspect = cameras[i].aspectRatio;
-                            break;
-                        }
+                for (auto [e, cam] : topEditableScene->GetActiveView<CameraComponent>()) {
+                    if (cam.active && cam.aspectRatio > 0.0f) {
+                        camAspect = cam.aspectRatio;
+                        break;
                     }
                 }
 
@@ -1607,34 +1593,28 @@ void EditorSystem::ProcessThumbnailCaptures()
         auto scene = activeScenes[s];
         if (!scene || !scene->active) continue;
 
-        auto thumbArray = scene->GetComponentArray<ThumbnailComponent>();
-        if (!thumbArray) continue;
+        for (auto [entity, thumbComp] : scene->GetActiveView<ThumbnailComponent>()) {
+            if (thumbComp.framesRendered < 1) {
+                continue;
+            }
 
-        for (int i = 0; i < thumbArray->GetArraySize(); ++i) {
-            if (thumbArray->IsComponentActive(i)) {
-                auto& thumbComp = thumbArray->GetComponents()[i];
-                if (thumbComp.framesRendered < 1) {
-                    continue;
-                }
+            if (!thumbComp.outputPath.empty()) {
+                uint32_t camIdx = static_cast<uint32_t>(s);
+                engine->graphicsEngine->captureOffscreenImage(camIdx, thumbComp.outputPath, thumbComp.targetWidth, thumbComp.targetHeight);
 
-                if (!thumbComp.outputPath.empty()) {
-                    uint32_t camIdx = static_cast<uint32_t>(s);
-                    engine->graphicsEngine->captureOffscreenImage(camIdx, thumbComp.outputPath, thumbComp.targetWidth, thumbComp.targetHeight);
-
-                    if (engine->assetManagerInterface && !thumbComp.assetId.is_nil()) {
-                        auto assetInfoOpt = engine->assetManagerInterface->getAssetInfo(thumbComp.assetId);
-                        if (assetInfoOpt && assetInfoOpt.value()) {
-                            assetInfoOpt.value()->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(thumbComp.assetId) + ".png";
-                            engine->assetManagerInterface->saveAssetMetadata(thumbComp.assetId);
-                        }
+                if (engine->assetManagerInterface && !thumbComp.assetId.is_nil()) {
+                    auto assetInfoOpt = engine->assetManagerInterface->getAssetInfo(thumbComp.assetId);
+                    if (assetInfoOpt && assetInfoOpt.value()) {
+                        assetInfoOpt.value()->thumbnailPath = ".cache/thumbnails/" + boost::uuids::to_string(thumbComp.assetId) + ".png";
+                        engine->assetManagerInterface->saveAssetMetadata(thumbComp.assetId);
                     }
-
-                    thumbComp.captured = true;
                 }
 
-                if (scene->GetSceneType() == SceneType::Thumbnail) {
-                    scenesToRemove.push_back(scene->GetName());
-                }
+                thumbComp.captured = true;
+            }
+
+            if (scene->GetSceneType() == SceneType::Thumbnail) {
+                scenesToRemove.push_back(scene->GetName());
             }
         }
     }

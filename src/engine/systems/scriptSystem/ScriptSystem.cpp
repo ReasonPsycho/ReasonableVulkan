@@ -13,18 +13,7 @@ ScriptSystem::ScriptSystem(Scene* scene) : System(scene) {
 void ScriptSystem::Update(float deltaTime) {
     if (!scene || !scene->engine.IsPlaying() || scene->engine.IsPaused()) return;
 
-    auto scriptCompArray = scene->GetComponentArray<ScriptComponent>();
-    if (!scriptCompArray) return;
-
-    auto& scriptComponents = scriptCompArray->GetComponents();
-    size_t count = scriptCompArray->GetArraySize();
-
-    for (size_t i = 0; i < count; ++i) {
-        if (!scriptCompArray->IsComponentActive(i)) continue;
-        Entity entity = scriptCompArray->ComponentIndexToEntity(i);
-        if (!scene->IsEntityActive(entity)) continue;
-
-        auto& comp = scriptComponents[i];
+    for (auto [entity, comp] : scene->GetActiveView<ScriptComponent>()) {
         for (auto& script : comp.scripts) {
             if (!script) continue;
 
@@ -51,18 +40,10 @@ rapidjson::Document ScriptSystem::BeginHotReload() {
     auto& allocator = snapshot.GetAllocator();
     rapidjson::Value entitiesArray(rapidjson::kArrayType);
 
-    auto scriptCompArray = scene->GetComponentArray<ScriptComponent>();
-    if (scriptCompArray) {
-        size_t count = scriptCompArray->GetArraySize();
-        auto& scriptComponents = scriptCompArray->GetComponents();
-
-        for (size_t i = 0; i < count; ++i) {
-            if (!scriptCompArray->IsComponentActive(i)) continue;
-            Entity entity = scriptCompArray->ComponentIndexToEntity(i);
-
-            auto& comp = scriptComponents[i];
+    if (scene) {
+        for (auto [entity, comp] : scene->GetActiveView<ScriptComponent>()) {
             rapidjson::Value entityObj(rapidjson::kObjectType);
-            entityObj.AddMember("entity", static_cast<uint32_t>(entity), allocator);
+            entityObj.AddMember("entity", static_cast<uint32_t>(entity.GetID()), allocator);
 
             rapidjson::Value compObj(rapidjson::kObjectType);
             comp.CaptureStateSnapshot(compObj, allocator);

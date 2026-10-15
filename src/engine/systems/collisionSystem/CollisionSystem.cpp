@@ -70,31 +70,28 @@ std::optional<RayHit> CollisionSystem::RayCastClosest(const Ray& ray) {
     closestHit.distance = std::numeric_limits<float>::max();
     bool hasHit = false;
 
-    auto meshArray = scene->GetComponentArray<MeshComponent>().get();
-    auto& meshes = meshArray->GetComponents();
-    auto& transforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
-
-    // Only iterate up to the actual size of used components
-    for (ComponentID i = 0; i < meshArray->GetArraySize(); i++)
-    {
-            Entity entity = meshArray->ComponentIndexToEntity(i);
-            if (meshes[i].meshUuid != boost::uuids::nil_uuid())
-            {
-                float distance;
-                auto meshData = scene->engine.assetManagerInterface->getAssetData<am::MeshData>(meshes[i].meshUuid);
-                if (meshData && RayIntersectsAABB(ray, meshData->boundingBoxMin, meshData->boundingBoxMax,
-                                      transforms[entity].globalMatrix, distance))
-                {
-                    if (distance < closestHit.distance) {
-                        closestHit.entity = entity;
-                        closestHit.distance = distance;
-                        closestHit.hitPoint = ray.origin + ray.direction * distance;
-                        hasHit = true;
-                    }
-                }
-            }
+    if (!scene || !scene->engine.assetManagerInterface) {
+        return std::nullopt;
     }
 
+    for (auto [entity, mesh, transform] : scene->GetActiveView<MeshComponent, TransformComponent>())
+    {
+        if (mesh.meshUuid != boost::uuids::nil_uuid())
+        {
+            float distance;
+            auto meshData = scene->engine.assetManagerInterface->getAssetData<am::MeshData>(mesh.meshUuid);
+            if (meshData && RayIntersectsAABB(ray, meshData->boundingBoxMin, meshData->boundingBoxMax,
+                                  transform.globalMatrix, distance))
+            {
+                if (distance < closestHit.distance) {
+                    closestHit.entity = entity;
+                    closestHit.distance = distance;
+                    closestHit.hitPoint = ray.origin + ray.direction * distance;
+                    hasHit = true;
+                }
+            }
+        }
+    }
 
     return hasHit ? std::optional<RayHit>(closestHit) : std::nullopt;
 }

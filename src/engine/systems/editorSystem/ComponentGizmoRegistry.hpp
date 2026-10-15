@@ -107,25 +107,12 @@ namespace engine::ecs
         {
             if (!scene || !ctx.drawList) return;
 
-            auto transformArray = scene->GetIntegralComponentArray<TransformComponent>();
-            if (!transformArray) return;
-
             ForEachType<ComponentsTuple>([&]<typename T>() {
                 if constexpr (HasGizmoVisualizer<T>) {
                     if (!GetCategoryEnabled(std::type_index(typeid(T)))) return;
 
-                    auto compArray = scene->GetComponentArray<T>();
-                    if (!compArray) return;
-
-                    for (ComponentID i = 0; i < compArray->GetArraySize(); ++i)
+                    for (auto [entity, comp, transform] : scene->GetActiveView<T, TransformComponent>())
                     {
-                        if (!compArray->IsComponentActive(i)) continue;
-                        Entity entity = compArray->ComponentIndexToEntity(i);
-                        if (!transformArray->HasComponent(entity)) continue;
-
-                        const auto& comp = compArray->GetComponentFromEntity(entity);
-                        const auto& transform = transformArray->GetComponentFromEntity(entity);
-
                         GizmoContext entityCtx = ctx;
                         entityCtx.isSelected = isSelected(entity);
                         entityCtx.isHovered = ComponentGizmoVisualizer<T>::HitTest(comp, transform.globalMatrix, ctx, 14.0f);
@@ -141,9 +128,6 @@ namespace engine::ecs
         {
             if (!scene) return std::nullopt;
 
-            auto transformArray = scene->GetIntegralComponentArray<TransformComponent>();
-            if (!transformArray) return std::nullopt;
-
             std::optional<Entity> hitEntity = std::nullopt;
 
             ForEachType<ComponentsTuple>([&]<typename T>() {
@@ -152,18 +136,8 @@ namespace engine::ecs
                 if constexpr (HasGizmoVisualizer<T>) {
                     if (!GetCategoryEnabled(std::type_index(typeid(T)))) return;
 
-                    auto compArray = scene->GetComponentArray<T>();
-                    if (!compArray) return;
-
-                    for (ComponentID i = 0; i < compArray->GetArraySize(); ++i)
+                    for (auto [entity, comp, transform] : scene->GetActiveView<T, TransformComponent>())
                     {
-                        if (!compArray->IsComponentActive(i)) continue;
-                        Entity entity = compArray->ComponentIndexToEntity(i);
-                        if (!transformArray->HasComponent(entity)) continue;
-
-                        const auto& comp = compArray->GetComponentFromEntity(entity);
-                        const auto& transform = transformArray->GetComponentFromEntity(entity);
-
                         if (ComponentGizmoVisualizer<T>::HitTest(comp, transform.globalMatrix, ctx, hitRadius))
                         {
                             hitEntity = entity;

@@ -205,7 +205,6 @@ namespace engine::ecs
 }
 
 #include "utility/ActiveMultiView.hpp"
-#include "utility/ActiveView.hpp"
 #include "Scene.tpp"
 #include "utility/Entity.tpp"
 

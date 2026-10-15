@@ -20,14 +20,6 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     if (scene->engine.minimized || scene->engine.graphicsEngine == nullptr)
         return;
 
-    auto rendererArray = scene->GetComponentArray<RendererComponent>().get();
-    auto& renderers = rendererArray->GetComponents();
-
-    auto lightArray = scene->GetComponentArray<LightComponent>().get();
-    auto& lights = lightArray->GetComponents();
-
-    auto& transforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
-
     CameraObject cameraObject = scene->GetActiveCamera();
 
     auto editorSystem = scene->engine.GetEditorSystem();
@@ -56,13 +48,8 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     auto thumbCompArray = scene->GetComponentArray<ThumbnailComponent>();
     bool isThumbnailScene = (scene->GetSceneType() == ecs::SceneType::Thumbnail) || (thumbCompArray && thumbCompArray->GetArraySize() > 0);
 
-    if (thumbCompArray) {
-        auto& thumbs = thumbCompArray->GetComponents();
-        for (int i = 0; i < thumbCompArray->GetArraySize(); ++i) {
-            if (thumbCompArray->IsComponentActive(i)) {
-                thumbs[i].framesRendered++;
-            }
-        }
+    for (auto [entity, thumb] : scene->GetActiveView<ThumbnailComponent>()) {
+        thumb.framesRendered++;
     }
 
     auto submitCameraSkybox = [&](uint32_t camIdx, ecs::CameraComponent& cam) {
@@ -109,25 +96,19 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         uint32_t activeCamCount = static_cast<uint32_t>(activeScenes.size());
 
         if (isTopEditable) {
-            auto cameraCompArray = scene->GetComponentArray<CameraComponent>();
-            if (cameraCompArray) {
-                auto& cameras = cameraCompArray->GetComponents();
-                auto& cameraTransforms = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponents();
-                for (int i = 0; i < cameraCompArray->GetArraySize(); i++) {
-                    if (cameraCompArray->IsComponentActive(i) && cameras[i].active) {
-                        auto cameraEntity = cameraCompArray->ComponentIndexToEntity(i);
-                        updateViewMatrix(cameras[i], cameraTransforms[cameraEntity].globalMatrix);
-                        if (cameras[i].aspectRatio <= 0.0f) {
-                            cameras[i].aspectRatio = aspectRatio;
-                        }
-                        updateProjectionMatrix(cameras[i]);
-                        scene->engine.graphicsEngine->setCameraData(gameCameraIndex, cameras[i].projection, cameras[i].view,
-                                                                    cameraTransforms[cameraEntity].position);
-                        submitCameraSkybox(gameCameraIndex, cameras[i]);
-                        targetCameraIndices.push_back(gameCameraIndex);
-                        activeCamCount = gameCameraIndex + 1;
-                        break;
+            for (auto [cameraEntity, camera, cameraTransform] : scene->GetActiveView<CameraComponent, TransformComponent>()) {
+                if (camera.active) {
+                    updateViewMatrix(camera, cameraTransform.globalMatrix);
+                    if (camera.aspectRatio <= 0.0f) {
+                        camera.aspectRatio = aspectRatio;
                     }
+                    updateProjectionMatrix(camera);
+                    scene->engine.graphicsEngine->setCameraData(gameCameraIndex, camera.projection, camera.view,
+                                                                cameraTransform.position);
+                    submitCameraSkybox(gameCameraIndex, camera);
+                    targetCameraIndices.push_back(gameCameraIndex);
+                    activeCamCount = gameCameraIndex + 1;
+                    break;
                 }
             }
         }
@@ -148,55 +129,44 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         }
     }
 
-    // Only iterate up to the actual size of used components
-    for (ComponentID i = 0; i < rendererArray->GetArraySize(); i++)
+    for (auto [entity, renderer, mesh, transform] : scene->GetActiveView<RendererComponent, MeshComponent, TransformComponent>())
     {
-        if (rendererArray->IsComponentActive(i))
+        if (mesh.isDirty) {
+            mesh.runtimeMeshHandle = gfx::MeshHandle::invalid();
+            mesh.isDirty = false;
+        }
+
+        if (renderer.isDirty) {
+            renderer.runtimeShaderHandle = gfx::ShaderProgramHandle::invalid();
+            renderer.runtimeMaterialHandle = gfx::MaterialHandle::invalid();
+            renderer.isDirty = false;
+        }
+
+        if (mesh.meshUuid != boost::uuids::nil_uuid())
         {
-            Entity entity = rendererArray->ComponentIndexToEntity(i);
-            if (scene->HasComponent<MeshComponent>(entity))
-            {
-                auto& mesh = scene->GetComponent<MeshComponent>(entity);
-                auto& renderer = renderers[i];
+            if (!mesh.runtimeMeshHandle.isValid()) {
+                mesh.runtimeMeshHandle = scene->engine.graphicsEngine->loadMesh(mesh.meshUuid);
+            }
 
-                if (mesh.isDirty) {
-                    mesh.runtimeMeshHandle = gfx::MeshHandle::invalid();
-                    mesh.isDirty = false;
-                }
+            if (renderer.shaderUuid != boost::uuids::nil_uuid() && !renderer.runtimeShaderHandle.isValid()) {
+                renderer.runtimeShaderHandle = scene->engine.graphicsEngine->loadShader(renderer.shaderUuid);
+            }
+            if (renderer.materialUuid != boost::uuids::nil_uuid() && !renderer.runtimeMaterialHandle.isValid()) {
+                renderer.runtimeMaterialHandle = scene->engine.graphicsEngine->loadMaterial(renderer.materialUuid);
+            }
 
-                if (renderer.isDirty) {
-                    renderer.runtimeShaderHandle = gfx::ShaderProgramHandle::invalid();
-                    renderer.runtimeMaterialHandle = gfx::MaterialHandle::invalid();
-                    renderer.isDirty = false;
-                }
-
-                if (mesh.meshUuid != boost::uuids::nil_uuid())
-                {
-                    if (!mesh.runtimeMeshHandle.isValid()) {
-                        mesh.runtimeMeshHandle = scene->engine.graphicsEngine->loadMesh(mesh.meshUuid);
-                    }
-
-                    if (renderer.shaderUuid != boost::uuids::nil_uuid() && !renderer.runtimeShaderHandle.isValid()) {
-                        renderer.runtimeShaderHandle = scene->engine.graphicsEngine->loadShader(renderer.shaderUuid);
-                    }
-                    if (renderer.materialUuid != boost::uuids::nil_uuid() && !renderer.runtimeMaterialHandle.isValid()) {
-                        renderer.runtimeMaterialHandle = scene->engine.graphicsEngine->loadMaterial(renderer.materialUuid);
-                    }
-
-                    for (uint32_t camIdx : targetCameraIndices) {
-                        gfx::ShaderProgramHandle currentShader = renderer.runtimeShaderHandle;
-                        if (inEditMode && camIdx < activeScenes.size() && editorSystem && !isThumbnailScene) { // Only override for editor cameras
-                            if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
-                                currentShader = editorSystem->wiremeshShaderHandle;
-                            } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
-                                currentShader = editorSystem->wiremeshTexturedShaderHandle;
-                            }
-                        }
-
-                        scene->engine.graphicsEngine->drawModel(camIdx, mesh.runtimeMeshHandle, renderer.runtimeMaterialHandle, currentShader,
-                                                                transforms[entity].globalMatrix);
+            for (uint32_t camIdx : targetCameraIndices) {
+                gfx::ShaderProgramHandle currentShader = renderer.runtimeShaderHandle;
+                if (inEditMode && camIdx < activeScenes.size() && editorSystem && !isThumbnailScene) { // Only override for editor cameras
+                    if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::Wiremesh) {
+                        currentShader = editorSystem->wiremeshShaderHandle;
+                    } else if (editorSystem->currentShaderOverride == EditorSystem::ShaderOverrideMode::TexturedWiremesh) {
+                        currentShader = editorSystem->wiremeshTexturedShaderHandle;
                     }
                 }
+
+                scene->engine.graphicsEngine->drawModel(camIdx, mesh.runtimeMeshHandle, renderer.runtimeMaterialHandle, currentShader,
+                                                        transform.globalMatrix);
             }
         }
     }
@@ -215,63 +185,56 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
         //gizmoSystem->gizmoRenderCommandQueue.clear();
     }
 
-    // Only iterate up to the actual size of used components
-    for (ComponentID i = 0; i < lightArray->GetArraySize(); i++)
+    for (auto [entity, lightComponent, transform] : scene->GetActiveView<LightComponent, TransformComponent>())
     {
-        if (lightArray->IsComponentActive(i))
+        switch (lightComponent.getType())
         {
-            Entity entity = lightArray->ComponentIndexToEntity(i);
-            auto& lightComponent = lights[i];
-
-            switch (lightComponent.getType())
+            case LightComponent::Type::Point:
             {
-                case LightComponent::Type::Point:
-                {
-                    const auto& pointData = std::get<PointLightData>(lightComponent.data);
-                    gfx::PointLightData lightData{
-                            lightComponent.hasShadow,
-                            lightComponent.intensity,
-                            lightComponent.color,
-                            pointData.radius,
-                            pointData.falloff,
-                            pointData.shadowBias,
-                            pointData.shadowStrength
-                    };
-                    scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
-                    break;
-                }
-                case LightComponent::Type::Spot:
-                {
-                    const auto& spotData = std::get<SpotLightData>(lightComponent.data);
-                    gfx::SpotLightData lightData{
-                            lightComponent.hasShadow,
-                            lightComponent.intensity,
-                            spotData.innerAngle,
-                            lightComponent.color,
-                            spotData.outerAngle,
-                            spotData.range,
-                            spotData.shadowBias,
-                            spotData.shadowStrength
-                    };
-                    scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
-                    break;
-                }
-                case LightComponent::Type::Directional:
-                {
-                    const auto& dirData = std::get<DirectionalLightData>(lightComponent.data);
-                    gfx::DirectionalLightData lightData{
-                            lightComponent.hasShadow,
-                            lightComponent.intensity,
-                            lightComponent.color,
-                            dirData.shadowBias,
-                            dirData.shadowStrength
-                    };
-                    scene->engine.graphicsEngine->drawLight(lightData, transforms[entity].globalMatrix);
-                    break;
-                }
-                default:
-                    break;
+                const auto& pointData = std::get<PointLightData>(lightComponent.data);
+                gfx::PointLightData lightData{
+                        lightComponent.hasShadow,
+                        lightComponent.intensity,
+                        lightComponent.color,
+                        pointData.radius,
+                        pointData.falloff,
+                        pointData.shadowBias,
+                        pointData.shadowStrength
+                };
+                scene->engine.graphicsEngine->drawLight(lightData, transform.globalMatrix);
+                break;
             }
+            case LightComponent::Type::Spot:
+            {
+                const auto& spotData = std::get<SpotLightData>(lightComponent.data);
+                gfx::SpotLightData lightData{
+                        lightComponent.hasShadow,
+                        lightComponent.intensity,
+                        spotData.innerAngle,
+                        lightComponent.color,
+                        spotData.outerAngle,
+                        spotData.range,
+                        spotData.shadowBias,
+                        spotData.shadowStrength
+                };
+                scene->engine.graphicsEngine->drawLight(lightData, transform.globalMatrix);
+                break;
+            }
+            case LightComponent::Type::Directional:
+            {
+                const auto& dirData = std::get<DirectionalLightData>(lightComponent.data);
+                gfx::DirectionalLightData lightData{
+                        lightComponent.hasShadow,
+                        lightComponent.intensity,
+                        lightComponent.color,
+                        dirData.shadowBias,
+                        dirData.shadowStrength
+                };
+                scene->engine.graphicsEngine->drawLight(lightData, transform.globalMatrix);
+                break;
+            }
+            default:
+                break;
         }
     }
 }
