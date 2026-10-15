@@ -55,7 +55,7 @@ std::array<T, MAX_ENTITIES>& IntegralComponentArray<T>::GetComponents() {
 }
 
 template <typename T>
-ComponentID IntegralComponentArray<T>::AddComponentUntyped(ComponentID entity)
+ComponentID IntegralComponentArray<T>::AddComponentUntyped(Entity entity)
 {
    return AddComponentToEntity(entity, T());
 }
@@ -94,7 +94,7 @@ void IntegralComponentArray<T>::SerializeToJson(rapidjson::Value& obj, rapidjson
     rapidjson::Value components(rapidjson::kArrayType);
 
     // Store active components and their data
-    for (Entity entity = 0; entity < MAX_ENTITIES; ++entity) {
+    for (EntityID entity = 0; entity < MAX_ENTITIES; ++entity) {
         if (activeComponents[entity]) {
             rapidjson::Value componentObj(rapidjson::kObjectType);
 

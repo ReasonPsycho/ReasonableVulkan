@@ -47,6 +47,10 @@ endif ()
 add_library(platform_interface INTERFACE)
 target_include_directories(platform_interface INTERFACE ${CMAKE_SOURCE_DIR}/src/platform/include)
 
+add_library(engine_interface INTERFACE)
+target_include_directories(engine_interface INTERFACE ${CMAKE_SOURCE_DIR}/src/engine/include)
+target_link_libraries(engine_interface INTERFACE platform_interface)
+
 # Add subdirectories containing other CMake projects
 message(STATUS "Adding subdirectories")
 add_subdirectory(src/renderDocManager)

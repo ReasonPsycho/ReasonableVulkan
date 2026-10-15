@@ -61,8 +61,8 @@ static std::vector<std::filesystem::path> ParseFilePathPayload(const ImGuiPayloa
     return paths;
 }
 
-static std::vector<Entity> ParseSceneEntityPayload(const ImGuiPayload* payload) {
-    std::vector<Entity> ents;
+static std::vector<EntityID> ParseSceneEntityPayload(const ImGuiPayload* payload) {
+    std::vector<EntityID> ents;
     if (!payload || !payload->Data || payload->DataSize == 0) return ents;
     if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
         const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
@@ -71,7 +71,7 @@ static std::vector<Entity> ParseSceneEntityPayload(const ImGuiPayload* payload) 
         }
     }
     if (ents.empty()) {
-        ents.push_back(*(const Entity*)payload->Data);
+        ents.push_back(*(const EntityID*)payload->Data);
     }
     return ents;
 }
@@ -584,26 +584,26 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
         });
     }
 
-    Entity targetEntity = GetSelectedEntity();
+    EntityID targetEntity = GetSelectedEntity();
     if (targetEntity != std::numeric_limits<std::uint32_t>::max() && scene->HasComponent<TransformComponent>(targetEntity))
     {
         auto& transform = scene->GetIntegralComponentArray<TransformComponent>().get()->GetComponentFromEntity(targetEntity);
 
-        auto isDescendant = [scene](Entity e, Entity ancestor) -> bool {
+        auto isDescendant = [scene](EntityID e, EntityID ancestor) -> bool {
             if (!scene || e == MAX_ENTITIES || ancestor == MAX_ENTITIES) return false;
-            Entity current = scene->GetParent(e);
-            while (current != MAX_ENTITIES && current != (Entity)-1) {
+            EntityID current = scene->GetParent(e);
+            while (current != MAX_ENTITIES && current != (EntityID)-1) {
                 if (current == ancestor) return true;
                 current = scene->GetParent(current);
             }
             return false;
         };
 
-        std::vector<Entity> topLevelSelected;
-        for (Entity e : selectedEntities) {
+        std::vector<EntityID> topLevelSelected;
+        for (EntityID e : selectedEntities) {
             if (!scene->HasComponent<TransformComponent>(e)) continue;
             bool hasSelectedAncestor = false;
-            for (Entity other : selectedEntities) {
+            for (EntityID other : selectedEntities) {
                 if (other != e && isDescendant(e, other)) {
                     hasSelectedAncestor = true;
                     break;
@@ -625,7 +625,7 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
         glm::vec3 center(0.0f);
         int validCount = 0;
         if (transformArray) {
-            for (Entity e : topLevelSelected) {
+            for (EntityID e : topLevelSelected) {
                 if (transformArray->HasComponent(e)) {
                     const auto& t = transformArray->GetComponentFromEntity(e);
                     center += getGlobalPosition(t);
@@ -651,7 +651,7 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
         }
 
         static bool s_GizmoWasUsing = false;
-        static Entity s_GizmoTargetEntity = MAX_ENTITIES;
+        static EntityID s_GizmoTargetEntity = MAX_ENTITIES;
         static Scene* s_GizmoTargetScene = nullptr;
         static glm::mat4 s_GizmoInitialMatrix{1.0f};
         static glm::mat4 s_GizmoCurrentMatrix{1.0f};
@@ -667,7 +667,7 @@ void EditorSystem::ImGuiGizmoForScene(Scene* scene, EditorCameraState& camState,
             s_GizmoCurrentMatrix = gizmoMatrix;
             s_GizmoInitialRecords.clear();
             if (transformArray) {
-                for (Entity e : topLevelSelected) {
+                for (EntityID e : topLevelSelected) {
                     if (transformArray->HasComponent(e)) {
                         auto& t = transformArray->GetComponentFromEntity(e);
                         editor::EntityTransformRecord rec;
@@ -1211,12 +1211,12 @@ void EditorSystem::Update(float deltaTime)
                         }
 
                         // Determine which entities are inside the marquee box
-                        std::vector<Entity> inBoxEntities;
+                        std::vector<EntityID> inBoxEntities;
                         auto transformArray = currentScene->GetIntegralComponentArray<TransformComponent>().get();
                         auto meshArray = currentScene->GetComponentArray<MeshComponent>().get();
                         if (transformArray) {
                             auto& transforms = transformArray->GetComponents();
-                            for (Entity e = 0; e < MAX_ENTITIES; ++e) {
+                            for (EntityID e = 0; e < MAX_ENTITIES; ++e) {
                                 if (!transformArray->HasComponent(e)) continue;
                                 if (!currentScene->IsEntityActive(e)) continue;
 
@@ -1290,16 +1290,16 @@ void EditorSystem::Update(float deltaTime)
                         bool isShift = io.KeyShift;
 
                         if (isCtrl) {
-                            std::vector<Entity> combined = camState.preBoxSelectedEntities;
-                            for (Entity e : inBoxEntities) {
+                            std::vector<EntityID> combined = camState.preBoxSelectedEntities;
+                            for (EntityID e : inBoxEntities) {
                                 auto it = std::find(combined.begin(), combined.end(), e);
                                 if (it != combined.end()) combined.erase(it);
                                 else combined.push_back(e);
                             }
                             SetSelectedEntities(combined);
                         } else if (isShift) {
-                            std::vector<Entity> combined = camState.preBoxSelectedEntities;
-                            for (Entity e : inBoxEntities) {
+                            std::vector<EntityID> combined = camState.preBoxSelectedEntities;
+                            for (EntityID e : inBoxEntities) {
                                 if (std::find(combined.begin(), combined.end(), e) == combined.end()) {
                                     combined.push_back(e);
                                 }
@@ -1443,7 +1443,7 @@ void EditorSystem::Update(float deltaTime)
                     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
                     {
                         auto droppedPaths = ParseFilePathPayload(payload);
-                        std::vector<Entity> createdEntities;
+                        std::vector<EntityID> createdEntities;
                         for (const auto& p : droppedPaths)
                         {
                             auto ext = p.extension().string();
@@ -1456,7 +1456,7 @@ void EditorSystem::Update(float deltaTime)
                                 if (uuid) {
                                     Entity newEnt = currentScene->InstantiatePrefab(uuid.value());
                                     if (newEnt != MAX_ENTITIES) {
-                                        createdEntities.push_back(newEnt);
+                                        createdEntities.push_back(newEnt.GetID());
                                     }
                                 }
                             } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
@@ -1465,7 +1465,7 @@ void EditorSystem::Update(float deltaTime)
                                 if (uuid) {
                                     Entity newEnt = currentScene->InstantiateModel(uuid.value());
                                     if (newEnt != MAX_ENTITIES) {
-                                        createdEntities.push_back(newEnt);
+                                        createdEntities.push_back(newEnt.GetID());
                                     }
                                 }
                             }
@@ -1644,7 +1644,7 @@ void EditorSystem::ProcessThumbnailCaptures()
     }
 }
 
-void EditorSystem::SetEntityName(Entity entity, const std::string& name, Scene* targetScene)
+void EditorSystem::SetEntityName(EntityID entity, const std::string& name, Scene* targetScene)
 {
     Scene* scene = targetScene ? targetScene : GetTargetScene();
     if (!scene) return;
@@ -1662,7 +1662,7 @@ void EditorSystem::SetEntityName(Entity entity, const std::string& name, Scene* 
     }
 }
 
-std::string EditorSystem::GetEntityRawName(Entity entity, Scene* targetScene) const
+std::string EditorSystem::GetEntityRawName(EntityID entity, Scene* targetScene) const
 {
     Scene* scene = targetScene ? targetScene : GetTargetScene();
     if (scene && scene->HasComponent<NameComponent>(entity)) {
@@ -1675,7 +1675,7 @@ std::string EditorSystem::GetEntityRawName(Entity entity, Scene* targetScene) co
     return it != named_entities.end() ? it->second : "Entity";
 }
 
-std::string EditorSystem::GetEntityName(Entity entity, Scene* targetScene) const
+std::string EditorSystem::GetEntityName(EntityID entity, Scene* targetScene) const
 {
     return "(#" + std::to_string(entity) + ") " + GetEntityRawName(entity, targetScene);
 }
@@ -1685,21 +1685,21 @@ void EditorSystem::CopySelectedEntities(Scene* sourceScene)
     Scene* scene = sourceScene ? sourceScene : GetTargetScene();
     if (!scene || selectedEntities.empty()) return;
 
-    auto isDescendant = [scene](Entity e, Entity ancestor) -> bool {
+    auto isDescendant = [scene](EntityID e, EntityID ancestor) -> bool {
         if (!scene || e == MAX_ENTITIES || ancestor == MAX_ENTITIES) return false;
-        Entity current = scene->GetParent(e);
-        while (current != MAX_ENTITIES && current != (Entity)-1) {
+        EntityID current = scene->GetParent(e);
+        while (current != MAX_ENTITIES && current != (EntityID)-1) {
             if (current == ancestor) return true;
             current = scene->GetParent(current);
         }
         return false;
     };
 
-    std::vector<Entity> topLevelSelected;
-    for (Entity e : selectedEntities) {
+    std::vector<EntityID> topLevelSelected;
+    for (EntityID e : selectedEntities) {
         if (!scene->IsEntityActive(e) && !scene->HasComponent<TransformComponent>(e)) continue;
         bool hasSelectedAncestor = false;
-        for (Entity other : selectedEntities) {
+        for (EntityID other : selectedEntities) {
             if (other != e && isDescendant(e, other)) {
                 hasSelectedAncestor = true;
                 break;
@@ -1715,7 +1715,7 @@ void EditorSystem::CopySelectedEntities(Scene* sourceScene)
     if (topLevelSelected.empty()) return;
 
     entityClipboard.clear();
-    for (Entity e : topLevelSelected) {
+    for (EntityID e : topLevelSelected) {
         EntityClipboardItem item;
         item.name = GetEntityRawName(e, scene);
         item.originalParent = scene->GetParent(e);
@@ -1725,20 +1725,20 @@ void EditorSystem::CopySelectedEntities(Scene* sourceScene)
     }
 }
 
-void EditorSystem::PasteEntities(Scene* targetScene, Entity parent)
+void EditorSystem::PasteEntities(Scene* targetScene, EntityID parent)
 {
     if (entityClipboard.empty()) return;
 
     Scene* scene = targetScene ? targetScene : GetTargetScene();
     if (!scene || !scene->IsEditable()) return;
 
-    std::vector<Entity> createdEntities;
+    std::vector<EntityID> createdEntities;
     for (const auto& item : entityClipboard) {
         if (!item.doc) continue;
 
-        Entity targetParent = parent;
-        if (targetParent == MAX_ENTITIES || targetParent == (Entity)-1) {
-            if (item.originalParent != MAX_ENTITIES && item.originalParent != (Entity)-1) {
+        EntityID targetParent = parent;
+        if (targetParent == MAX_ENTITIES || targetParent == (EntityID)-1) {
+            if (item.originalParent != MAX_ENTITIES && item.originalParent != (EntityID)-1) {
                 if (scene->IsEntityActive(item.originalParent)) {
                     targetParent = item.originalParent;
                 }
@@ -1747,7 +1747,7 @@ void EditorSystem::PasteEntities(Scene* targetScene, Entity parent)
 
         Entity newEnt = scene->DeserializeObjectFromJson(*item.doc, targetParent);
         if (newEnt != MAX_ENTITIES) {
-            createdEntities.push_back(newEnt);
+            createdEntities.push_back(newEnt.GetID());
         }
     }
 
@@ -1767,21 +1767,21 @@ void EditorSystem::DuplicateSelectedEntities(Scene* targetScene)
     Scene* scene = targetScene ? targetScene : GetTargetScene();
     if (!scene || !scene->IsEditable() || selectedEntities.empty()) return;
 
-    auto isDescendant = [scene](Entity e, Entity ancestor) -> bool {
+    auto isDescendant = [scene](EntityID e, EntityID ancestor) -> bool {
         if (!scene || e == MAX_ENTITIES || ancestor == MAX_ENTITIES) return false;
-        Entity current = scene->GetParent(e);
-        while (current != MAX_ENTITIES && current != (Entity)-1) {
+        EntityID current = scene->GetParent(e);
+        while (current != MAX_ENTITIES && current != (EntityID)-1) {
             if (current == ancestor) return true;
             current = scene->GetParent(current);
         }
         return false;
     };
 
-    std::vector<Entity> topLevelSelected;
-    for (Entity e : selectedEntities) {
+    std::vector<EntityID> topLevelSelected;
+    for (EntityID e : selectedEntities) {
         if (!scene->IsEntityActive(e) && !scene->HasComponent<TransformComponent>(e)) continue;
         bool hasSelectedAncestor = false;
-        for (Entity other : selectedEntities) {
+        for (EntityID other : selectedEntities) {
             if (other != e && isDescendant(e, other)) {
                 hasSelectedAncestor = true;
                 break;
@@ -1796,15 +1796,15 @@ void EditorSystem::DuplicateSelectedEntities(Scene* targetScene)
 
     if (topLevelSelected.empty()) return;
 
-    std::vector<Entity> duplicatedEntities;
-    for (Entity e : topLevelSelected) {
+    std::vector<EntityID> duplicatedEntities;
+    for (EntityID e : topLevelSelected) {
         rapidjson::Document doc;
         scene->SerializeObjectToJson(e, doc);
 
-        Entity parent = scene->GetParent(e);
+        EntityID parent = scene->GetParent(e);
         Entity newEnt = scene->DeserializeObjectFromJson(doc, parent);
         if (newEnt != MAX_ENTITIES) {
-            duplicatedEntities.push_back(newEnt);
+            duplicatedEntities.push_back(newEnt.GetID());
         }
     }
 
@@ -2019,9 +2019,9 @@ void EditorSystem::ImGuiSceneGraph()
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
             {
                 auto ents = ParseSceneEntityPayload(payload);
-                for (Entity droppedEntity : ents) {
-                    Entity oldP = scn->GetParent(droppedEntity);
-                    if (oldP != MAX_ENTITIES && oldP != (Entity)-1) {
+                for (EntityID droppedEntity : ents) {
+                    EntityID oldP = scn->GetParent(droppedEntity);
+                    if (oldP != MAX_ENTITIES && oldP != (EntityID)-1) {
                         auto cmd = std::make_shared<editor::ReparentEntityCommand>(scn.get(), droppedEntity, oldP, MAX_ENTITIES);
                         history.Execute(cmd);
                     }
@@ -2030,7 +2030,7 @@ void EditorSystem::ImGuiSceneGraph()
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
             {
                 auto droppedPaths = ParseFilePathPayload(payload);
-                std::vector<Entity> createdEntities;
+                std::vector<EntityID> createdEntities;
                 for (const auto& p : droppedPaths)
                 {
                     auto ext = p.extension().string();
@@ -2043,7 +2043,7 @@ void EditorSystem::ImGuiSceneGraph()
                         if (uuid) {
                             Entity newEnt = scn->InstantiatePrefab(uuid.value());
                             if (newEnt != MAX_ENTITIES) {
-                                createdEntities.push_back(newEnt);
+                                createdEntities.push_back(newEnt.GetID());
                             }
                         }
                     } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
@@ -2052,7 +2052,7 @@ void EditorSystem::ImGuiSceneGraph()
                         if (uuid) {
                             Entity newEnt = scn->InstantiateModel(uuid.value());
                             if (newEnt != MAX_ENTITIES) {
-                                createdEntities.push_back(newEnt);
+                                createdEntities.push_back(newEnt.GetID());
                             }
                         }
                     }
@@ -2158,9 +2158,9 @@ void EditorSystem::ImGuiSceneGraph()
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
             {
                 auto ents = ParseSceneEntityPayload(payload);
-                for (Entity droppedEntity : ents) {
-                    Entity oldP = targetScene->GetParent(droppedEntity);
-                    if (oldP != MAX_ENTITIES && oldP != (Entity)-1) {
+                for (EntityID droppedEntity : ents) {
+                    EntityID oldP = targetScene->GetParent(droppedEntity);
+                    if (oldP != MAX_ENTITIES && oldP != (EntityID)-1) {
                         auto cmd = std::make_shared<editor::ReparentEntityCommand>(targetScene, droppedEntity, oldP, MAX_ENTITIES);
                         history.Execute(cmd);
                     }
@@ -2169,7 +2169,7 @@ void EditorSystem::ImGuiSceneGraph()
             else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
             {
                 auto droppedPaths = ParseFilePathPayload(payload);
-                std::vector<Entity> createdEntities;
+                std::vector<EntityID> createdEntities;
                 for (const auto& p : droppedPaths)
                 {
                     auto ext = p.extension().string();
@@ -2182,7 +2182,7 @@ void EditorSystem::ImGuiSceneGraph()
                         if (uuid) {
                             Entity newEnt = targetScene->InstantiatePrefab(uuid.value());
                             if (newEnt != MAX_ENTITIES) {
-                                createdEntities.push_back(newEnt);
+                                createdEntities.push_back(newEnt.GetID());
                             }
                         }
                     } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
@@ -2191,7 +2191,7 @@ void EditorSystem::ImGuiSceneGraph()
                         if (uuid) {
                             Entity newEnt = targetScene->InstantiateModel(uuid.value());
                             if (newEnt != MAX_ENTITIES) {
-                                createdEntities.push_back(newEnt);
+                                createdEntities.push_back(newEnt.GetID());
                             }
                         }
                     }
@@ -2287,7 +2287,7 @@ void EditorSystem::ImGuiSceneGraph()
                     drawList->AddRect(drawBoxMin, drawBoxMax, IM_COL32(66, 150, 250, 220), 0.0f, 0, 1.5f);
                 }
 
-                std::vector<Entity> inBoxEntities;
+                std::vector<EntityID> inBoxEntities;
                 Scene* primaryScene = nullptr;
                 for (const auto& nr : sceneGraphNodeRects)
                 {
@@ -2295,7 +2295,7 @@ void EditorSystem::ImGuiSceneGraph()
                                      boxMinContent.y <= nr.contentMax.y && boxMaxContent.y >= nr.contentMin.y);
                     if (overlaps)
                     {
-                        inBoxEntities.push_back(nr.entity);
+                        inBoxEntities.push_back(nr.entity.GetID());
                         if (!primaryScene) primaryScene = nr.scene;
                     }
                 }
@@ -2306,8 +2306,8 @@ void EditorSystem::ImGuiSceneGraph()
 
                 if (isCtrlOrCmd)
                 {
-                    std::vector<Entity> combined = sceneGraphBoxSelectPreSelection;
-                    for (Entity e : inBoxEntities)
+                    std::vector<EntityID> combined = sceneGraphBoxSelectPreSelection;
+                    for (EntityID e : inBoxEntities)
                     {
                         auto it = std::find(combined.begin(), combined.end(), e);
                         if (it != combined.end())
@@ -2323,8 +2323,8 @@ void EditorSystem::ImGuiSceneGraph()
                 }
                 else if (isShift)
                 {
-                    std::vector<Entity> combined = sceneGraphBoxSelectPreSelection;
-                    for (Entity e : inBoxEntities)
+                    std::vector<EntityID> combined = sceneGraphBoxSelectPreSelection;
+                    for (EntityID e : inBoxEntities)
                     {
                         if (std::find(combined.begin(), combined.end(), e) == combined.end())
                         {
@@ -2563,7 +2563,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                 ImGui::Separator();
                 if (ImGui::MenuItem("Delete Entity"))
                 {
-                    auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(currentScene, std::vector<Entity>{entity}, this);
+                    auto cmd = std::make_shared<editor::DeleteEntitiesCommand>(currentScene, std::vector<EntityID>{entity.GetID()}, this);
                     history.Execute(cmd);
                     if (renamingEntity == entity)
                     {
@@ -2588,15 +2588,15 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     // Start drag operation
     if (currentScene->IsEditable() && !isRenaming && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        std::vector<Entity> entsToDrag;
-        if (IsEntitySelected(entity) && selectedEntities.size() > 1) {
+        std::vector<EntityID> entsToDrag;
+        if (IsEntitySelected(entity.GetID()) && selectedEntities.size() > 1) {
             entsToDrag = selectedEntities;
         } else {
-            entsToDrag.push_back(entity);
+            entsToDrag.push_back(entity.GetID());
         }
 
         engine::ecs::SceneEntityPayload payloadData{};
-        payloadData.entity = entity;
+        payloadData.entity = entity.GetID();
         payloadData.scene = currentScene;
         payloadData.count = (uint32_t)std::min(entsToDrag.size(), (size_t)128);
         for (uint32_t k = 0; k < payloadData.count; ++k) {
@@ -2627,8 +2627,8 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
     const ImGuiPayload* curDragPayload = ImGui::GetDragDropPayload();
     if (curDragPayload && curDragPayload->IsDataType("SCENE_ENTITY") && curDragPayload->Data) {
         auto draggedEnts = ParseSceneEntityPayload(curDragPayload);
-        for (Entity de : draggedEnts) {
-            if (de == entity) {
+        for (EntityID de : draggedEnts) {
+            if (de == entity.GetID()) {
                 ImVec2 itemMin = ImGui::GetItemRectMin();
                 ImVec2 itemMax = ImGui::GetItemRectMax();
                 ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(66, 180, 255, 120), 0.0f, 0, 1.0f);
@@ -2646,13 +2646,13 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY"))
         {
             auto ents = ParseSceneEntityPayload(payload);
-            for (Entity droppedEntity : ents) {
+            for (EntityID droppedEntity : ents) {
                 // Prevent dropping on itself
-                if (droppedEntity != entity)
+                if (droppedEntity != entity.GetID())
                 {
-                    Entity oldP = currentScene->GetParent(droppedEntity);
-                    if (oldP != entity) {
-                        auto cmd = std::make_shared<editor::ReparentEntityCommand>(currentScene, droppedEntity, oldP, entity);
+                    EntityID oldP = currentScene->GetParent(droppedEntity);
+                    if (oldP != entity.GetID()) {
+                        auto cmd = std::make_shared<editor::ReparentEntityCommand>(currentScene, droppedEntity, oldP, entity.GetID());
                         history.Execute(cmd);
                     }
                 }
@@ -2661,7 +2661,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
         else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AM_FILE_PATH"))
         {
             auto droppedPaths = ParseFilePathPayload(payload);
-            std::vector<Entity> createdEntities;
+            std::vector<EntityID> createdEntities;
             for (const auto& p : droppedPaths)
             {
                 auto ext = p.extension().string();
@@ -2674,7 +2674,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                     if (uuid) {
                         Entity newEnt = currentScene->InstantiatePrefab(uuid.value(), entity);
                         if (newEnt != MAX_ENTITIES) {
-                            createdEntities.push_back(newEnt);
+                            createdEntities.push_back(newEnt.GetID());
                         }
                     }
                 } else if (ext == ".fbx" || ext == ".obj" || ext == ".model" || ext == ".mesh" || ext == ".gltf" || ext == ".glb" || ext == ".blend" || ext == ".blend1") {
@@ -2683,7 +2683,7 @@ void EditorSystem::ImGuiGraphEntity(Scene* currentScene, Entity entity)
                     if (uuid) {
                         Entity newEnt = currentScene->InstantiateModel(uuid.value(), entity);
                         if (newEnt != MAX_ENTITIES) {
-                            createdEntities.push_back(newEnt);
+                            createdEntities.push_back(newEnt.GetID());
                         }
                     }
                 }
@@ -2918,7 +2918,7 @@ std::shared_ptr<ecs::Scene> EditorSystem::OpenAssetPreviewScene(const boost::uui
     return scene;
 }
 
-bool EditorSystem::SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene)
+bool EditorSystem::SaveEntityAsPrefab(EntityID entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene)
 {
     if (!engine || !engine->assetManagerInterface)
     {

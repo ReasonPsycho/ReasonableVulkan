@@ -76,10 +76,12 @@ ${SCRIPT_REGISTRATIONS}
 }
 ")
 
-# Create the interface target
-add_library(engine_interface INTERFACE)
-target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(engine_interface INTERFACE vks_interface am_interface platform_interface)
+# Interface target is defined in root CMakeLists.txt to allow clean dependency ordering
+if (NOT TARGET engine_interface)
+    add_library(engine_interface INTERFACE)
+    target_include_directories(engine_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(engine_interface INTERFACE platform_interface)
+endif()
 
 # Create gameplay_scripts shared library
 add_library(gameplay_scripts SHARED ${RES_SCRIPT_FILES} ${GENERATED_SCRIPT_REGISTRY})

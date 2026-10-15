@@ -8,9 +8,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <filesystem>
 #include <boost/uuid/uuid.hpp>
 #include "EditorInterface.hpp"
+#include "EngineTypes.hpp"
 
 namespace plt {
     class PlatformInterface;
@@ -22,17 +24,6 @@ namespace gfx {
 
 namespace am {
     class AssetManagerInterface;
-}
-
-namespace engine::ecs {
-    class Scene;
-    using Entity = uint32_t;
-    struct SceneEntityPayload {
-        Entity entity{0};
-        Scene* scene{nullptr};
-        uint32_t count{1};
-        Entity entities[128]{0};
-    };
 }
 
 namespace engine {

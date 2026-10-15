@@ -201,7 +201,7 @@ namespace am {
                 {
                     if (assetManager && assetManager->getEditor())
                     {
-                        std::vector<engine::ecs::Entity> ents;
+                        std::vector<engine::ecs::EntityID> ents;
                         engine::ecs::Scene* scn = nullptr;
                         if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
                             const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
@@ -211,7 +211,7 @@ namespace am {
                             }
                         }
                         if (ents.empty()) {
-                            ents.push_back(*(const engine::ecs::Entity*)payload->Data);
+                            ents.push_back(*(const engine::ecs::EntityID*)payload->Data);
                         }
                         for (auto entity : ents) {
                             assetManager->getEditor()->SaveEntityAsPrefab(entity, currentPath.parent_path(), scn);
@@ -590,7 +590,7 @@ namespace am {
                         {
                             if (assetManager && assetManager->getEditor())
                             {
-                                std::vector<engine::ecs::Entity> ents;
+                                std::vector<engine::ecs::EntityID> ents;
                                 engine::ecs::Scene* scn = nullptr;
                                 if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
                                     const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
@@ -600,7 +600,7 @@ namespace am {
                                     }
                                 }
                                 if (ents.empty()) {
-                                    ents.push_back(*(const engine::ecs::Entity*)payload->Data);
+                                    ents.push_back(*(const engine::ecs::EntityID*)payload->Data);
                                 }
                                 for (auto entity : ents) {
                                     assetManager->getEditor()->SaveEntityAsPrefab(entity, path, scn);
@@ -975,7 +975,7 @@ namespace am {
                     {
                         if (assetManager && assetManager->getEditor())
                         {
-                            std::vector<engine::ecs::Entity> ents;
+                            std::vector<engine::ecs::EntityID> ents;
                             engine::ecs::Scene* scn = nullptr;
                             if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
                                 const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
@@ -985,7 +985,7 @@ namespace am {
                                 }
                             }
                             if (ents.empty()) {
-                                ents.push_back(*(const engine::ecs::Entity*)payload->Data);
+                                ents.push_back(*(const engine::ecs::EntityID*)payload->Data);
                             }
                             for (auto entity : ents) {
                                 assetManager->getEditor()->SaveEntityAsPrefab(entity, currentPath, scn);
@@ -1112,7 +1112,7 @@ namespace am {
             {
                 if (assetManager && assetManager->getEditor())
                 {
-                    std::vector<engine::ecs::Entity> ents;
+                    std::vector<engine::ecs::EntityID> ents;
                     engine::ecs::Scene* scn = nullptr;
                     if (payload->DataSize >= sizeof(engine::ecs::SceneEntityPayload)) {
                         const auto* pl = (const engine::ecs::SceneEntityPayload*)payload->Data;
@@ -1122,7 +1122,7 @@ namespace am {
                         }
                     }
                     if (ents.empty()) {
-                        ents.push_back(*(const engine::ecs::Entity*)payload->Data);
+                        ents.push_back(*(const engine::ecs::EntityID*)payload->Data);
                     }
                     for (auto entity : ents) {
                         assetManager->getEditor()->SaveEntityAsPrefab(entity, currentPath, scn);

@@ -228,10 +228,10 @@ Entity Scene::GetParent(Entity entity) const {
     if (entity < entityToFlatIndex.size()) {
         int32_t idx = entityToFlatIndex[entity];
         if (idx >= 0 && idx < static_cast<int32_t>(flatHierarchy.size())) {
-            return flatHierarchy[idx].parent;
+            return Entity(flatHierarchy[idx].parent, const_cast<Scene*>(this));
         }
     }
-    return MAX_ENTITIES;
+    return Entity(MAX_ENTITIES, const_cast<Scene*>(this));
 }
 
 std::vector<Entity> Scene::GetChildren(Entity entity) const {
@@ -242,7 +242,7 @@ std::vector<Entity> Scene::GetChildren(Entity entity) const {
 
     for (size_t i = idx + 1; i < flatHierarchy.size(); ++i) {
         if (flatHierarchy[i].parent == entity) {
-            children.push_back(flatHierarchy[i].entity);
+            children.emplace_back(flatHierarchy[i].entity, const_cast<Scene*>(this));
         }
     }
     return children;
@@ -252,7 +252,7 @@ std::vector<Entity> Scene::GetRootEntities() const {
     std::vector<Entity> roots;
     for (const auto& entry : flatHierarchy) {
         if (entry.parent == MAX_ENTITIES) {
-            roots.push_back(entry.entity);
+            roots.emplace_back(entry.entity, const_cast<Scene*>(this));
         }
     }
     return roots;
@@ -264,7 +264,7 @@ bool Scene::HasParent(Entity entity) const {
 
 
 Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
-    Entity entity;
+    EntityID entity;
     if (!freeEntities.empty()) {
         entity = freeEntities.front();
         freeEntities.pop();
@@ -280,12 +280,12 @@ Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
     AddComponent<NameComponent>(entity, NameComponent{"Entity"});
 
     int32_t parentIdx = -1;
-    Entity parent = MAX_ENTITIES;
+    EntityID parent = MAX_ENTITIES;
 
-    if (parentEntity != MAX_ENTITIES && parentEntity != (Entity)-1 && parentEntity < entityToFlatIndex.size()) {
-        int32_t pIdx = entityToFlatIndex[parentEntity];
+    if (parentEntity != MAX_ENTITIES && parentEntity != (EntityID)-1 && parentEntity.GetID() < entityToFlatIndex.size()) {
+        int32_t pIdx = entityToFlatIndex[parentEntity.GetID()];
         if (pIdx >= 0 && pIdx < static_cast<int32_t>(flatHierarchy.size())) {
-            parent = parentEntity;
+            parent = parentEntity.GetID();
             parentIdx = pIdx;
         }
     }
@@ -295,7 +295,7 @@ Entity Scene::CreateEntity(TransformComponent transform ,Entity parentEntity ) {
     entityToFlatIndex[entity] = newIdx;
 
     activeEntities.set(entity, true);
-    return entity;
+    return Entity(entity, this);
 }
 
 Entity Scene::CreateEntity(std::string entityName, Entity parentEntity)
@@ -308,6 +308,11 @@ Entity Scene::CreateEntity(std::string entityName, TransformComponent transform,
     auto entity = CreateEntity(transform,parentEntity);
     SetEntityName(entity, entityName);
     return entity;
+}
+
+Entity Scene::GetEntity(Entity entity)
+{
+    return Entity(entity.GetID(), this);
 }
 
 void Scene::DestroyEntity(Entity entity) {

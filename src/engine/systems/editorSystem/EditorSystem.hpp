@@ -50,7 +50,7 @@ namespace engine::ecs
         bool QueueThumbnailGeneration(const boost::uuids::uuid& assetId, const std::string& outputPath) override;
         void InvalidateThumbnail(const boost::uuids::uuid& assetId) override;
         std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) override;
-        bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
+        bool SaveEntityAsPrefab(EntityID entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) override;
         bool CreateScriptAsset(const std::string& scriptName, const std::filesystem::path& targetDir = "");
 
         struct ComponentInfo {
@@ -91,43 +91,43 @@ namespace engine::ecs
             registeredComponentTypes[typeid(T)] = std::move(info);
         }
 
-        void SetEntityName(Entity entity, const std::string& name, Scene* targetScene = nullptr) override;
-        std::string GetEntityName(Entity entity, Scene* targetScene = nullptr) const override;
-        std::string GetEntityRawName(Entity entity, Scene* targetScene = nullptr) const override;
+        void SetEntityName(EntityID entity, const std::string& name, Scene* targetScene = nullptr) override;
+        std::string GetEntityName(EntityID entity, Scene* targetScene = nullptr) const override;
+        std::string GetEntityRawName(EntityID entity, Scene* targetScene = nullptr) const override;
 
-        Entity GetSelectedEntity() const override { return selectedEntities.empty() ? std::numeric_limits<std::uint32_t>::max() : selectedEntities.back(); }
-        void SetSelectedEntity(Entity entity) override {
+        EntityID GetSelectedEntity() const override { return selectedEntities.empty() ? MAX_ENTITIES : selectedEntities.back(); }
+        void SetSelectedEntity(EntityID entity) override {
             selectedEntities.clear();
-            if (entity != std::numeric_limits<std::uint32_t>::max()) {
+            if (entity != MAX_ENTITIES) {
                 selectedEntities.push_back(entity);
                 requestInspectorFocus = true;
             }
         }
-        const std::vector<Entity>& GetSelectedEntities() const override { return selectedEntities; }
-        void SetSelectedEntities(const std::vector<Entity>& entities) override {
+        const std::vector<EntityID>& GetSelectedEntities() const override { return selectedEntities; }
+        void SetSelectedEntities(const std::vector<EntityID>& entities) override {
             selectedEntities = entities;
             if (!selectedEntities.empty()) {
                 requestInspectorFocus = true;
             }
         }
-        void AddSelectedEntity(Entity entity) override {
-            if (entity == std::numeric_limits<std::uint32_t>::max()) return;
+        void AddSelectedEntity(EntityID entity) override {
+            if (entity == MAX_ENTITIES) return;
             if (std::find(selectedEntities.begin(), selectedEntities.end(), entity) == selectedEntities.end()) {
                 selectedEntities.push_back(entity);
                 requestInspectorFocus = true;
             }
         }
-        void RemoveSelectedEntity(Entity entity) override {
+        void RemoveSelectedEntity(EntityID entity) override {
             selectedEntities.erase(std::remove(selectedEntities.begin(), selectedEntities.end(), entity), selectedEntities.end());
         }
         void ClearSelectedEntities() override { selectedEntities.clear(); }
-        bool IsEntitySelected(Entity entity) const override {
+        bool IsEntitySelected(EntityID entity) const override {
             return std::find(selectedEntities.begin(), selectedEntities.end(), entity) != selectedEntities.end();
         }
 
         void CopySelectedEntities(Scene* sourceScene = nullptr) override;
         void PasteEntities(Scene* targetScene = nullptr) override { PasteEntities(targetScene, MAX_ENTITIES); }
-        void PasteEntities(Scene* targetScene, Entity parent) override;
+        void PasteEntities(Scene* targetScene, EntityID parent) override;
         void DuplicateSelectedEntities(Scene* targetScene = nullptr) override;
         bool HasEntitiesInClipboard() const override { return !entityClipboard.empty(); }
 
@@ -201,7 +201,7 @@ namespace engine::ecs
             bool isMiddleMousePressed = false;
             bool isBoxSelecting = false;
             ImVec2 boxSelectStart = { 0, 0 };
-            std::vector<Entity> preBoxSelectedEntities;
+            std::vector<EntityID> preBoxSelectedEntities;
             ImVec2 lastViewportSize = { 0, 0 };
             ImVec2 lastViewportPos = { 0, 0 };
 
@@ -220,7 +220,7 @@ namespace engine::ecs
         std::weak_ptr<Scene> selectedScene;
         std::unordered_map<std::string, EditorCameraState> sceneEditorCameras;
         std::unordered_map<Entity, std::string> named_entities;
-        std::vector<Entity> selectedEntities;
+        std::vector<EntityID> selectedEntities;
 
         struct EntityClipboardItem {
             std::shared_ptr<rapidjson::Document> doc;
@@ -228,7 +228,7 @@ namespace engine::ecs
             Entity originalParent = MAX_ENTITIES;
         };
         std::vector<EntityClipboardItem> entityClipboard;
-        Entity renamingEntity = std::numeric_limits<std::uint32_t>::max();
+        Entity renamingEntity = MAX_ENTITIES;
         char renameBuf[256] = "";
         bool renameFocusRequested = false;
         bool requestInspectorFocus = false;
@@ -243,7 +243,7 @@ namespace engine::ecs
         std::vector<SceneGraphNodeRect> sceneGraphNodeRects;
         bool isSceneGraphBoxSelecting = false;
         ImVec2 sceneGraphBoxSelectStartPos = { 0, 0 };
-        std::vector<Entity> sceneGraphBoxSelectPreSelection;
+        std::vector<EntityID> sceneGraphBoxSelectPreSelection;
         bool anySceneGraphNodeClickedOrActive = false;
 
         void ImGuiSceneGraph();

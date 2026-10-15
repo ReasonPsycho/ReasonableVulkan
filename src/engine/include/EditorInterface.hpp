@@ -11,10 +11,10 @@
 #include <filesystem>
 #include <boost/uuid/uuid.hpp>
 #include <glm/glm.hpp>
+#include "EngineTypes.hpp"
 
 namespace engine::ecs {
     class Scene;
-    using Entity = uint32_t;
 }
 
 namespace engine::editor {
@@ -35,27 +35,27 @@ namespace engine::editor {
         virtual std::shared_ptr<ecs::Scene> OpenAssetPreviewScene(const boost::uuids::uuid& assetId) = 0;
 
         // Prefab creation
-        virtual bool SaveEntityAsPrefab(uint32_t entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) = 0;
+        virtual bool SaveEntityAsPrefab(ecs::EntityID entity, const std::filesystem::path& destinationDirectoryOrPath, ecs::Scene* sourceScene = nullptr) = 0;
 
         // Entity naming
-        virtual void SetEntityName(ecs::Entity entity, const std::string& name, ecs::Scene* targetScene = nullptr) = 0;
-        virtual std::string GetEntityName(ecs::Entity entity, ecs::Scene* targetScene = nullptr) const = 0;
-        virtual std::string GetEntityRawName(ecs::Entity entity, ecs::Scene* targetScene = nullptr) const = 0;
+        virtual void SetEntityName(ecs::EntityID entity, const std::string& name, ecs::Scene* targetScene = nullptr) = 0;
+        virtual std::string GetEntityName(ecs::EntityID entity, ecs::Scene* targetScene = nullptr) const = 0;
+        virtual std::string GetEntityRawName(ecs::EntityID entity, ecs::Scene* targetScene = nullptr) const = 0;
 
         // Selection
-        virtual ecs::Entity GetSelectedEntity() const = 0;
-        virtual void SetSelectedEntity(ecs::Entity entity) = 0;
-        virtual const std::vector<ecs::Entity>& GetSelectedEntities() const = 0;
-        virtual void SetSelectedEntities(const std::vector<ecs::Entity>& entities) = 0;
-        virtual void AddSelectedEntity(ecs::Entity entity) = 0;
-        virtual void RemoveSelectedEntity(ecs::Entity entity) = 0;
+        virtual ecs::EntityID GetSelectedEntity() const = 0;
+        virtual void SetSelectedEntity(ecs::EntityID entity) = 0;
+        virtual const std::vector<ecs::EntityID>& GetSelectedEntities() const = 0;
+        virtual void SetSelectedEntities(const std::vector<ecs::EntityID>& entities) = 0;
+        virtual void AddSelectedEntity(ecs::EntityID entity) = 0;
+        virtual void RemoveSelectedEntity(ecs::EntityID entity) = 0;
         virtual void ClearSelectedEntities() = 0;
-        virtual bool IsEntitySelected(ecs::Entity entity) const = 0;
+        virtual bool IsEntitySelected(ecs::EntityID entity) const = 0;
 
         // Copy / Paste / Duplicate
         virtual void CopySelectedEntities(ecs::Scene* sourceScene = nullptr) {}
         virtual void PasteEntities(ecs::Scene* targetScene = nullptr) {}
-        virtual void PasteEntities(ecs::Scene* targetScene, ecs::Entity parent) {}
+        virtual void PasteEntities(ecs::Scene* targetScene, ecs::EntityID parent) {}
         virtual void DuplicateSelectedEntities(ecs::Scene* targetScene = nullptr) {}
         virtual bool HasEntitiesInClipboard() const { return false; }
 

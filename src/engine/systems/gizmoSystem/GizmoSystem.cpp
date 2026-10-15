@@ -30,7 +30,7 @@ namespace engine::ecs
         auto rayUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("internalRayModel");
         if (!rayUuidOpt.has_value())
         {
-            auto createRes = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalRayModel","internalRayModel");
+            auto createRes = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + ".internal\\internalRayModel","internalRayModel");
             if (createRes.has_value()) {
                 rayAssetUuid = createRes.value();
                 auto rayData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(rayAssetUuid);
@@ -72,7 +72,7 @@ namespace engine::ecs
         auto cubeUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("internalCubeModel");
         if (!cubeUuidOpt.has_value())
         {
-            auto createRes = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + "my\\internal\\internalCubeModel","internalCubeModel");
+            auto createRes = scene->engine.assetManagerInterface->createAsset(am::AssetType::Model, std::string(RESOURCES_DIR) + ".internal\\internalCubeModel","internalCubeModel");
             if (createRes.has_value()) {
                 cubeAssetUuid = createRes.value();
                 auto cubeData = scene->engine.assetManagerInterface->getAssetData<am::ModelData>(cubeAssetUuid);

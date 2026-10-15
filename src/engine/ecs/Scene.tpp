@@ -13,7 +13,7 @@ std::vector<Entity> Scene::GetEntitiesWith()
     std::vector<Entity> matching;
     for (auto& [entity, signature] : entitySignatures) {
         if ((signature & requiredSignature) == requiredSignature) {
-            matching.push_back(entity);
+            matching.emplace_back(entity, this);
         }
     }
     return matching;

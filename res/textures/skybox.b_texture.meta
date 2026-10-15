@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "a8d2c2b7-7944-471f-9df7-8d3af354b7b9",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\textures\\skybox.b_texture",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\textures\\skybox.b_texture",
   "type": "Texture",
   "lookUpName": "skybox.texture",
   "contentHash": 15136103594345900635,

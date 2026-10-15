@@ -50,6 +50,8 @@ namespace engine::ecs
         Entity CreateEntity(std::string entityName,Entity parentEntity = -1);
         Entity CreateEntity(std::string entityName,TransformComponent transform,Entity parentEntity = -1);
 
+        Entity GetEntity(Entity entity);
+
 
         void DestroyEntity(Entity entity);
 
@@ -198,5 +200,6 @@ namespace engine::ecs
 }
 
 #include "Scene.tpp"
+#include "Entity.tpp"
 
 #endif //REASONABLEGL_SCENE_H

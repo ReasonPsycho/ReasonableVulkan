@@ -41,13 +41,22 @@ namespace engine::ecs {
 #endif
 
         // ECS Helper Accessors
+        template<typename T, typename... Args>
+        T& AddComponent(Args&&... args);
+
         template<typename T>
         T& GetComponent();
 
         template<typename T>
+        const T& GetComponent() const;
+
+        template<typename T>
         bool HasComponent() const;
 
-        Entity GetEntity() const { return entity; }
+        template<typename T>
+        void RemoveComponent();
+
+        Entity GetEntity() const { return Entity(entity.GetID(), scene); }
         Scene* GetScene() const { return scene; }
         bool IsEnabled() const { return enabled; }
 

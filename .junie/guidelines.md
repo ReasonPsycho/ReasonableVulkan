@@ -60,8 +60,17 @@ The engine currently supports GLSL using `glslang` for compilation.
 - **Namespaces**: Use module-specific namespaces like `am`, `vks`, `gfx`.
 
 ## Testing
-- Each module should have its own test suite to ensure functionality and compatibility.
-
+- **Modular Test Suites**: Each module (`am`, `engine`, `vks`, `platform`, plus `integration_tests`) must maintain its own dedicated test suite.
+- **Target Coverage**:
+  - **Overall Project**: Aim for **70% – 80%** aggregate line coverage and **80% – 90%** non-trivial file coverage (`.cpp`).
+  - **Core Logic & Asset Manager (`src/assetManager`, `src/engine/ecs`)**: Target **80% – 90%+** line coverage (deterministic algorithms, transforms, asset caching).
+  - **Vulkan & Rendering (`src/vks`, `gfx`)**: Target **40% – 60%** line coverage (prioritize integration smoke tests and pipeline verification over mock-heavy driver unit tests).
+  - **Tooling & UI (`fileBrowser`, UI panels)**: Target **30% – 50%** line coverage (test underlying data models and state management rather than layout callbacks).
+- **Coverage Execution**:
+  - Build with the `tests` preset (`cmake --preset tests` and `cmake --build --preset tests-parallel`) to compile with `--coverage`.
+  - Run tests with CTest (`ctest --test-dir out/build/tests --output-on-failure`) or via CLion's **Run with Coverage** action.
+  - Generate reports with `gcovr` (`gcovr -r . --filter "src/" --html --html-details -o coverage.html`)
+  - 
 ## Documentation & Notes
 ### Project READMEs
 The following README files provide detailed documentation for different parts of the project:

@@ -161,4 +161,68 @@ BOOST_AUTO_TEST_CASE(ScenePrefabSerializationAndInstantiationTest) {
     engine.RemoveScene("PrefabTargetScene");
 }
 
+BOOST_AUTO_TEST_CASE(EntityHandleShorthandMethodsTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("EntityHandleTestScene");
+    BOOST_REQUIRE(scene);
+
+    // Create entity handle directly from Scene
+    Entity parent = scene->CreateEntity("RootEntity");
+    BOOST_REQUIRE(parent.IsValid());
+    BOOST_REQUIRE(static_cast<bool>(parent));
+    BOOST_CHECK_EQUAL(parent.GetName(), "RootEntity");
+    BOOST_CHECK_EQUAL(parent.GetScene(), scene.get());
+
+    // Rename via handle
+    parent.SetName("CustomRoot");
+    BOOST_CHECK_EQUAL(parent.GetName(), "CustomRoot");
+
+    // Add component via handle
+    parent.AddComponent<TagComponent>(TagComponent{"Hero"});
+    BOOST_REQUIRE(parent.HasComponent<TagComponent>());
+    BOOST_CHECK_EQUAL(parent.GetComponent<TagComponent>().tag, "Hero");
+
+    // Active state of component
+    BOOST_CHECK(parent.IsComponentActive<TagComponent>());
+    parent.SetComponentActive<TagComponent>(false);
+    BOOST_CHECK(!parent.IsComponentActive<TagComponent>());
+    parent.SetComponentActive<TagComponent>(true);
+    BOOST_CHECK(parent.IsComponentActive<TagComponent>());
+
+    // Entity active state
+    BOOST_CHECK(parent.IsActive());
+    parent.SetActive(false);
+    BOOST_CHECK(!parent.IsActive());
+    parent.SetActive(true);
+    BOOST_CHECK(parent.IsActive());
+
+    // Create child entity and use hierarchy shorthands
+    Entity child = scene->CreateEntity("ChildEntity");
+    BOOST_REQUIRE(child.IsValid());
+    BOOST_CHECK(!child.HasParent());
+
+    child.SetParent(parent);
+    BOOST_CHECK(child.HasParent());
+    BOOST_CHECK_EQUAL(child.GetParent(), parent);
+
+    auto children = parent.GetChildren();
+    BOOST_REQUIRE_EQUAL(children.size(), 1);
+    BOOST_CHECK_EQUAL(children[0], child);
+
+    child.RemoveParent();
+    BOOST_CHECK(!child.HasParent());
+    BOOST_CHECK_EQUAL(parent.GetChildren().size(), 0);
+
+    // Remove component via handle
+    parent.RemoveComponent<TagComponent>();
+    BOOST_CHECK(!parent.HasComponent<TagComponent>());
+
+    // Destroy via handle
+    Entity child2 = scene->CreateEntity("TempChild");
+    BOOST_REQUIRE(child2.IsValid());
+    child2.Destroy();
+
+    engine.RemoveScene("EntityHandleTestScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

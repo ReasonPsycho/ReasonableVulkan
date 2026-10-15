@@ -279,8 +279,8 @@ namespace engine {
             auto target = editorSystem->GetTargetScene();
             if (target) {
                 auto sel = editorSystem->GetSelectedEntities();
-                std::vector<Entity> validSel;
-                for (Entity e : sel) {
+                std::vector<ecs::EntityID> validSel;
+                for (ecs::EntityID e : sel) {
                     if (target->IsEntityActive(e)) {
                         validSel.push_back(e);
                     }

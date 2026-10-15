@@ -97,7 +97,7 @@ namespace engine::editor
     class DeleteEntitiesCommand : public ICommand
     {
     public:
-        DeleteEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::Entity>& entities, ecs::EditorSystem* editor = nullptr);
+        DeleteEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::EntityID>& entities, ecs::EditorSystem* editor = nullptr);
 
         void Execute() override;
         void Undo() override;
@@ -107,7 +107,7 @@ namespace engine::editor
         ecs::Scene* scene = nullptr;
         ecs::EditorSystem* editor = nullptr;
         std::vector<EntityDeleteSnapshot> snapshots;
-        std::vector<ecs::Entity> targetEntities;
+        std::vector<ecs::EntityID> targetEntities;
     };
 
     // Command for reparenting an entity
@@ -200,7 +200,7 @@ namespace engine::editor
     class InstantiateEntitiesCommand : public ICommand
     {
     public:
-        InstantiateEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::Entity>& createdEntities, const std::string& sourceName, ecs::EditorSystem* editor = nullptr);
+        InstantiateEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::EntityID>& entities, const std::string& operationName = "Instantiate", ecs::EditorSystem* editor = nullptr);
 
         void Execute() override;
         void Undo() override;
@@ -209,8 +209,8 @@ namespace engine::editor
     private:
         ecs::Scene* scene = nullptr;
         ecs::EditorSystem* editor = nullptr;
-        std::vector<ecs::Entity> entities;
-        std::string sourceName;
+        std::vector<ecs::EntityID> entities;
+        std::string operationName;
         std::vector<EntityDeleteSnapshot> snapshots;
     };
 

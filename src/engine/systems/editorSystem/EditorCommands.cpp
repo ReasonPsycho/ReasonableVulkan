@@ -138,12 +138,12 @@ namespace engine::editor
     // ==========================================
     // DeleteEntitiesCommand
     // ==========================================
-    DeleteEntitiesCommand::DeleteEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::Entity>& entities, ecs::EditorSystem* editor)
+    DeleteEntitiesCommand::DeleteEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::EntityID>& entities, ecs::EditorSystem* editor)
         : scene(scene), editor(editor), targetEntities(entities)
     {
         if (scene)
         {
-            for (ecs::Entity e : targetEntities)
+            for (ecs::EntityID e : targetEntities)
             {
                 if (!scene->IsEntityActive(e) && !scene->HasComponent<ecs::TransformComponent>(e)) continue;
 
@@ -163,7 +163,7 @@ namespace engine::editor
     {
         if (!scene) return;
 
-        for (ecs::Entity e : targetEntities)
+        for (ecs::EntityID e : targetEntities)
         {
             scene->DestroyEntity(e);
         }
@@ -178,7 +178,7 @@ namespace engine::editor
     {
         if (!scene) return;
 
-        std::vector<ecs::Entity> restoredEntities;
+        std::vector<ecs::EntityID> restoredEntities;
         for (auto& snap : snapshots)
         {
             if (snap.doc)
@@ -188,10 +188,10 @@ namespace engine::editor
                 {
                     if (editor && !snap.name.empty())
                     {
-                        editor->SetEntityName(restored, snap.name, scene);
+                        editor->SetEntityName(restored.GetID(), snap.name, scene);
                     }
-                    scene->SetEntityActive(restored, snap.wasActive);
-                    restoredEntities.push_back(restored);
+                    scene->SetEntityActive(restored.GetID(), snap.wasActive);
+                    restoredEntities.push_back(restored.GetID());
                 }
             }
         }
@@ -385,8 +385,8 @@ namespace engine::editor
     // ==========================================
     // InstantiateEntitiesCommand
     // ==========================================
-    InstantiateEntitiesCommand::InstantiateEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::Entity>& createdEntities, const std::string& sourceName, ecs::EditorSystem* editor)
-        : scene(scene), editor(editor), entities(createdEntities), sourceName(sourceName)
+    InstantiateEntitiesCommand::InstantiateEntitiesCommand(ecs::Scene* scene, const std::vector<ecs::EntityID>& createdEntities, const std::string& sourceName, ecs::EditorSystem* editor)
+        : scene(scene), editor(editor), entities(createdEntities), operationName(sourceName)
     {
     }
 
@@ -395,7 +395,7 @@ namespace engine::editor
         if (!scene) return;
         if (!snapshots.empty())
         {
-            std::vector<ecs::Entity> restored;
+            std::vector<ecs::EntityID> restored;
             for (auto& snap : snapshots)
             {
                 if (snap.doc)
@@ -405,10 +405,10 @@ namespace engine::editor
                     {
                         if (editor && !snap.name.empty())
                         {
-                            editor->SetEntityName(r, snap.name, scene);
+                            editor->SetEntityName(r.GetID(), snap.name, scene);
                         }
-                        scene->SetEntityActive(r, snap.wasActive);
-                        restored.push_back(r);
+                        scene->SetEntityActive(r.GetID(), snap.wasActive);
+                        restored.push_back(r.GetID());
                     }
                 }
             }
@@ -426,7 +426,7 @@ namespace engine::editor
 
         if (snapshots.empty())
         {
-            for (ecs::Entity e : entities)
+            for (ecs::EntityID e : entities)
             {
                 if (!scene->IsEntityActive(e) && !scene->HasComponent<ecs::TransformComponent>(e)) continue;
 
@@ -441,7 +441,7 @@ namespace engine::editor
             }
         }
 
-        for (ecs::Entity e : entities)
+        for (ecs::EntityID e : entities)
         {
             scene->DestroyEntity(e);
         }
@@ -454,15 +454,15 @@ namespace engine::editor
 
     std::string InstantiateEntitiesCommand::GetName() const
     {
-        if (sourceName.rfind("Instantiate ", 0) == 0 ||
-            sourceName.rfind("Paste ", 0) == 0 ||
-            sourceName.rfind("Duplicate ", 0) == 0 ||
-            sourceName.rfind("Pasted ", 0) == 0 ||
-            sourceName.rfind("Duplicated ", 0) == 0)
+        if (operationName.rfind("Instantiate ", 0) == 0 ||
+            operationName.rfind("Paste ", 0) == 0 ||
+            operationName.rfind("Duplicate ", 0) == 0 ||
+            operationName.rfind("Pasted ", 0) == 0 ||
+            operationName.rfind("Duplicated ", 0) == 0)
         {
-            return sourceName;
+            return operationName;
         }
-        return "Instantiate " + sourceName;
+        return "Instantiate " + operationName;
     }
 
     // ==========================================

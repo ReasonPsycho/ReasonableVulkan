@@ -19,7 +19,7 @@ namespace engine::ecs
         virtual void RemoveComponentUntyped(Entity entity) = 0;
         virtual bool HasComponentUntyped(Entity entity) const = 0;
         virtual void SetComponentActiveUntyped(Entity entity, bool active) = 0;
-        virtual bool IsComponentActiveUntyped(ComponentID entity) const = 0;
+        virtual bool IsComponentActiveUntyped(Entity entity) const = 0;
         virtual void* GetComponentUntyped(Entity entity) = 0;
 
         virtual void SerializeToJson(rapidjson::Value& obj, rapidjson::Document::AllocatorType& allocator) const = 0;
