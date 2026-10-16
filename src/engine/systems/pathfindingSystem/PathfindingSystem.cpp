@@ -522,7 +522,32 @@ float PathfindingSystem::GetMovementBarrierCost(const glm::ivec2& from, const gl
     return cost;
 }
 
-std::vector<glm::ivec2> PathfindingSystem::FindPathGrid(const glm::ivec2& start, const glm::ivec2& target, int agentSize, Entity ignoreEntity) {
+float PathfindingSystem::GetPathCost(const std::vector<glm::ivec2>& path, int agentSize) const {
+    if (path.size() <= 1) return 0.0f;
+    if (agentSize <= 0) agentSize = 1;
+    float totalCost = 0.0f;
+    for (size_t i = 0; i + 1 < path.size(); ++i) {
+        glm::ivec2 from = path[i];
+        glm::ivec2 to = path[i + 1];
+        glm::ivec2 dir = to - from;
+        float baseCost = (dir.x != 0 && dir.y != 0) ? 1.41421356f : 1.0f;
+        float barrierCost = GetMovementBarrierCost(from, to, agentSize);
+        totalCost += baseCost + barrierCost;
+    }
+    return totalCost;
+}
+
+float PathfindingSystem::GetPathCost(const std::vector<glm::vec3>& path, int agentSize) const {
+    if (path.size() <= 1) return 0.0f;
+    std::vector<glm::ivec2> gridPath;
+    gridPath.reserve(path.size());
+    for (const auto& wp : path) {
+        gridPath.push_back(WorldToGrid(wp, agentSize));
+    }
+    return GetPathCost(gridPath, agentSize);
+}
+
+std::vector<glm::ivec2> PathfindingSystem::FindPathGrid(const glm::ivec2& start, const glm::ivec2& target, int agentSize, Entity ignoreEntity, float maxCost) {
     if (isGridDirty) {
         BuildNavGrid();
     }
@@ -681,14 +706,38 @@ std::vector<glm::ivec2> PathfindingSystem::FindPathGrid(const glm::ivec2& start,
     }
 
     std::reverse(path.begin(), path.end());
+
+    if (maxCost > 0.0f && path.size() > 1) {
+        std::vector<glm::ivec2> truncated;
+        truncated.push_back(path.front());
+        float cumCost = 0.0f;
+        for (size_t i = 0; i + 1 < path.size(); ++i) {
+            glm::ivec2 from = path[i];
+            glm::ivec2 to = path[i + 1];
+            glm::ivec2 dir = to - from;
+            float baseCost = (dir.x != 0 && dir.y != 0) ? 1.41421356f : 1.0f;
+            float stepCost = baseCost + GetMovementBarrierCost(from, to, agentSize);
+            if (cumCost + stepCost <= maxCost + 1e-4f) {
+                cumCost += stepCost;
+                truncated.push_back(to);
+            } else {
+                break;
+            }
+        }
+        if (truncated.size() <= 1) {
+            return {};
+        }
+        return truncated;
+    }
+
     return path;
 }
 
-std::vector<glm::vec3> PathfindingSystem::FindPath(const glm::vec3& startWorld, const glm::vec3& targetWorld, int agentSize, float height, Entity ignoreEntity) {
+std::vector<glm::vec3> PathfindingSystem::FindPath(const glm::vec3& startWorld, const glm::vec3& targetWorld, int agentSize, float height, Entity ignoreEntity, float maxCost) {
     glm::ivec2 startGrid = WorldToGrid(startWorld, agentSize);
     glm::ivec2 targetGrid = WorldToGrid(targetWorld, agentSize);
 
-    auto gridPath = FindPathGrid(startGrid, targetGrid, agentSize, ignoreEntity);
+    auto gridPath = FindPathGrid(startGrid, targetGrid, agentSize, ignoreEntity, maxCost);
     if (gridPath.empty()) {
         return {};
     }
@@ -702,7 +751,9 @@ std::vector<glm::vec3> PathfindingSystem::FindPath(const glm::vec3& startWorld, 
 
     if (!worldPath.empty()) {
         worldPath.front() = glm::vec3(startWorld.x, height, startWorld.z);
-        worldPath.back() = glm::vec3(targetWorld.x, height, targetWorld.z);
+        if (gridPath.back() == targetGrid) {
+            worldPath.back() = glm::vec3(targetWorld.x, height, targetWorld.z);
+        }
     }
 
     return worldPath;
@@ -716,9 +767,9 @@ bool PathfindingSystem::RequestPath(Entity entity, const glm::vec3& targetWorld)
         startPos = scene->GetComponent<TransformComponent>(entity).position;
     }
     agent.SetTarget(targetWorld);
-    agent.waypoints = FindPath(startPos, targetWorld, agent.agentSize, startPos.y, entity);
+    agent.waypoints = FindPath(startPos, targetWorld, agent.agentSize, startPos.y, entity, agent.movementAllowance);
     agent.currentWaypointIndex = 0;
-    agent.isMoving = !agent.waypoints.empty();
+    agent.isMoving = agent.waypoints.size() > 1;
     agent.reachedTarget = agent.waypoints.empty() && (WorldToGrid(startPos, agent.agentSize) == WorldToGrid(targetWorld, agent.agentSize));
     if (agent.reachedTarget && scene->HasComponent<TransformComponent>(entity)) {
         auto& transform = scene->GetComponent<TransformComponent>(entity);
@@ -740,10 +791,10 @@ void PathfindingSystem::Update(float deltaTime) {
         if (agent.hasTarget && !agent.isMoving && !agent.reachedTarget) {
             if (scene->HasComponent<TransformComponent>(entity)) {
                 auto& transform = scene->GetComponent<TransformComponent>(entity);
-                agent.waypoints = FindPath(transform.position, agent.targetPosition, agent.agentSize, transform.position.y, entity);
+                agent.waypoints = FindPath(transform.position, agent.targetPosition, agent.agentSize, transform.position.y, entity, agent.movementAllowance);
                 agent.currentWaypointIndex = 0;
-                agent.isMoving = !agent.waypoints.empty();
-                if (agent.waypoints.empty()) {
+                agent.isMoving = agent.waypoints.size() > 1;
+                if (!agent.isMoving) {
                     glm::ivec2 curGrid = WorldToGrid(transform.position, agent.agentSize);
                     glm::ivec2 tgtGrid = WorldToGrid(agent.targetPosition, agent.agentSize);
                     agent.reachedTarget = (curGrid == tgtGrid);
@@ -773,7 +824,9 @@ void PathfindingSystem::Update(float deltaTime) {
                         transform.isDirty = true;
                         agent.isMoving = false;
                         agent.hasTarget = false;
-                        agent.reachedTarget = true;
+                        glm::ivec2 curGrid = WorldToGrid(transform.position, agent.agentSize);
+                        glm::ivec2 tgtGrid = WorldToGrid(agent.targetPosition, agent.agentSize);
+                        agent.reachedTarget = (curGrid == tgtGrid);
                     }
                 } else {
                     glm::vec2 dir2D = diffXZ / dist;
@@ -786,7 +839,9 @@ void PathfindingSystem::Update(float deltaTime) {
                         if (agent.currentWaypointIndex >= agent.waypoints.size()) {
                             agent.isMoving = false;
                             agent.hasTarget = false;
-                            agent.reachedTarget = true;
+                            glm::ivec2 curGrid = WorldToGrid(transform.position, agent.agentSize);
+                            glm::ivec2 tgtGrid = WorldToGrid(agent.targetPosition, agent.agentSize);
+                            agent.reachedTarget = (curGrid == tgtGrid);
                         }
                     } else {
                         transform.position.x += dir2D.x * step;
@@ -811,7 +866,9 @@ void PathfindingSystem::Update(float deltaTime) {
                 }
                 agent.isMoving = false;
                 agent.hasTarget = false;
-                agent.reachedTarget = true;
+                glm::ivec2 curGrid = WorldToGrid(transform.position, agent.agentSize);
+                glm::ivec2 tgtGrid = WorldToGrid(agent.targetPosition, agent.agentSize);
+                agent.reachedTarget = (curGrid == tgtGrid);
             }
         }
     }

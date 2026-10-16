@@ -796,4 +796,153 @@ BOOST_AUTO_TEST_CASE(BarrierComponentIncreasesMovementCostTest) {
     engine.RemoveScene("BarrierTestScene");
 }
 
+BOOST_AUTO_TEST_CASE(AgentMovementAllowanceLimitsPathCostTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("MovementAllowanceTestScene");
+    BOOST_REQUIRE(scene);
+
+    auto pathfindingSystem = scene->GetSystem<PathfindingSystem>();
+    BOOST_REQUIRE(pathfindingSystem);
+    pathfindingSystem->SetCellSize(1.0f);
+
+    // Create 11x11 Floor centered at (0, 0, 0) (bounds [-5..5] x [-5..5])
+    Entity floor = scene->CreateEntity("Floor");
+    TransformComponent tFloor;
+    tFloor.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(floor, tFloor);
+    GridFragment fFloor(11, 11);
+    scene->AddComponent<GridFragment>(floor, fFloor);
+
+    pathfindingSystem->BuildNavGrid();
+
+    // 1. Grid path calculation with maxCost = 3.0f (straight along X axis)
+    auto path3 = pathfindingSystem->FindPathGrid(glm::ivec2(-5, 0), glm::ivec2(5, 0), 1, MAX_ENTITIES, 3.0f);
+    BOOST_REQUIRE(!path3.empty());
+    // 3 steps of cost 1.0 each -> path has 4 points: (-5, 0), (-4, 0), (-3, 0), (-2, 0)
+    BOOST_CHECK_EQUAL(path3.size(), 4);
+    BOOST_CHECK_EQUAL(path3.front().x, -5);
+    BOOST_CHECK_EQUAL(path3.back().x, -2);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetPathCost(path3, 1), 3.0f, 0.001f);
+
+    // 2. Grid path calculation with maxCost = 0.5f (less than one step)
+    auto pathZeroStep = pathfindingSystem->FindPathGrid(glm::ivec2(-5, 0), glm::ivec2(5, 0), 1, MAX_ENTITIES, 0.5f);
+    BOOST_CHECK(pathZeroStep.empty());
+
+    // 3. Grid path calculation with unlimited maxCost (0.0f)
+    auto pathFull = pathfindingSystem->FindPathGrid(glm::ivec2(-5, 0), glm::ivec2(5, 0), 1, MAX_ENTITIES, 0.0f);
+    BOOST_REQUIRE(!pathFull.empty());
+    BOOST_CHECK_EQUAL(pathFull.front().x, -5);
+    BOOST_CHECK_EQUAL(pathFull.back().x, 5);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetPathCost(pathFull, 1), 10.0f, 0.001f);
+
+    // 4. Agent component with movement allowance in movement simulation
+    Entity agentEntity = scene->CreateEntity("AllowanceAgent");
+    TransformComponent tAgent;
+    tAgent.position = pathfindingSystem->GridToWorld(glm::ivec2(-5, 0), 0.0f, 1);
+    scene->AddComponent<TransformComponent>(agentEntity, tAgent);
+
+    PathfindingAgent agentComp(1, 10.0f, 3.0f); // Size 1, speed 10, allowance 3.0
+    BOOST_CHECK_CLOSE(agentComp.GetMovementAllowance(), 3.0f, 0.001f);
+    BOOST_CHECK(agentComp.HasMovementAllowance());
+    scene->AddComponent<PathfindingAgent>(agentEntity, agentComp);
+
+    glm::vec3 destination = pathfindingSystem->GridToWorld(glm::ivec2(5, 0), 0.0f, 1);
+    bool req = pathfindingSystem->RequestPath(agentEntity, destination);
+    BOOST_CHECK(req);
+
+    auto& agentAfterReq = scene->GetComponent<PathfindingAgent>(agentEntity);
+    BOOST_CHECK(agentAfterReq.isMoving);
+    BOOST_CHECK(!agentAfterReq.reachedTarget);
+    BOOST_CHECK_EQUAL(agentAfterReq.waypoints.size(), 4);
+
+    // Run movement simulation
+    for (int frame = 0; frame < 50; ++frame) {
+        pathfindingSystem->Update(0.05f);
+        if (!scene->GetComponent<PathfindingAgent>(agentEntity).isMoving) {
+            break;
+        }
+    }
+
+    auto& finalAgent = scene->GetComponent<PathfindingAgent>(agentEntity);
+    auto& finalTransform = scene->GetComponent<TransformComponent>(agentEntity);
+
+    // Agent stopped at intermediate waypoint due to movement allowance limit
+    BOOST_CHECK(!finalAgent.isMoving);
+    BOOST_CHECK(!finalAgent.reachedTarget);
+    glm::ivec2 finalGrid = pathfindingSystem->WorldToGrid(finalTransform.position, 1);
+    BOOST_CHECK_EQUAL(finalGrid.x, -2);
+    BOOST_CHECK_EQUAL(finalGrid.y, 0);
+
+    // Agent makes second move with allowance 3.0
+    pathfindingSystem->RequestPath(agentEntity, destination);
+    for (int frame = 0; frame < 50; ++frame) {
+        pathfindingSystem->Update(0.05f);
+        if (!scene->GetComponent<PathfindingAgent>(agentEntity).isMoving) {
+            break;
+        }
+    }
+    finalGrid = pathfindingSystem->WorldToGrid(finalTransform.position, 1);
+    BOOST_CHECK_EQUAL(finalGrid.x, 1);
+    BOOST_CHECK_EQUAL(finalGrid.y, 0);
+
+    engine.RemoveScene("MovementAllowanceTestScene");
+}
+
+BOOST_AUTO_TEST_CASE(AgentMovementAllowanceWithBarriersTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("AllowanceBarrierTestScene");
+    BOOST_REQUIRE(scene);
+
+    auto pathfindingSystem = scene->GetSystem<PathfindingSystem>();
+    BOOST_REQUIRE(pathfindingSystem);
+    pathfindingSystem->SetCellSize(1.0f);
+
+    // Create 7x7 Floor centered at (0, 0, 0)
+    Entity floor = scene->CreateEntity("Floor");
+    TransformComponent tFloor;
+    tFloor.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(floor, tFloor);
+    GridFragment fFloor(7, 7);
+    scene->AddComponent<GridFragment>(floor, fFloor);
+
+    // Create a vertical barrier across all Y in [-3..3] at X=0 line (between X=-1 and X=0) with extraCost 4.0
+    Entity barrierEntity = scene->CreateEntity("FullBarrier");
+    TransformComponent tBarrier;
+    tBarrier.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(barrierEntity, tBarrier);
+    Barrier barrierComp(BarrierOrientation::Vertical, 4.0f, 7);
+    scene->AddComponent<Barrier>(barrierEntity, barrierComp);
+
+    pathfindingSystem->BuildNavGrid();
+
+    // Crossing from (-1, 0) to (0, 0) costs base 1.0 + barrier 4.0 = 5.0
+    // Start at (-2, 0), target at (1, 0).
+    // Step 1: (-2, 0) -> (-1, 0), cost = 1.0 (cumCost = 1.0)
+    // Step 2: (-1, 0) -> (0, 0), cost = 5.0 (cumCost = 6.0)
+    // Step 3: (0, 0) -> (1, 0), cost = 1.0 (cumCost = 7.0)
+
+    // With allowance 3.0: can only take Step 1 -> stops at (-1, 0)
+    auto pathAllowance3 = pathfindingSystem->FindPathGrid(glm::ivec2(-2, 0), glm::ivec2(1, 0), 1, MAX_ENTITIES, 3.0f);
+    BOOST_REQUIRE(!pathAllowance3.empty());
+    BOOST_CHECK_EQUAL(pathAllowance3.size(), 2);
+    BOOST_CHECK_EQUAL(pathAllowance3.back().x, -1);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetPathCost(pathAllowance3, 1), 1.0f, 0.001f);
+
+    // With allowance 6.0: can take Step 1 and Step 2 -> stops at (0, 0)
+    auto pathAllowance6 = pathfindingSystem->FindPathGrid(glm::ivec2(-2, 0), glm::ivec2(1, 0), 1, MAX_ENTITIES, 6.0f);
+    BOOST_REQUIRE(!pathAllowance6.empty());
+    BOOST_CHECK_EQUAL(pathAllowance6.size(), 3);
+    BOOST_CHECK_EQUAL(pathAllowance6.back().x, 0);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetPathCost(pathAllowance6, 1), 6.0f, 0.001f);
+
+    // With allowance 7.0: reaches destination (1, 0)
+    auto pathAllowance7 = pathfindingSystem->FindPathGrid(glm::ivec2(-2, 0), glm::ivec2(1, 0), 1, MAX_ENTITIES, 7.0f);
+    BOOST_REQUIRE(!pathAllowance7.empty());
+    BOOST_CHECK_EQUAL(pathAllowance7.size(), 4);
+    BOOST_CHECK_EQUAL(pathAllowance7.back().x, 1);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetPathCost(pathAllowance7, 1), 7.0f, 0.001f);
+
+    engine.RemoveScene("AllowanceBarrierTestScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

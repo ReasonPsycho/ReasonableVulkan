@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "fef8897d-c554-45f4-b15b-131b72b6f81f",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\.internal\\tests\\Box.b_mesh",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\.internal\\tests\\Box.b_mesh",
   "type": "Mesh",
   "lookUpName": "Box_0.mesh",
   "contentHash": 5038183172379787656,

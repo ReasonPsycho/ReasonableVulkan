@@ -75,9 +75,13 @@ namespace engine::ecs
         float GetEdgeBarrierCost(int x1, int y1, int x2, int y2) const;
         float GetMovementBarrierCost(const glm::ivec2& from, const glm::ivec2& to, int agentSize = 1) const;
 
+        // Path Cost Queries
+        float GetPathCost(const std::vector<glm::ivec2>& path, int agentSize = 1) const;
+        float GetPathCost(const std::vector<glm::vec3>& path, int agentSize = 1) const;
+
         // Pathfinding
-        std::vector<glm::ivec2> FindPathGrid(const glm::ivec2& start, const glm::ivec2& target, int agentSize = 1, Entity ignoreEntity = MAX_ENTITIES);
-        std::vector<glm::vec3> FindPath(const glm::vec3& startWorld, const glm::vec3& targetWorld, int agentSize = 1, float height = 0.0f, Entity ignoreEntity = MAX_ENTITIES);
+        std::vector<glm::ivec2> FindPathGrid(const glm::ivec2& start, const glm::ivec2& target, int agentSize = 1, Entity ignoreEntity = MAX_ENTITIES, float maxCost = 0.0f);
+        std::vector<glm::vec3> FindPath(const glm::vec3& startWorld, const glm::vec3& targetWorld, int agentSize = 1, float height = 0.0f, Entity ignoreEntity = MAX_ENTITIES, float maxCost = 0.0f);
         bool RequestPath(Entity entity, const glm::vec3& targetWorld);
 
         // Grid Alignment & Snapping

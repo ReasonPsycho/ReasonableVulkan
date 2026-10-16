@@ -22,6 +22,9 @@ namespace engine::ecs
         [[=Range{0.01f, 10.0f, 0.05f}, =Tooltip{"Distance threshold to reach waypoint"}]]
         float waypointThreshold{0.1f};
 
+        [[=Range{0.0f, 10000.0f, 0.5f}, =Tooltip{"Maximum movement traversal cost allowance per move (0 for unlimited)"}]]
+        float movementAllowance{0.0f};
+
         [[=Tooltip{"Target world position"}]]
         glm::vec3 targetPosition{0.0f};
 
@@ -44,8 +47,14 @@ namespace engine::ecs
         size_t currentWaypointIndex{0};
 
         PathfindingAgent() = default;
-        explicit PathfindingAgent(int size, float moveSpeed = 5.0f)
-            : agentSize(size), speed(moveSpeed) {}
+        explicit PathfindingAgent(int size, float moveSpeed = 5.0f, float allowance = 0.0f)
+            : agentSize(size), speed(moveSpeed), movementAllowance(allowance) {}
+        explicit PathfindingAgent(float allowance)
+            : movementAllowance(allowance) {}
+
+        float GetMovementAllowance() const { return movementAllowance; }
+        void SetMovementAllowance(float allowance) { movementAllowance = allowance; }
+        bool HasMovementAllowance() const { return movementAllowance > 0.0f; }
 
         void SetTarget(const glm::vec3& target) {
             targetPosition = target;
