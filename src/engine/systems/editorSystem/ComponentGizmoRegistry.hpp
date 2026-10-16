@@ -26,6 +26,7 @@ namespace engine::ecs
         ImVec2 mousePos{0.0f, 0.0f};
         bool isSelected = false;
         bool isHovered = false;
+        Scene* scene = nullptr;
     };
 
     // Forward declaration of generic component visualizer template
@@ -114,8 +115,9 @@ namespace engine::ecs
                     for (auto [entity, comp, transform] : scene->GetActiveView<T, TransformComponent>())
                     {
                         GizmoContext entityCtx = ctx;
+                        entityCtx.scene = scene;
                         entityCtx.isSelected = isSelected(entity);
-                        entityCtx.isHovered = ComponentGizmoVisualizer<T>::HitTest(comp, transform.globalMatrix, ctx, 14.0f);
+                        entityCtx.isHovered = ComponentGizmoVisualizer<T>::HitTest(comp, transform.globalMatrix, entityCtx, 14.0f);
 
                         ComponentGizmoVisualizer<T>::Draw(comp, transform.globalMatrix, entityCtx);
                     }
@@ -136,9 +138,12 @@ namespace engine::ecs
                 if constexpr (HasGizmoVisualizer<T>) {
                     if (!GetCategoryEnabled(std::type_index(typeid(T)))) return;
 
+                    GizmoContext testCtx = ctx;
+                    testCtx.scene = scene;
+
                     for (auto [entity, comp, transform] : scene->GetActiveView<T, TransformComponent>())
                     {
-                        if (ComponentGizmoVisualizer<T>::HitTest(comp, transform.globalMatrix, ctx, hitRadius))
+                        if (ComponentGizmoVisualizer<T>::HitTest(comp, transform.globalMatrix, testCtx, hitRadius))
                         {
                             hitEntity = entity;
                             return;

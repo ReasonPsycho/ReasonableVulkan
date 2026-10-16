@@ -529,20 +529,12 @@ namespace engine::ecs
 
         if constexpr (std::is_same_v<RawT, float>) {
             if constexpr (isReadOnly) ImGui::BeginDisabled();
-            if (minVal != maxVal) {
-                changed = ImGui::SliderFloat(name, &value, minVal, maxVal);
-            } else {
-                changed = ImGui::DragFloat(name, &value, speed, minVal, maxVal);
-            }
+            changed = ImGui::DragFloat(name, &value, speed, minVal, maxVal);
             if constexpr (isReadOnly) ImGui::EndDisabled();
         } else if constexpr (std::is_same_v<RawT, double>) {
             if constexpr (isReadOnly) ImGui::BeginDisabled();
             float f = static_cast<float>(value);
-            if (minVal != maxVal) {
-                changed = ImGui::SliderFloat(name, &f, minVal, maxVal);
-            } else {
-                changed = ImGui::DragFloat(name, &f, speed, minVal, maxVal);
-            }
+            changed = ImGui::DragFloat(name, &f, speed, minVal, maxVal);
             if (changed) value = static_cast<double>(f);
             if constexpr (isReadOnly) ImGui::EndDisabled();
         } else if constexpr (std::is_same_v<RawT, int>) {

@@ -17,6 +17,9 @@
 #include "systems/renderingSystem/componets/ThumbnailComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "systems/scriptSystem/components/ScriptComponent.hpp"
+#include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
+#include "systems/pathfindingSystem/componets/GridFragment.hpp"
+#include "systems/selectionSystem/SelectionSystem.hpp"
 #include "systems/scriptSystem/ScriptSystem.hpp"
 #include "systems/scriptSystem/ScriptHotReloadManager.hpp"
 #include "systems/scriptSystem/ScriptRegistry.hpp"
@@ -41,6 +44,7 @@
 #include "ComponentGizmoRegistry.hpp"
 #include "visualizers/LightGizmoVisualizer.hpp"
 #include "visualizers/CameraGizmoVisualizer.hpp"
+#include "visualizers/GridFragmentGizmoVisualizer.hpp"
 #include "IconsFontAwesome6.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 
@@ -1560,7 +1564,24 @@ void EditorSystem::Update(float deltaTime)
                 if (offset.x > 0.0f || offset.y > 0.0f) {
                     ImGui::SetCursorPos(ImGui::GetCursorPos() + offset);
                 }
+                ImVec2 imagePos = ImGui::GetCursorScreenPos();
                 ImGui::Image((ImTextureID)gameTextureId, imageSize);
+
+                if (ImGui::IsItemHovered()) {
+                    ImGuiIO& io = ImGui::GetIO();
+                    float relX = io.MousePos.x - imagePos.x;
+                    float relY = io.MousePos.y - imagePos.y;
+                    if (relX >= 0.0f && relX <= imageSize.x && relY >= 0.0f && relY <= imageSize.y) {
+                        if (auto selectionSystem = topEditableScene->GetSystem<SelectionSystem>()) {
+                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                                selectionSystem->HandleLeftClick(relX, relY, imageSize.x, imageSize.y);
+                            }
+                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                                selectionSystem->HandleRightClick(relX, relY, imageSize.x, imageSize.y);
+                            }
+                        }
+                    }
+                }
             }
             ImGui::End();
         }

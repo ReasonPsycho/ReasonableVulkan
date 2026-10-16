@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "da6c7518-20de-4e14-98c6-09dd9b4e7d97",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\scenes\\Main.scene",
+  "id": "157357eb-2706-4028-a19e-e9533409caae",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\scenes\\Pathfinding.scene",
   "type": "Scene",
-  "lookUpName": "Main.scene",
+  "lookUpName": "Pathfinding.scene",
   "contentHash": 0,
   "assetFactoryData": {
     "importPath": "",

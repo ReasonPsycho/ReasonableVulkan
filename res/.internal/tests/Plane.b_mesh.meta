@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "2ed5e831-e71a-4754-983f-460a2bb0a434",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\.internal\\tests\\Plane.b_mesh",
+  "type": "Mesh",
+  "lookUpName": "Plane_0.mesh",
+  "contentHash": 17222296131364895489,
+  "assetFactoryData": {
+    "importPath": "res\\.internal\\tests\\Plane.fbx",
+    "assetType": "Mesh",
+    "assimpIndex": 0
+  }
+}

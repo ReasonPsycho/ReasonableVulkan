@@ -1,6 +1,8 @@
+/out/
 **/debug/
 **/release/
-**/tests/
+!src/**/tests/
+!src/tests/
 /.junie/output.txt
 /res/.cache/
 /plugin/
