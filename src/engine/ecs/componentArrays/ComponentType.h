@@ -26,6 +26,8 @@ namespace engine::ecs
     struct MoveLeftScript;
     struct PathfindingAgent;
     struct GridFragment;
+    struct Obstacle;
+    struct Barrier;
 
     class RenderSystem;
     class GizmoSystem;
@@ -46,7 +48,9 @@ namespace engine::ecs
         ThumbnailComponent,
         ScriptComponent,
         PathfindingAgent,
-        GridFragment
+        GridFragment,
+        Obstacle,
+        Barrier
     >;
 
     using EngineSystems = std::tuple<

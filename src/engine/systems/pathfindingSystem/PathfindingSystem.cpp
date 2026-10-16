@@ -81,11 +81,21 @@ glm::vec3 PathfindingSystem::GridToWorld(const glm::ivec2& gridPos, float height
 
 void PathfindingSystem::SnapEntityToGrid(Entity entity) {
     if (!scene) return;
-    if (scene->HasComponent<TransformComponent>(entity) && scene->HasComponent<GridFragment>(entity)) {
+    if (scene->HasComponent<TransformComponent>(entity)) {
         auto& transform = scene->GetComponent<TransformComponent>(entity);
-        const auto& frag = scene->GetComponent<GridFragment>(entity);
-        transform.position = frag.SnapPosition(transform.position, cellSize);
-        transform.isDirty = true;
+        if (scene->HasComponent<GridFragment>(entity)) {
+            const auto& frag = scene->GetComponent<GridFragment>(entity);
+            transform.position = frag.SnapPosition(transform.position, cellSize);
+            transform.isDirty = true;
+        } else if (scene->HasComponent<Obstacle>(entity)) {
+            const auto& obs = scene->GetComponent<Obstacle>(entity);
+            transform.position = obs.SnapPosition(transform.position, cellSize);
+            transform.isDirty = true;
+        } else if (scene->HasComponent<Barrier>(entity)) {
+            const auto& bar = scene->GetComponent<Barrier>(entity);
+            transform.position = bar.SnapPosition(transform.position, cellSize);
+            transform.isDirty = true;
+        }
     }
 }
 
@@ -100,10 +110,37 @@ void PathfindingSystem::SnapAllFragmentsToGrid() {
     }
 }
 
+void PathfindingSystem::SnapAllEntitiesToGrid() {
+    if (!scene) return;
+    for (auto [entity, frag] : scene->GetActiveView<GridFragment>()) {
+        if (frag.snapToGrid && scene->HasComponent<TransformComponent>(entity)) {
+            auto& transform = scene->GetComponent<TransformComponent>(entity);
+            transform.position = frag.SnapPosition(transform.position, cellSize);
+            transform.isDirty = true;
+        }
+    }
+    for (auto [entity, obs] : scene->GetActiveView<Obstacle>()) {
+        if (obs.snapToGrid && scene->HasComponent<TransformComponent>(entity)) {
+            auto& transform = scene->GetComponent<TransformComponent>(entity);
+            transform.position = obs.SnapPosition(transform.position, cellSize);
+            transform.isDirty = true;
+        }
+    }
+    for (auto [entity, bar] : scene->GetActiveView<Barrier>()) {
+        if (bar.snapToGrid && scene->HasComponent<TransformComponent>(entity)) {
+            auto& transform = scene->GetComponent<TransformComponent>(entity);
+            transform.position = bar.SnapPosition(transform.position, cellSize);
+            transform.isDirty = true;
+        }
+    }
+}
+
 void PathfindingSystem::BuildNavGrid() {
     if (!scene) {
         gridWalkable.clear();
         gridClearance.clear();
+        horizontalBarrierCosts.clear();
+        verticalBarrierCosts.clear();
         gridWidth = 0;
         gridHeight = 0;
         isGridDirty = false;
@@ -115,7 +152,17 @@ void PathfindingSystem::BuildNavGrid() {
         fragments.push_back({entity, frag});
     }
 
-    if (fragments.empty()) {
+    std::vector<std::pair<Entity, Obstacle>> obstacles;
+    for (auto [entity, obs] : scene->GetActiveView<Obstacle>()) {
+        obstacles.push_back({entity, obs});
+    }
+
+    std::vector<std::pair<Entity, Barrier>> barriers;
+    for (auto [entity, bar] : scene->GetActiveView<Barrier>()) {
+        barriers.push_back({entity, bar});
+    }
+
+    if (fragments.empty() && obstacles.empty() && barriers.empty()) {
         minGridX = 0;
         minGridY = 0;
         maxGridX = 0;
@@ -124,6 +171,8 @@ void PathfindingSystem::BuildNavGrid() {
         gridHeight = 1;
         gridWalkable.assign(1, defaultEmptyWalkable ? 1 : 0);
         gridClearance.assign(1, defaultEmptyWalkable ? 1 : 0);
+        horizontalBarrierCosts.clear();
+        verticalBarrierCosts.clear();
         isGridDirty = false;
         return;
     }
@@ -148,6 +197,80 @@ void PathfindingSystem::BuildNavGrid() {
         int oy = static_cast<int>(std::floor((pos.z / cellSize) - halfH + 0.5f));
         int ex = ox + std::max(1, frag.width) - 1;
         int ey = oy + std::max(1, frag.height) - 1;
+
+        if (!hasBounds) {
+            computedMinX = ox;
+            computedMinY = oy;
+            computedMaxX = ex;
+            computedMaxY = ey;
+            hasBounds = true;
+        } else {
+            computedMinX = std::min(computedMinX, ox);
+            computedMinY = std::min(computedMinY, oy);
+            computedMaxX = std::max(computedMaxX, ex);
+            computedMaxY = std::max(computedMaxY, ey);
+        }
+    }
+
+    for (auto& [entity, obs] : obstacles) {
+        glm::vec3 pos{0.0f};
+        if (scene->HasComponent<TransformComponent>(entity)) {
+            auto& transform = scene->GetComponent<TransformComponent>(entity);
+            if (obs.snapToGrid) {
+                transform.position = obs.SnapPosition(transform.position, cellSize);
+                transform.isDirty = true;
+            }
+            pos = transform.position;
+        }
+
+        float halfW = static_cast<float>(obs.width) * 0.5f;
+        float halfH = static_cast<float>(obs.height) * 0.5f;
+        int ox = static_cast<int>(std::floor((pos.x / cellSize) - halfW + 0.5f));
+        int oy = static_cast<int>(std::floor((pos.z / cellSize) - halfH + 0.5f));
+        int ex = ox + std::max(1, obs.width) - 1;
+        int ey = oy + std::max(1, obs.height) - 1;
+
+        if (!hasBounds) {
+            computedMinX = ox;
+            computedMinY = oy;
+            computedMaxX = ex;
+            computedMaxY = ey;
+            hasBounds = true;
+        } else {
+            computedMinX = std::min(computedMinX, ox);
+            computedMinY = std::min(computedMinY, oy);
+            computedMaxX = std::max(computedMaxX, ex);
+            computedMaxY = std::max(computedMaxY, ey);
+        }
+    }
+
+    for (auto& [entity, bar] : barriers) {
+        glm::vec3 pos{0.0f};
+        if (scene->HasComponent<TransformComponent>(entity)) {
+            auto& transform = scene->GetComponent<TransformComponent>(entity);
+            if (bar.snapToGrid) {
+                transform.position = bar.SnapPosition(transform.position, cellSize);
+                transform.isDirty = true;
+            }
+            pos = transform.position;
+        }
+
+        int ox = 0, ex = 0, oy = 0, ey = 0;
+        if (bar.orientation == BarrierOrientation::Horizontal) {
+            int gridY = static_cast<int>(std::round(pos.z / cellSize));
+            float halfLen = static_cast<float>(bar.length) * 0.5f;
+            ox = static_cast<int>(std::floor((pos.x / cellSize) - halfLen + 0.5f));
+            ex = ox + std::max(1, bar.length) - 1;
+            oy = gridY - 1;
+            ey = gridY;
+        } else {
+            int gridX = static_cast<int>(std::round(pos.x / cellSize));
+            float halfLen = static_cast<float>(bar.length) * 0.5f;
+            oy = static_cast<int>(std::floor((pos.z / cellSize) - halfLen + 0.5f));
+            ey = oy + std::max(1, bar.length) - 1;
+            ox = gridX - 1;
+            ex = gridX;
+        }
 
         if (!hasBounds) {
             computedMinX = ox;
@@ -194,7 +317,65 @@ void PathfindingSystem::BuildNavGrid() {
         }
     }
 
+    for (auto& [entity, obs] : obstacles) {
+        if (!obs.enabled) continue;
+
+        glm::vec3 pos{0.0f};
+        if (scene->HasComponent<TransformComponent>(entity)) {
+            pos = scene->GetComponent<TransformComponent>(entity).position;
+        }
+
+        float halfW = static_cast<float>(obs.width) * 0.5f;
+        float halfH = static_cast<float>(obs.height) * 0.5f;
+        int ox = static_cast<int>(std::floor((pos.x / cellSize) - halfW + 0.5f));
+        int oy = static_cast<int>(std::floor((pos.z / cellSize) - halfH + 0.5f));
+
+        for (int ly = 0; ly < obs.height; ++ly) {
+            for (int lx = 0; lx < obs.width; ++lx) {
+                int gx = ox + lx;
+                int gy = oy + ly;
+                if (IsInBounds(gx, gy)) {
+                    gridWalkable[ToGridIndex(gx, gy)] = 0;
+                }
+            }
+        }
+    }
+
     CalculateClearanceMap();
+
+    size_t barrierArraySize = static_cast<size_t>((gridWidth + 2) * (gridHeight + 2));
+    horizontalBarrierCosts.assign(barrierArraySize, 0.0f);
+    verticalBarrierCosts.assign(barrierArraySize, 0.0f);
+
+    for (auto& [entity, bar] : barriers) {
+        if (!bar.enabled) continue;
+
+        glm::vec3 pos{0.0f};
+        if (scene->HasComponent<TransformComponent>(entity)) {
+            pos = scene->GetComponent<TransformComponent>(entity).position;
+        }
+
+        if (bar.orientation == BarrierOrientation::Horizontal) {
+            int gridY = static_cast<int>(std::round(pos.z / cellSize));
+            float halfLen = static_cast<float>(bar.length) * 0.5f;
+            int ox = static_cast<int>(std::floor((pos.x / cellSize) - halfLen + 0.5f));
+            for (int i = 0; i < bar.length; ++i) {
+                int x = ox + i;
+                int y = gridY - 1;
+                AddHorizontalBarrierCost(x, y, bar.extraCost);
+            }
+        } else {
+            int gridX = static_cast<int>(std::round(pos.x / cellSize));
+            float halfLen = static_cast<float>(bar.length) * 0.5f;
+            int oy = static_cast<int>(std::floor((pos.z / cellSize) - halfLen + 0.5f));
+            for (int i = 0; i < bar.length; ++i) {
+                int y = oy + i;
+                int x = gridX - 1;
+                AddVerticalBarrierCost(x, y, bar.extraCost);
+            }
+        }
+    }
+
     isGridDirty = false;
 }
 
@@ -245,6 +426,100 @@ void PathfindingSystem::SetCellWalkable(int x, int y, bool walkable) {
     if (!IsInBounds(x, y)) return;
     gridWalkable[ToGridIndex(x, y)] = walkable ? 1 : 0;
     CalculateClearanceMap();
+}
+
+float PathfindingSystem::GetHorizontalBarrierCost(int x, int y) const {
+    if (horizontalBarrierCosts.empty()) return 0.0f;
+    int ix = x - minGridX + 1;
+    int iy = y - minGridY + 1;
+    if (ix < 0 || ix >= gridWidth + 2 || iy < 0 || iy >= gridHeight + 2) return 0.0f;
+    return horizontalBarrierCosts[static_cast<size_t>(iy * (gridWidth + 2) + ix)];
+}
+
+void PathfindingSystem::SetHorizontalBarrierCost(int x, int y, float cost) {
+    if (horizontalBarrierCosts.empty()) return;
+    int ix = x - minGridX + 1;
+    int iy = y - minGridY + 1;
+    if (ix < 0 || ix >= gridWidth + 2 || iy < 0 || iy >= gridHeight + 2) return;
+    horizontalBarrierCosts[static_cast<size_t>(iy * (gridWidth + 2) + ix)] = cost;
+}
+
+void PathfindingSystem::AddHorizontalBarrierCost(int x, int y, float cost) {
+    if (horizontalBarrierCosts.empty()) return;
+    int ix = x - minGridX + 1;
+    int iy = y - minGridY + 1;
+    if (ix < 0 || ix >= gridWidth + 2 || iy < 0 || iy >= gridHeight + 2) return;
+    horizontalBarrierCosts[static_cast<size_t>(iy * (gridWidth + 2) + ix)] += cost;
+}
+
+float PathfindingSystem::GetVerticalBarrierCost(int x, int y) const {
+    if (verticalBarrierCosts.empty()) return 0.0f;
+    int ix = x - minGridX + 1;
+    int iy = y - minGridY + 1;
+    if (ix < 0 || ix >= gridWidth + 2 || iy < 0 || iy >= gridHeight + 2) return 0.0f;
+    return verticalBarrierCosts[static_cast<size_t>(iy * (gridWidth + 2) + ix)];
+}
+
+void PathfindingSystem::SetVerticalBarrierCost(int x, int y, float cost) {
+    if (verticalBarrierCosts.empty()) return;
+    int ix = x - minGridX + 1;
+    int iy = y - minGridY + 1;
+    if (ix < 0 || ix >= gridWidth + 2 || iy < 0 || iy >= gridHeight + 2) return;
+    verticalBarrierCosts[static_cast<size_t>(iy * (gridWidth + 2) + ix)] = cost;
+}
+
+void PathfindingSystem::AddVerticalBarrierCost(int x, int y, float cost) {
+    if (verticalBarrierCosts.empty()) return;
+    int ix = x - minGridX + 1;
+    int iy = y - minGridY + 1;
+    if (ix < 0 || ix >= gridWidth + 2 || iy < 0 || iy >= gridHeight + 2) return;
+    verticalBarrierCosts[static_cast<size_t>(iy * (gridWidth + 2) + ix)] += cost;
+}
+
+float PathfindingSystem::GetEdgeBarrierCost(int x1, int y1, int x2, int y2) const {
+    if (x1 == x2 && y2 == y1 + 1) {
+        return GetHorizontalBarrierCost(x1, y1);
+    } else if (x1 == x2 && y2 == y1 - 1) {
+        return GetHorizontalBarrierCost(x1, y2);
+    } else if (y1 == y2 && x2 == x1 + 1) {
+        return GetVerticalBarrierCost(x1, y1);
+    } else if (y1 == y2 && x2 == x1 - 1) {
+        return GetVerticalBarrierCost(x2, y1);
+    }
+    return 0.0f;
+}
+
+float PathfindingSystem::GetMovementBarrierCost(const glm::ivec2& from, const glm::ivec2& to, int agentSize) const {
+    if (agentSize <= 0) agentSize = 1;
+    glm::ivec2 dir = to - from;
+    float cost = 0.0f;
+
+    if (dir.x != 0 && dir.y == 0) {
+        int xEdge = (dir.x > 0) ? (from.x + agentSize - 1) : (from.x - 1);
+        for (int k = 0; k < agentSize; ++k) {
+            cost += GetVerticalBarrierCost(xEdge, from.y + k);
+        }
+    } else if (dir.x == 0 && dir.y != 0) {
+        int yEdge = (dir.y > 0) ? (from.y + agentSize - 1) : (from.y - 1);
+        for (int k = 0; k < agentSize; ++k) {
+            cost += GetHorizontalBarrierCost(from.x + k, yEdge);
+        }
+    } else if (dir.x != 0 && dir.y != 0) {
+        float route1 = 0.0f;
+        float route2 = 0.0f;
+        int xEdge = (dir.x > 0) ? (from.x + agentSize - 1) : (from.x - 1);
+        int yEdge = (dir.y > 0) ? (from.y + agentSize - 1) : (from.y - 1);
+
+        for (int k = 0; k < agentSize; ++k) {
+            route1 += GetVerticalBarrierCost(xEdge, from.y + k);
+            route1 += GetHorizontalBarrierCost(from.x + dir.x + k, yEdge);
+
+            route2 += GetHorizontalBarrierCost(from.x + k, yEdge);
+            route2 += GetVerticalBarrierCost(xEdge, from.y + dir.y + k);
+        }
+        cost = std::max(route1, route2);
+    }
+    return cost;
 }
 
 std::vector<glm::ivec2> PathfindingSystem::FindPathGrid(const glm::ivec2& start, const glm::ivec2& target, int agentSize, Entity ignoreEntity) {
@@ -378,7 +653,8 @@ std::vector<glm::ivec2> PathfindingSystem::FindPathGrid(const glm::ivec2& start,
             size_t neighborIdx = ToGridIndex(neighbor.x, neighbor.y);
             if (closedSet[neighborIdx]) continue;
 
-            float tentativeG = gScore[currentIdx] + moveCosts[i];
+            float barrierCost = GetMovementBarrierCost(current.pos, neighbor, agentSize);
+            float tentativeG = gScore[currentIdx] + moveCosts[i] + barrierCost;
             if (tentativeG < gScore[neighborIdx]) {
                 cameFrom[neighborIdx] = static_cast<int>(currentIdx);
                 gScore[neighborIdx] = tentativeG;
@@ -542,13 +818,17 @@ void PathfindingSystem::Update(float deltaTime) {
 }
 
 void PathfindingSystem::OnComponentAdded(ComponentID componentID, std::type_index type) {
-    if (type == std::type_index(typeid(GridFragment))) {
+    if (type == std::type_index(typeid(GridFragment)) ||
+        type == std::type_index(typeid(Obstacle)) ||
+        type == std::type_index(typeid(Barrier))) {
         MarkGridDirty();
     }
 }
 
 void PathfindingSystem::OnEntityRemoved(ComponentID componentID, std::type_index type) {
-    if (type == std::type_index(typeid(GridFragment))) {
+    if (type == std::type_index(typeid(GridFragment)) ||
+        type == std::type_index(typeid(Obstacle)) ||
+        type == std::type_index(typeid(Barrier))) {
         MarkGridDirty();
     }
 }

@@ -6,6 +6,8 @@
 #include "systems/pathfindingSystem/PathfindingSystem.hpp"
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
+#include "systems/pathfindingSystem/componets/Obstacle.hpp"
+#include "systems/pathfindingSystem/componets/Barrier.hpp"
 #include "systems/editorSystem/ComponentGizmoRegistry.hpp"
 #include "systems/editorSystem/visualizers/GridFragmentGizmoVisualizer.hpp"
 
@@ -645,6 +647,153 @@ BOOST_AUTO_TEST_CASE(Size2AgentLandingAtCrossSectionMovementTest) {
     BOOST_CHECK_CLOSE(finalTransform.position.z, 3.0f, 0.001f);
 
     engine.RemoveScene("Size2AgentMovementScene");
+}
+
+BOOST_AUTO_TEST_CASE(ObstacleComponentBlocksNavmeshSquaresTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("ObstacleTestScene");
+    BOOST_REQUIRE(scene);
+
+    auto pathfindingSystem = scene->GetSystem<PathfindingSystem>();
+    BOOST_REQUIRE(pathfindingSystem);
+    pathfindingSystem->SetCellSize(1.0f);
+
+    // Create 7x7 Walkable Floor centered at (0, 0, 0) (bounds [-3..3] x [-3..3])
+    Entity floor = scene->CreateEntity("Floor");
+    TransformComponent tFloor;
+    tFloor.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(floor, tFloor);
+    GridFragment fFloor(7, 7);
+    scene->AddComponent<GridFragment>(floor, fFloor);
+
+    // Create an Obstacle at (0, 0, 0) of size 1x3 (blocking x=0, y in [-1..1])
+    Entity obsEntity = scene->CreateEntity("CenterObstacle");
+    TransformComponent tObs;
+    tObs.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(obsEntity, tObs);
+    Obstacle obsComp(1, 3);
+    scene->AddComponent<Obstacle>(obsEntity, obsComp);
+
+    pathfindingSystem->BuildNavGrid();
+
+    // Verify squares occupied by obstacle are blocked
+    BOOST_CHECK(!pathfindingSystem->IsWalkable(0, 0));
+    BOOST_CHECK(!pathfindingSystem->IsWalkable(0, 1));
+    BOOST_CHECK(!pathfindingSystem->IsWalkable(0, -1));
+
+    // Verify other squares remain walkable
+    BOOST_CHECK(pathfindingSystem->IsWalkable(-2, 0));
+    BOOST_CHECK(pathfindingSystem->IsWalkable(2, 0));
+    BOOST_CHECK(pathfindingSystem->IsWalkable(0, 2));
+    BOOST_CHECK(pathfindingSystem->IsWalkable(0, -2));
+
+    // Path from (-2, 0) to (2, 0) must detour around the obstacle
+    auto path = pathfindingSystem->FindPathGrid(glm::ivec2(-2, 0), glm::ivec2(2, 0), 1);
+    BOOST_REQUIRE(!path.empty());
+    BOOST_CHECK_EQUAL(path.front().x, -2);
+    BOOST_CHECK_EQUAL(path.front().y, 0);
+    BOOST_CHECK_EQUAL(path.back().x, 2);
+    BOOST_CHECK_EQUAL(path.back().y, 0);
+
+    // Verify no waypoint in the path enters the obstacle cells (0, -1), (0, 0), (0, 1)
+    for (const auto& pt : path) {
+        if (pt.x == 0) {
+            BOOST_CHECK(pt.y < -1 || pt.y > 1);
+        }
+    }
+
+    // Disable the obstacle and verify the path directly crosses (0, 0)
+    auto& obsRef = scene->GetComponent<Obstacle>(obsEntity);
+    obsRef.enabled = false;
+    pathfindingSystem->MarkGridDirty();
+    pathfindingSystem->BuildNavGrid();
+
+    BOOST_CHECK(pathfindingSystem->IsWalkable(0, 0));
+    auto directPath = pathfindingSystem->FindPathGrid(glm::ivec2(-2, 0), glm::ivec2(2, 0), 1);
+    BOOST_REQUIRE(!directPath.empty());
+    bool passesThroughCenter = false;
+    for (const auto& pt : directPath) {
+        if (pt.x == 0 && pt.y == 0) {
+            passesThroughCenter = true;
+            break;
+        }
+    }
+    BOOST_CHECK(passesThroughCenter);
+
+    engine.RemoveScene("ObstacleTestScene");
+}
+
+BOOST_AUTO_TEST_CASE(BarrierComponentIncreasesMovementCostTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("BarrierTestScene");
+    BOOST_REQUIRE(scene);
+
+    auto pathfindingSystem = scene->GetSystem<PathfindingSystem>();
+    BOOST_REQUIRE(pathfindingSystem);
+    pathfindingSystem->SetCellSize(1.0f);
+
+    // Create 7x7 Floor centered at (0, 0, 0) (bounds [-3..3] x [-3..3])
+    Entity floor = scene->CreateEntity("Floor");
+    TransformComponent tFloor;
+    tFloor.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(floor, tFloor);
+    GridFragment fFloor(7, 7);
+    scene->AddComponent<GridFragment>(floor, fFloor);
+
+    // Place a vertical Barrier along X=0 line, between X=-1 and X=0, length 3 spanning Y in [-1..1]
+    // with high extraCost (15.0f)
+    Entity barrierEntity = scene->CreateEntity("HighCostBarrier");
+    TransformComponent tBarrier;
+    tBarrier.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(barrierEntity, tBarrier);
+    Barrier barrierComp(BarrierOrientation::Vertical, 15.0f, 3);
+    scene->AddComponent<Barrier>(barrierEntity, barrierComp);
+
+    pathfindingSystem->BuildNavGrid();
+
+    // Verify squares themselves are still walkable (barrier does not block squares, only increases traversal cost between squares)
+    BOOST_CHECK(pathfindingSystem->IsWalkable(-1, 0));
+    BOOST_CHECK(pathfindingSystem->IsWalkable(0, 0));
+
+    // Edge crossing cost check
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetVerticalBarrierCost(-1, 0), 15.0f, 0.001f);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetVerticalBarrierCost(-1, 1), 15.0f, 0.001f);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetVerticalBarrierCost(-1, -1), 15.0f, 0.001f);
+    BOOST_CHECK_CLOSE(pathfindingSystem->GetVerticalBarrierCost(-1, 2), 0.0f, 0.001f);
+
+    // Path from (-2, 0) to (1, 0)
+    // Direct path would cross the barrier with extra cost 15.0 (total > 18.0)
+    // Detour path going around Y=2 or Y=-2 takes ~5-6 steps without barrier cost
+    // A* should choose the detour path!
+    auto pathWithHighBarrier = pathfindingSystem->FindPathGrid(glm::ivec2(-2, 0), glm::ivec2(1, 0), 1);
+    BOOST_REQUIRE(!pathWithHighBarrier.empty());
+    bool tookDetour = false;
+    for (const auto& pt : pathWithHighBarrier) {
+        if (std::abs(pt.y) >= 2) {
+            tookDetour = true;
+            break;
+        }
+    }
+    BOOST_CHECK(tookDetour);
+
+    // Now change barrier cost to very low (0.01f) so direct crossing is cheaper than detouring
+    auto& barRef = scene->GetComponent<Barrier>(barrierEntity);
+    barRef.extraCost = 0.01f;
+    pathfindingSystem->MarkGridDirty();
+    pathfindingSystem->BuildNavGrid();
+
+    auto pathWithLowBarrier = pathfindingSystem->FindPathGrid(glm::ivec2(-2, 0), glm::ivec2(1, 0), 1);
+    BOOST_REQUIRE(!pathWithLowBarrier.empty());
+    bool staysStraight = true;
+    for (const auto& pt : pathWithLowBarrier) {
+        if (std::abs(pt.y) >= 2) {
+            staysStraight = false;
+            break;
+        }
+    }
+    BOOST_CHECK(staysStraight);
+
+    engine.RemoveScene("BarrierTestScene");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -19,6 +19,8 @@
 #include "systems/scriptSystem/components/ScriptComponent.hpp"
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
+#include "systems/pathfindingSystem/componets/Obstacle.hpp"
+#include "systems/pathfindingSystem/componets/Barrier.hpp"
 #include "systems/selectionSystem/SelectionSystem.hpp"
 #include "systems/scriptSystem/ScriptSystem.hpp"
 #include "systems/scriptSystem/ScriptHotReloadManager.hpp"

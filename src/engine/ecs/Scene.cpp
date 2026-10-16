@@ -19,6 +19,8 @@
 #include "systems/selectionSystem/SelectionSystem.hpp"
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
+#include "systems/pathfindingSystem/componets/Obstacle.hpp"
+#include "systems/pathfindingSystem/componets/Barrier.hpp"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/renderingSystem/componets/MeshComponent.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
