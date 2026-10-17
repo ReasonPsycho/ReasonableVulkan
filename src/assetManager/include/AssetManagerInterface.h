@@ -88,6 +88,8 @@ namespace am
 
         virtual bool reimportAsset(const boost::uuids::uuid& id) = 0;
         virtual bool reimportAsset(const std::filesystem::path& path) = 0;
+
+        virtual void checkAndRecompileOutdatedShaders() {}
     };
 
     inline std::shared_ptr<AssetInfo> ResolveAssetInfo(const boost::uuids::uuid& id, AssetManagerInterface* assetManager) {

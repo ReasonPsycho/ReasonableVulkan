@@ -82,6 +82,10 @@ namespace engine::editor {
         virtual void TogglePlay() {}
         virtual void TogglePause() {}
 
+        // Script compilation & hot reloading
+        virtual void TriggerScriptRebuild() {}
+        virtual bool IsScriptCompiling() const { return false; }
+
     protected:
         EditorInterface() = default;
     };

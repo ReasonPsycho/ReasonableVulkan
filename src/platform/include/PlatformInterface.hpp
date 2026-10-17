@@ -24,7 +24,8 @@ namespace  plt
         MouseButtonReleased,
         MouseScrolled,
         FileDropped,
-        FileAddedToFolder
+        FileAddedToFolder,
+        FileModifiedInFolder
     };
 
     // Event data structures
@@ -38,6 +39,11 @@ namespace  plt
     };
 
     struct FileAddedEvent {
+        std::string filePath;
+        std::string folderPath;
+    };
+
+    struct FileModifiedEvent {
         std::string filePath;
         std::string folderPath;
     };

@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "3b2f8fe0-4a67-4861-8a35-b3d504e6eb5a",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\.internal\\materialOfmeshOfinternalTacticalPlaneModel.material",
+  "type": "Material",
+  "lookUpName": "materialOfmeshOfinternalTacticalPlaneModel.material",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Material",
+    "assimpIndex": 0
+  }
+}

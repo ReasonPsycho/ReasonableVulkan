@@ -134,6 +134,17 @@ BOOST_AUTO_TEST_CASE(ShaderAssetCompilationAndDefinesTest) {
     std::filesystem::remove(binPath, ec);
 }
 
+BOOST_AUTO_TEST_CASE(GridOverlayShaderCompilationTest) {
+    if (std::filesystem::exists("res/shaders/glsl/entry/grid_overlay.vert")) {
+        auto id = boost::uuids::random_generator()();
+        ImportContext ctx("res/shaders/glsl/entry/grid_overlay.vert", AssetType::Shader);
+        ShaderAsset shader(id, ctx);
+        BOOST_CHECK(shader.getType() == AssetType::Shader);
+        BOOST_CHECK(shader.getStage() == ShaderStage::Vertex);
+        BOOST_CHECK(!shader.getBytecode().empty());
+    }
+}
+
 BOOST_AUTO_TEST_CASE(ShaderProgramAssetTest) {
     std::filesystem::create_directories("res/.internal/tests/temp");
     std::string vertPath = "res/.internal/tests/temp/temp_prog_test.vert";

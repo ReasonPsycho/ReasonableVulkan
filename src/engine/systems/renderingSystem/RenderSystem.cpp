@@ -14,6 +14,7 @@
 #include "ecs/Scene.h"
 #include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
+#include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 
 void engine::ecs::RenderSystem::Update(float deltaTime)
 {
@@ -183,6 +184,21 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
             }
         }
         //gizmoSystem->gizmoRenderCommandQueue.clear();
+    }
+
+    auto tacticalGridSystem = scene->GetSystem<TacticalGridSystem>();
+    if (tacticalGridSystem != nullptr && tacticalGridSystem->IsOverlayActive() && !isThumbnailScene)
+    {
+        gfx::MeshHandle decalMesh = tacticalGridSystem->GetDecalMeshHandle();
+        gfx::ShaderProgramHandle gridShader = tacticalGridSystem->GetGridShaderHandle();
+        glm::mat4 decalTransform = tacticalGridSystem->GetDecalModelMatrix();
+
+        if (decalMesh.isValid() && gridShader.isValid()) {
+            for (uint32_t camIdx : targetCameraIndices) {
+                scene->engine.graphicsEngine->drawModel(camIdx, decalMesh, gfx::MaterialHandle::invalid(), gridShader,
+                                                        decalTransform);
+            }
+        }
     }
 
     for (auto [entity, lightComponent, transform] : scene->GetActiveView<LightComponent, TransformComponent>())

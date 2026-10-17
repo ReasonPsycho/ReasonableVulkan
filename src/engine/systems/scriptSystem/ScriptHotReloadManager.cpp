@@ -68,6 +68,136 @@ namespace engine::ecs {
         return {};
     }
 
+    std::filesystem::path ScriptHotReloadManager::FindCMakeBuildDir() const {
+        std::filesystem::path exeDir;
+#if defined(_WIN32)
+        char modulePath[MAX_PATH];
+        if (GetModuleFileNameA(nullptr, modulePath, MAX_PATH) > 0) {
+            exeDir = std::filesystem::path(modulePath).parent_path();
+        }
+#endif
+        if (exeDir.empty()) {
+            exeDir = std::filesystem::current_path();
+        }
+
+        const std::vector<std::filesystem::path> candidates = {
+            exeDir,
+            std::filesystem::current_path(),
+            std::filesystem::current_path() / "out" / "build" / "tests",
+            std::filesystem::current_path() / "out" / "build" / "debug",
+            std::filesystem::current_path() / "out" / "build" / "release",
+            std::filesystem::current_path() / "build",
+            exeDir.parent_path(),
+            exeDir.parent_path().parent_path(),
+            exeDir.parent_path().parent_path().parent_path()
+        };
+
+        for (const auto& candidate : candidates) {
+            std::error_code ec;
+            if (std::filesystem::exists(candidate / "CMakeCache.txt", ec)) {
+                return std::filesystem::absolute(candidate);
+            }
+        }
+
+        return exeDir;
+    }
+
+    bool ScriptHotReloadManager::AreScriptsOutdated(const std::filesystem::path& scriptsDir) const {
+        std::filesystem::path targetDir = scriptsDir;
+        if (targetDir.empty()) {
+            if (std::filesystem::exists("res/scripts")) {
+                targetDir = "res/scripts";
+            } else if (std::filesystem::exists("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\scripts")) {
+                targetDir = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\scripts";
+            }
+        }
+
+        std::error_code ec;
+        if (!std::filesystem::exists(targetDir, ec)) {
+            return false;
+        }
+
+        std::filesystem::path dllPath = FindScriptDllPath();
+        if (dllPath.empty() || !std::filesystem::exists(dllPath, ec)) {
+            return true;
+        }
+
+        auto dllTime = std::filesystem::last_write_time(dllPath, ec);
+        if (ec) return true;
+
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(targetDir, ec)) {
+            if (entry.is_regular_file(ec)) {
+                auto ext = entry.path().extension().string();
+                if (ext == ".hpp" || ext == ".cpp" || ext == ".h" || ext == ".c" || ext == ".cxx" || ext == ".cc") {
+                    auto srcTime = std::filesystem::last_write_time(entry.path(), ec);
+                    if (!ec && srcTime > dllTime) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    bool ScriptHotReloadManager::RebuildScriptLibrary(std::string* outBuildOutput) {
+        std::filesystem::path buildDir = FindCMakeBuildDir();
+        std::string cmd;
+        if (!buildDir.empty()) {
+            cmd = "cmake --build \"" + buildDir.string() + "\" --target gameplay_scripts 2>&1";
+        } else {
+            cmd = "cmake --build . --target gameplay_scripts 2>&1";
+        }
+
+        spdlog::info("ScriptHotReloadManager: Rebuilding gameplay_scripts: {}", cmd);
+
+        std::string output;
+        int exitCode = -1;
+
+#if defined(_WIN32)
+        FILE* pipe = _popen(cmd.c_str(), "r");
+#else
+        FILE* pipe = popen(cmd.c_str(), "r");
+#endif
+        if (pipe) {
+            char buffer[512];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+#if defined(_WIN32)
+            exitCode = _pclose(pipe);
+#else
+            exitCode = pclose(pipe);
+#endif
+        } else {
+            output = "Failed to spawn cmake build process.";
+        }
+
+        if (outBuildOutput) {
+            *outBuildOutput = output;
+        }
+
+        if (exitCode == 0) {
+            spdlog::info("ScriptHotReloadManager: Script compilation succeeded");
+            return true;
+        } else {
+            spdlog::error("ScriptHotReloadManager: Script compilation failed with exit code {}:\n{}", exitCode, output);
+            return false;
+        }
+    }
+
+    bool ScriptHotReloadManager::CheckAndRebuildIfOutdated(const std::filesystem::path& scriptsDir, std::string* outBuildOutput) {
+        if (AreScriptsOutdated(scriptsDir)) {
+            spdlog::info("ScriptHotReloadManager: Scripts are outdated or missing, rebuilding...");
+            bool success = RebuildScriptLibrary(outBuildOutput);
+            if (success) {
+                ReloadScriptLibrary();
+            }
+            return success;
+        }
+        return false;
+    }
+
     void ScriptHotReloadManager::CleanupTempFiles() {
         std::filesystem::path exeDir;
 #if defined(_WIN32)

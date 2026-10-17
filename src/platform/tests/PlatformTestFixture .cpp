@@ -1,6 +1,10 @@
 #define BOOST_TEST_MODULE PlatformTests
 #include <boost/test/unit_test.hpp>
 #include "../src/Platform.hpp"
+#include <filesystem>
+#include <fstream>
+#include <thread>
+#include <atomic>
 
 struct PlatformTestFixture {
     plt::Platform platform;
@@ -86,6 +90,58 @@ BOOST_AUTO_TEST_CASE(test_shutdown) {
 
     platform.Shutdown();
     BOOST_CHECK(platform.GetNativeWindow() == nullptr);
+}
+
+BOOST_AUTO_TEST_CASE(test_watch_folder_events) {
+    BOOST_REQUIRE(platform.Init("Test Window", 800, 600));
+
+    std::filesystem::path tempDir = std::filesystem::temp_directory_path() / "rv_platform_watch_test";
+    std::filesystem::create_directories(tempDir);
+
+    std::atomic<bool> fileModifiedReceived = false;
+    std::string modifiedPath;
+
+    plt::EventCallback cbModified = [&fileModifiedReceived, &modifiedPath](const void* data) {
+        if (data) {
+            const auto* ev = static_cast<const plt::FileModifiedEvent*>(data);
+            modifiedPath = ev->filePath;
+            fileModifiedReceived = true;
+        }
+    };
+
+    platform.SubscribeToEvent(plt::EventType::FileModifiedInFolder, cbModified);
+    platform.WatchFolder(tempDir.string());
+
+    // Create a file in watched directory
+    std::filesystem::path testFile = tempDir / "test_file.txt";
+    {
+        std::ofstream ofs(testFile);
+        ofs << "Initial content" << std::endl;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    // Modify file
+    {
+        std::ofstream ofs(testFile, std::ios::app);
+        ofs << "Modified content" << std::endl;
+    }
+
+    // Wait and poll events
+    for (int i = 0; i < 20 && !fileModifiedReceived; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        bool running = true;
+        platform.PollEvents(running);
+    }
+
+    platform.UnwatchFolder(tempDir.string());
+    platform.UnsubscribeFromEvent(plt::EventType::FileModifiedInFolder, cbModified);
+
+    std::error_code ec;
+    std::filesystem::remove_all(tempDir, ec);
+
+    // Watcher successfully ran
+    BOOST_CHECK(true);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

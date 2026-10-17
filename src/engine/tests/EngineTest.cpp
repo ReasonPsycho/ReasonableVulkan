@@ -6,7 +6,9 @@
 #include "systems/editorSystem/EditorSystem.hpp"
 #include "systems/renderingSystem/componets/RendererComponent.hpp"
 #include "systems/renderingSystem/componets/MeshComponent.hpp"
+#include "systems/scriptSystem/ScriptHotReloadManager.hpp"
 #include <filesystem>
+#include <fstream>
 
 using namespace engine;
 using namespace engine::ecs;
@@ -204,6 +206,28 @@ BOOST_AUTO_TEST_CASE(EnginePrefabLoadAndInstantiateTest) {
 
     engine.RemoveScene("PrefabLoadSourceScene");
     engine.RemoveScene("PrefabLoadTargetScene");
+}
+
+BOOST_AUTO_TEST_CASE(EngineInitializationShaderAndScriptCheckTest) {
+    Engine engine = CreateTestEngine();
+    BOOST_CHECK_NO_THROW(engine.Initialize());
+}
+
+BOOST_AUTO_TEST_CASE(ScriptHotReloadManagerStalenessTest) {
+    auto& manager = ecs::ScriptHotReloadManager::Instance();
+    std::filesystem::path tempScriptsDir = std::filesystem::temp_directory_path() / "rv_temp_scripts_test";
+    std::filesystem::create_directories(tempScriptsDir);
+
+    // Non-existent DLL should be detected as outdated if script files exist
+    std::ofstream dummyScript(tempScriptsDir / "TestScript.hpp");
+    dummyScript << "// test script" << std::endl;
+    dummyScript.close();
+
+    bool outdated = manager.AreScriptsOutdated(tempScriptsDir);
+    BOOST_CHECK(outdated);
+
+    std::error_code ec;
+    std::filesystem::remove_all(tempScriptsDir, ec);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

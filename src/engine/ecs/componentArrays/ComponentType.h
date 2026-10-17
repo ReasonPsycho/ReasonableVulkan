@@ -28,6 +28,7 @@ namespace engine::ecs
     struct GridFragment;
     struct Obstacle;
     struct Barrier;
+    struct TacticalGridComponent;
 
     class RenderSystem;
     class GizmoSystem;
@@ -36,6 +37,7 @@ namespace engine::ecs
     class ScriptSystem;
     class PathfindingSystem;
     class SelectionSystem;
+    class TacticalGridSystem;
 
     using EngineComponents = std::tuple<
         TransformComponent,
@@ -50,7 +52,8 @@ namespace engine::ecs
         PathfindingAgent,
         GridFragment,
         Obstacle,
-        Barrier
+        Barrier,
+        TacticalGridComponent
     >;
 
     using EngineSystems = std::tuple<
@@ -60,7 +63,8 @@ namespace engine::ecs
         CollisionSystem,
         ScriptSystem,
         PathfindingSystem,
-        SelectionSystem
+        SelectionSystem,
+        TacticalGridSystem
     >;
 
     template<typename T>

@@ -155,6 +155,7 @@ namespace am {
 
         //Scanning & Metadata
         void scanResourceDirectory(const std::filesystem::path& rootPath);
+        void checkAndRecompileOutdatedShaders() override;
         bool saveAssetMetadata(const boost::uuids::uuid& id) const override;
         void saveAllAssetMetadata() const;
 
@@ -170,6 +171,7 @@ namespace am {
 
 
         void handleFileAddedToFolder(const plt::FileAddedEvent* event);
+        void handleFileModifiedInFolder(const plt::FileModifiedEvent* event);
         void handleFileDropped(const plt::FileDropEvent* event);
 
         std::unique_ptr<FileBrowser> fileBrowserInstance;

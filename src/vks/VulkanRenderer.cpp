@@ -229,6 +229,9 @@ namespace vks {
         auto raycast = descriptorManager->getOrLoadShaderProgram("raycastShader");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(raycast));
 
+        auto gridOverlay = descriptorManager->getOrLoadShaderProgram("gridOverlayShader");
+        pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(gridOverlay));
+
         skyboxShaderHandle = descriptorManager->getOrLoadShaderProgram("skyboxShader");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(skyboxShaderHandle));
 

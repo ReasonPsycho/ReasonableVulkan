@@ -11,8 +11,11 @@
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/transformSystem/TransformSystem.h"
 #include "systems/scriptSystem/ScriptSystem.hpp"
+#include "systems/scriptSystem/ScriptHotReloadManager.hpp"
 #include "systems/pathfindingSystem/PathfindingSystem.hpp"
 #include "systems/selectionSystem/SelectionSystem.hpp"
+#include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
+#include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
 #include "systems/pathfindingSystem/componets/Obstacle.hpp"
@@ -94,10 +97,48 @@ namespace engine {
                 });
         }
 
+        // Check for changes in shaders and scripts on initialization
+        if (assetManagerInterface) {
+            assetManagerInterface->checkAndRecompileOutdatedShaders();
+        }
+
+        // Check scripts on initialization and recompile if needed
+        ecs::ScriptHotReloadManager::Instance().CheckAndRebuildIfOutdated();
+
         editorSystem = std::make_shared<ecs::EditorSystem>(this);
         editorSystem->Initialize();
         if (assetManagerInterface) {
             assetManagerInterface->setEditor(editorSystem.get());
+        }
+
+        if (platform) {
+            std::string resPath = "res";
+            if (std::filesystem::exists("res")) {
+                resPath = std::filesystem::absolute("res").lexically_normal().string();
+            }
+            platform->WatchFolder(resPath);
+            platform->SubscribeToEvent(plt::EventType::FileModifiedInFolder, [this](const void* data) {
+                const auto* ev = static_cast<const plt::FileModifiedEvent*>(data);
+                if (ev) {
+                    auto ext = std::filesystem::path(ev->filePath).extension().string();
+                    if (ext == ".hpp" || ext == ".cpp" || ext == ".h") {
+                        if (editorSystem) {
+                            editorSystem->TriggerScriptRebuild();
+                        }
+                    }
+                }
+            });
+            platform->SubscribeToEvent(plt::EventType::FileAddedToFolder, [this](const void* data) {
+                const auto* ev = static_cast<const plt::FileAddedEvent*>(data);
+                if (ev) {
+                    auto ext = std::filesystem::path(ev->filePath).extension().string();
+                    if (ext == ".hpp" || ext == ".cpp" || ext == ".h") {
+                        if (editorSystem) {
+                            editorSystem->TriggerScriptRebuild();
+                        }
+                    }
+                }
+            });
         }
 
         LoadConfig();

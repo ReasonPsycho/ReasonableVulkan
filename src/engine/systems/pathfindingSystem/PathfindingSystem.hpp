@@ -21,6 +21,12 @@ namespace engine::ecs
 {
     class Scene;
 
+    struct ReachableCellInfo {
+        glm::ivec2 gridPos{0, 0};
+        float traversalCost{0.0f};
+        bool isReachable{true};
+    };
+
     class PathfindingSystem : public System<PathfindingSystem, PathfindingAgent, GridFragment, Obstacle, Barrier>
     {
     public:
@@ -79,7 +85,8 @@ namespace engine::ecs
         float GetPathCost(const std::vector<glm::ivec2>& path, int agentSize = 1) const;
         float GetPathCost(const std::vector<glm::vec3>& path, int agentSize = 1) const;
 
-        // Pathfinding
+        // Pathfinding & Reachability
+        std::vector<ReachableCellInfo> CalculateReachableCells(const glm::ivec2& start, int agentSize = 1, float maxCost = 0.0f, Entity ignoreEntity = MAX_ENTITIES);
         std::vector<glm::ivec2> FindPathGrid(const glm::ivec2& start, const glm::ivec2& target, int agentSize = 1, Entity ignoreEntity = MAX_ENTITIES, float maxCost = 0.0f);
         std::vector<glm::vec3> FindPath(const glm::vec3& startWorld, const glm::vec3& targetWorld, int agentSize = 1, float height = 0.0f, Entity ignoreEntity = MAX_ENTITIES, float maxCost = 0.0f);
         bool RequestPath(Entity entity, const glm::vec3& targetWorld);

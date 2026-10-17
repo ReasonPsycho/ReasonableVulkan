@@ -10,6 +10,7 @@
 #include "systems/collisionSystem/CollisionSystem.hpp"
 #include "systems/pathfindingSystem/PathfindingSystem.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
+#include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 
 namespace engine::ecs {
@@ -139,23 +140,15 @@ namespace engine::ecs {
         return false;
     }
 
-    bool SelectionSystem::HandleRightClick(float screenX, float screenY, float windowWidth, float windowHeight) {
-        return MoveSelectedToScreenPos(screenX, screenY, windowWidth, windowHeight);
-    }
-
-    bool SelectionSystem::MoveSelectedToScreenPos(float screenX, float screenY, float windowWidth, float windowHeight) {
-        if (!HasSelectedEntity() || !scene->HasComponent<PathfindingAgent>(selectedEntity)) {
-            return false;
-        }
-
-        if (windowWidth <= 0.0f || windowHeight <= 0.0f) {
-            return false;
+    std::optional<glm::vec3> SelectionSystem::RaycastGroundTarget(float screenX, float screenY, float windowWidth, float windowHeight) const {
+        if (!scene || windowWidth <= 0.0f || windowHeight <= 0.0f) {
+            return std::nullopt;
         }
 
         TransformComponent camTransform{};
         auto camOpt = GetActiveGameCamera(&camTransform);
         if (!camOpt.has_value()) {
-            return false;
+            return std::nullopt;
         }
 
         CameraComponent cam = *camOpt;
@@ -166,60 +159,97 @@ namespace engine::ecs {
 
         auto colSys = scene->GetSystem<CollisionSystem>();
         if (!colSys) {
-            return false;
+            return std::nullopt;
         }
 
         Ray ray = colSys->ScreenToWorldRay(cam, screenX, screenY, windowWidth, windowHeight);
 
-        bool foundTarget = false;
-        glm::vec3 targetWorldPos{0.0f};
-
         // 1. Raycast against mesh entities in the scene (excluding selected entity)
         auto meshHit = colSys->RayCastClosest(ray);
         if (meshHit.has_value() && meshHit->entity != selectedEntity) {
-            targetWorldPos = meshHit->hitPoint;
-            foundTarget = true;
+            return meshHit->hitPoint;
         }
 
         // 2. Raycast against GridFragment entities in the scene
-        if (!foundTarget) {
-            float closestGridDist = std::numeric_limits<float>::max();
-            for (auto [gridEnt, gridFrag, trans] : scene->GetActiveView<GridFragment, TransformComponent>()) {
-                float halfW = static_cast<float>(gridFrag.width) * 0.5f;
-                float halfH = static_cast<float>(gridFrag.height) * 0.5f;
-                glm::vec3 boxMin(-halfW, -0.2f, -halfH);
-                glm::vec3 boxMax(halfW, 0.2f, halfH);
-                float dist = 0.0f;
-                if (colSys->RayIntersectsAABB(ray, boxMin, boxMax, trans.globalMatrix, dist)) {
-                    if (dist < closestGridDist) {
-                        closestGridDist = dist;
-                        targetWorldPos = ray.origin + ray.direction * dist;
-                        foundTarget = true;
-                    }
+        float closestGridDist = std::numeric_limits<float>::max();
+        bool foundGrid = false;
+        glm::vec3 gridHitPos{0.0f};
+
+        for (auto [gridEnt, gridFrag, trans] : scene->GetActiveView<GridFragment, TransformComponent>()) {
+            float halfW = static_cast<float>(gridFrag.width) * 0.5f;
+            float halfH = static_cast<float>(gridFrag.height) * 0.5f;
+            glm::vec3 boxMin(-halfW, -0.2f, -halfH);
+            glm::vec3 boxMax(halfW, 0.2f, halfH);
+            float dist = 0.0f;
+            if (colSys->RayIntersectsAABB(ray, boxMin, boxMax, trans.globalMatrix, dist)) {
+                if (dist < closestGridDist) {
+                    closestGridDist = dist;
+                    gridHitPos = ray.origin + ray.direction * dist;
+                    foundGrid = true;
                 }
             }
+        }
+
+        if (foundGrid) {
+            return gridHitPos;
         }
 
         // 3. Fallback ground plane intersection at y = groundY
-        if (!foundTarget) {
-            float groundY = defaultGroundY;
-            if (scene->HasComponent<TransformComponent>(selectedEntity)) {
-                groundY = scene->GetComponent<TransformComponent>(selectedEntity).position.y;
-            }
-            if (std::abs(ray.direction.y) > 1e-6f) {
-                float t = (groundY - ray.origin.y) / ray.direction.y;
-                if (t > 0.0f) {
-                    targetWorldPos = ray.origin + ray.direction * t;
-                    foundTarget = true;
-                }
+        float groundY = defaultGroundY;
+        if (selectedEntity != MAX_ENTITIES && scene->HasComponent<TransformComponent>(selectedEntity)) {
+            groundY = scene->GetComponent<TransformComponent>(selectedEntity).position.y;
+        }
+        if (std::abs(ray.direction.y) > 1e-6f) {
+            float t = (groundY - ray.origin.y) / ray.direction.y;
+            if (t > 0.0f) {
+                return ray.origin + ray.direction * t;
             }
         }
 
-        if (!foundTarget) {
+        return std::nullopt;
+    }
+
+    bool SelectionSystem::HandleMouseMove(float screenX, float screenY, float windowWidth, float windowHeight) {
+        return HoverAtScreenPos(screenX, screenY, windowWidth, windowHeight);
+    }
+
+    bool SelectionSystem::HoverAtScreenPos(float screenX, float screenY, float windowWidth, float windowHeight) {
+        if (!HasSelectedEntity()) {
+            if (auto tacSys = scene ? scene->GetSystem<TacticalGridSystem>() : nullptr) {
+                tacSys->ClearHover();
+            }
             return false;
         }
 
-        return MoveSelectedToWorldPos(targetWorldPos);
+        auto hitPosOpt = RaycastGroundTarget(screenX, screenY, windowWidth, windowHeight);
+        if (hitPosOpt.has_value()) {
+            if (auto tacSys = scene->GetSystem<TacticalGridSystem>()) {
+                tacSys->SetHoverPosition(*hitPosOpt);
+            }
+            return true;
+        } else {
+            if (auto tacSys = scene->GetSystem<TacticalGridSystem>()) {
+                tacSys->ClearHover();
+            }
+            return false;
+        }
+    }
+
+    bool SelectionSystem::HandleRightClick(float screenX, float screenY, float windowWidth, float windowHeight) {
+        return MoveSelectedToScreenPos(screenX, screenY, windowWidth, windowHeight);
+    }
+
+    bool SelectionSystem::MoveSelectedToScreenPos(float screenX, float screenY, float windowWidth, float windowHeight) {
+        if (!HasSelectedEntity() || !scene->HasComponent<PathfindingAgent>(selectedEntity)) {
+            return false;
+        }
+
+        auto targetWorldPos = RaycastGroundTarget(screenX, screenY, windowWidth, windowHeight);
+        if (!targetWorldPos.has_value()) {
+            return false;
+        }
+
+        return MoveSelectedToWorldPos(*targetWorldPos);
     }
 
     bool SelectionSystem::MoveSelectedToWorldPos(const glm::vec3& targetWorldPos) {
@@ -239,7 +269,14 @@ namespace engine::ecs {
 
         glm::ivec2 gridCoord = pathfindingSystem->WorldToGrid(targetWorldPos, agentSize);
         glm::vec3 gridPlacement = pathfindingSystem->GridToWorld(gridCoord, targetWorldPos.y, agentSize);
-        return pathfindingSystem->RequestPath(selectedEntity, gridPlacement);
+        bool res = pathfindingSystem->RequestPath(selectedEntity, gridPlacement);
+
+        if (auto tacSys = scene->GetSystem<TacticalGridSystem>()) {
+            tacSys->ClearHover();
+            tacSys->RefreshReachableRange();
+        }
+
+        return res;
     }
 
     void SelectionSystem::Update(float deltaTime) {

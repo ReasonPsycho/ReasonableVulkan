@@ -21,6 +21,8 @@
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
 #include "systems/pathfindingSystem/componets/Obstacle.hpp"
 #include "systems/pathfindingSystem/componets/Barrier.hpp"
+#include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
+#include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 #include "systems/selectionSystem/SelectionSystem.hpp"
 #include "systems/scriptSystem/ScriptSystem.hpp"
 #include "systems/scriptSystem/ScriptHotReloadManager.hpp"
@@ -1575,6 +1577,7 @@ void EditorSystem::Update(float deltaTime)
                     float relY = io.MousePos.y - imagePos.y;
                     if (relX >= 0.0f && relX <= imageSize.x && relY >= 0.0f && relY <= imageSize.y) {
                         if (auto selectionSystem = topEditableScene->GetSystem<SelectionSystem>()) {
+                            selectionSystem->HandleMouseMove(relX, relY, imageSize.x, imageSize.y);
                             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                                 selectionSystem->HandleLeftClick(relX, relY, imageSize.x, imageSize.y);
                             }
@@ -3120,46 +3123,17 @@ void EditorSystem::TriggerScriptRebuild()
     scriptCompilePendingReload = false;
 
     std::thread([this]() {
-        std::filesystem::path buildDir = FindCMakeBuildDir();
-        std::string cmd;
-        if (!buildDir.empty()) {
-            cmd = "cmake --build \"" + buildDir.string() + "\" --target gameplay_scripts 2>&1";
-        } else {
-            cmd = "cmake --build . --target gameplay_scripts 2>&1";
-        }
-
-        spdlog::info("EditorSystem: Spawning background script build: {}", cmd);
-
         std::string output;
-        int exitCode = -1;
-
-#if defined(_WIN32)
-        FILE* pipe = _popen(cmd.c_str(), "r");
-#else
-        FILE* pipe = popen(cmd.c_str(), "r");
-#endif
-        if (pipe) {
-            char buffer[512];
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                output += buffer;
-            }
-#if defined(_WIN32)
-            exitCode = _pclose(pipe);
-#else
-            exitCode = pclose(pipe);
-#endif
-        } else {
-            output = "Failed to spawn cmake build process.";
-        }
+        bool success = ScriptHotReloadManager::Instance().RebuildScriptLibrary(&output);
 
         lastScriptBuildOutput = output;
-        lastScriptBuildSuccess = (exitCode == 0);
+        lastScriptBuildSuccess = success;
 
-        if (exitCode == 0) {
+        if (success) {
             spdlog::info("EditorSystem: Script compilation succeeded:\n{}", output);
             scriptCompilePendingReload = true;
         } else {
-            spdlog::error("EditorSystem: Script compilation failed with exit code {}:\n{}", exitCode, output);
+            spdlog::error("EditorSystem: Script compilation failed:\n{}", output);
             showScriptBuildLogWindow = true;
         }
 

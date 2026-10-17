@@ -1,0 +1,4 @@
+{
+  "vertex": "../glsl/entry/grid_overlay.vert",
+  "fragment": "../glsl/entry/grid_overlay.frag"
+}

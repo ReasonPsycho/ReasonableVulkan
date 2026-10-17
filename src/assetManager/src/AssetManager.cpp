@@ -31,16 +31,25 @@ namespace am {
     void AssetManager::Initialize(plt::PlatformInterface* platformInterface)
     {
         this->platform = platformInterface;
-        platformInterface->SubscribeToEvent(plt::EventType::FileAddedToFolder,
-                   [this](const void* data) {
-                       const auto* event = static_cast<const plt::FileAddedEvent*>(data);
-                       this->handleFileAddedToFolder(event);
-                   });
-        platformInterface->SubscribeToEvent(plt::EventType::FileDropped,
-                 [this](const void* data) {
-                     const auto* event = static_cast<const plt::FileDropEvent*>(data);
-                     this->handleFileDropped(event);
-                 });
+        if (this->platform) {
+            this->platform->WatchFolder(resourceFolder);
+            platformInterface->SubscribeToEvent(plt::EventType::FileAddedToFolder,
+                       [this](const void* data) {
+                           const auto* event = static_cast<const plt::FileAddedEvent*>(data);
+                           this->handleFileAddedToFolder(event);
+                       });
+            platformInterface->SubscribeToEvent(plt::EventType::FileModifiedInFolder,
+                       [this](const void* data) {
+                           const auto* event = static_cast<const plt::FileModifiedEvent*>(data);
+                           this->handleFileModifiedInFolder(event);
+                       });
+            platformInterface->SubscribeToEvent(plt::EventType::FileDropped,
+                     [this](const void* data) {
+                         const auto* event = static_cast<const plt::FileDropEvent*>(data);
+                         this->handleFileDropped(event);
+                     });
+        }
+        checkAndRecompileOutdatedShaders();
     }
 
     AssetManager &AssetManager::getInstance() {
@@ -367,6 +376,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         saveMetaCache(cacheFile.string());
 
         spdlog::info("Scanned resource directory '{}', loaded {} assets (cache: {}).", rootPath.string(), metadata.size(), cacheLoaded ? "loaded" : "built");
+
+        // 4. Check and recompile outdated shaders
+        checkAndRecompileOutdatedShaders();
     }
 
     bool AssetManager::saveAssetMetadata(const boost::uuids::uuid& assetId) const
@@ -779,6 +791,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     void AssetManager::handleFileAddedToFolder(const plt::FileAddedEvent* event)
     {
+        if (!event) return;
         auto filePath = event->filePath;
         auto ext = std::filesystem::path(filePath).extension().string();
 
@@ -799,7 +812,22 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                     metadata[infoPtr->id] = infoPtr;
                     lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                    pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
+                    pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                    if (!infoPtr->importContext.importPath.empty()) {
+                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
+                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                    }
                 }
+            }
+            return;
+        }
+
+        if (ext == ".hpp" || ext == ".cpp" || ext == ".h")
+        {
+            spdlog::info("AssetManager: Script file added ({})", filePath);
+            if (editor) {
+                editor->TriggerScriptRebuild();
             }
             return;
         }
@@ -845,7 +873,182 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 spdlog::error("Failed to load asset: {}", e.what());
             }
         }
-        //Don't do anything for other types
+        else if (assetOwnership == AssetOwnership::Import)
+        {
+            registerAsset(filePath);
+        }
+    }
+
+    void AssetManager::handleFileModifiedInFolder(const plt::FileModifiedEvent* event)
+    {
+        if (!event) return;
+        auto filePath = std::filesystem::path(event->filePath).lexically_normal();
+        auto ext = filePath.extension().string();
+
+        if (ext == ".meta")
+        {
+            rapidjson::Document doc;
+            if (loadJsonFromFile(filePath.string(), doc))
+            {
+                if (doc.IsObject() && doc.HasMember("id") && doc.HasMember("type"))
+                {
+                    auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(doc);
+                    std::string metaPathStr = filePath.string();
+                    std::string actualAssetPath = metaPathStr.substr(0, metaPathStr.length() - 5);
+                    std::error_code ec;
+                    if (std::filesystem::exists(actualAssetPath, ec)) {
+                        assetInfo.path = actualAssetPath;
+                    }
+                    auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+                    metadata[infoPtr->id] = infoPtr;
+                    lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                    pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
+                    pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                    if (!infoPtr->importContext.importPath.empty()) {
+                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
+                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                    }
+                }
+            }
+            return;
+        }
+
+        if (ext == ".glsl")
+        {
+            spdlog::info("AssetManager: Common shader include modified ({}), checking shaders for recompilation", filePath.string());
+            checkAndRecompileOutdatedShaders();
+            return;
+        }
+
+        if (ext == ".vert" || ext == ".frag" || ext == ".comp" || ext == ".geom" ||
+            ext == ".tesc" || ext == ".tese" || ext == ".shaderImport" || ext == ".shaderprogram")
+        {
+            spdlog::info("AssetManager: Shader file modified ({}), reimporting asset", filePath.string());
+            reimportAsset(filePath);
+            return;
+        }
+
+        if (ext == ".hpp" || ext == ".cpp" || ext == ".h")
+        {
+            spdlog::info("AssetManager: Script file modified ({})", filePath.string());
+            if (editor) {
+                editor->TriggerScriptRebuild();
+            }
+            return;
+        }
+
+        auto assetOwnership = StringToAssetOwnership(ext);
+        if (assetOwnership == AssetOwnership::Import)
+        {
+            reimportAsset(filePath);
+        }
+    }
+
+    void AssetManager::checkAndRecompileOutdatedShaders()
+    {
+        std::error_code ec;
+        std::filesystem::path resPath(resourceFolder);
+        if (!std::filesystem::exists(resPath, ec)) {
+            return;
+        }
+
+        // 1. Scan for any raw shader source files and .shaderImport files that are not registered
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(resPath, ec))
+        {
+            if (!entry.is_regular_file(ec)) continue;
+            auto ext = entry.path().extension().string();
+            if (ext == ".vert" || ext == ".frag" || ext == ".comp" || ext == ".geom" ||
+                ext == ".tesc" || ext == ".tese" || ext == ".shaderImport")
+            {
+                auto p = entry.path().lexically_normal().string();
+                if (!getAssetUuidByPath(p).has_value()) {
+                    ImportContext ctx(p, GetAssetTypeFromExtension(ext));
+                    if (!findAssetByImportContext(ctx).has_value()) {
+                        registerAsset(p);
+                    }
+                }
+            }
+        }
+
+        // 2. Find latest modification time of any shader include files (.glsl / common)
+        std::filesystem::file_time_type latestIncludeTime = std::filesystem::file_time_type::min();
+        std::filesystem::path commonShaderDir = resPath / "shaders" / "glsl" / "common";
+        if (std::filesystem::exists(commonShaderDir, ec)) {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(commonShaderDir, ec)) {
+                if (entry.is_regular_file(ec)) {
+                    auto lwt = std::filesystem::last_write_time(entry.path(), ec);
+                    if (!ec && lwt > latestIncludeTime) {
+                        latestIncludeTime = lwt;
+                    }
+                }
+            }
+        }
+
+        // 3. Check registered Shader assets for outdated binaries
+        std::vector<boost::uuids::uuid> shadersToRecompile;
+
+        for (const auto& [id, info] : metadata)
+        {
+            if (info->type == AssetType::Shader)
+            {
+                std::filesystem::path srcPath(info->importContext.importPath);
+                if (!std::filesystem::exists(srcPath, ec)) {
+                    std::string impStr = srcPath.string();
+                    size_t resPos = impStr.find("res\\");
+                    if (resPos == std::string::npos) resPos = impStr.find("res/");
+                    if (resPos != std::string::npos) {
+                        srcPath = (resPath / impStr.substr(resPos + 4)).lexically_normal();
+                    } else if (std::filesystem::exists((resPath / srcPath).lexically_normal(), ec)) {
+                        srcPath = (resPath / srcPath).lexically_normal();
+                    }
+                }
+
+                if (std::filesystem::exists(srcPath, ec)) {
+                    std::filesystem::path binPath(info->path);
+                    if (!std::filesystem::exists(binPath, ec)) {
+                        shadersToRecompile.push_back(id);
+                    } else {
+                        auto srcTime = std::filesystem::last_write_time(srcPath, ec);
+                        auto binTime = std::filesystem::last_write_time(binPath, ec);
+                        if (!ec && (srcTime > binTime || latestIncludeTime > binTime)) {
+                            shadersToRecompile.push_back(id);
+                        }
+                    }
+                }
+            }
+            else if (info->type == AssetType::ShaderProgram)
+            {
+                std::filesystem::path importPath(info->importContext.importPath);
+                if (!std::filesystem::exists(importPath, ec)) {
+                    std::string impStr = importPath.string();
+                    size_t resPos = impStr.find("res\\");
+                    if (resPos == std::string::npos) resPos = impStr.find("res/");
+                    if (resPos != std::string::npos) {
+                        importPath = (resPath / impStr.substr(resPos + 4)).lexically_normal();
+                    } else if (std::filesystem::exists((resPath / importPath).lexically_normal(), ec)) {
+                        importPath = (resPath / importPath).lexically_normal();
+                    }
+                }
+
+                if (std::filesystem::exists(importPath, ec)) {
+                    std::filesystem::path progPath(info->path);
+                    if (!std::filesystem::exists(progPath, ec)) {
+                        shadersToRecompile.push_back(id);
+                    } else {
+                        auto importTime = std::filesystem::last_write_time(importPath, ec);
+                        auto progTime = std::filesystem::last_write_time(progPath, ec);
+                        if (!ec && importTime > progTime) {
+                            shadersToRecompile.push_back(id);
+                        }
+                    }
+                }
+            }
+        }
+
+        for (const auto& id : shadersToRecompile) {
+            spdlog::info("AssetManager: Recompiling/updating outdated shader asset UUID {}", boost::uuids::to_string(id));
+            reimportAsset(id);
+        }
     }
 
     void AssetManager::handleFileDropped(const plt::FileDropEvent* event)

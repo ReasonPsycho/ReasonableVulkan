@@ -1012,6 +1012,18 @@ namespace vks
         VkPipelineColorBlendAttachmentState blendAttachmentState =
             base::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
 
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::TACTICAL_GRID_GLSL) != combinedDefines.end())
+        {
+            blendAttachmentState.blendEnable = VK_TRUE;
+            blendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+            blendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            blendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+            blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            blendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            blendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
+            blendAttachmentState.colorWriteMask = 0xf;
+        }
+
         VkPipelineColorBlendStateCreateInfo colorBlendState =
             base::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 
@@ -1029,9 +1041,17 @@ namespace vks
             base::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != combinedDefines.end() ||
-            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::RAYCAST_GLSL) != combinedDefines.end())
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::RAYCAST_GLSL) != combinedDefines.end() ||
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::TACTICAL_GRID_GLSL) != combinedDefines.end())
         {
             rasterizationState.cullMode = VK_CULL_MODE_NONE;
+        }
+
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::TACTICAL_GRID_GLSL) != combinedDefines.end())
+        {
+            depthStencilState.depthWriteEnable = VK_FALSE;
+            depthStencilState.depthTestEnable = VK_TRUE;
+            depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
         }
 
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::WIREMESH_GLSL) != combinedDefines.end())

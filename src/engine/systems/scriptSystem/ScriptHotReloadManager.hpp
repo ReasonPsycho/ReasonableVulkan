@@ -22,6 +22,11 @@ namespace engine::ecs {
         const std::filesystem::path& GetActiveDllPath() const { return activeDllPath; }
         std::filesystem::path FindScriptDllPath() const;
 
+        bool AreScriptsOutdated(const std::filesystem::path& scriptsDir = {}) const;
+        bool RebuildScriptLibrary(std::string* outBuildOutput = nullptr);
+        std::filesystem::path FindCMakeBuildDir() const;
+        bool CheckAndRebuildIfOutdated(const std::filesystem::path& scriptsDir = {}, std::string* outBuildOutput = nullptr);
+
         void CleanupTempFiles();
 
     private:

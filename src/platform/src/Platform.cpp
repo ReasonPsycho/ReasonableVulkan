@@ -71,14 +71,22 @@ namespace  plt
 
     void Platform::PollEvents(bool& running) {
         // Process queued events from other threads
+        std::vector<QueuedEvent> eventsToProcess;
         {
             std::lock_guard<std::mutex> lock(queuedEventsMutex);
-            for (const auto& qEvent : queuedEvents) {
-                for (const auto& callback : eventCallbacks[qEvent.type]) {
+            if (!queuedEvents.empty()) {
+                eventsToProcess = std::move(queuedEvents);
+                queuedEvents.clear();
+            }
+        }
+        for (const auto& qEvent : eventsToProcess) {
+            auto it = eventCallbacks.find(qEvent.type);
+            if (it != eventCallbacks.end()) {
+                auto callbacksCopy = it->second;
+                for (const auto& callback : callbacksCopy) {
                     callback(qEvent.data.get());
                 }
             }
-            queuedEvents.clear();
         }
 
         // Update last mouse position
@@ -361,7 +369,7 @@ namespace  plt
 
     void Platform::WatcherThread(std::shared_ptr<WatcherInfo> info) {
 #ifdef _WIN32
-        char buffer[1024];
+        char buffer[4096];
         DWORD bytesReturned;
 
         while (!info->stopWatching) {
@@ -370,7 +378,7 @@ namespace  plt
                 buffer,
                 sizeof(buffer),
                 TRUE,
-                FILE_NOTIFY_CHANGE_FILE_NAME,
+                FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_CREATION,
                 &bytesReturned,
                 NULL,
                 NULL
@@ -379,20 +387,32 @@ namespace  plt
 
                 FILE_NOTIFY_INFORMATION* fni = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(buffer);
                 do {
-                    if (fni->Action == FILE_ACTION_ADDED) {
-                        int fileNameLength = fni->FileNameLength / sizeof(WCHAR);
-                        std::wstring wFileName(fni->FileName, fileNameLength);
-                        std::string fileName(wFileName.begin(), wFileName.end());
+                    int fileNameLength = fni->FileNameLength / sizeof(WCHAR);
+                    std::wstring wFileName(fni->FileName, fileNameLength);
+                    std::string fileName(wFileName.begin(), wFileName.end());
 
+                    std::string fullPath = (std::filesystem::path(info->path) / fileName).lexically_normal().string();
+
+                    if (fni->Action == FILE_ACTION_ADDED || fni->Action == FILE_ACTION_RENAMED_NEW_NAME) {
                         auto eventData = std::make_shared<FileAddedEvent>();
-                        eventData->filePath = info->path + "/" + fileName;
+                        eventData->filePath = fullPath;
                         eventData->folderPath = info->path;
 
                         {
                             std::lock_guard<std::mutex> lock(queuedEventsMutex);
                             queuedEvents.push_back({EventType::FileAddedToFolder, eventData});
                         }
+                    } else if (fni->Action == FILE_ACTION_MODIFIED) {
+                        auto eventData = std::make_shared<FileModifiedEvent>();
+                        eventData->filePath = fullPath;
+                        eventData->folderPath = info->path;
+
+                        {
+                            std::lock_guard<std::mutex> lock(queuedEventsMutex);
+                            queuedEvents.push_back({EventType::FileModifiedInFolder, eventData});
+                        }
                     }
+
                     if (fni->NextEntryOffset == 0) break;
                     fni = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(
                         reinterpret_cast<BYTE*>(fni) + fni->NextEntryOffset

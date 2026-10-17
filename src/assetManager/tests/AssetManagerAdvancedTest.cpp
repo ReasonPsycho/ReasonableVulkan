@@ -158,4 +158,22 @@ BOOST_AUTO_TEST_CASE(MeshAssetBinarySerializationTest) {
     std::filesystem::remove(binPath, ec);
 }
 
+BOOST_AUTO_TEST_CASE(CheckAndRecompileOutdatedShadersTest) {
+    auto& manager = AssetManager::getInstance();
+
+    // Register an existing shader (e.g. mesh.vert)
+    std::string shaderPath = "res/shaders/glsl/mesh.vert";
+    if (std::filesystem::exists(shaderPath)) {
+        auto uuidOpt = manager.registerAsset(shaderPath);
+        BOOST_REQUIRE(uuidOpt.has_value());
+
+        auto infoOpt = manager.getAssetInfo(uuidOpt.value());
+        BOOST_REQUIRE(infoOpt.has_value());
+        BOOST_CHECK(std::filesystem::exists(infoOpt.value()->path));
+
+        // Calling checkAndRecompileOutdatedShaders should process without error
+        BOOST_CHECK_NO_THROW(manager.checkAndRecompileOutdatedShaders());
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

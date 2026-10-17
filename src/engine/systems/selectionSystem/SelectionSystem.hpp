@@ -37,6 +37,11 @@ namespace engine::ecs {
         // Direct world position command to move selected entity to grid placement
         bool MoveSelectedToWorldPos(const glm::vec3& targetWorldPos);
 
+        // Mouse hover interaction (e.g. from game window or editor viewport)
+        bool HandleMouseMove(float screenX, float screenY, float windowWidth, float windowHeight);
+        bool HoverAtScreenPos(float screenX, float screenY, float windowWidth, float windowHeight);
+        std::optional<glm::vec3> RaycastGroundTarget(float screenX, float screenY, float windowWidth, float windowHeight) const;
+
         // Configuration
         [[=Tooltip{"Whether to show visual gizmo for selected entity"}]]
         bool showSelectionGizmo{true};

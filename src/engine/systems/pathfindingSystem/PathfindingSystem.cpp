@@ -547,6 +547,143 @@ float PathfindingSystem::GetPathCost(const std::vector<glm::vec3>& path, int age
     return GetPathCost(gridPath, agentSize);
 }
 
+std::vector<ReachableCellInfo> PathfindingSystem::CalculateReachableCells(const glm::ivec2& start, int agentSize, float maxCost, Entity ignoreEntity) {
+    if (isGridDirty) {
+        BuildNavGrid();
+    }
+
+    if (agentSize <= 0) agentSize = 1;
+
+    if (!IsInBounds(start.x, start.y)) {
+        return {};
+    }
+
+    // Collect cells occupied by other active agents in the scene
+    std::vector<uint8_t> agentOccupied;
+    if (scene && gridWidth > 0 && gridHeight > 0) {
+        agentOccupied.assign(static_cast<size_t>(gridWidth * gridHeight), 0);
+        for (auto [otherEnt, otherAgent] : scene->GetActiveView<PathfindingAgent>()) {
+            if (otherEnt == ignoreEntity) continue;
+            if (!scene->HasComponent<TransformComponent>(otherEnt)) continue;
+
+            const auto& trans = scene->GetComponent<TransformComponent>(otherEnt);
+            int sz = std::max(1, otherAgent.agentSize);
+            glm::ivec2 agentGrid = WorldToGrid(trans.position, sz);
+
+            if (ignoreEntity == MAX_ENTITIES && agentGrid == start) {
+                continue;
+            }
+
+            for (int dy = 0; dy < sz; ++dy) {
+                for (int dx = 0; dx < sz; ++dx) {
+                    int gx = agentGrid.x + dx;
+                    int gy = agentGrid.y + dy;
+                    if (IsInBounds(gx, gy)) {
+                        agentOccupied[ToGridIndex(gx, gy)] = 1;
+                    }
+                }
+            }
+        }
+    }
+
+    auto isCellFree = [&](int x, int y) -> bool {
+        if (!IsWalkable(x, y, agentSize)) return false;
+        if (agentOccupied.empty()) return true;
+        for (int dy = 0; dy < agentSize; ++dy) {
+            for (int dx = 0; dx < agentSize; ++dx) {
+                int gx = x + dx;
+                int gy = y + dy;
+                if (!IsInBounds(gx, gy) || agentOccupied[ToGridIndex(gx, gy)] != 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    if (!isCellFree(start.x, start.y)) {
+        return {};
+    }
+
+    struct DijkstraNode {
+        glm::ivec2 pos;
+        float cost;
+
+        bool operator>(const DijkstraNode& other) const {
+            return cost > other.cost;
+        }
+    };
+
+    size_t totalCells = static_cast<size_t>(gridWidth * gridHeight);
+    const float INF = std::numeric_limits<float>::infinity();
+    std::vector<float> dist(totalCells, INF);
+
+    std::priority_queue<DijkstraNode, std::vector<DijkstraNode>, std::greater<DijkstraNode>> pq;
+
+    size_t startIdx = ToGridIndex(start.x, start.y);
+    dist[startIdx] = 0.0f;
+    pq.push({start, 0.0f});
+
+    static const glm::ivec2 directions[8] = {
+        {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+        {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+    };
+    static const float moveCosts[8] = {
+        1.0f, 1.0f, 1.0f, 1.0f,
+        1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f
+    };
+
+    std::vector<ReachableCellInfo> reachable;
+
+    while (!pq.empty()) {
+        DijkstraNode current = pq.top();
+        pq.pop();
+
+        size_t currentIdx = ToGridIndex(current.pos.x, current.pos.y);
+        if (current.cost > dist[currentIdx]) {
+            continue;
+        }
+
+        if (maxCost > 0.0f && current.cost > maxCost + 1e-4f) {
+            continue;
+        }
+
+        reachable.push_back({current.pos, current.cost, true});
+
+        for (int i = 0; i < 8; ++i) {
+            glm::ivec2 neighbor = current.pos + directions[i];
+
+            if (!isCellFree(neighbor.x, neighbor.y)) {
+                continue;
+            }
+
+            // Diagonal movement check: prevent squeezing between obstacles
+            if (i >= 4) {
+                glm::ivec2 ortho1 = current.pos + glm::ivec2(directions[i].x, 0);
+                glm::ivec2 ortho2 = current.pos + glm::ivec2(0, directions[i].y);
+                if (!isCellFree(ortho1.x, ortho1.y) || !isCellFree(ortho2.x, ortho2.y)) {
+                    continue;
+                }
+            }
+
+            float barrierCost = GetMovementBarrierCost(current.pos, neighbor, agentSize);
+            float newCost = current.cost + moveCosts[i] + barrierCost;
+
+            if (maxCost > 0.0f && newCost > maxCost + 1e-4f) {
+                continue;
+            }
+
+            size_t neighborIdx = ToGridIndex(neighbor.x, neighbor.y);
+            if (newCost < dist[neighborIdx]) {
+                dist[neighborIdx] = newCost;
+                pq.push({neighbor, newCost});
+            }
+        }
+    }
+
+    return reachable;
+}
+
 std::vector<glm::ivec2> PathfindingSystem::FindPathGrid(const glm::ivec2& start, const glm::ivec2& target, int agentSize, Entity ignoreEntity, float maxCost) {
     if (isGridDirty) {
         BuildNavGrid();
