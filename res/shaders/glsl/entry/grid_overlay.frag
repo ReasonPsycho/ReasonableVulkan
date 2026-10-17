@@ -28,7 +28,7 @@ float ComputeGridLine(vec2 coord, float lineWidth)
 void main()
 {
     vec2 worldXZ = inWorldPos.xz;
-    float cellSize = 1.0;
+    float cellSize = 0.25; //TODO make so it is provided by the engine
     vec2 cellCoord = worldXZ / cellSize;
 
     // Grid lines with smoothstep anti-aliasing
