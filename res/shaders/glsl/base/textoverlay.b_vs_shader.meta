@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "2a27d8e9-4da6-4f41-a304-8648c1d6022a",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\glsl\\base\\textoverlay.b_vs_shader",
+  "type": "Shader",
+  "lookUpName": "textoverlay.vs.shader",
+  "contentHash": 13956161279207947801,
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\glsl\\base\\textoverlay.vert",
+    "assetType": "Shader",
+    "assimpIndex": 0
+  }
+}

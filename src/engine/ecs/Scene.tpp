@@ -59,6 +59,10 @@ void Scene::AddComponent(Entity entity, T component)
 template <typename T>
 void Scene::RemoveComponent(Entity entity)
 {
+    if (!HasComponent<T>(entity)) {
+        return;
+    }
+
     auto typeIdx = std::type_index(typeid(T));
     auto it = componentArrays.find(typeIdx);
     if (it == componentArrays.end()) {

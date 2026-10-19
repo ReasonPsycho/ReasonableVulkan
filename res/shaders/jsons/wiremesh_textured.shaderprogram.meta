@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "34af6297-3529-42eb-9335-56602739269d",
+  "id": "10c105ce-ec11-4e7b-b9af-91022e27d2f2",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\wiremesh_textured.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "wiremeshTexturedShader",
+  "lookUpName": "wiremesh_textured.shaderprogram",
   "contentHash": 14735356005098455851,
   "assetFactoryData": {
-    "importPath": "res\\shaders\\jsons\\wiremesh_textured.shaderImport",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\wiremesh_textured.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

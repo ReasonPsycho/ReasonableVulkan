@@ -27,7 +27,8 @@ ComponentID ComponentArray<T>::RemoveComponentFronEntity(Entity entity)
     componentArray[indexOfRemoved] = componentArray[indexOfLast];
     Entity lastEntity = indexToEntityMap[indexOfLast];
     entityToIndexMap[lastEntity] = indexOfRemoved;
-    activeComponents[indexOfRemoved] = activeComponents[lastEntity];
+    activeComponents[indexOfRemoved] = activeComponents[indexOfLast];
+    activeComponents[indexOfLast] = false;
     indexToEntityMap[indexOfRemoved] = lastEntity;
     entityToIndexMap.erase(entity);
     indexToEntityMap.erase(indexOfLast);
@@ -106,7 +107,9 @@ ComponentID ComponentArray<T>::AddComponentUntyped(Entity entity)
 template <typename T>
 void ComponentArray<T>::RemoveComponentUntyped(Entity entity)
 {
-    RemoveComponentFronEntity(entity);
+    if (HasComponent(entity)) {
+        RemoveComponentFronEntity(entity);
+    }
 }
 
 template <typename T>

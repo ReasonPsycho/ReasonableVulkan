@@ -102,7 +102,7 @@ namespace am {
 
         if (ext == ".fbx" || ext == ".blend" || ext == ".blend1" || ext == ".obj" || ext == ".gltf" || ext == ".glb") return AssetType::Model;
         if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" || ext == ".dds" || ext == ".hdr") return AssetType::Texture;
-        if (ext == ".spv" || ext == ".spdv" || ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl") return AssetType::Shader;
+        if (ext == ".frag" || ext == ".vert" || ext == ".geom" || ext == ".comp" || ext == ".glsl" || ext == ".hlsl") return AssetType::Shader;
         if (ext == ".shaderImport") return AssetType::ShaderProgram;
         if (ext == ".h" || ext == ".cpp") return AssetType::Script;
 

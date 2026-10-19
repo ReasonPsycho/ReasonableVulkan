@@ -1300,6 +1300,7 @@ namespace vks
             case MATERIAL_SKYBOX_GLSL:
             case WIREMESH_GLSL:
             case MESH_VERTEX_GLSL:
+            case UI_OVERLAY_GLSL:
                 layouts.push_back(bindlessLayout);
                 break;
             }

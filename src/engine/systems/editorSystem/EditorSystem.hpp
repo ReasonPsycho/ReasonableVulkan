@@ -21,6 +21,8 @@
 #include <imgui_internal.h>
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
+#include "systems/hudSystem/components/RectTransformComponent.hpp"
+#include "systems/hudSystem/components/UIImageComponent.hpp"
 #include "ecs/Types.h"
 #include "CommandHistory.hpp"
 #include "EditorCommands.hpp"

@@ -149,6 +149,11 @@ namespace vks {
         renderManager->submitLightCommand(directionalLightData, transform);
     }
 
+    void VulkanRenderer::drawUIQuad(uint32_t cameraIndex, const gfx::UIQuadData& quadData)
+    {
+        renderManager->drawUIQuad(cameraIndex, quadData);
+    }
+
 
     void VulkanRenderer::beginFrame() {
         if (!minimized)
@@ -217,28 +222,36 @@ namespace vks {
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = descriptorManager->getAllLayouts();
 
         // Load shader programs
-        pbrShaderHandle = descriptorManager->getOrLoadShaderProgram("pbrShader");
+        pbrShaderHandle = descriptorManager->getOrLoadShaderProgram("pbr.shaderprogram");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(pbrShaderHandle));
 
-        auto wiremesh = descriptorManager->getOrLoadShaderProgram("wiremeshShader");
+        auto wiremesh = descriptorManager->getOrLoadShaderProgram("wiremesh.shaderprogram");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(wiremesh));
 
-        auto wiremesh_textured = descriptorManager->getOrLoadShaderProgram("wiremeshTexturedShader");
+        auto wiremesh_textured = descriptorManager->getOrLoadShaderProgram("wiremesh_textured.shaderprogram");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(wiremesh_textured));
 
-        auto raycast = descriptorManager->getOrLoadShaderProgram("raycastShader");
+        auto raycast = descriptorManager->getOrLoadShaderProgram("raycast.shaderprogram");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(raycast));
 
-        auto gridOverlay = descriptorManager->getOrLoadShaderProgram("gridOverlayShader");
+        auto gridOverlay = descriptorManager->getOrLoadShaderProgram("grid_overlay.shaderprogram");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(gridOverlay));
 
-        skyboxShaderHandle = descriptorManager->getOrLoadShaderProgram("skyboxShader");
+        skyboxShaderHandle = descriptorManager->getOrLoadShaderProgram("skybox.shaderprogram");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(skyboxShaderHandle));
 
-        auto shadowMapPipeline = descriptorManager->getOrLoadShaderProgram("shadowMapShader");
+        try {
+            hudShaderHandle = descriptorManager->getOrLoadShaderProgram("hud.shaderprogram");
+            pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(hudShaderHandle));
+            renderManager->setHudShaderHandle(hudShaderHandle);
+        } catch (const std::exception& e) {
+            spdlog::warn("HUD shader not loaded or failed to create pipeline: {}", e.what());
+        }
+
+        auto shadowMapPipeline = descriptorManager->getOrLoadShaderProgram("shadowMap.shaderprogram");
         pipelineManager->createShadowPipeline(descriptorManager->getShaderProgram(shadowMapPipeline));
 
-        auto cubeShadowMapPipeline = descriptorManager->getOrLoadShaderProgram("shadowCubeMapShader");
+        auto cubeShadowMapPipeline = descriptorManager->getOrLoadShaderProgram("shadowCubeMap.shaderprogram");
         pipelineManager->createShadowPipeline(descriptorManager->getShaderProgram(cubeShadowMapPipeline));
 
         descriptorManager->updateShadowDescriptorSet(

@@ -57,6 +57,7 @@ namespace engine::ecs {
         glm::vec2 GetGridDimensions() const;
         glm::vec3 GetGridOriginWorld() const;
         glm::mat4 GetDecalModelMatrix() const { return decalModelMatrix; }
+        const std::vector<glm::mat4>& GetReachableCellTransforms() const { return reachableCellTransforms; }
         float GetAnimationTime() const { return animationTime; }
 
         gfx::MeshHandle GetDecalMeshHandle();
@@ -91,6 +92,7 @@ namespace engine::ecs {
 
         float animationTime{0.0f};
         glm::mat4 decalModelMatrix{1.0f};
+        std::vector<glm::mat4> reachableCellTransforms{};
         glm::vec3 decalCenter{0.0f};
         glm::vec2 decalSize{0.0f};
         float groundHeight{0.0f};

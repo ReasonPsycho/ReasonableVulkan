@@ -4,6 +4,7 @@
 
 #include "Handle.hpp"
 #include "LightData.hpp"
+#include "GraphicsEngine.hpp"
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../swapChainManager/SwapChainManager.hpp"
 #include "../renderPipelineManager/RenderPipelineManager.hpp"
@@ -42,6 +43,12 @@ namespace vks {
         glm::vec4 color;
     };
 
+    struct UIQuadRenderCommand
+    {
+        uint32_t cameraIndex;
+        gfx::UIQuadData quadData;
+    };
+
     class RenderManager {
 
 private:
@@ -78,6 +85,8 @@ private:
         void drawModel(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, const glm::mat4& transform);
         void drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
         void drawSkybox(uint32_t cameraIndex, const glm::vec4& color);
+        void drawUIQuad(uint32_t cameraIndex, const gfx::UIQuadData& quadData);
+        void setHudShaderHandle(gfx::ShaderProgramHandle handle) { hudShaderHandle = handle; }
         void submitRenderCommand(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform);
         void submitSkyboxRenderCommand(uint32_t cameraIndex, gfx::MaterialHandle skyboxMaterialHandle, gfx::ShaderProgramHandle renderProgramHandle);
         void submitSkyboxRenderCommand(uint32_t cameraIndex, const glm::vec4& color);
@@ -115,11 +124,13 @@ private:
         gfx::ShaderProgramHandle shadowShaderHandle{gfx::ShaderProgramHandle::invalid()};
         gfx::ShaderProgramHandle cubeShadowShaderHandle{gfx::ShaderProgramHandle::invalid()};
         gfx::ShaderProgramHandle raycastShaderHandle{gfx::ShaderProgramHandle::invalid()};
+        gfx::ShaderProgramHandle hudShaderHandle{gfx::ShaderProgramHandle::invalid()};
 
     private:
         std::vector<RenderCommand> renderQueue;
         std::vector<SkyboxRenderCommand> skyboxRenderQueue;
         std::vector<SkyboxClearCommand> skyboxClearQueue;
+        std::vector<UIQuadRenderCommand> uiRenderQueue;
         std::vector<DirectionalLightBufferData> directionalLightQueue;
         std::vector<PointLightBufferData> pointLightQueue;
         std::vector<SpotLightBufferData> spotLightQueue;

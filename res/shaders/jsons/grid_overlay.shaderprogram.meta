@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "a82c4210-911c-43f1-b1e7-248cd9b18361",
+  "id": "89954df9-c126-47a3-b445-bd6ae6dea637",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\grid_overlay.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "gridOverlayShader",
-  "contentHash": 6512938127394812384,
+  "lookUpName": "grid_overlay.shaderprogram",
+  "contentHash": 5035122063977609880,
   "assetFactoryData": {
-    "importPath": "res\\shaders\\jsons\\grid_overlay.shaderImport",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\grid_overlay.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

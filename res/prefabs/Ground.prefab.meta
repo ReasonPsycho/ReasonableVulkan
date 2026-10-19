@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "d8e9e6a2-0a1c-4b15-addc-21721dfa7e8a",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\prefabs\\Ground.prefab",
+  "type": "Prefab",
+  "lookUpName": "Ground.prefab",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Prefab",
+    "assimpIndex": 0
+  }
+}

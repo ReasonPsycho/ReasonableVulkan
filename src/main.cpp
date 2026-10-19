@@ -35,6 +35,9 @@ int main(int argc, char *argv[]) {
 
     assetManager.Initialize(platform);
 
+   // assetManager.registerAsset("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\jsons\\hud.shaderImport","hudShader");
+
+
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
 
     int width, height;
@@ -45,6 +48,8 @@ int main(int argc, char *argv[]) {
     engine->Initialize();
 
     assetManager.setEngine(engine);
+
+
     // 5. Main loop
     bool running = true;
     while (running) {

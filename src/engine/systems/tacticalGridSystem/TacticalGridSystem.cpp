@@ -1,6 +1,7 @@
 #include "TacticalGridSystem.hpp"
 #include <algorithm>
 #include <limits>
+#include <unordered_set>
 #include <Config.hpp>
 #include "ecs/Scene.h"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
@@ -104,6 +105,7 @@ namespace engine::ecs {
         isOverlayActive = false;
         reachableCells.clear();
         reachableCostMap.clear();
+        reachableCellTransforms.clear();
         ClearHover();
     }
 
@@ -242,6 +244,31 @@ namespace engine::ecs {
         float cellSz = pathSys->GetCellSize();
         if (cellSz <= 0.001f) cellSz = 1.0f;
 
+        reachableCellTransforms.clear();
+        TacticalGridComponent vis = GetActiveVisualSettings();
+        float y = groundHeight + vis.heightOffset;
+
+        std::unordered_set<glm::ivec2, GridPosHash> uniqueCellSet;
+        std::vector<glm::ivec2> uniqueCells;
+        for (const auto& r : reachableCells) {
+            for (int dy = 0; dy < selectedAgentSize; ++dy) {
+                for (int dx = 0; dx < selectedAgentSize; ++dx) {
+                    glm::ivec2 cellPos(r.gridPos.x + dx, r.gridPos.y + dy);
+                    if (uniqueCellSet.insert(cellPos).second) {
+                        uniqueCells.push_back(cellPos);
+                    }
+                }
+            }
+        }
+
+        for (const auto& cellPos : uniqueCells) {
+            float cellCenterX = (static_cast<float>(cellPos.x) + 0.5f) * cellSz;
+            float cellCenterZ = (static_cast<float>(cellPos.y) + 0.5f) * cellSz;
+            glm::mat4 cellMat = glm::translate(glm::mat4(1.0f), glm::vec3(cellCenterX, y, cellCenterZ));
+            cellMat = glm::scale(cellMat, glm::vec3(cellSz * 0.5f, 1.0f, cellSz * 0.5f));
+            reachableCellTransforms.push_back(cellMat);
+        }
+
         int minX = 0, minY = 0, maxX = 0, maxY = 0;
         if (!reachableCells.empty()) {
             minX = std::numeric_limits<int>::max();
@@ -271,9 +298,6 @@ namespace engine::ecs {
         float totalH = static_cast<float>(std::max(1, maxY - minY)) * cellSz;
         float centerX = (static_cast<float>(minX) + static_cast<float>(maxX)) * 0.5f * cellSz;
         float centerZ = (static_cast<float>(minY) + static_cast<float>(maxY)) * 0.5f * cellSz;
-
-        TacticalGridComponent vis = GetActiveVisualSettings();
-        float y = groundHeight + vis.heightOffset;
 
         decalCenter = glm::vec3(centerX, y, centerZ);
         decalSize = glm::vec2(totalW, totalH);

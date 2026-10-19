@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "073ba8e3-7324-4c63-81db-bfd528a0a80b",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\prefabs\\Barrier.prefab",
+  "type": "Prefab",
+  "lookUpName": "Barrier.prefab",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Prefab",
+    "assimpIndex": 0
+  }
+}

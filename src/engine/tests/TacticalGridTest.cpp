@@ -387,7 +387,117 @@ BOOST_AUTO_TEST_CASE(TacticalGridCustomCellSizeAndScalingTest) {
     BOOST_CHECK(decalMat[0][0] > 0.0f);
     BOOST_CHECK(decalMat[2][2] > 0.0f);
 
+    const auto& cellTransforms = tacticalSystem->GetReachableCellTransforms();
+    BOOST_CHECK(!cellTransforms.empty());
+    BOOST_CHECK_EQUAL(cellTransforms.size(), tacticalSystem->GetReachableCells().size());
+
     engine.RemoveScene("TacticalCustomCellSizeScene");
+}
+
+BOOST_AUTO_TEST_CASE(TacticalGridReachableCellTransformsExactMatchTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalExactMatchScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto pathfindingSystem = scene->GetSystem<PathfindingSystem>();
+    BOOST_REQUIRE(pathfindingSystem != nullptr);
+    pathfindingSystem->SetCellSize(1.0f);
+
+    Entity floor = scene->CreateEntity("Floor");
+    TransformComponent tFloor;
+    tFloor.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(floor, tFloor);
+    GridFragment fFloor(5, 5);
+    scene->AddComponent<GridFragment>(floor, fFloor);
+
+    // Place obstacle at (1, 0)
+    Entity obstacle = scene->CreateEntity("Obstacle");
+    TransformComponent tObstacle;
+    tObstacle.position = pathfindingSystem->GridToWorld(glm::ivec2(1, 0), 0.0f, 1);
+    scene->AddComponent<TransformComponent>(obstacle, tObstacle);
+    Obstacle obsComp;
+    scene->AddComponent<Obstacle>(obstacle, obsComp);
+
+    pathfindingSystem->BuildNavGrid();
+
+    auto tacticalSystem = scene->GetSystem<TacticalGridSystem>();
+    BOOST_REQUIRE(tacticalSystem != nullptr);
+
+    Entity agent = scene->CreateEntity("Agent");
+    TransformComponent tAgent;
+    tAgent.position = pathfindingSystem->GridToWorld(glm::ivec2(0, 0), 0.0f, 1);
+    scene->AddComponent<TransformComponent>(agent, tAgent);
+    PathfindingAgent agentComp(1, 1.5f, 2.0f); // 1.5 movement allowance allows distance 1 orthogonal moves
+    scene->AddComponent<PathfindingAgent>(agent, agentComp);
+
+    tacticalSystem->SetSelectedEntity(agent);
+    BOOST_REQUIRE(tacticalSystem->IsOverlayActive());
+
+    // From (0,0) with cost 1.5, reachable: (0,0), (0,1), (1,1) if diagonal allowed (cost 1.414). (1,0) is blocked by obstacle.
+    BOOST_CHECK(!tacticalSystem->IsCellReachable(glm::ivec2(1, 0)));
+    const auto& reachable = tacticalSystem->GetReachableCells();
+    const auto& cellTransforms = tacticalSystem->GetReachableCellTransforms();
+    BOOST_CHECK_EQUAL(cellTransforms.size(), reachable.size());
+
+    // Verify each transform center matches the reachable grid cell world position
+    for (size_t i = 0; i < reachable.size(); ++i) {
+        glm::vec3 expectedWorld = pathfindingSystem->GridToWorld(reachable[i].gridPos, 0.0f, 1);
+        glm::vec4 center = cellTransforms[i] * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        BOOST_CHECK_CLOSE(center.x, expectedWorld.x, 0.01f);
+        BOOST_CHECK_CLOSE(center.z, expectedWorld.z, 0.01f);
+    }
+
+    engine.RemoveScene("TacticalExactMatchScene");
+}
+
+BOOST_AUTO_TEST_CASE(TacticalGridMultiCellDeduplicationTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalDeduplicationScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto pathfindingSystem = scene->GetSystem<PathfindingSystem>();
+    BOOST_REQUIRE(pathfindingSystem != nullptr);
+    pathfindingSystem->SetCellSize(1.0f);
+
+    Entity floor = scene->CreateEntity("Floor");
+    TransformComponent tFloor;
+    tFloor.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(floor, tFloor);
+    GridFragment fFloor(10, 10);
+    scene->AddComponent<GridFragment>(floor, fFloor);
+    pathfindingSystem->BuildNavGrid();
+
+    auto tacticalSystem = scene->GetSystem<TacticalGridSystem>();
+    BOOST_REQUIRE(tacticalSystem != nullptr);
+
+    Entity agent2 = scene->CreateEntity("Agent2");
+    TransformComponent tAgent2;
+    tAgent2.position = pathfindingSystem->GridToWorld(glm::ivec2(0, 0), 0.0f, 2);
+    scene->AddComponent<TransformComponent>(agent2, tAgent2);
+    PathfindingAgent agentComp(2, 5.0f, 1.0f); // allowance 1.0 allows cardinal step of distance 1 for size 2
+    scene->AddComponent<PathfindingAgent>(agent2, agentComp);
+
+    tacticalSystem->SetSelectedEntity(agent2);
+    BOOST_REQUIRE(tacticalSystem->IsOverlayActive());
+
+    // Origin reachable positions from (0,0) with maxCost 1.0 (cardinal directions on symmetric grid):
+    // (0,0), (1,0), (-1,0), (0,1), (0,-1) -> 5 origin positions
+    const auto& reachable = tacticalSystem->GetReachableCells();
+    BOOST_CHECK_EQUAL(reachable.size(), 5);
+
+    // Each origin position covers 2x2 = 4 tiles with overlaps across neighbors:
+    // (5 positions * 4 = 20 overlapping tiles).
+    // Union contains exactly 12 unique tiles: [-1..2] x [-1..2] minus 4 outer corners
+    const auto& cellTransforms = tacticalSystem->GetReachableCellTransforms();
+    BOOST_CHECK_EQUAL(cellTransforms.size(), 12);
+
+    // Each transform must be scaled to exactly 1x1 cell size (0.5 * cellSz = 0.5)
+    for (const auto& mat : cellTransforms) {
+        BOOST_CHECK_CLOSE(mat[0][0], 0.5f, 0.001f);
+        BOOST_CHECK_CLOSE(mat[2][2], 0.5f, 0.001f);
+    }
+
+    engine.RemoveScene("TacticalDeduplicationScene");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

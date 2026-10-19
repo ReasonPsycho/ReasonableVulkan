@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "5c40fcd0-42cb-4098-8372-ad76faaba452",
+  "id": "b29eb1f8-4c4d-4719-bb82-2f3fca1e31d1",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\pbr.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "pbrShader",
+  "lookUpName": "pbr.shaderprogram",
   "contentHash": 12406952476253162472,
   "assetFactoryData": {
-    "importPath": "res\\shaders\\jsons\\pbr.shaderImport",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\pbr.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

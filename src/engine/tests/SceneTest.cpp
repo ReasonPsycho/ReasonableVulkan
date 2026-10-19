@@ -410,4 +410,40 @@ BOOST_AUTO_TEST_CASE(EngineStartPlayModeInvokesOnStartTest) {
     engine.RemoveScene("PlayModeTestScene");
 }
 
+BOOST_AUTO_TEST_CASE(ComponentRemovalSafetyAndCompactionTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("RemovalSafetyScene");
+    BOOST_REQUIRE(scene);
+
+    Entity e1 = scene->CreateEntity("Entity1");
+    Entity e2 = scene->CreateEntity("Entity2");
+    Entity e3 = scene->CreateEntity("Entity3");
+
+    // Attempting to remove non-existent component should safely no-op
+    scene->RemoveComponent<TagComponent>(e1);
+    BOOST_CHECK(!scene->HasComponent<TagComponent>(e1));
+
+    // Add TagComponent to all three entities
+    scene->AddComponent<TagComponent>(e1, TagComponent{"Tag1"});
+    scene->AddComponent<TagComponent>(e2, TagComponent{"Tag2"});
+    scene->AddComponent<TagComponent>(e3, TagComponent{"Tag3"});
+
+    scene->SetComponentActive<TagComponent>(e2, false);
+    scene->SetComponentActive<TagComponent>(e3, true);
+
+    // Remove middle entity's component (causes compaction: e3 moves to index of e2)
+    scene->RemoveComponent<TagComponent>(e2);
+    BOOST_CHECK(!scene->HasComponent<TagComponent>(e2));
+    BOOST_CHECK(scene->HasComponent<TagComponent>(e1));
+    BOOST_CHECK(scene->HasComponent<TagComponent>(e3));
+    BOOST_CHECK_EQUAL(scene->GetComponent<TagComponent>(e1).tag, "Tag1");
+    BOOST_CHECK_EQUAL(scene->GetComponent<TagComponent>(e3).tag, "Tag3");
+    BOOST_CHECK(scene->IsComponentActive<TagComponent>(e3));
+
+    // Repeated removal should safely no-op
+    scene->RemoveComponent<TagComponent>(e2);
+
+    engine.RemoveScene("RemovalSafetyScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

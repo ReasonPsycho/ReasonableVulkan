@@ -2,6 +2,8 @@
 #include "../src/base/VulkanTools.h"
 #include "../src/base/VulkanInitializers.hpp"
 #include "../src/base/VulkanBuffer.h"
+#include "../include/GraphicsEngine.hpp"
+#include "../src/descriptorManager/buffers/UIPushConstant.hpp"
 
 BOOST_AUTO_TEST_SUITE(VksHelpersTestSuite)
 
@@ -111,6 +113,34 @@ BOOST_AUTO_TEST_CASE(VulkanBufferDescriptorSetupTest) {
     buf.setupDescriptor();
     BOOST_CHECK_EQUAL(buf.descriptor.range, VK_WHOLE_SIZE);
     BOOST_CHECK_EQUAL(buf.descriptor.offset, 0);
+}
+
+BOOST_AUTO_TEST_CASE(UIQuadDataAndPushConstantTest) {
+    gfx::UIQuadData quadData{};
+    quadData.screenPosition = glm::vec2(100.0f, 200.0f);
+    quadData.size = glm::vec2(300.0f, 150.0f);
+    quadData.color = glm::vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    quadData.uvRect = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+    quadData.layer = 2;
+
+    BOOST_CHECK_EQUAL(quadData.screenPosition.x, 100.0f);
+    BOOST_CHECK_EQUAL(quadData.screenPosition.y, 200.0f);
+    BOOST_CHECK_EQUAL(quadData.size.x, 300.0f);
+    BOOST_CHECK_EQUAL(quadData.size.y, 150.0f);
+    BOOST_CHECK_EQUAL(quadData.layer, 2);
+
+    vks::UIPushConstant pc{};
+    pc.screenResolution = glm::vec2(1920.0f, 1080.0f);
+    pc.quadPosition = quadData.screenPosition;
+    pc.quadSize = quadData.size;
+    pc.uvRect = quadData.uvRect;
+    pc.color = quadData.color;
+    pc.textureIndex = 7;
+
+    BOOST_CHECK_EQUAL(pc.screenResolution.x, 1920.0f);
+    BOOST_CHECK_EQUAL(pc.screenResolution.y, 1080.0f);
+    BOOST_CHECK_EQUAL(pc.textureIndex, 7);
+    BOOST_CHECK_EQUAL(sizeof(vks::UIPushConstant) % 16, 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

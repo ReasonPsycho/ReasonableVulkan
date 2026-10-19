@@ -97,6 +97,10 @@ namespace vks
                result.push_back(ShaderDefinesEnum::INSTANCE_SSBO_GLSL);
            }else if (key == "TACTICAL_GRID_GLSL")  {
                result.push_back(ShaderDefinesEnum::TACTICAL_GRID_GLSL);
+           }else if (key == "UI_OVERLAY_GLSL")  {
+               result.push_back(ShaderDefinesEnum::UI_OVERLAY_GLSL);
+           }else if (key == "UI_PC_GLSL")  {
+               result.push_back(ShaderDefinesEnum::UI_PC_GLSL);
            }
        }
         return result;

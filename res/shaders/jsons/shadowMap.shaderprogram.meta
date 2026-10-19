@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "82dc6362-6bf7-4a1c-b71f-3ad89519fceb",
+  "id": "f8a7caec-8557-4c58-aa6a-b7b4ab241f1a",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\shadowMap.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "shadowMapShader",
+  "lookUpName": "shadowMap.shaderprogram",
   "contentHash": 12432936510796057220,
   "assetFactoryData": {
-    "importPath": "res\\shaders\\jsons\\shadowMap.shaderImport",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\shadowMap.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

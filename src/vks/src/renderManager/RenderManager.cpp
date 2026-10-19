@@ -10,6 +10,7 @@
 
 #include "../descriptorManager/buffers/LightModelPushConstant.hpp"
 #include "../descriptorManager/buffers/ModelPushConstant.hpp"
+#include "../descriptorManager/buffers/UIPushConstant.hpp"
 
 namespace vks {
 
@@ -179,6 +180,11 @@ void RenderManager::drawSkybox(uint32_t cameraIndex, gfx::MaterialHandle skyboxM
 void RenderManager::drawSkybox(uint32_t cameraIndex, const glm::vec4& color)
 {
     skyboxClearQueue.push_back(SkyboxClearCommand{cameraIndex, color});
+}
+
+void RenderManager::drawUIQuad(uint32_t cameraIndex, const gfx::UIQuadData& quadData)
+{
+    uiRenderQueue.push_back(UIQuadRenderCommand{cameraIndex, quadData});
 }
 
 void RenderManager::submitRenderCommand(uint32_t cameraIndex, gfx::MeshHandle meshHandle, gfx::MaterialHandle materialHandle, gfx::ShaderProgramHandle renderProgramHandle, glm::mat4 transform)
@@ -884,12 +890,65 @@ void RenderManager::endFrame() {
                 );
             }
 
+            // Process UI & HUD quad render queue for this camera
+            if (!uiRenderQueue.empty() && hudShaderHandle.isValid() && pipelineManager->hasPipeline(hudShaderHandle)) {
+                std::vector<const UIQuadRenderCommand*> cameraUICommands;
+                for (const auto& cmd : uiRenderQueue) {
+                    if (cmd.cameraIndex == i) {
+                        cameraUICommands.push_back(&cmd);
+                    }
+                }
+
+                if (!cameraUICommands.empty()) {
+                    std::stable_sort(cameraUICommands.begin(), cameraUICommands.end(), [](const UIQuadRenderCommand* a, const UIQuadRenderCommand* b) {
+                        return a->quadData.layer < b->quadData.layer;
+                    });
+
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineManager->getPipeline(hudShaderHandle));
+
+                    auto shaderProgramDescriptor = descriptorManager->getShaderProgram(hudShaderHandle);
+                    if (shaderProgramDescriptor) {
+                        bindPipelineDescriptors(commandBuffer, hudShaderHandle, i, shaderProgramDescriptor->getDefines());
+                    }
+
+                    for (const auto* cmd : cameraUICommands) {
+                        uint32_t texIdx = 0xFFFFFFFF;
+                        if (cmd->quadData.texture.isValid()) {
+                            auto texDesc = descriptorManager->getTexture(cmd->quadData.texture);
+                            if (texDesc) {
+                                texIdx = texDesc->getSlotIndex();
+                            }
+                        }
+
+                        UIPushConstant push_ui{};
+                        push_ui.screenResolution = glm::vec2(swapChain->getSwapChainExtent().width, swapChain->getSwapChainExtent().height);
+                        push_ui.quadPosition = cmd->quadData.screenPosition;
+                        push_ui.quadSize = cmd->quadData.size;
+                        push_ui.uvRect = cmd->quadData.uvRect;
+                        push_ui.color = cmd->quadData.color;
+                        push_ui.textureIndex = texIdx;
+
+                        vkCmdPushConstants(
+                            commandBuffer,
+                            pipelineManager->getPipelineLayout(hudShaderHandle),
+                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                            0,
+                            sizeof(UIPushConstant),
+                            &push_ui
+                        );
+
+                        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+                    }
+                }
+            }
+
             vkCmdEndRenderPass(commandBuffer);
         }
 
         skyboxRenderQueue.clear();
         skyboxClearQueue.clear();
         renderQueue.clear();
+        uiRenderQueue.clear();
 
 #ifdef ENABLE_IMGUI
         imguiManager->imguiRenderFrame(commandBuffer, imageIndex);
@@ -951,7 +1010,8 @@ void RenderManager::bindPipelineDescriptors(VkCommandBuffer commandBuffer, gfx::
                        std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != defines.end() ||
                        std::find(defines.begin(), defines.end(), ShaderDefinesEnum::WIREMESH_GLSL) != defines.end() ||
                        std::find(defines.begin(), defines.end(), ShaderDefinesEnum::MESH_VERTEX_GLSL) != defines.end() ||
-                       std::find(defines.begin(), defines.end(), ShaderDefinesEnum::INSTANCE_SSBO_GLSL) != defines.end();
+                       std::find(defines.begin(), defines.end(), ShaderDefinesEnum::INSTANCE_SSBO_GLSL) != defines.end() ||
+                       std::find(defines.begin(), defines.end(), ShaderDefinesEnum::UI_OVERLAY_GLSL) != defines.end();
     bool hasLighting = std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHTING_COMMON_GLSL) != defines.end() ||
                        std::find(defines.begin(), defines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != defines.end();
 

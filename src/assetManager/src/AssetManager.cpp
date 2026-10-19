@@ -49,6 +49,25 @@ namespace am {
                          this->handleFileDropped(event);
                      });
         }
+
+        if (std::filesystem::exists("res")) {
+            resourceFolder = std::filesystem::absolute("res").lexically_normal().string();
+        } else if (std::filesystem::exists("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res")) {
+            resourceFolder = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
+        }
+
+        fileBrowserInstance = std::make_unique<FileBrowser>(this);
+        fileBrowserInstance->currentPath = resourceFolder;
+        imguiFileBrowser = fileBrowserInstance.get();
+
+        // Auto-register all supported engine assets at compile time using reflection
+        ForEachType<SupportedAssets>([this]<typename T>() {
+            this->RegisterAssetType<T>();
+        });
+
+        scanResourceDirectory(resourceFolder);
+        fileBrowserInstance->loadFileBrowserConfig();
+
         checkAndRecompileOutdatedShaders();
     }
 
@@ -195,12 +214,23 @@ namespace am {
         std::string baseName = p.stem().string();
 
         std::string lookUpName = baseName + GetExtensionFromAssetType(assetType);
+        std::string sfx = "";
+        if (assetType == AssetType::Shader) {
+            if (extension == ".vert") sfx = ".vs";
+            else if (extension == ".frag") sfx = ".fs";
+            else if (extension == ".comp") sfx = ".cs";
+            else if (extension == ".geom") sfx = ".gs";
+            else if (extension == ".tesc") sfx = ".tcs";
+            else if (extension == ".tese") sfx = ".tes";
+            else if (extension == ".glsl") sfx = ".glsl";
+            lookUpName = baseName + sfx + GetExtensionFromAssetType(assetType);
+        }
 
         int counter = 1;
 
         while (lookupNamesToUUIDs.find(lookUpName) != lookupNamesToUUIDs.end())
         {
-            lookUpName = baseName + "_" + std::to_string(counter) +  GetExtensionFromAssetType(assetType);
+            lookUpName = baseName + (assetType == AssetType::Shader ? (sfx + "_") : "_") + std::to_string(counter) +  GetExtensionFromAssetType(assetType);
             counter++;
         }
 
@@ -707,23 +737,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     AssetManager::AssetManager() : AssetManagerInterface()
     {
-        if (std::filesystem::exists("res")) {
-            resourceFolder = std::filesystem::absolute("res").lexically_normal().string();
-        } else if (std::filesystem::exists("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res")) {
-            resourceFolder = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
-        }
 
-        fileBrowserInstance = std::make_unique<FileBrowser>(this);
-        fileBrowserInstance->currentPath = resourceFolder;
-        imguiFileBrowser = fileBrowserInstance.get();
-
-        // Auto-register all supported engine assets at compile time using reflection
-        ForEachType<SupportedAssets>([this]<typename T>() {
-            this->RegisterAssetType<T>();
-        });
-
-        scanResourceDirectory(resourceFolder);
-        fileBrowserInstance->loadFileBrowserConfig();
     }
 
     AssetManager::~AssetManager() {
@@ -921,7 +935,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         }
 
         if (ext == ".vert" || ext == ".frag" || ext == ".comp" || ext == ".geom" ||
-            ext == ".tesc" || ext == ".tese" || ext == ".shaderImport" || ext == ".shaderprogram")
+            ext == ".tesc" || ext == ".tese" || ext == ".shaderImport" || ext == ".glsl")
         {
             spdlog::info("AssetManager: Shader file modified ({}), reimporting asset", filePath.string());
             reimportAsset(filePath);
@@ -953,6 +967,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         }
 
         // 1. Scan for any raw shader source files and .shaderImport files that are not registered
+        std::vector<std::string> pendingImports;
         for (const auto& entry : std::filesystem::recursive_directory_iterator(resPath, ec))
         {
             if (!entry.is_regular_file(ec)) continue;
@@ -964,10 +979,14 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 if (!getAssetUuidByPath(p).has_value()) {
                     ImportContext ctx(p, GetAssetTypeFromExtension(ext));
                     if (!findAssetByImportContext(ctx).has_value()) {
-                        registerAsset(p);
+                        pendingImports.push_back(p);
                     }
                 }
             }
+        }
+
+        for (const auto& p : pendingImports) {
+            registerAsset(p);
         }
 
         // 2. Find latest modification time of any shader include files (.glsl / common)
@@ -1131,18 +1150,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         std::filesystem::path fullA = resolveFull(pA);
         std::filesystem::path fullB = resolveFull(pB);
 
-        if (normalizePathStr(fullA) == normalizePathStr(fullB)) {
-            return true;
-        }
-
-        std::error_code ec;
-        if (std::filesystem::exists(fullA, ec) && std::filesystem::exists(fullB, ec)) {
-            if (std::filesystem::equivalent(fullA, fullB, ec)) {
-                return true;
-            }
-        }
-
-        return false;
+        return normalizePathStr(fullA) == normalizePathStr(fullB);
     }
 
     std::optional<boost::uuids::uuid> AssetManager::findAssetByImportContext(const ImportContext& importContext) const
@@ -1199,14 +1207,41 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             }
         }
 
-        auto ext = normalPath.extension().string();
-        AssetType expectedType = GetAssetTypeFromExtension(ext);
-
         auto cacheAndReturn = [this, &normalPathStr, &genPathStr](boost::uuids::uuid foundId) -> boost::uuids::uuid {
             pathToUUID[normalPathStr] = foundId;
             if (genPathStr != normalPathStr) pathToUUID[genPathStr] = foundId;
             return foundId;
         };
+
+        std::string normalResourceFolder = std::filesystem::path(resourceFolder).lexically_normal().string();
+        std::string pStr = normalPathStr;
+        std::string pLower = pStr;
+        for (char& c : pLower) {
+            if (c == '/') c = '\\';
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        std::string resLower = normalResourceFolder;
+        for (char& c : resLower) {
+            if (c == '/') c = '\\';
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        if (pLower.rfind(resLower, 0) == 0) {
+            std::string sub = pStr.substr(normalResourceFolder.length());
+            while (!sub.empty() && (sub[0] == '/' || sub[0] == '\\')) sub.erase(0, 1);
+            std::string relStr = (std::filesystem::path("res") / sub).lexically_normal().string();
+            auto itRel = pathToUUID.find(relStr);
+            if (itRel != pathToUUID.end()) {
+                return cacheAndReturn(itRel->second);
+            }
+            std::string relGenStr = (std::filesystem::path("res") / sub).generic_string();
+            itRel = pathToUUID.find(relGenStr);
+            if (itRel != pathToUUID.end()) {
+                return cacheAndReturn(itRel->second);
+            }
+        }
+
+        auto ext = normalPath.extension().string();
+        AssetType expectedType = GetAssetTypeFromExtension(ext);
 
         // 1. Direct match on info->path
         for (const auto& [id, info] : metadata)
@@ -1250,7 +1285,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             return cacheAndReturn(it->second);
         }
 
-        if (expectedType != AssetType::Other)
+        if (expectedType != AssetType::Other && expectedType != AssetType::Shader)
         {
             std::string typedLookUpName = normalPath.stem().string() + GetExtensionFromAssetType(expectedType);
             it = lookupNamesToUUIDs.find(typedLookUpName);
@@ -1259,43 +1294,69 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                 return cacheAndReturn(it->second);
             }
         }
-
-        std::string stemName = normalPath.stem().string();
-        it = lookupNamesToUUIDs.find(stemName);
-        if (it != lookupNamesToUUIDs.end())
+        else if (expectedType == AssetType::Shader)
         {
-            return cacheAndReturn(it->second);
-        }
-
-        // 4. Match by stem and parent path against metadata
-        for (const auto& [id, info] : metadata)
-        {
-            if (expectedType != AssetType::Other && info->type != expectedType) continue;
-            std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
-            if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+            std::string sfx = "";
+            if (ext == ".vert") sfx = ".vs";
+            else if (ext == ".frag") sfx = ".fs";
+            else if (ext == ".comp") sfx = ".cs";
+            else if (ext == ".geom") sfx = ".gs";
+            else if (ext == ".tesc") sfx = ".tcs";
+            else if (ext == ".tese") sfx = ".tes";
+            if (!sfx.empty())
             {
-                return cacheAndReturn(id);
-            }
-            if (!info->importContext.importPath.empty()) {
-                std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
-                if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+                std::string typedLookUpName = normalPath.stem().string() + sfx + GetExtensionFromAssetType(expectedType);
+                it = lookupNamesToUUIDs.find(typedLookUpName);
+                if (it != lookupNamesToUUIDs.end())
                 {
-                    return cacheAndReturn(id);
+                    return cacheAndReturn(it->second);
                 }
             }
         }
-        for (const auto& [id, info] : metadata)
+
+        std::string stemName = normalPath.stem().string();
+        if (expectedType != AssetType::Shader)
         {
-            std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
-            if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+            it = lookupNamesToUUIDs.find(stemName);
+            if (it != lookupNamesToUUIDs.end())
             {
-                return cacheAndReturn(id);
+                return cacheAndReturn(it->second);
             }
-            if (!info->importContext.importPath.empty()) {
-                std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
-                if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+        }
+
+        // 4. Match by stem and parent path against metadata
+        if (expectedType != AssetType::Shader)
+        {
+            for (const auto& [id, info] : metadata)
+            {
+                if (expectedType != AssetType::Other && info->type != expectedType) continue;
+                std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
+                if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
                 {
                     return cacheAndReturn(id);
+                }
+                if (!info->importContext.importPath.empty()) {
+                    std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
+                    if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+                    {
+                        return cacheAndReturn(id);
+                    }
+                }
+            }
+            for (const auto& [id, info] : metadata)
+            {
+                if (info->type == AssetType::Shader) continue;
+                std::filesystem::path infoP = std::filesystem::path(info->path).lexically_normal();
+                if (infoP.stem() == normalPath.stem() && isSamePath(infoP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+                {
+                    return cacheAndReturn(id);
+                }
+                if (!info->importContext.importPath.empty()) {
+                    std::filesystem::path impP = std::filesystem::path(info->importContext.importPath).lexically_normal();
+                    if (impP.stem() == normalPath.stem() && isSamePath(impP.parent_path().string(), normalPath.parent_path().string(), resourceFolder))
+                    {
+                        return cacheAndReturn(id);
+                    }
                 }
             }
         }
@@ -1328,6 +1389,32 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         metadata[infoPtr->id] = infoPtr;
                         lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
                         return cacheAndReturn(infoPtr->id);
+                    }
+                }
+            }
+
+            if (expectedType == AssetType::Shader)
+            {
+                std::string sfx = "";
+                if (ext == ".vert") sfx = "vs";
+                else if (ext == ".frag") sfx = "fs";
+                else if (ext == ".comp") sfx = "cs";
+                else if (ext == ".geom") sfx = "gs";
+                else if (ext == ".tesc") sfx = "tcs";
+                else if (ext == ".tese") sfx = "tes";
+                if (!sfx.empty()) {
+                    std::filesystem::path bShaderMeta = normalPath.parent_path() / (normalPath.stem().string() + ".b_" + sfx + "_shader.meta");
+                    if (std::filesystem::exists(bShaderMeta)) {
+                        rapidjson::Document doc;
+                        if (loadJsonFromFile(bShaderMeta.string(), doc)) {
+                            if (doc.IsObject() && doc.HasMember("id") && doc.HasMember("type")) {
+                                auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(doc);
+                                auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
+                                metadata[infoPtr->id] = infoPtr;
+                                lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
+                                return cacheAndReturn(infoPtr->id);
+                            }
+                        }
                     }
                 }
             }

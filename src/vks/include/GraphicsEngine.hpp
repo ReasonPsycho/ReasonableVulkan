@@ -18,6 +18,15 @@ namespace plt
 }
 
 namespace gfx {
+    struct UIQuadData {
+        glm::vec2 screenPosition{0.0f, 0.0f}; // Top-left position in pixel coordinates
+        glm::vec2 size{100.0f, 100.0f};       // Width, Height in pixels
+        glm::vec4 color{1.0f, 1.0f, 1.0f, 1.0f}; // Tint color
+        glm::vec4 uvRect{0.0f, 0.0f, 1.0f, 1.0f}; // UV bounds (uMin, vMin, uMax, vMax)
+        TextureHandle texture{TextureHandle::invalid()}; // Texture handle
+        int layer{0};                         // Sorting depth / zIndex
+    };
+
     class GraphicsEngine {
     protected:
         GraphicsEngine() = default;
@@ -41,6 +50,7 @@ namespace gfx {
         virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(DirectionalLightData directionalLightData, const glm::mat4& transform) = 0;
+        virtual void drawUIQuad(uint32_t cameraIndex, const UIQuadData& quadData) {}
 
         // Asset registration / handle acquisition
         virtual ModelHandle loadModel(boost::uuids::uuid uuid) = 0;

@@ -51,6 +51,7 @@ namespace vks {
 		void drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform) override;
+		void drawUIQuad(uint32_t cameraIndex, const gfx::UIQuadData& quadData) override;
 
 		void beginFrame() override;
 		void renderFrame() override;
@@ -85,6 +86,7 @@ namespace vks {
 #endif
 		gfx::ShaderProgramHandle pbrShaderHandle{gfx::ShaderProgramHandle::invalid()};
 		gfx::ShaderProgramHandle skyboxShaderHandle{gfx::ShaderProgramHandle::invalid()};
+		gfx::ShaderProgramHandle hudShaderHandle{gfx::ShaderProgramHandle::invalid()};
 
 		struct ThumbnailTextureResource {
 			VkImage image = VK_NULL_HANDLE;

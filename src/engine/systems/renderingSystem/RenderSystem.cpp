@@ -191,12 +191,20 @@ void engine::ecs::RenderSystem::Update(float deltaTime)
     {
         gfx::MeshHandle decalMesh = tacticalGridSystem->GetDecalMeshHandle();
         gfx::ShaderProgramHandle gridShader = tacticalGridSystem->GetGridShaderHandle();
-        glm::mat4 decalTransform = tacticalGridSystem->GetDecalModelMatrix();
+        const auto& cellTransforms = tacticalGridSystem->GetReachableCellTransforms();
 
         if (decalMesh.isValid() && gridShader.isValid()) {
             for (uint32_t camIdx : targetCameraIndices) {
-                scene->engine.graphicsEngine->drawModel(camIdx, decalMesh, gfx::MaterialHandle::invalid(), gridShader,
-                                                        decalTransform);
+                if (!cellTransforms.empty()) {
+                    for (const auto& cellTransform : cellTransforms) {
+                        scene->engine.graphicsEngine->drawModel(camIdx, decalMesh, gfx::MaterialHandle::invalid(), gridShader,
+                                                                cellTransform);
+                    }
+                } else {
+                    glm::mat4 decalTransform = tacticalGridSystem->GetDecalModelMatrix();
+                    scene->engine.graphicsEngine->drawModel(camIdx, decalMesh, gfx::MaterialHandle::invalid(), gridShader,
+                                                            decalTransform);
+                }
             }
         }
     }

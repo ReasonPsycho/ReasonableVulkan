@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "16686c67-a39d-425c-be2e-3fc48ea9973c",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\hud.shaderprogram",
+  "type": "ShaderProgram",
+  "lookUpName": "hud.shaderprogram",
+  "contentHash": 3470557665902212319,
+  "assetFactoryData": {
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\hud.shaderImport",
+    "assetType": "ShaderProgram",
+    "assimpIndex": 0
+  }
+}
