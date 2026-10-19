@@ -60,10 +60,6 @@ namespace am {
         fileBrowserInstance->currentPath = resourceFolder;
         imguiFileBrowser = fileBrowserInstance.get();
 
-        // Auto-register all supported engine assets at compile time using reflection
-        ForEachType<SupportedAssets>([this]<typename T>() {
-            this->RegisterAssetType<T>();
-        });
 
         scanResourceDirectory(resourceFolder);
         fileBrowserInstance->loadFileBrowserConfig();
@@ -737,7 +733,10 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     AssetManager::AssetManager() : AssetManagerInterface()
     {
-
+        // Auto-register all supported engine assets at compile time using reflection
+        ForEachType<SupportedAssets>([this]<typename T>() {
+            this->RegisterAssetType<T>();
+        });
     }
 
     AssetManager::~AssetManager() {

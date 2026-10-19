@@ -4,14 +4,14 @@
     "version": "1.0"
   },
   "uuid": "199ce209-5c6a-49a5-9de7-c35dacbbb2d3",
-  "baseColorTexture": "6ba3acad-d221-40d7-acd4-8b5e9ffbcaeb",
+  "baseColorTexture": "07889b02-6c63-4262-bc41-deb3070a2d51",
   "baseColorFactor": [
     1.0,
     1.0,
     1.0,
     1.0
   ],
-  "diffuseTexture": "6ba3acad-d221-40d7-acd4-8b5e9ffbcaeb",
+  "diffuseTexture": "07889b02-6c63-4262-bc41-deb3070a2d51",
   "metallicFactor": 1.0,
   "roughnessFactor": 0.5,
   "specularFactor": [

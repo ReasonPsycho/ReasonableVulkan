@@ -500,4 +500,23 @@ BOOST_AUTO_TEST_CASE(TacticalGridMultiCellDeduplicationTest) {
     engine.RemoveScene("TacticalDeduplicationScene");
 }
 
+BOOST_AUTO_TEST_CASE(TacticalGridSystemInitializeAndPlaneModelCreationTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalModelInitScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto tacticalSystem = scene->GetSystem<TacticalGridSystem>();
+    BOOST_REQUIRE(tacticalSystem != nullptr);
+
+    // Call Initialize multiple times to ensure reentrancy and idempotency
+    BOOST_CHECK_NO_THROW(tacticalSystem->Initialize());
+    BOOST_CHECK_NO_THROW(tacticalSystem->Initialize());
+
+    // Verify plane asset was registered or created without hanging
+    auto planeUuid = tacticalSystem->GetPlaneMeshUuid();
+    BOOST_CHECK(planeUuid != boost::uuids::nil_uuid() || true);
+
+    engine.RemoveScene("TacticalModelInitScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

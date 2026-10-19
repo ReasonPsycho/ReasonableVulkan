@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "e1a2feab-7203-4a01-ae07-f94b1079ebd0",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\raycast.shaderprogram",
+  "id": "0b9fb63e-dc40-4666-8e38-837f62e7f059",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\raycast.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "raycast.shaderprogram",
   "contentHash": 8539904456255116551,
   "assetFactoryData": {
-    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\raycast.shaderImport",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\jsons\\raycast.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

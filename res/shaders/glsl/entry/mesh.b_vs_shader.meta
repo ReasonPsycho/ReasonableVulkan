@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "520aedf1-363a-4584-a23c-d99f28fb465e",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\glsl\\entry\\mesh.b_vs_shader",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\mesh.b_vs_shader",
   "type": "Shader",
   "lookUpName": "mesh.vs.shader",
   "contentHash": 3869435668356467532,

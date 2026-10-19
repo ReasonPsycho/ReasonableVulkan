@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "16686c67-a39d-425c-be2e-3fc48ea9973c",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\hud.shaderprogram",
+  "id": "018c683f-06f2-4744-97e0-267c791b3975",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\hud.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "hud.shaderprogram",
-  "contentHash": 3470557665902212319,
+  "contentHash": 14145046677027138950,
   "assetFactoryData": {
-    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\hud.shaderImport",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\jsons\\hud.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

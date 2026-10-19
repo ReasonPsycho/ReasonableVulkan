@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "678ab594-5ba4-4dad-adfe-969520c0ea78",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\glsl\\entry\\hud.b_vs_shader",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\hud.b_vs_shader",
   "type": "Shader",
   "lookUpName": "hud.vs.shader",
   "contentHash": 9098774980795636982,

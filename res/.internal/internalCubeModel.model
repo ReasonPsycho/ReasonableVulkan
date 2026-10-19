@@ -1,5 +1,5 @@
 ﻿{
-  "uuid": "397e10a8-daa8-43f2-ac13-4a6f81f3e0fc",
+  "uuid": "e6e850ff-f63b-4add-a2b9-8aeb7d27dbcf",
   "boundingBoxMin": [
     -0.5,
     -0.5,
@@ -53,7 +53,7 @@
           1.0
         ],
         "meshes": [
-          "b593f4cf-f7fd-41f6-aaf9-eefefbc6b6ce"
+          "15715f1e-0085-406e-a317-c8e767a4774b"
         ],
         "children": []
       }

@@ -62,6 +62,8 @@ namespace engine::ecs {
 
         gfx::MeshHandle GetDecalMeshHandle();
         gfx::ShaderProgramHandle GetGridShaderHandle();
+        boost::uuids::uuid GetPlaneMeshUuid() const { return planeMeshUuid; }
+        boost::uuids::uuid GetPlaneAssetUuid() const { return planeAssetUuid; }
 
         void Initialize();
 

@@ -27,6 +27,12 @@ namespace engine::ecs
             return;
         }
 
+        static bool isInitializing = false;
+        if (isInitializing) {
+            return;
+        }
+        isInitializing = true;
+
         auto rayUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("internalRayModel");
         if (!rayUuidOpt.has_value())
         {
@@ -139,6 +145,8 @@ namespace engine::ecs
                 cubeShaderHandle = scene->engine.graphicsEngine->loadShader(cubeShaderUuid);
             }
         }
+
+        isInitializing = false;
     }
 
     void GizmoSystem::Update(float deltaTime)

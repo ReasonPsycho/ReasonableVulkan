@@ -16,9 +16,13 @@ void vks::ModelDescriptor::loadNode(DescriptorManager* assetHandleManager,NodeDe
 
     // Node contains mesh data
         for (auto i = 0; i < node.meshes.size(); i++) {
+            if (node.meshes[i] && !node.meshes[i]->id.is_nil() && assetHandleManager) {
                 MeshDescriptor* meshHandle =  assetHandleManager->getOrLoadResource<MeshDescriptor>(node.meshes[i]->id);
-                model.meshes.push_back(meshHandle);
-				newNode->meshes.push_back(meshHandle);
+                if (meshHandle) {
+                    model.meshes.push_back(meshHandle);
+                    newNode->meshes.push_back(meshHandle);
+                }
+            }
         }
 
     if (parent) {

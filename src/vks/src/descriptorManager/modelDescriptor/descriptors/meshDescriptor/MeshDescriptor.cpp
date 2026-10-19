@@ -15,10 +15,12 @@ namespace vks {
 vks::MeshDescriptor::MeshDescriptor(const boost::uuids::uuid& assetId, DescriptorManager* assetHandleManager, am::MeshData& meshData, 
     glm::mat4 matrix, VulkanContext& vulkanContext) 
     : IVulkanDescriptor(assetId, vulkanContext),
-    firstIndex(0), indexCount(0), firstVertex(0), vertexCount(0)
+    firstIndex(0), indexCount(0), firstVertex(0), vertexCount(0), material(nullptr)
 {
     this->uniformBlock.matrix = matrix;
-    this->material = assetHandleManager->getOrLoadResource<vks::MaterialDescriptor>(meshData.material->id);
+    if (meshData.material && !meshData.material->id.is_nil() && assetHandleManager) {
+        this->material = assetHandleManager->getOrLoadResource<vks::MaterialDescriptor>(meshData.material->id);
+    }
 
     // Create vertex buffer
     VkDeviceSize vertexBufferSize = sizeof(am::VertexAsset) * meshData.vertices.size();

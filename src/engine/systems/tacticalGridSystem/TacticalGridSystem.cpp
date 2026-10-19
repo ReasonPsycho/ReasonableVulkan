@@ -21,6 +21,12 @@ namespace engine::ecs {
             return;
         }
 
+        static bool isInitializing = false;
+        if (isInitializing) {
+            return;
+        }
+        isInitializing = true;
+
         auto planeUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("internalTacticalPlaneModel");
         if (!planeUuidOpt.has_value())
         {
@@ -62,6 +68,8 @@ namespace engine::ecs {
         if (shaderOpt.has_value()) {
             gridShaderUuid = shaderOpt.value();
         }
+
+        isInitializing = false;
     }
 
     gfx::MeshHandle TacticalGridSystem::GetDecalMeshHandle() {
