@@ -5,7 +5,9 @@ using namespace engine::ecs;
 
 template <typename T>
 ComponentID IntegralComponentArray<T>::AddComponentToEntity(Entity entity, T component) {
-    assert(entity < MAX_ENTITIES);
+    if (entity >= MAX_ENTITIES) {
+        return entity;
+    }
     componentArray[entity] = component;
     activeComponents[entity] = true;
     return entity;
@@ -21,14 +23,20 @@ ComponentID IntegralComponentArray<T>::RemoveComponentFronEntity(Entity entity) 
 
 template <typename T>
 T& IntegralComponentArray<T>::GetComponentFromEntity(Entity entity) {
-    assert(entity < MAX_ENTITIES);
+    if (entity >= MAX_ENTITIES) {
+        static T defaultComponent{};
+        return defaultComponent;
+    }
     return componentArray[entity];
 }
 
 template <typename T>
 T& IntegralComponentArray<T>::GetComponent(ComponentID componentId)
 {
-    assert(componentId < MAX_ENTITIES);
+    if (componentId >= MAX_ENTITIES) {
+        static T defaultComponent{};
+        return defaultComponent;
+    }
     return componentArray[componentId];
 }
 
@@ -69,7 +77,9 @@ ComponentID IntegralComponentArray<T>::AddComponentUntyped(Entity entity)
 template <typename T>
 void* IntegralComponentArray<T>::GetComponentUntyped(Entity entity)
 {
-    assert(entity < MAX_ENTITIES);
+    if (entity >= MAX_ENTITIES) {
+        return nullptr;
+    }
     return &componentArray[entity];
 }
 
@@ -170,7 +180,9 @@ void IntegralComponentArray<T>::SerializeEntitiesToJson(const std::vector<Entity
 
 template <typename T>
 void IntegralComponentArray<T>::DeserializeEntityComponent(Entity entity, const rapidjson::Value& componentData, bool active) {
-    assert(entity < MAX_ENTITIES);
+    if (entity >= MAX_ENTITIES) {
+        return;
+    }
     T component;
     DeserializeTypeFromJson(component, componentData);
     componentArray[entity] = component;

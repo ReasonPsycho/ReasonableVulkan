@@ -410,4 +410,47 @@ BOOST_AUTO_TEST_CASE(EngineStartPlayModeInvokesOnStartTest) {
     engine.RemoveScene("PlayModeTestScene");
 }
 
+BOOST_AUTO_TEST_CASE(ComponentArraySafeRemovalAndAccessTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("ComponentArraySafeTestScene");
+    BOOST_REQUIRE(scene);
+
+    Entity e1 = scene->CreateEntity();
+    Entity e2 = scene->CreateEntity();
+
+    // Removing non-existent component should safely succeed without assertion failures
+    scene->RemoveComponent<TagComponent>(e1);
+    BOOST_CHECK(!scene->HasComponent<TagComponent>(e1));
+
+    // Adding component and removing twice
+    scene->AddComponent<TagComponent>(e1, TagComponent{"TestTag"});
+    BOOST_CHECK(scene->HasComponent<TagComponent>(e1));
+    scene->RemoveComponent<TagComponent>(e1);
+    BOOST_CHECK(!scene->HasComponent<TagComponent>(e1));
+    scene->RemoveComponent<TagComponent>(e1);
+    BOOST_CHECK(!scene->HasComponent<TagComponent>(e1));
+
+    // Overwriting / adding component again to same entity
+    scene->AddComponent<TagComponent>(e2, TagComponent{"Initial"});
+    BOOST_CHECK_EQUAL(scene->GetComponent<TagComponent>(e2).tag, "Initial");
+    scene->AddComponent<TagComponent>(e2, TagComponent{"Updated"});
+    BOOST_CHECK_EQUAL(scene->GetComponent<TagComponent>(e2).tag, "Updated");
+
+    // Untyped operations
+    auto arrays = scene->GetComponentArrays();
+    auto tagTypeIdx = std::type_index(typeid(TagComponent));
+    auto tagArray = arrays[tagTypeIdx];
+    BOOST_REQUIRE(tagArray);
+
+    tagArray->RemoveComponentUntyped(e1); // Non-existent
+    BOOST_CHECK(tagArray->GetComponentUntyped(e1) == nullptr);
+
+    // Parent operations on out of bounds entities
+    scene->SetParent(MAX_ENTITIES, e1);
+    scene->SetParent(e1, MAX_ENTITIES);
+    scene->RemoveParent(MAX_ENTITIES);
+
+    engine.RemoveScene("ComponentArraySafeTestScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

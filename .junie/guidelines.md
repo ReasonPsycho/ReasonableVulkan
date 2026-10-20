@@ -31,8 +31,6 @@ ReasonableVulkan maintains detailed, modular documentation across separate READM
 - `src/engine/README.md`: Documentation for the Engine module, ECS framework, scene graph, components, systems, and editor tooling.
 - `src/vks/README.md`: Documentation for the Vulkan Support module, rendering pipelines, bindless descriptors, buffers, and synchronization.
 - `res/shaders/README.md`: Shader creation, compilation pipeline, GLSL guidelines, and SPIR-V asset workflows.
-- `res/shaders/hlsl/README.md`: Notes on HLSL shaders and status.
-- `res/README.md`: Information regarding assets and sample asset packs.
 
 ## Coding Standards
 - **Naming**: Follow existing patterns (e.g., camelCase for methods, PascalCase for classes).

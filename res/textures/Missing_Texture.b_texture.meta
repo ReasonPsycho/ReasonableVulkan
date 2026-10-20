@@ -3,12 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "d77cf7bd-9ad5-44ad-bb04-7827bea6db78",
+  "id": "4893da0a-059f-4bb8-b780-84f29b7e6ec5",
   "path": "res/textures/Missing_Texture.b_texture",
   "type": "Texture",
-  "lookUpName": "Missing_Texture.texture",
+  "lookUpName": "Missing_Texture_0.texture",
   "contentHash": 6112323087987133169,
-  "thumbnailPath": ".cache/thumbnails/d77cf7bd-9ad5-44ad-bb04-7827bea6db78.png",
+  "thumbnailPath": ".cache/thumbnails/4893da0a-059f-4bb8-b780-84f29b7e6ec5.png",
   "assetFactoryData": {
     "importPath": "res/textures/Missing_Texture.png",
     "assetType": "Texture",

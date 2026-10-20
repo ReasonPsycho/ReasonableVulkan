@@ -3,6 +3,10 @@
 **/release/
 !src/**/tests/
 !src/tests/
+/res/.internal/tests/*
+!/res/.internal/tests/Sphere.fbx
+!/res/.internal/tests/Plane.fbx
+!/res/.internal/tests/Box.fbx
 /.junie/output.txt
 /res/.cache/
 /plugin/

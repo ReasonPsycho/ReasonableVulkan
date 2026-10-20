@@ -161,7 +161,9 @@ bool Scene::IsAncestor(Entity potentialAncestor, Entity entity) const {
 }
 
 void Scene::SetParent(Entity child, Entity parent) {
-    assert(child < maxEntityIndex && parent < maxEntityIndex);
+    if (child >= maxEntityIndex || parent >= maxEntityIndex) {
+        return;
+    }
 
     // Prevent setting parent to itself
     if (child == parent) {
@@ -244,7 +246,9 @@ void Scene::SetParent(Entity child, Entity parent) {
 
 
 void Scene::RemoveParent(Entity child) {
-    assert(child < maxEntityIndex);
+    if (child >= maxEntityIndex) {
+        return;
+    }
     if (child < entityToFlatIndex.size()) {
         int32_t idx = entityToFlatIndex[child];
         if (idx >= 0 && idx < static_cast<int32_t>(flatHierarchy.size())) {

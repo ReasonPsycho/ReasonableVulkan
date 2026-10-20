@@ -8,7 +8,15 @@ using namespace engine::ecs;
 template <typename T>
 ComponentID ComponentArray<T>::AddComponentToEntity(Entity entity, T component)
 {
-    assert(entityToIndexMap.find(entity) == entityToIndexMap.end());
+    auto it = entityToIndexMap.find(entity);
+    if (it != entityToIndexMap.end()) {
+        componentArray[it->second] = component;
+        activeComponents[it->second] = true;
+        return it->second;
+    }
+    if (size >= MAX_COMPONENTS_ARRAY) {
+        return 0;
+    }
     std::size_t newIndex = size;
     entityToIndexMap[entity] = newIndex;
     indexToEntityMap[newIndex] = entity;
@@ -21,14 +29,19 @@ ComponentID ComponentArray<T>::AddComponentToEntity(Entity entity, T component)
 template <typename T>
 ComponentID ComponentArray<T>::RemoveComponentFronEntity(Entity entity)
 {
-    assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
-    std::size_t indexOfRemoved = entityToIndexMap[entity];
+    auto it = entityToIndexMap.find(entity);
+    if (it == entityToIndexMap.end() || size == 0) {
+        return 0;
+    }
+    std::size_t indexOfRemoved = it->second;
     std::size_t indexOfLast = size - 1;
-    componentArray[indexOfRemoved] = componentArray[indexOfLast];
-    Entity lastEntity = indexToEntityMap[indexOfLast];
-    entityToIndexMap[lastEntity] = indexOfRemoved;
-    activeComponents[indexOfRemoved] = activeComponents[lastEntity];
-    indexToEntityMap[indexOfRemoved] = lastEntity;
+    if (indexOfRemoved != indexOfLast) {
+        componentArray[indexOfRemoved] = componentArray[indexOfLast];
+        Entity lastEntity = indexToEntityMap[indexOfLast];
+        entityToIndexMap[lastEntity] = indexOfRemoved;
+        activeComponents[indexOfRemoved] = activeComponents[lastEntity];
+        indexToEntityMap[indexOfRemoved] = lastEntity;
+    }
     entityToIndexMap.erase(entity);
     indexToEntityMap.erase(indexOfLast);
     --size;
@@ -38,20 +51,30 @@ ComponentID ComponentArray<T>::RemoveComponentFronEntity(Entity entity)
 template <typename T>
 T& ComponentArray<T>::GetComponentFromEntity(Entity entity)
 {
-    assert(entityToIndexMap.find(entity) != entityToIndexMap.end());
-    return componentArray[entityToIndexMap[entity]];
+    auto it = entityToIndexMap.find(entity);
+    if (it == entityToIndexMap.end()) {
+        static T defaultComponent{};
+        return defaultComponent;
+    }
+    return componentArray[it->second];
 }
 
 template <typename T>
 T& ComponentArray<T>::GetComponent(ComponentID componentID)
 {
+    if (componentID >= MAX_COMPONENTS_ARRAY) {
+        static T defaultComponent{};
+        return defaultComponent;
+    }
     return componentArray[componentID];
 }
 
 template <typename T>
 void* ComponentArray<T>::GetComponentUntyped(Entity entity) {
     auto it = entityToIndexMap.find(entity);
-    assert(it != entityToIndexMap.end() && "Entity does not have this component");
+    if (it == entityToIndexMap.end()) {
+        return nullptr;
+    }
     return &componentArray[it->second];
 }
 
@@ -73,6 +96,9 @@ void ComponentArray<T>::SetComponentActive(Entity entity, bool active)
 template <typename T>
 bool ComponentArray<T>::IsComponentActive(ComponentID componentIndex) const
 {
+    if (componentIndex >= MAX_COMPONENTS_ARRAY) {
+        return false;
+    }
     return activeComponents[componentIndex];
 }
 
@@ -81,7 +107,9 @@ template <typename T>
 Entity ComponentArray<T>::ComponentIndexToEntity(ComponentID index) const
 {
     auto it = indexToEntityMap.find(index);
-    assert(it != indexToEntityMap.end());
+    if (it == indexToEntityMap.end()) {
+        return MAX_ENTITIES;
+    }
     return it->second;
 }
 
