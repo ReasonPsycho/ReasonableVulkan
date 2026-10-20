@@ -4,20 +4,16 @@
 #include <filesystem>
 #include "stb_image.h"
 
-namespace am
-{
-    TextureAsset::TextureAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path)
-    {
+namespace am {
+    TextureAsset::TextureAsset(const boost::uuids::uuid &id, std::string path) : Asset(id, path) {
     }
 
-    TextureAsset::TextureAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData)
-        : Asset(id, assetFactoryData)
-    {
+    TextureAsset::TextureAsset(const boost::uuids::uuid &id, ImportContext assetFactoryData)
+        : Asset(id, assetFactoryData) {
         loadFromFile(assetFactoryData.importPath);
     }
 
-    TextureAsset::TextureAsset(const std::string& path, AssetFormat format) : Asset(path, format)
-    {
+    TextureAsset::TextureAsset(const std::string &path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Json) {
             rapidjson::Document document;
             if (!loadJsonFromFile(path, document)) {
@@ -29,7 +25,7 @@ namespace am
                 std::string savedUuidStr = document["uuid"].GetString();
                 id = boost::uuids::string_generator()(savedUuidStr);
             }
-            
+
             if (document.HasMember("type") && document["type"].IsString()) {
                 std::string typeStr = document["type"].GetString();
                 if (typeStr == "Texture2D") data.type = TextureType::Texture2D;
@@ -51,30 +47,29 @@ namespace am
             }
 
             // Read UUID
-            ifs.read(reinterpret_cast<char*>(&id), 16);
+            ifs.read(reinterpret_cast<char *>(&id), 16);
 
             // Read metadata
-            ifs.read(reinterpret_cast<char*>(&data.width), sizeof(data.width));
-            ifs.read(reinterpret_cast<char*>(&data.height), sizeof(data.height));
-            ifs.read(reinterpret_cast<char*>(&data.channels), sizeof(data.channels));
-            ifs.read(reinterpret_cast<char*>(&data.hasAlpha), sizeof(data.hasAlpha));
-            ifs.read(reinterpret_cast<char*>(&data.type), sizeof(data.type));
+            ifs.read(reinterpret_cast<char *>(&data.width), sizeof(data.width));
+            ifs.read(reinterpret_cast<char *>(&data.height), sizeof(data.height));
+            ifs.read(reinterpret_cast<char *>(&data.channels), sizeof(data.channels));
+            ifs.read(reinterpret_cast<char *>(&data.hasAlpha), sizeof(data.hasAlpha));
+            ifs.read(reinterpret_cast<char *>(&data.type), sizeof(data.type));
 
             // Read pixels
             size_t pixelCount;
-            ifs.read(reinterpret_cast<char*>(&pixelCount), sizeof(pixelCount));
+            ifs.read(reinterpret_cast<char *>(&pixelCount), sizeof(pixelCount));
             data.pixels.resize(pixelCount);
             if (pixelCount > 0) {
-                ifs.read(reinterpret_cast<char*>(data.pixels.data()), pixelCount * sizeof(std::uint8_t));
+                ifs.read(reinterpret_cast<char *>(data.pixels.data()), pixelCount * sizeof(std::uint8_t));
             }
 
             ifs.close();
         }
     }
 
-    void TextureAsset::SaveAssetToJson(rapidjson::Document& document)
-    {
-        auto& allocator = document.GetAllocator();
+    void TextureAsset::SaveAssetToJson(rapidjson::Document &document) {
+        auto &allocator = document.GetAllocator();
         if (!document.IsObject()) {
             document.SetObject();
         }
@@ -83,14 +78,15 @@ namespace am
 
         std::string typeStr;
         switch (data.type) {
-            case TextureType::Texture2D: typeStr = "Texture2D"; break;
-            case TextureType::TextureCube: typeStr = "TextureCube"; break;
+            case TextureType::Texture2D: typeStr = "Texture2D";
+                break;
+            case TextureType::TextureCube: typeStr = "TextureCube";
+                break;
         }
         document.AddMember("type", rapidjson::Value(typeStr.c_str(), allocator), allocator);
     }
 
-    void TextureAsset::SaveAssetToBin(std::string& path)
-    {
+    void TextureAsset::SaveAssetToBin(std::string &path) {
         // Ensure parent directory exists
         std::filesystem::path p(path);
         if (p.has_parent_path()) {
@@ -107,20 +103,20 @@ namespace am
         ofs.write("RTEX_", 6);
 
         // Write UUID
-        ofs.write(reinterpret_cast<const char*>(&id), 16);
+        ofs.write(reinterpret_cast<const char *>(&id), 16);
 
         // Write metadata
-        ofs.write(reinterpret_cast<const char*>(&data.width), sizeof(data.width));
-        ofs.write(reinterpret_cast<const char*>(&data.height), sizeof(data.height));
-        ofs.write(reinterpret_cast<const char*>(&data.channels), sizeof(data.channels));
-        ofs.write(reinterpret_cast<const char*>(&data.hasAlpha), sizeof(data.hasAlpha));
-        ofs.write(reinterpret_cast<const char*>(&data.type), sizeof(data.type));
+        ofs.write(reinterpret_cast<const char *>(&data.width), sizeof(data.width));
+        ofs.write(reinterpret_cast<const char *>(&data.height), sizeof(data.height));
+        ofs.write(reinterpret_cast<const char *>(&data.channels), sizeof(data.channels));
+        ofs.write(reinterpret_cast<const char *>(&data.hasAlpha), sizeof(data.hasAlpha));
+        ofs.write(reinterpret_cast<const char *>(&data.type), sizeof(data.type));
 
         // Write pixels
         size_t pixelCount = data.pixels.size();
-        ofs.write(reinterpret_cast<const char*>(&pixelCount), sizeof(pixelCount));
+        ofs.write(reinterpret_cast<const char *>(&pixelCount), sizeof(pixelCount));
         if (pixelCount > 0) {
-            ofs.write(reinterpret_cast<const char*>(data.pixels.data()), pixelCount * sizeof(std::uint8_t));
+            ofs.write(reinterpret_cast<const char *>(data.pixels.data()), pixelCount * sizeof(std::uint8_t));
         }
 
         ofs.close();
@@ -129,16 +125,14 @@ namespace am
 
     TextureAsset::~TextureAsset() = default;
 
-    void TextureAsset::loadFromFile(const std::string& path)
-    {
+    void TextureAsset::loadFromFile(const std::string &path) {
         // Force stb_image to return 4 channels for consistency
         int width, height, channels;
-        stbi_set_flip_vertically_on_load(true); // Flip images vertically
+        stbi_set_flip_vertically_on_load(false); // Do not flip images vertically
 
-        uint8_t* fileData = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        uint8_t *fileData = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 
-        if (!fileData)
-        {
+        if (!fileData) {
             spdlog::error("Failed to load texture");
             throw std::runtime_error("Failed to load texture: " + path);
         }
@@ -162,8 +156,7 @@ namespace am
         spdlog::info("Loaded texture");
     }
 
-    size_t TextureAsset::calculateContentHash() const
-    {
+    size_t TextureAsset::calculateContentHash() const {
         size_t hash = 0;
 
         // Hash basic properties
@@ -173,14 +166,12 @@ namespace am
 
         // Hash pixel data in chunks to improve performance
         const size_t chunkSize = 1024; // Process 1KB at a time
-        const uint8_t* pixels = data.pixels.data();
+        const uint8_t *pixels = data.pixels.data();
         const size_t totalSize = data.pixels.size();
 
-        for (size_t i = 0; i < totalSize; i += chunkSize)
-        {
+        for (size_t i = 0; i < totalSize; i += chunkSize) {
             size_t remaining = std::min(chunkSize, totalSize - i);
-            for (size_t j = 0; j < remaining; ++j)
-            {
+            for (size_t j = 0; j < remaining; ++j) {
                 hash ^= std::hash<uint8_t>{}(pixels[i + j]) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
             }
         }
@@ -188,19 +179,19 @@ namespace am
         return hash;
     }
 
-    AssetType TextureAsset::getType() const
-    {
+    AssetType TextureAsset::getType() const {
         return AssetType::Texture;
     }
 
-    void TextureAsset::SaveAssetMetadata(rapidjson::Document& document)
-    {
-        auto& allocator = document.GetAllocator();
+    void TextureAsset::SaveAssetMetadata(rapidjson::Document &document) {
+        auto &allocator = document.GetAllocator();
 
         std::string typeStr;
         switch (data.type) {
-        case TextureType::Texture2D: typeStr = "Texture2D"; break;
-        case TextureType::TextureCube: typeStr = "TextureCube"; break;
+            case TextureType::Texture2D: typeStr = "Texture2D";
+                break;
+            case TextureType::TextureCube: typeStr = "TextureCube";
+                break;
         }
 
         document.AddMember(
@@ -210,8 +201,7 @@ namespace am
         );
     }
 
-    void TextureAsset::LoadAssetMetadata(rapidjson::Document& document)
-    {
+    void TextureAsset::LoadAssetMetadata(rapidjson::Document &document) {
         if (document.HasMember("type") && document["type"].IsString()) {
             std::string typeStr = document["type"].GetString();
             if (typeStr == "Texture2D") {

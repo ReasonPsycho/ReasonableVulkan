@@ -13,8 +13,7 @@
 #include <spdlog/spdlog.h>
 
 namespace am {
-
-    static std::unordered_map<std::string, std::string> parseFntKeyValuePairs(const std::string& line) {
+    static std::unordered_map<std::string, std::string> parseFntKeyValuePairs(const std::string &line) {
         std::unordered_map<std::string, std::string> result;
         size_t i = 0;
         while (i < line.size()) {
@@ -45,10 +44,10 @@ namespace am {
         return result;
     }
 
-    FontAsset::FontAsset(const boost::uuids::uuid& id, std::string path) : Asset(id, path) {
+    FontAsset::FontAsset(const boost::uuids::uuid &id, std::string path) : Asset(id, path) {
     }
 
-    FontAsset::FontAsset(const boost::uuids::uuid& id, ImportContext assetFactoryData)
+    FontAsset::FontAsset(const boost::uuids::uuid &id, ImportContext assetFactoryData)
         : Asset(id, assetFactoryData) {
         if (!assetFactoryData.importPath.empty()) {
             std::string ext = std::filesystem::path(assetFactoryData.importPath).extension().string();
@@ -67,7 +66,7 @@ namespace am {
         }
     }
 
-    FontAsset::FontAsset(const std::string& path, AssetFormat format) : Asset(path, format) {
+    FontAsset::FontAsset(const std::string &path, AssetFormat format) : Asset(path, format) {
         if (format == AssetFormat::Json) {
             loadFromJson(path);
         } else {
@@ -98,7 +97,7 @@ namespace am {
         return hash;
     }
 
-    void FontAsset::loadFromFnt(const std::string& path) {
+    void FontAsset::loadFromFnt(const std::string &path) {
         std::ifstream file(path);
         if (!file.is_open()) {
             spdlog::error("FontAsset: Failed to open font file: {}", path);
@@ -118,23 +117,29 @@ namespace am {
             if (trimmed.rfind("info", 0) == 0) {
                 if (pairs.count("face")) data.fontName = pairs["face"];
                 if (pairs.count("size")) {
-                    try { data.fontSize = std::stof(pairs["size"]); } catch (...) {}
+                    try { data.fontSize = std::stof(pairs["size"]); } catch (...) {
+                    }
                 }
             } else if (trimmed.rfind("common", 0) == 0) {
                 if (pairs.count("lineHeight")) {
-                    try { data.lineHeight = std::stof(pairs["lineHeight"]); } catch (...) {}
+                    try { data.lineHeight = std::stof(pairs["lineHeight"]); } catch (...) {
+                    }
                 }
                 if (pairs.count("base")) {
-                    try { data.baseLine = std::stof(pairs["base"]); } catch (...) {}
+                    try { data.baseLine = std::stof(pairs["base"]); } catch (...) {
+                    }
                 }
                 if (pairs.count("scaleW")) {
-                    try { data.scaleW = std::stof(pairs["scaleW"]); } catch (...) {}
+                    try { data.scaleW = std::stof(pairs["scaleW"]); } catch (...) {
+                    }
                 }
                 if (pairs.count("scaleH")) {
-                    try { data.scaleH = std::stof(pairs["scaleH"]); } catch (...) {}
+                    try { data.scaleH = std::stof(pairs["scaleH"]); } catch (...) {
+                    }
                 }
                 if (pairs.count("pages")) {
-                    try { data.pagesCount = std::stoi(pairs["pages"]); } catch (...) {}
+                    try { data.pagesCount = std::stoi(pairs["pages"]); } catch (...) {
+                    }
                 }
             } else if (trimmed.rfind("page", 0) == 0) {
                 if (pairs.count("file")) {
@@ -160,7 +165,8 @@ namespace am {
                         glyph.uvMax = glm::vec2((glyph.x + glyph.width) / sW, (glyph.y + glyph.height) / sH);
 
                         data.glyphs[glyph.id] = glyph;
-                    } catch (...) {}
+                    } catch (...) {
+                    }
                 }
             } else if (trimmed.rfind("kerning ", 0) == 0) {
                 if (pairs.count("first") && pairs.count("second") && pairs.count("amount")) {
@@ -170,7 +176,8 @@ namespace am {
                         float amount = std::stof(pairs["amount"]);
                         uint64_t key = (static_cast<uint64_t>(first) << 32) | static_cast<uint32_t>(second);
                         data.kernings[key] = amount;
-                    } catch (...) {}
+                    } catch (...) {
+                    }
                 }
             }
         }
@@ -190,7 +197,7 @@ namespace am {
         spdlog::info("FontAsset: Loaded font '{}' with {} glyphs from {}", data.fontName, data.glyphs.size(), path);
     }
 
-    void FontAsset::loadFromJson(const std::string& path) {
+    void FontAsset::loadFromJson(const std::string &path) {
         rapidjson::Document doc;
         if (!loadJsonFromFile(path, doc)) {
             spdlog::error("FontAsset: Failed to load JSON from: {}", path);
@@ -221,13 +228,14 @@ namespace am {
         if (doc.HasMember("atlasTextureUuid") && doc["atlasTextureUuid"].IsString()) {
             try {
                 data.atlasTextureUuid = boost::uuids::string_generator()(doc["atlasTextureUuid"].GetString());
-            } catch (...) {}
+            } catch (...) {
+            }
         }
 
         if (doc.HasMember("glyphs") && doc["glyphs"].IsArray()) {
-            const auto& arr = doc["glyphs"];
+            const auto &arr = doc["glyphs"];
             for (rapidjson::SizeType i = 0; i < arr.Size(); ++i) {
-                const auto& item = arr[i];
+                const auto &item = arr[i];
                 if (!item.IsObject() || !item.HasMember("id")) continue;
                 GlyphMetrics g;
                 g.id = item["id"].GetInt();
@@ -250,8 +258,8 @@ namespace am {
         }
     }
 
-    void FontAsset::SaveAssetToJson(rapidjson::Document& document) {
-        auto& allocator = document.GetAllocator();
+    void FontAsset::SaveAssetToJson(rapidjson::Document &document) {
+        auto &allocator = document.GetAllocator();
         if (!document.IsObject()) document.SetObject();
 
         document.AddMember("uuid", rapidjson::Value(boost::uuids::to_string(id).c_str(), allocator), allocator);
@@ -262,10 +270,12 @@ namespace am {
         document.AddMember("baseLine", data.baseLine, allocator);
         document.AddMember("scaleW", data.scaleW, allocator);
         document.AddMember("scaleH", data.scaleH, allocator);
-        document.AddMember("atlasTextureUuid", rapidjson::Value(boost::uuids::to_string(data.atlasTextureUuid).c_str(), allocator), allocator);
+        document.AddMember("atlasTextureUuid",
+                           rapidjson::Value(boost::uuids::to_string(data.atlasTextureUuid).c_str(), allocator),
+                           allocator);
 
         rapidjson::Value glyphsArray(rapidjson::kArrayType);
-        for (const auto& [gId, glyph] : data.glyphs) {
+        for (const auto &[gId, glyph]: data.glyphs) {
             rapidjson::Value gObj(rapidjson::kObjectType);
             gObj.AddMember("id", glyph.id, allocator);
             gObj.AddMember("x", glyph.x, allocator);
@@ -281,24 +291,27 @@ namespace am {
         document.AddMember("glyphs", glyphsArray, allocator);
     }
 
-    void FontAsset::SaveAssetMetadata(rapidjson::Document& document) {
-        auto& allocator = document.GetAllocator();
+    void FontAsset::SaveAssetMetadata(rapidjson::Document &document) {
+        auto &allocator = document.GetAllocator();
         document.AddMember("fontName", rapidjson::Value(data.fontName.c_str(), allocator), allocator);
-        document.AddMember("atlasTextureUuid", rapidjson::Value(boost::uuids::to_string(data.atlasTextureUuid).c_str(), allocator), allocator);
+        document.AddMember("atlasTextureUuid",
+                           rapidjson::Value(boost::uuids::to_string(data.atlasTextureUuid).c_str(), allocator),
+                           allocator);
     }
 
-    void FontAsset::LoadAssetMetadata(rapidjson::Document& document) {
+    void FontAsset::LoadAssetMetadata(rapidjson::Document &document) {
         if (document.HasMember("fontName") && document["fontName"].IsString()) {
             data.fontName = document["fontName"].GetString();
         }
         if (document.HasMember("atlasTextureUuid") && document["atlasTextureUuid"].IsString()) {
             try {
                 data.atlasTextureUuid = boost::uuids::string_generator()(document["atlasTextureUuid"].GetString());
-            } catch (...) {}
+            } catch (...) {
+            }
         }
     }
 
-    bool FontAsset::loadWithFreeType(const std::string& path, float targetFontSize) {
+    bool FontAsset::loadWithFreeType(const std::string &path, float targetFontSize) {
         FT_Library ft = nullptr;
         if (FT_Init_FreeType(&ft)) {
             spdlog::error("FontAsset: Failed to initialize FreeType library");
@@ -352,7 +365,7 @@ namespace am {
         int curY = padding;
         int rowHeight = 0;
 
-        for (int charCode : charCodes) {
+        for (int charCode: charCodes) {
             if (FT_Load_Char(face, charCode, FT_LOAD_RENDER)) {
                 continue;
             }
@@ -407,7 +420,7 @@ namespace am {
         }
 
         // Recompute normalized UVs in case atlasHeight was expanded
-        for (auto& [gId, g] : data.glyphs) {
+        for (auto &[gId, g]: data.glyphs) {
             g.uvMin = glm::vec2(g.x / data.scaleW, g.y / data.scaleH);
             g.uvMax = glm::vec2((g.x + g.width) / data.scaleW, (g.y + g.height) / data.scaleH);
         }
@@ -415,10 +428,10 @@ namespace am {
         // Extract Kerning table
         data.kernings.clear();
         if (FT_HAS_KERNING(face)) {
-            for (const auto& [c1, _] : data.glyphs) {
+            for (const auto &[c1, _]: data.glyphs) {
                 FT_UInt idx1 = FT_Get_Char_Index(face, c1);
                 if (!idx1) continue;
-                for (const auto& [c2, __] : data.glyphs) {
+                for (const auto &[c2, __]: data.glyphs) {
                     FT_UInt idx2 = FT_Get_Char_Index(face, c2);
                     if (!idx2) continue;
                     FT_Vector kernVec;
@@ -445,15 +458,8 @@ namespace am {
             std::filesystem::create_directories(atlasPath.parent_path(), ec);
         }
 
-        // Flip atlas vertically before writing to PNG because TextureAsset::loadFromFile uses stbi_set_flip_vertically_on_load(true)
-        std::vector<uint8_t> flippedPixels(atlasWidth * atlasHeight * 4);
-        for (int y = 0; y < atlasHeight; ++y) {
-            const uint8_t* srcRow = &atlasPixels[y * atlasWidth * 4];
-            uint8_t* dstRow = &flippedPixels[(atlasHeight - 1 - y) * atlasWidth * 4];
-            std::memcpy(dstRow, srcRow, atlasWidth * 4);
-        }
-
-        int writeRes = stbi_write_png(atlasPath.string().c_str(), atlasWidth, atlasHeight, 4, flippedPixels.data(), atlasWidth * 4);
+        int writeRes = stbi_write_png(atlasPath.string().c_str(), atlasWidth, atlasHeight, 4, atlasPixels.data(),
+                                      atlasWidth * 4);
         if (writeRes) {
             spdlog::info("FontAsset: Generated font atlas texture: {}", atlasPath.string());
             auto texUuid = AssetManager::getInstance().getAssetUuidByPath(atlasPath);
@@ -467,8 +473,8 @@ namespace am {
             spdlog::warn("FontAsset: Failed to write font atlas image to {}", atlasPath.string());
         }
 
-        spdlog::info("FontAsset: Loaded FreeType font '{}' with {} glyphs from {}", data.fontName, data.glyphs.size(), path);
+        spdlog::info("FontAsset: Loaded FreeType font '{}' with {} glyphs from {}", data.fontName, data.glyphs.size(),
+                     path);
         return true;
     }
-
 } // namespace am

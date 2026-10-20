@@ -9,6 +9,7 @@
 #include <imgui.h>
 #endif
 
+#include "UUIDManager.hpp"
 #include "ecs/Scene.h"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
@@ -146,6 +147,7 @@ namespace engine::ecs {
         textComp.fontUuid = hudFontUuid;
         textComp.layerDepth = hudTextLayerDepth;
         textComp.isVisible = false;
+        textComp.fontUuid = hudFontUuid;
         scene->AddComponent<HUDTextComponent>(hudNameTextEntity, textComp);
 
         UpdatePawnHUD();
@@ -515,6 +517,10 @@ namespace engine::ecs {
     }
 
     void TacticalSceneManagerSystem::OnStart() {
+        auto hudFontUuidOpt = scene->engine.assetManagerInterface->getAssetUuid("Geist-Black.font");
+        if (hudFontUuidOpt.has_value()) {
+            hudFontUuid = hudFontUuidOpt.value();
+        }
         CreateSelectedPawnHUDEntities();
     }
 
