@@ -8,6 +8,7 @@
 #include "../base/VulkanInitializers.hpp"
 #include "../descriptorManager/buffers/LightModelPushConstant.hpp"
 #include "../descriptorManager/buffers/ModelPushConstant.hpp"
+#include "../descriptorManager/buffers/HUDPushConstant.hpp"
 
 namespace vks
 {
@@ -911,7 +912,7 @@ namespace vks
         int maxSet = 0;
         for (auto def : combinedDefines) {
             if (def == ShaderDefinesEnum::SCENE_UBO_GLSL) maxSet = std::max(maxSet, 0);
-            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL || def == ShaderDefinesEnum::INSTANCE_SSBO_GLSL) maxSet = std::max(maxSet, 1);
+            else if (def == ShaderDefinesEnum::MATERIAL_PBR_GLSL || def == ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL || def == ShaderDefinesEnum::WIREMESH_GLSL || def == ShaderDefinesEnum::MESH_VERTEX_GLSL || def == ShaderDefinesEnum::INSTANCE_SSBO_GLSL || def == ShaderDefinesEnum::HUD_GLSL) maxSet = std::max(maxSet, 1);
             else if (def == ShaderDefinesEnum::VERTEX_IO_GLSL) maxSet = std::max(maxSet, 2);
             else if (def == ShaderDefinesEnum::LIGHTING_COMMON_GLSL || def == ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) maxSet = std::max(maxSet, 3);
         }
@@ -927,6 +928,7 @@ namespace vks
             case ShaderDefinesEnum::WIREMESH_GLSL:
             case ShaderDefinesEnum::MESH_VERTEX_GLSL:
             case ShaderDefinesEnum::INSTANCE_SSBO_GLSL:
+            case ShaderDefinesEnum::HUD_GLSL:
                 combinedLayouts[1] = descriptorManager->getBindlessLayout(); break;
             case ShaderDefinesEnum::VERTEX_IO_GLSL: combinedLayouts[2] = descriptorManager->getMeshUniformLayout(); break;
             case ShaderDefinesEnum::LIGHTING_COMMON_GLSL:
@@ -954,6 +956,7 @@ namespace vks
 
         VkPushConstantRange modelPCRange{};
         VkPushConstantRange lightModelPCRange{};
+        VkPushConstantRange hudPCRange{};
         std::vector<VkPushConstantRange> pushConstantRanges;
 
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end())
@@ -972,6 +975,15 @@ namespace vks
             lightModelPCRange.offset = 0;
             lightModelPCRange.size = sizeof(LightModelPushConstant);
             pushConstantRanges.push_back(lightModelPCRange);
+        }
+
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::HUD_GLSL) != combinedDefines.end() ||
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::HUD_PC_GLSL) != combinedDefines.end())
+        {
+            hudPCRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            hudPCRange.offset = 0;
+            hudPCRange.size = sizeof(HUDPushConstant);
+            pushConstantRanges.push_back(hudPCRange);
         }
 
         if (!pushConstantRanges.empty()) {
@@ -1012,7 +1024,8 @@ namespace vks
         VkPipelineColorBlendAttachmentState blendAttachmentState =
             base::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
 
-        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::TACTICAL_GRID_GLSL) != combinedDefines.end())
+        if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::TACTICAL_GRID_GLSL) != combinedDefines.end() ||
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::HUD_GLSL) != combinedDefines.end())
         {
             blendAttachmentState.blendEnable = VK_TRUE;
             blendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -1042,7 +1055,8 @@ namespace vks
 
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MATERIAL_SKYBOX_GLSL) != combinedDefines.end() ||
             std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::RAYCAST_GLSL) != combinedDefines.end() ||
-            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::TACTICAL_GRID_GLSL) != combinedDefines.end())
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::TACTICAL_GRID_GLSL) != combinedDefines.end() ||
+            std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::HUD_GLSL) != combinedDefines.end())
         {
             rasterizationState.cullMode = VK_CULL_MODE_NONE;
         }
@@ -1052,6 +1066,12 @@ namespace vks
             depthStencilState.depthWriteEnable = VK_FALSE;
             depthStencilState.depthTestEnable = VK_TRUE;
             depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        }
+        else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::HUD_GLSL) != combinedDefines.end())
+        {
+            depthStencilState.depthWriteEnable = VK_FALSE;
+            depthStencilState.depthTestEnable = VK_FALSE;
+            depthStencilState.depthCompareOp = VK_COMPARE_OP_ALWAYS;
         }
 
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::WIREMESH_GLSL) != combinedDefines.end())
@@ -1073,6 +1093,8 @@ namespace vks
         pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineCI.pStages = shaderStages.data();
 
+        VkPipelineVertexInputStateCreateInfo emptyVertexInputInfo = base::initializers::pipelineVertexInputStateCreateInfo();
+
         if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::RAYCAST_GLSL) != combinedDefines.end())
         {
             pipelineCI.pVertexInputState = MeshDescriptor::getPipelineVertexInputState({
@@ -1083,6 +1105,10 @@ namespace vks
                 VertexComponent::Tangent,
                 VertexComponent::Bitangent
             });
+        }
+        else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::HUD_GLSL) != combinedDefines.end())
+        {
+            pipelineCI.pVertexInputState = &emptyVertexInputInfo;
         }
         else if (std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::MODEL_PC_GLSL) != combinedDefines.end() ||
             std::find(combinedDefines.begin(), combinedDefines.end(), ShaderDefinesEnum::LIGHT_MODEL_PC_GLSL) != combinedDefines.end())

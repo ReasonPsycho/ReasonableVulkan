@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "aac54cbf-0145-4e07-8ce5-af96255494b2",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\jsons\\wiremesh.shaderprogram",
+  "id": "d265a8f0-b36d-4f23-bacd-4ecd2e006503",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\wiremesh.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "wiremeshShader",
+  "lookUpName": "wiremesh.shaderprogram",
   "contentHash": 13645478322255162139,
   "assetFactoryData": {
-    "importPath": "res\\shaders\\jsons\\wiremesh.shaderImport",
+    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\jsons\\wiremesh.shaderImport",
     "assetType": "ShaderProgram",
     "assimpIndex": 0
   }

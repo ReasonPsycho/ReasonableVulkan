@@ -51,6 +51,8 @@ namespace vks {
 		void drawLight(gfx::PointLightData pointLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::SpotLightData spotLightData, const glm::mat4& transform) override;
 		void drawLight(gfx::DirectionalLightData directionalLightData, const glm::mat4& transform) override;
+		void submitHUDItems(const std::vector<gfx::HUDDrawItem>& items) override;
+		void drawHUDItem(const gfx::HUDDrawItem& item) override;
 
 		void beginFrame() override;
 		void renderFrame() override;

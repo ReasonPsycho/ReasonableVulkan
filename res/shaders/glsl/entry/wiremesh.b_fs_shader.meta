@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "5a8b9f5d-07a6-4166-b19f-d042c1eb8341",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\glsl\\entry\\wiremesh.b_fs_shader",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\wiremesh.b_fs_shader",
   "type": "Shader",
   "lookUpName": "wiremesh.shader",
   "contentHash": 1062838217860813284,

@@ -16,6 +16,8 @@
 #include "systems/selectionSystem/SelectionSystem.hpp"
 #include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 #include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
+#include "systems/hudSystem/HUDSystem.hpp"
+#include "systems/hudSystem/components/HUDElementComponent.hpp"
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
 #include "systems/pathfindingSystem/componets/Obstacle.hpp"

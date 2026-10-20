@@ -4,6 +4,7 @@
 
 #include "Handle.hpp"
 #include "LightData.hpp"
+#include "GraphicsEngine.hpp"
 #include "../vulkanContext/VulkanContext.hpp"
 #include "../swapChainManager/SwapChainManager.hpp"
 #include "../renderPipelineManager/RenderPipelineManager.hpp"
@@ -67,8 +68,8 @@ private:
                      DescriptorManager* descriptorManager);
         ~RenderManager();
 
-        void initialize(gfx::ShaderProgramHandle pbrShader, gfx::ShaderProgramHandle skyboxShader, gfx::ShaderProgramHandle shadowShader, gfx::ShaderProgramHandle cubeShadowShader, gfx::ShaderProgramHandle raycastShader);
-        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost::uuids::uuid raycastShaderId);
+        void initialize(gfx::ShaderProgramHandle pbrShader, gfx::ShaderProgramHandle skyboxShader, gfx::ShaderProgramHandle shadowShader, gfx::ShaderProgramHandle cubeShadowShader, gfx::ShaderProgramHandle raycastShader, gfx::ShaderProgramHandle hudShader = gfx::ShaderProgramHandle::invalid());
+        void initialize(boost::uuids::uuid pbrShaderId, boost::uuids::uuid skyboxShaderId, boost::uuids::uuid shadowShaderId, boost::uuids::uuid cubeShadowShaderId, boost::uuids::uuid raycastShaderId, boost::uuids::uuid hudShaderId = boost::uuids::nil_uuid());
         #ifdef ENABLE_IMGUI
         void initializeImgui(ImguiManager* manager);
         #endif
@@ -84,6 +85,8 @@ private:
         void submitLightCommand(gfx::DirectionalLightData data, glm::mat4 transform); // Prob will pack transform later on for optimization but for now IDK enough
         void submitLightCommand(gfx::PointLightData data, glm::mat4 transform);
         void submitLightCommand(gfx::SpotLightData data, glm::mat4 transform);
+        void submitHUDItem(const gfx::HUDDrawItem& item);
+        void submitHUDItems(const std::vector<gfx::HUDDrawItem>& items);
 
         void beginFrame();
         void renderFrame();
@@ -115,6 +118,7 @@ private:
         gfx::ShaderProgramHandle shadowShaderHandle{gfx::ShaderProgramHandle::invalid()};
         gfx::ShaderProgramHandle cubeShadowShaderHandle{gfx::ShaderProgramHandle::invalid()};
         gfx::ShaderProgramHandle raycastShaderHandle{gfx::ShaderProgramHandle::invalid()};
+        gfx::ShaderProgramHandle hudShaderHandle{gfx::ShaderProgramHandle::invalid()};
 
     private:
         std::vector<RenderCommand> renderQueue;
@@ -123,6 +127,7 @@ private:
         std::vector<DirectionalLightBufferData> directionalLightQueue;
         std::vector<PointLightBufferData> pointLightQueue;
         std::vector<SpotLightBufferData> spotLightQueue;
+        std::vector<gfx::HUDDrawItem> hudDrawQueue;
 
         // Core Vulkan components
         VulkanContext* context;

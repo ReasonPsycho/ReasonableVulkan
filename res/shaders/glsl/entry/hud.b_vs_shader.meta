@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\hud.b_vs_shader",
+  "type": "Shader",
+  "lookUpName": "hud.vs_shader",
+  "contentHash": 3120757720888991935,
+  "assetFactoryData": {
+    "importPath": "res\\shaders\\glsl\\entry\\hud.vert",
+    "assetType": "Shader",
+    "assimpIndex": 0
+  }
+}

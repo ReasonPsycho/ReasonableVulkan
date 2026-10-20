@@ -35,6 +35,8 @@ int main(int argc, char *argv[]) {
 
     assetManager.Initialize(platform);
 
+    //assetManager.reimportAsset(am::UUIDManager::fromString("c3d4e5f6-a1b2-4c3d-ae4f-5a6b7c8d9e0f"));
+
     vks::VulkanRenderer *vulkanRenderer = new vks::VulkanRenderer(&assetManager);
 
     int width, height;

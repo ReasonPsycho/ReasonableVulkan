@@ -149,6 +149,16 @@ namespace vks {
         renderManager->submitLightCommand(directionalLightData, transform);
     }
 
+    void VulkanRenderer::submitHUDItems(const std::vector<gfx::HUDDrawItem>& items)
+    {
+        renderManager->submitHUDItems(items);
+    }
+
+    void VulkanRenderer::drawHUDItem(const gfx::HUDDrawItem& item)
+    {
+        renderManager->submitHUDItem(item);
+    }
+
 
     void VulkanRenderer::beginFrame() {
         if (!minimized)
@@ -232,6 +242,9 @@ namespace vks {
         auto gridOverlay = descriptorManager->getOrLoadShaderProgram("gridOverlayShader");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(gridOverlay));
 
+        auto hudShader = descriptorManager->getOrLoadShaderProgram("hudShader");
+        pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(hudShader));
+
         skyboxShaderHandle = descriptorManager->getOrLoadShaderProgram("skyboxShader");
         pipelineManager->createGraphicsPipeline(descriptorManager->getShaderProgram(skyboxShaderHandle));
 
@@ -252,7 +265,7 @@ namespace vks {
         pipelineManager->createFramebuffers(swapChain->getSwapChainExtent());
 
         // Initialize render manager
-        renderManager->initialize(pbrShaderHandle, skyboxShaderHandle, shadowMapPipeline, cubeShadowMapPipeline, raycast);
+        renderManager->initialize(pbrShaderHandle, skyboxShaderHandle, shadowMapPipeline, cubeShadowMapPipeline, raycast, hudShader);
 
 #if ENABLE_IMGUI
         imguiManager.get()->initialize(windowHandle, swapChain->getImageViews());

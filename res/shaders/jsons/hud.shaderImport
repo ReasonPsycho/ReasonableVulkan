@@ -1,0 +1,4 @@
+{
+  "vertex": "../glsl/entry/hud.vert",
+  "fragment": "../glsl/entry/hud.frag"
+}

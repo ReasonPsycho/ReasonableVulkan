@@ -22,6 +22,7 @@
 #include "systems/pathfindingSystem/componets/Obstacle.hpp"
 #include "systems/pathfindingSystem/componets/Barrier.hpp"
 #include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
+#include "systems/hudSystem/components/HUDElementComponent.hpp"
 #include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 #include "systems/selectionSystem/SelectionSystem.hpp"
 #include "systems/scriptSystem/ScriptSystem.hpp"

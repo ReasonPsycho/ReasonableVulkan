@@ -3,6 +3,7 @@
 #define GFX_HPP
 #include <boost/mp11/integral.hpp>
 #include <boost/uuid/uuid.hpp>
+#include <boost/uuid/nil_generator.hpp>
 #include <glm/fwd.hpp>
 #include <glm/vec4.hpp>
 #include <glm/detail/type_mat4x4.hpp>
@@ -10,7 +11,8 @@
 
 #include "Handle.hpp"
 #include "LightData.hpp"
-
+#include <vector>
+#include <glm/vec2.hpp>
 
 namespace plt
 {
@@ -18,6 +20,15 @@ namespace plt
 }
 
 namespace gfx {
+    struct HUDDrawItem {
+        glm::vec2 screenPosition{0.0f, 0.0f}; // Top-left position in pixel coordinates
+        glm::vec2 size{0.0f, 0.0f};           // Dimensions in pixels (width, height)
+        glm::vec4 color{1.0f, 1.0f, 1.0f, 1.0f}; // RGBA tint / modulation
+        glm::vec4 uvBounds{0.0f, 0.0f, 1.0f, 1.0f}; // uMin, vMin, uMax, vMax
+        boost::uuids::uuid textureAssetId{boost::uuids::nil_uuid()}; // Texture asset UUID
+        int layerDepth{0};                    // Draw order / sorting
+    };
+
     class GraphicsEngine {
     protected:
         GraphicsEngine() = default;
@@ -41,6 +52,10 @@ namespace gfx {
         virtual void drawLight(PointLightData pointLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(SpotLightData spotLightData, const glm::mat4& transform) = 0;
         virtual void drawLight(DirectionalLightData directionalLightData, const glm::mat4& transform) = 0;
+
+        // HUD Rendering commands
+        virtual void submitHUDItems(const std::vector<HUDDrawItem>& items) {}
+        virtual void drawHUDItem(const HUDDrawItem& item) {}
 
         // Asset registration / handle acquisition
         virtual ModelHandle loadModel(boost::uuids::uuid uuid) = 0;

@@ -18,6 +18,8 @@
 #include "systems/pathfindingSystem/PathfindingSystem.hpp"
 #include "systems/selectionSystem/SelectionSystem.hpp"
 #include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
+#include "systems/hudSystem/HUDSystem.hpp"
+#include "systems/hudSystem/components/HUDElementComponent.hpp"
 #include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
@@ -92,7 +94,7 @@ void Scene::Update(float deltaTime) { //TODO prob i will need to extend update w
     float simDeltaTime = (isPlaying && !isPaused) ? deltaTime : 0.0f;
 
     for (auto& [type, system] : systems) {
-        if (type == std::type_index(typeid(RenderSystem))) {
+        if (type == std::type_index(typeid(RenderSystem)) || type == std::type_index(typeid(HUDSystem))) {
             continue;
         }
 
@@ -113,6 +115,10 @@ void Scene::Render(float deltaTime) {
     if (auto renderSystem = GetSystem<RenderSystem>()) {
         ZoneTransientN(zoneName, (renderSystem->name).c_str(), true);
         renderSystem->Update(deltaTime);
+    }
+    if (auto hudSystem = GetSystem<HUDSystem>()) {
+        ZoneTransientN(zoneName, (hudSystem->name).c_str(), true);
+        hudSystem->Update(deltaTime);
     }
 }
 
