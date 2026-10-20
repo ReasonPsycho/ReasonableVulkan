@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "5d51f14e-9ca7-464d-9e63-2d0a8bfe9a0a",
-  "path": "res/prefabs/Stress test object.prefab",
+  "id": "549ddf22-a781-469f-a2cb-822a23879d2c",
+  "path": "res/prefabs/Obstacle_1.prefab",
   "type": "Prefab",
-  "lookUpName": "Stress test object.prefab",
+  "lookUpName": "Obstacle_1.prefab",
   "contentHash": 0,
   "assetFactoryData": {
     "importPath": "",

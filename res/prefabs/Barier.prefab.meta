@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "5fb4c150-288f-47f0-b6c1-1113c1a8ae74",
-  "path": "res/prefabs/Entity_1.prefab",
+  "id": "4c97940e-6ee9-4769-a51b-540075866459",
+  "path": "res/prefabs/Barier.prefab",
   "type": "Prefab",
-  "lookUpName": "Entity_1.prefab",
+  "lookUpName": "Barier.prefab",
   "contentHash": 0,
   "assetFactoryData": {
     "importPath": "",

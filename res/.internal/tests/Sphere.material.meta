@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "20680e47-8ab2-43d4-b8cf-8838456ebfe0",
+  "id": "a3e85be3-fcb9-4396-81f0-fb27b7ab20ea",
   "path": "res/.internal/tests/Sphere.material",
   "type": "Material",
-  "lookUpName": "Sphere_0a.material",
+  "lookUpName": "Sphere_0.material",
   "contentHash": 931247031830880721,
   "assetFactoryData": {
     "importPath": "res/.internal/tests/Sphere.fbx",

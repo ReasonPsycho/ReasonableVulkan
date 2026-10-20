@@ -15,43 +15,24 @@ ReasonableVulkan is a modular game engine transitioned from ReasonableGL to Vulk
 - `debug-with-tests`: Includes unit and integration tests.
 - `release`: Optimized release build.
 
-> **Note**: When building for tests (e.g., `debug-with-tests`), it is highly recommended to use parallel building (e.g., `cmake --build --parallel` or `-j <number_of_cores>`) to significantly reduce build times.
+> **Note**: When building (e.g., `debug-with-tests`), it is highly recommended to use parallel building (e.g., `cmake --build --parallel` or `-j <number_of_cores>`) to significantly reduce build times.
 
 ### Assets
 - The `res/` folder is symlinked to the build directory after building. Ensure all paths used in code are relative to this root.
 
-## Module Guidelines
+## Documentation Workflow & README Guidelines
+ReasonableVulkan maintains detailed, modular documentation across separate README files. Instead of relying on static summaries in these guidelines:
+- **Read READMEs First**: Always read the relevant module and project README file(s) before starting work or making modifications in any part of the codebase.
+- **Update READMEs After Changes**: If any changes, additions, refactorings, or architectural updates are made, you must update the corresponding README file(s) to keep documentation accurate and synchronized.
 
-### Asset Manager (`am`)
-The Asset Manager provides centralized, UUID-based asset loading and caching.
-- **Singleton**: Access via `am::AssetManager::getInstance()`.
-- **UUID Identification**: All assets are uniquely identified using Boost UUIDs.
-- **Lazy Loading**: Assets are loaded on-demand when requested.
-- **Supported Formats**:
-  - Models: `.fbx`
-  - Textures: `.png`
-  - Shaders: `.spdv`, `.spv`, `.frag`, `.vert`
-- **Factories**: Use the factory pattern to extend support for new asset types.
-
-### Engine Module
-The core orchestrator using ECS and scene management.
-- **ECS**: Use the Entity-Component-System for all game logic.
-- **Scenes**: Supports multiple scenes with hierarchical scene graphs (transform inheritance).
-- **Transform System**: Built-in 3D transformation handling with matrix calculations.
-- **Singleton**: Access via `Engine::getInstance()`.
-
-### Vulkan Support (`vks`)
-Vulkan-specific helpers and managers.
-- **VulkanContext**: Encapsulates instance, device, and queue management.
-- **RenderManager**: Handles frame submission, command buffer recording, and synchronization (Double buffering by default, `MAX_FRAMES_IN_FLIGHT = 2`).
-- **RenderPipelineManager**: Manages Vulkan pipelines and shaders.
-- **DescriptorManager**: Handles descriptor sets and uniform buffers.
-
-## Shader Guidelines
-### GLSL
-The engine currently supports GLSL using `glslang` for compilation.
-- **Compilation**: Shaders are compiled to SPIR-V using the `glslang` library or external tools during asset loading.
-- **Supported extensions**: `.vert`, `.frag`, `.spv`, `.spdv`.
+### Key Project READMEs
+- `README.md`: Main project overview, build instructions, and prerequisites.
+- `src/assetManager/README.md`: Comprehensive documentation for the Asset Manager module, asset types, caching, and serialization.
+- `src/engine/README.md`: Documentation for the Engine module, ECS framework, scene graph, components, systems, and editor tooling.
+- `src/vks/README.md`: Documentation for the Vulkan Support module, rendering pipelines, bindless descriptors, buffers, and synchronization.
+- `res/shaders/README.md`: Shader creation, compilation pipeline, GLSL guidelines, and SPIR-V asset workflows.
+- `res/shaders/hlsl/README.md`: Notes on HLSL shaders and status.
+- `res/README.md`: Information regarding assets and sample asset packs.
 
 ## Coding Standards
 - **Naming**: Follow existing patterns (e.g., camelCase for methods, PascalCase for classes).
@@ -71,16 +52,5 @@ The engine currently supports GLSL using `glslang` for compilation.
   - Run tests with CTest (`ctest --test-dir out/build/tests --output-on-failure`) or via CLion's **Run with Coverage** action.
   - Generate reports with `gcovr` (`python -m gcovr -r . --filter "src/" --html --html-details -o coverage.html`)
 
-## Documentation & Notes
-### Project READMEs
-The following README files provide detailed documentation for different parts of the project:
-- `README.md`: Main project overview, build instructions, and prerequisites.
-- `res/README.md`: Information about the Vulkan samples asset pack.
-- `res/shaders/hlsl/README.md`: Notes on HLSL shaders and their status.
-- `src/assetManager/README.md`: Detailed documentation for the Asset Manager module.
-- `src/engine/README.md`: Overview of the Engine module and its ECS architecture.
-- `src/vks/README.md`: Documentation for the Vulkan Support module (currently empty).
-- `res/shaders/README.md`: Documentation for the shader creation process.
-
-### Internal Tracking
+## Internal Tracking
 - **Output Files**: Any command output should be redirected to `.junie/output.txt` to avoid cluttering files in the project root.
