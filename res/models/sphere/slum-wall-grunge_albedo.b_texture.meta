@@ -3,12 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "25c91251-e041-4f85-aed7-d42e7b647221",
+  "id": "a53645ff-a286-45e2-911f-1bee41835ae6",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\sphere\\slum-wall-grunge_albedo.b_texture",
   "type": "Texture",
   "lookUpName": "slum-wall-grunge_albedo_0.texture",
   "contentHash": 15382402069177264414,
-  "thumbnailPath": ".cache/thumbnails/25c91251-e041-4f85-aed7-d42e7b647221.png",
+  "thumbnailPath": ".cache/thumbnails/a53645ff-a286-45e2-911f-1bee41835ae6.png",
   "assetFactoryData": {
     "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\sphere\\slum-wall-grunge_albedo.png",
     "assetType": "Texture",

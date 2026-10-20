@@ -89,6 +89,8 @@ bool Scene::IsActive() const {
 }
 
 void Scene::Update(float deltaTime) { //TODO prob i will need to extend update with diffrent forms (late update for example) or enums
+    ProcessEvents();
+
     bool isPlaying = engine.IsPlaying();
     bool isPaused = engine.IsPaused();
     float simDeltaTime = (isPlaying && !isPaused) ? deltaTime : 0.0f;
@@ -109,6 +111,8 @@ void Scene::Update(float deltaTime) { //TODO prob i will need to extend update w
         ZoneTransientN(zoneName,(system->name).c_str(),true);
         system->Update(dt);
     }
+
+    ProcessEvents();
 }
 
 void Scene::Render(float deltaTime) {
@@ -123,11 +127,13 @@ void Scene::Render(float deltaTime) {
 }
 
 void Scene::OnStart() {
+    ProcessEvents();
     for (auto& [type, system] : systems) {
         if (system) {
             system->OnStart();
         }
     }
+    ProcessEvents();
 }
 
 Entity Scene::CreateEntity(Entity parentEntity)

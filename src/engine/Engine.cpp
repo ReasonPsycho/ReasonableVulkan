@@ -227,6 +227,8 @@ namespace engine {
     }
 
     void Engine::Update(float deltaTime) {
+        ProcessEvents();
+
         if (graphicsEngine) {
             graphicsEngine->beginFrame();
         }
@@ -253,6 +255,8 @@ namespace engine {
         if (editorSystem) {
             editorSystem->ProcessThumbnailCaptures();
         }
+
+        ProcessEvents();
     }
 
     void Engine::StartPlayMode()

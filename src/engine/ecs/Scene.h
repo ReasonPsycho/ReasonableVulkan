@@ -19,6 +19,8 @@
 #include "TransformNode.h"
 #include "componentArrays/IntegralComponentArray.h"
 #include "systems/renderingSystem/componets/CameraComponent.hpp"
+#include "events/EventDispatcher.hpp"
+#include "events/Events.hpp"
 
 namespace engine::ecs
 {
@@ -162,11 +164,30 @@ namespace engine::ecs
 
         CameraObject GetActiveCamera();
 
+        // Events
+        events::EventDispatcher& GetEventDispatcher() { return eventDispatcher; }
+        const events::EventDispatcher& GetEventDispatcher() const { return eventDispatcher; }
+
+        template<typename TEvent>
+        void PublishEvent(const TEvent& event) {
+            eventDispatcher.Publish(event);
+        }
+
+        template<typename TEvent>
+        void EnqueueEvent(const TEvent& event) {
+            eventDispatcher.Enqueue(event);
+        }
+
+        void ProcessEvents() {
+            eventDispatcher.ProcessAllQueues();
+        }
+
         //Engine
         ::engine::Engine& engine;
 
         boost::uuids::uuid sceneId{boost::uuids::nil_uuid()};
     private:
+        events::EventDispatcher eventDispatcher;
         std::vector<int32_t> entityToFlatIndex;
         SceneType sceneType = SceneType::Default;
 

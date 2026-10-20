@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "51e363d5-487f-45e2-906d-93f54d3b5f74",
+  "id": "c7cf2f16-f764-49a7-8a96-9177966515e0",
   "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\.internal\\tests\\Sphere.b_mesh",
   "type": "Mesh",
-  "lookUpName": "Sphere_0.mesh",
+  "lookUpName": "Sphere_0a.mesh",
   "contentHash": 970938207582912137,
   "assetFactoryData": {
     "importPath": "res\\.internal\\tests\\Sphere.fbx",

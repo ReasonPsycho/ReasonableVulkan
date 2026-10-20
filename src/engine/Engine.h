@@ -20,6 +20,7 @@
 #include "ecs/componentArrays/ComponentArray.h"
 #include "ecs/SystemBase.h"
 #include "EngineInterface.hpp"
+#include "events/EventDispatcher.hpp"
 
 namespace engine {
     namespace ecs
@@ -107,7 +108,26 @@ namespace engine {
         ComponentTypeID GetComponentTypeID(const std::type_index& type) const;
         std::type_index GetComponentTypeFromID(ComponentTypeID id) const;
 
+        // Events
+        events::EventDispatcher& GetEventDispatcher() { return eventDispatcher; }
+        const events::EventDispatcher& GetEventDispatcher() const { return eventDispatcher; }
+
+        template<typename TEvent>
+        void PublishEvent(const TEvent& event) {
+            eventDispatcher.Publish(event);
+        }
+
+        template<typename TEvent>
+        void EnqueueEvent(const TEvent& event) {
+            eventDispatcher.Enqueue(event);
+        }
+
+        void ProcessEvents() {
+            eventDispatcher.ProcessAllQueues();
+        }
+
     private:
+        events::EventDispatcher eventDispatcher;
         std::unordered_map<std::string, std::shared_ptr<Scene>> scenes;
         std::vector<std::string> sceneOrder;
         std::shared_ptr<ecs::EditorSystem> editorSystem = nullptr;
