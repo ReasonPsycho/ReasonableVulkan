@@ -57,5 +57,8 @@
   }, {
     "name" : "glslang",
     "version>=" : "15.1.0"
+  }, {
+    "name" : "freetype",
+    "version>=" : "2.13.2"
   } ]
 }

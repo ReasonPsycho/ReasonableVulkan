@@ -10,7 +10,7 @@
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
 #include "systems/pathfindingSystem/componets/Obstacle.hpp"
 #include "systems/pathfindingSystem/componets/Barrier.hpp"
-#include "systems/selectionSystem/SelectionSystem.hpp"
+#include "systems/tacticalSceneManagerSystem/TacticalSceneManagerSystem.hpp"
 #include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 #include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
 
@@ -65,8 +65,8 @@ BOOST_AUTO_TEST_CASE(TacticalGridSystemRegistrationAndStateLifecycleTest) {
     BOOST_CHECK_EQUAL(tacticalSystem->GetSelectedEntity(), MAX_ENTITIES);
     BOOST_CHECK(tacticalSystem->GetReachableCells().empty());
 
-    // 4. Synchronize via SelectionSystem
-    auto selectionSystem = scene->GetSystem<SelectionSystem>();
+    // 4. Synchronize via TacticalSceneManagerSystem
+    auto selectionSystem = scene->GetSystem<TacticalSceneManagerSystem>();
     BOOST_REQUIRE(selectionSystem != nullptr);
 
     selectionSystem->SetSelectedEntity(agentEntity);
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(TacticalGridSystemRegistrationAndStateLifecycleTest) {
     BOOST_CHECK(tacticalSystem->IsOverlayActive());
     BOOST_CHECK_EQUAL(tacticalSystem->GetSelectedEntity(), agentEntity);
 
-    // Deselect from SelectionSystem
+    // Deselect from TacticalSceneManagerSystem
     selectionSystem->ClearSelection();
     tacticalSystem->Update(0.016f);
     BOOST_CHECK(!tacticalSystem->IsOverlayActive());

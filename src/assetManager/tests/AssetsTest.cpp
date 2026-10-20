@@ -9,6 +9,7 @@
 #include "../src/assets/shaderAsset/ShaderIncluder.hpp"
 #include "../src/assets/shaderProgram/ShaderProgramAsset.h"
 #include "../src/assets/meshAsset/MeshAsset.h"
+#include "../src/assets/fontAsset/FontAsset.hpp"
 #include <filesystem>
 #include <fstream>
 
@@ -235,6 +236,107 @@ BOOST_AUTO_TEST_CASE(MaterialAssetPropertiesAndSerializationTest) {
 
     size_t hash = mat.calculateContentHash();
     BOOST_CHECK(hash != 0);
+}
+
+BOOST_AUTO_TEST_CASE(FontAssetLoadingAndParsingTest) {
+    if (std::filesystem::exists("res/.fonts/font.fnt")) {
+        auto id = boost::uuids::random_generator()();
+        ImportContext ctx("res/.fonts/font.fnt", AssetType::Font);
+        FontAsset font(id, ctx);
+
+        BOOST_CHECK(font.getType() == AssetType::Font);
+        auto fData = font.getAssetDataAs<FontData>();
+        BOOST_REQUIRE(fData != nullptr);
+        BOOST_CHECK_EQUAL(fData->fontName, "Arial Black Standard");
+        BOOST_CHECK_CLOSE(fData->fontSize, 32.0f, 0.001f);
+        BOOST_CHECK_CLOSE(fData->lineHeight, 46.0f, 0.001f);
+        BOOST_CHECK_CLOSE(fData->baseLine, 36.0f, 0.001f);
+        BOOST_CHECK_CLOSE(fData->scaleW, 512.0f, 0.001f);
+        BOOST_CHECK_CLOSE(fData->scaleH, 512.0f, 0.001f);
+        BOOST_CHECK(!fData->glyphs.empty());
+
+        // Check a specific glyph (e.g. 'A' = 65)
+        const auto* glyphA = fData->getGlyph(65);
+        BOOST_REQUIRE(glyphA != nullptr);
+        BOOST_CHECK_EQUAL(glyphA->id, 65);
+        BOOST_CHECK_CLOSE(glyphA->width, 33.0f, 0.001f);
+        BOOST_CHECK_CLOSE(glyphA->height, 32.0f, 0.001f);
+        BOOST_CHECK_CLOSE(glyphA->xadvance, 25.0f, 0.001f);
+        BOOST_CHECK(glyphA->uvMax.x > glyphA->uvMin.x);
+        BOOST_CHECK(glyphA->uvMax.y > glyphA->uvMin.y);
+
+        // Test JSON serialization & deserialization
+        rapidjson::Document doc;
+        doc.SetObject();
+        font.SaveAssetToJson(doc);
+        BOOST_CHECK(doc.HasMember("uuid"));
+        BOOST_CHECK(doc.HasMember("glyphs"));
+        BOOST_CHECK_EQUAL(doc["glyphs"].Size(), fData->glyphs.size());
+
+        std::filesystem::create_directories("res/.internal/tests/temp");
+        std::string jsonPath = "res/.internal/tests/temp/temp_font_test.json";
+        saveJsonToFile(jsonPath, doc);
+
+        FontAsset loadedFont(jsonPath, AssetFormat::Json);
+        auto lData = loadedFont.getAssetDataAs<FontData>();
+        BOOST_REQUIRE(lData != nullptr);
+        BOOST_CHECK_EQUAL(lData->fontName, "Arial Black Standard");
+        BOOST_CHECK_EQUAL(lData->glyphs.size(), fData->glyphs.size());
+
+        std::error_code ec;
+        std::filesystem::remove(jsonPath, ec);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(FreeTypeFontAssetLoadingTest) {
+    std::string ttfPath = "";
+    if (std::filesystem::exists("res/fonts/Geist-Black.ttf")) {
+        ttfPath = "res/fonts/Geist-Black.ttf";
+    } else if (std::filesystem::exists("res/.fonts/fa-solid-900.ttf")) {
+        ttfPath = "res/.fonts/fa-solid-900.ttf";
+    }
+
+    if (!ttfPath.empty()) {
+        auto id = boost::uuids::random_generator()();
+        ImportContext ctx(ttfPath, AssetType::Font);
+        FontAsset font(id, ctx);
+
+        BOOST_CHECK(font.getType() == AssetType::Font);
+        auto fData = font.getAssetDataAs<FontData>();
+        BOOST_REQUIRE(fData != nullptr);
+        BOOST_CHECK(!fData->fontName.empty());
+        BOOST_CHECK(fData->fontSize > 0.0f);
+        BOOST_CHECK(fData->lineHeight > 0.0f);
+        BOOST_CHECK(fData->baseLine > 0.0f);
+        BOOST_CHECK(fData->scaleW >= 512.0f);
+        BOOST_CHECK(fData->scaleH >= 512.0f);
+        BOOST_CHECK(!fData->glyphs.empty());
+
+        // Check character 'A' (65) or space (32)
+        const auto* glyphA = fData->getGlyph(65);
+        if (glyphA) {
+            BOOST_CHECK_EQUAL(glyphA->id, 65);
+            BOOST_CHECK(glyphA->width > 0.0f);
+            BOOST_CHECK(glyphA->height > 0.0f);
+            BOOST_CHECK(glyphA->xadvance > 0.0f);
+            BOOST_CHECK(glyphA->uvMax.x > glyphA->uvMin.x);
+            BOOST_CHECK(glyphA->uvMax.y > glyphA->uvMin.y);
+        }
+
+        const auto* glyphSpace = fData->getGlyph(32);
+        if (glyphSpace) {
+            BOOST_CHECK_EQUAL(glyphSpace->id, 32);
+            BOOST_CHECK(glyphSpace->xadvance > 0.0f);
+        }
+
+        // Test serialization
+        rapidjson::Document doc;
+        doc.SetObject();
+        font.SaveAssetToJson(doc);
+        BOOST_CHECK(doc.HasMember("uuid"));
+        BOOST_CHECK(doc.HasMember("glyphs"));
+        BOOST_CHECK_EQUAL(doc["glyphs"].Size(), fData->glyphs.size());
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

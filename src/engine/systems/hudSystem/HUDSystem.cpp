@@ -26,6 +26,45 @@ namespace engine::ecs {
         return anchorPos + offset;
     }
 
+    glm::vec2 HUDSystem::CalculateTextDimensions(const std::string& text, float fontSize, float characterSpacing, const am::FontData* fontData) const {
+        if (text.empty()) {
+            return glm::vec2(0.0f, fontSize);
+        }
+
+        if (fontData && !fontData->glyphs.empty()) {
+            float scale = fontSize / (fontData->lineHeight > 0.0f ? fontData->lineHeight : fontSize);
+            float maxX = 0.0f;
+            float currentX = 0.0f;
+            int lineCount = 1;
+
+            for (size_t i = 0; i < text.length(); ++i) {
+                char c = text[i];
+                if (c == '\n') {
+                    maxX = std::max(maxX, currentX);
+                    currentX = 0.0f;
+                    lineCount++;
+                    continue;
+                }
+
+                int charCode = static_cast<unsigned char>(c);
+                const auto* glyph = fontData->getGlyph(charCode);
+                float advance = (glyph ? glyph->xadvance : (fontSize * 0.5f / scale)) + characterSpacing;
+                if (i + 1 < text.length() && text[i + 1] != '\n') {
+                    char nextC = text[i + 1];
+                    advance += fontData->getKerning(charCode, static_cast<unsigned char>(nextC));
+                }
+                currentX += advance * scale;
+            }
+            maxX = std::max(maxX, currentX);
+            float totalHeight = static_cast<float>(lineCount) * fontSize;
+            return glm::vec2(maxX, totalHeight);
+        }
+
+        float charWidth = fontSize * 0.5f;
+        float totalWidth = static_cast<float>(text.length()) * charWidth + static_cast<float>(text.length() - 1) * characterSpacing;
+        return glm::vec2(totalWidth, fontSize);
+    }
+
     void HUDSystem::Update(float deltaTime) {
         if (!scene || !scene->engine.graphicsEngine || scene->engine.minimized) {
             return;
@@ -62,6 +101,89 @@ namespace engine::ecs {
             item.layerDepth = hud.layerDepth;
 
             drawItems.push_back(item);
+        }
+
+        for (auto [entity, hudText] : scene->GetActiveView<HUDTextComponent>()) {
+            if (!hudText.isVisible || hudText.text.empty()) continue;
+
+            const am::FontData* fontData = nullptr;
+            if (hudText.fontUuid != boost::uuids::nil_uuid() && scene->engine.assetManagerInterface) {
+                fontData = scene->engine.assetManagerInterface->getAssetData<am::FontData>(hudText.fontUuid);
+            }
+
+            glm::vec2 textSize = CalculateTextDimensions(hudText.text, hudText.fontSize, hudText.characterSpacing, fontData);
+            UIAnchor anchor = static_cast<UIAnchor>(hudText.anchor);
+            glm::vec2 basePos = CalculateAnchoredPosition(anchor, hudText.offset, textSize, screenSize);
+
+            boost::uuids::uuid targetTextureUuid = hudText.fontTextureUuid;
+            if (targetTextureUuid == boost::uuids::nil_uuid() && fontData) {
+                targetTextureUuid = fontData->atlasTextureUuid;
+            }
+
+            if (fontData && !fontData->glyphs.empty()) {
+                float scale = hudText.fontSize / (fontData->lineHeight > 0.0f ? fontData->lineHeight : hudText.fontSize);
+                glm::vec2 cursor = basePos;
+
+                for (size_t i = 0; i < hudText.text.length(); ++i) {
+                    char c = hudText.text[i];
+                    if (c == '\n') {
+                        cursor.x = basePos.x;
+                        cursor.y += hudText.fontSize * hudText.lineSpacing;
+                        continue;
+                    }
+
+                    int charCode = static_cast<unsigned char>(c);
+                    const auto* glyph = fontData->getGlyph(charCode);
+                    if (glyph) {
+                        if (glyph->width > 0.0f && glyph->height > 0.0f) {
+                            gfx::HUDDrawItem item;
+                            item.screenPosition = cursor + glm::vec2(glyph->xoffset, glyph->yoffset) * scale;
+                            item.size = glm::vec2(glyph->width, glyph->height) * scale;
+                            item.color = hudText.color;
+                            item.uvBounds = glm::vec4(glyph->uvMin.x, glyph->uvMin.y, glyph->uvMax.x, glyph->uvMax.y);
+                            item.textureAssetId = targetTextureUuid;
+                            item.layerDepth = hudText.layerDepth;
+                            drawItems.push_back(item);
+                        }
+                        float advance = glyph->xadvance + hudText.characterSpacing;
+                        if (i + 1 < hudText.text.length() && hudText.text[i + 1] != '\n') {
+                            char nextC = hudText.text[i + 1];
+                            advance += fontData->getKerning(charCode, static_cast<unsigned char>(nextC));
+                        }
+                        cursor.x += advance * scale;
+                    } else {
+                        cursor.x += (hudText.fontSize * 0.5f + hudText.characterSpacing);
+                    }
+                }
+            } else if (targetTextureUuid != boost::uuids::nil_uuid()) {
+                float charWidth = hudText.fontSize * 0.5f;
+                for (size_t i = 0; i < hudText.text.length(); ++i) {
+                    unsigned char c = static_cast<unsigned char>(hudText.text[i]);
+                    float uMin = (c % 16) / 16.0f;
+                    float vMin = (c / 16) / 16.0f;
+                    float uMax = uMin + 1.0f / 16.0f;
+                    float vMax = vMin + 1.0f / 16.0f;
+                    glm::vec2 charPos = basePos + glm::vec2(static_cast<float>(i) * (charWidth + hudText.characterSpacing), 0.0f);
+
+                    gfx::HUDDrawItem item;
+                    item.screenPosition = charPos;
+                    item.size = glm::vec2(charWidth, hudText.fontSize);
+                    item.color = hudText.color;
+                    item.uvBounds = glm::vec4(uMin, vMin, uMax, vMax);
+                    item.textureAssetId = targetTextureUuid;
+                    item.layerDepth = hudText.layerDepth;
+                    drawItems.push_back(item);
+                }
+            } else {
+                gfx::HUDDrawItem item;
+                item.screenPosition = basePos;
+                item.size = textSize;
+                item.color = hudText.color;
+                item.uvBounds = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+                item.textureAssetId = boost::uuids::nil_uuid();
+                item.layerDepth = hudText.layerDepth;
+                drawItems.push_back(item);
+            }
         }
 
         std::sort(drawItems.begin(), drawItems.end(), [](const gfx::HUDDrawItem& a, const gfx::HUDDrawItem& b) {

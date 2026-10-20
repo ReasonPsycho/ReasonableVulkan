@@ -21,6 +21,7 @@
 #include "assetDatas/MeshData.h"
 #include "assetDatas/ShaderData.h"
 #include "assetDatas/MaterialData.h"
+#include "assetDatas/FontData.h"
 #include "EngineInterface.hpp"
 #include "PlatformInterface.hpp"
 
@@ -1573,6 +1574,17 @@ namespace am {
                         if (ImGui::Button("Save Material") || matModified) {
                             if (assetManager) assetManager->saveAsset(fileUuid.value());
                         }
+                    }
+                } else if (assetType == AssetType::Font) {
+                    auto fontData = assetManager ? assetManager->getAssetData<FontData>(fileUuid.value()) : nullptr;
+                    if (fontData) {
+                        ImGui::Separator();
+                        ImGui::Text("Font Name: %s", fontData->fontName.c_str());
+                        ImGui::Text("Base Font Size: %.1f px", fontData->fontSize);
+                        ImGui::Text("Line Height: %.1f px", fontData->lineHeight);
+                        ImGui::Text("Base Line: %.1f px", fontData->baseLine);
+                        ImGui::Text("Atlas Resolution: %.0f x %.0f", fontData->scaleW, fontData->scaleH);
+                        ImGui::Text("Loaded Glyphs: %zu", fontData->glyphs.size());
                     }
                 }
             } else {

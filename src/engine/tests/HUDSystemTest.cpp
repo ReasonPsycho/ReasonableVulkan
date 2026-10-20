@@ -4,6 +4,7 @@
 #include "TestHelper.hpp"
 #include "systems/hudSystem/HUDSystem.hpp"
 #include "systems/hudSystem/components/HUDElementComponent.hpp"
+#include "systems/hudSystem/components/HUDTextComponent.hpp"
 #include "GraphicsEngine.hpp"
 
 using namespace engine;
@@ -162,6 +163,72 @@ BOOST_AUTO_TEST_CASE(HUDSystemBatchingAndSortingTest) {
     BOOST_CHECK_EQUAL(mockGfx.lastSubmittedItems[1].layerDepth, 2);
 
     engine.RemoveScene("HUDBatchScene");
+}
+
+BOOST_AUTO_TEST_CASE(HUDSystemTextComponentTest) {
+    MockHUDGraphicsEngine mockGfx;
+    Engine engine(nullptr, &mockGfx, &am::AssetManager::getInstance());
+
+    auto scene = engine.CreateScene("HUDTextScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto hudSystem = scene->GetSystem<HUDSystem>();
+    BOOST_REQUIRE(hudSystem != nullptr);
+
+    // Test text dimensions calculation
+    glm::vec2 dims = hudSystem->CalculateTextDimensions("Soldier", 16.0f, 1.0f);
+    // 7 characters * (16.0f * 0.5f = 8.0f) + 6 * 1.0f = 56.0f + 6.0f = 62.0f
+    BOOST_CHECK_CLOSE(dims.x, 62.0f, 0.001f);
+    BOOST_CHECK_CLOSE(dims.y, 16.0f, 0.001f);
+
+    // Entity with HUDTextComponent
+    Entity textEntity = scene->CreateEntity("PawnNameHUDText");
+    HUDTextComponent textComp("Soldier", glm::vec2(10.0f, 10.0f), UIAnchor::TopLeft, 16.0f, glm::vec4(1.0f, 0.9f, 0.8f, 1.0f));
+    textComp.layerDepth = 5;
+    scene->AddComponent<HUDTextComponent>(textEntity, textComp);
+
+    hudSystem->Update(0.016f);
+
+    BOOST_REQUIRE_EQUAL(mockGfx.lastSubmittedItems.size(), 1);
+    BOOST_CHECK_EQUAL(mockGfx.lastSubmittedItems[0].layerDepth, 5);
+    BOOST_CHECK_CLOSE(mockGfx.lastSubmittedItems[0].size.x, 62.0f, 0.001f);
+    BOOST_CHECK_CLOSE(mockGfx.lastSubmittedItems[0].color.r, 1.0f, 0.001f);
+
+    // Test font texture glyph generation when font texture uuid is set
+    boost::uuids::uuid testFontUuid = boost::uuids::string_generator()("00000000-0000-0000-0000-000000000001");
+    auto& compRef = scene->GetComponent<HUDTextComponent>(textEntity);
+    compRef.fontTextureUuid = testFontUuid;
+
+    hudSystem->Update(0.016f);
+
+    // When font texture is present, 7 glyph quads should be generated
+    BOOST_REQUIRE_EQUAL(mockGfx.lastSubmittedItems.size(), 7);
+    for (const auto& item : mockGfx.lastSubmittedItems) {
+        BOOST_CHECK_EQUAL(item.textureAssetId, testFontUuid);
+        BOOST_CHECK_EQUAL(item.layerDepth, 5);
+    }
+
+    // Test with FontData
+    am::FontData customFont;
+    customFont.lineHeight = 32.0f;
+    customFont.fontSize = 32.0f;
+    customFont.atlasTextureUuid = testFontUuid;
+    am::GlyphMetrics gA;
+    gA.id = 'A';
+    gA.width = 16.0f;
+    gA.height = 20.0f;
+    gA.xoffset = 0.0f;
+    gA.yoffset = 2.0f;
+    gA.xadvance = 18.0f;
+    gA.uvMin = glm::vec2(0.1f, 0.1f);
+    gA.uvMax = glm::vec2(0.2f, 0.3f);
+    customFont.glyphs['A'] = gA;
+
+    glm::vec2 fontDims = hudSystem->CalculateTextDimensions("A", 32.0f, 0.0f, &customFont);
+    BOOST_CHECK_CLOSE(fontDims.x, 18.0f, 0.001f);
+    BOOST_CHECK_CLOSE(fontDims.y, 32.0f, 0.001f);
+
+    engine.RemoveScene("HUDTextScene");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

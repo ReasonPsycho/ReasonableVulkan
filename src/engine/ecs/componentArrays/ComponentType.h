@@ -30,6 +30,8 @@ namespace engine::ecs
     struct Barrier;
     struct TacticalGridComponent;
     struct HUDElementComponent;
+    struct HUDTextComponent;
+    struct PawnComponent;
 
     class RenderSystem;
     class GizmoSystem;
@@ -37,7 +39,7 @@ namespace engine::ecs
     class CollisionSystem;
     class ScriptSystem;
     class PathfindingSystem;
-    class SelectionSystem;
+    class TacticalSceneManagerSystem;
     class TacticalGridSystem;
     class HUDSystem;
 
@@ -56,7 +58,9 @@ namespace engine::ecs
         Obstacle,
         Barrier,
         TacticalGridComponent,
-        HUDElementComponent
+        HUDElementComponent,
+        HUDTextComponent,
+        PawnComponent
     >;
 
     using EngineSystems = std::tuple<
@@ -66,7 +70,7 @@ namespace engine::ecs
         CollisionSystem,
         ScriptSystem,
         PathfindingSystem,
-        SelectionSystem,
+        TacticalSceneManagerSystem,
         TacticalGridSystem,
         HUDSystem
     >;

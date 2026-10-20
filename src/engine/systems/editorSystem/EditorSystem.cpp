@@ -23,8 +23,9 @@
 #include "systems/pathfindingSystem/componets/Barrier.hpp"
 #include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
 #include "systems/hudSystem/components/HUDElementComponent.hpp"
+#include "systems/hudSystem/components/HUDTextComponent.hpp"
 #include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
-#include "systems/selectionSystem/SelectionSystem.hpp"
+#include "systems/tacticalSceneManagerSystem/TacticalSceneManagerSystem.hpp"
 #include "systems/scriptSystem/ScriptSystem.hpp"
 #include "systems/scriptSystem/ScriptHotReloadManager.hpp"
 #include "systems/scriptSystem/ScriptRegistry.hpp"
@@ -1577,7 +1578,7 @@ void EditorSystem::Update(float deltaTime)
                     float relX = io.MousePos.x - imagePos.x;
                     float relY = io.MousePos.y - imagePos.y;
                     if (relX >= 0.0f && relX <= imageSize.x && relY >= 0.0f && relY <= imageSize.y) {
-                        if (auto selectionSystem = topEditableScene->GetSystem<SelectionSystem>()) {
+                        if (auto selectionSystem = topEditableScene->GetSystem<TacticalSceneManagerSystem>()) {
                             selectionSystem->HandleMouseMove(relX, relY, imageSize.x, imageSize.y);
                             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                                 selectionSystem->HandleLeftClick(relX, relY, imageSize.x, imageSize.y);

@@ -16,10 +16,11 @@
 #include "systems/renderingSystem/RenderSystem.h"
 #include "systems/scriptSystem/ScriptSystem.hpp"
 #include "systems/pathfindingSystem/PathfindingSystem.hpp"
-#include "systems/selectionSystem/SelectionSystem.hpp"
+#include "systems/tacticalSceneManagerSystem/TacticalSceneManagerSystem.hpp"
 #include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 #include "systems/hudSystem/HUDSystem.hpp"
 #include "systems/hudSystem/components/HUDElementComponent.hpp"
+#include "systems/hudSystem/components/HUDTextComponent.hpp"
 #include "systems/tacticalGridSystem/components/TacticalGridComponent.hpp"
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
@@ -31,6 +32,7 @@
 #include "systems/scriptSystem/components/ScriptComponent.hpp"
 #include "components/NameComponent.hpp"
 #include "components/TagComponent.hpp"
+#include "systems/tacticalSceneManagerSystem/components/PawnComponent.hpp"
 
 using namespace engine::ecs;
 

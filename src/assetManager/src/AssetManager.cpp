@@ -18,6 +18,7 @@
 #include "assets/configAsset/ConfigAsset.h"
 #include "assets/meshAsset/MeshAsset.h"
 #include "assets/textureAsset/TextureAsset.h"
+#include "assets/fontAsset/FontAsset.hpp"
 #include "JsonHelpers.hpp"
 
 #ifdef _WIN32

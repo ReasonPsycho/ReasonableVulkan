@@ -11,7 +11,7 @@ namespace engine::ecs {
 
     using EntityID = std::uint32_t;
     using ComponentID = std::uint32_t;
-    constexpr std::size_t MAX_COMPONENTS = 16;
+    constexpr std::size_t MAX_COMPONENTS = 64;
     using Signature = std::bitset<MAX_COMPONENTS>;
     constexpr EntityID MAX_ENTITIES = 100000;
     constexpr EntityID MAX_COMPONENTS_ARRAY = 100000;

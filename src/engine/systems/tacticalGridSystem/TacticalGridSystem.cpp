@@ -5,7 +5,7 @@
 #include <Config.hpp>
 #include "ecs/Scene.h"
 #include "systems/transformSystem/componets/TransformComponent.hpp"
-#include "systems/selectionSystem/SelectionSystem.hpp"
+#include "systems/tacticalSceneManagerSystem/TacticalSceneManagerSystem.hpp"
 #include "AssetTypes.hpp"
 #include "assetDatas/ModelData.h"
 #include "../../../assetManager/src/assets/meshAsset/MeshAsset.h"
@@ -313,8 +313,8 @@ namespace engine::ecs {
 
         animationTime += deltaTime;
 
-        // Sync with selection system
-        if (auto selSys = scene->GetSystem<SelectionSystem>()) {
+        // Sync with tactical scene manager / selection system
+        if (auto selSys = scene->GetSystem<TacticalSceneManagerSystem>()) {
             Entity curSel = selSys->GetSelectedEntity();
             if (curSel != activeSelectedEntity) {
                 SetSelectedEntity(curSel);

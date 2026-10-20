@@ -42,6 +42,7 @@ namespace am {
     class SceneAsset;
     class PrefabAsset;
     class ConfigAsset;
+    class FontAsset;
 
     using SupportedAssets = std::tuple<
         MaterialAsset,
@@ -52,7 +53,8 @@ namespace am {
         MeshAsset,
         SceneAsset,
         PrefabAsset,
-        ConfigAsset
+        ConfigAsset,
+        FontAsset
     >;
 
     class AssetManager : public AssetManagerInterface {

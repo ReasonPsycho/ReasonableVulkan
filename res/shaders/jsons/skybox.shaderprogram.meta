@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "44de7483-e9c0-444b-a535-06bd5d0ef455",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\jsons\\skybox.shaderprogram",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\jsons\\skybox.shaderprogram",
   "type": "ShaderProgram",
   "lookUpName": "skybox.shaderprogram",
   "contentHash": 11037901660116856270,

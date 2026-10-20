@@ -26,6 +26,8 @@ find_package(RapidJSON CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(glslang CONFIG REQUIRED)
 find_package(Tracy CONFIG REQUIRED)
+find_package(Freetype REQUIRED)
+find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 
 # Find Boost with required components
 find_package(Boost REQUIRED COMPONENTS uuid hash2)
@@ -60,6 +62,7 @@ target_include_directories(am
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${Stb_INCLUDE_DIR}
+        ${TINYGLTF_INCLUDE_DIRS}
 )
 add_definitions(-DGLM_ENABLE_EXPERIMENTAL)
 # Link Assimp, Boost UUID
@@ -75,6 +78,7 @@ target_link_libraries(am
         imgui::imgui
         glslang::glslang glslang::glslang-default-resource-limits glslang::SPIRV glslang::SPVRemapper
         Tracy::TracyClient
+        Freetype::Freetype
 )
 
 # Enable tests in Debug mode by default or when explicitly enabled
@@ -108,6 +112,7 @@ if (AM_ENABLE_TESTS)
                 glslang::glslang-default-resource-limits
                 glslang::SPIRV
                 glslang::SPVRemapper
+                Freetype::Freetype
         )
 
         # Add test directory to include paths for test executable
@@ -115,7 +120,9 @@ if (AM_ENABLE_TESTS)
                 PRIVATE
                 tests
                 ${CMAKE_CURRENT_SOURCE_DIR}/src
+                ${CMAKE_CURRENT_SOURCE_DIR}/include
                 ${Stb_INCLUDE_DIR}
+                ${TINYGLTF_INCLUDE_DIRS}
         )
 
         # Enable CTest
