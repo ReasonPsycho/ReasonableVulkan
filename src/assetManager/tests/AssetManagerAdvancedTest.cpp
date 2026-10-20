@@ -176,4 +176,34 @@ BOOST_AUTO_TEST_CASE(CheckAndRecompileOutdatedShadersTest) {
     }
 }
 
+BOOST_AUTO_TEST_CASE(ThumbnailExclusionFromAutoImportTest) {
+    // 1. Test isExcludedFromImport helper with various path formats
+    BOOST_CHECK(AssetManager::isExcludedFromImport("res/.cache/thumbnails/test.png"));
+    BOOST_CHECK(AssetManager::isExcludedFromImport("res\\.cache\\thumbnails\\test.png"));
+    BOOST_CHECK(AssetManager::isExcludedFromImport(".cache/thumbnails/test.png"));
+    BOOST_CHECK(AssetManager::isExcludedFromImport(".cache\\thumbnails\\test.png"));
+    BOOST_CHECK(AssetManager::isExcludedFromImport("C:/project/res/.cache/thumbnails/uuid.png"));
+    BOOST_CHECK(AssetManager::isExcludedFromImport("C:\\project\\res\\.cache\\thumbnails\\uuid.png"));
+
+    BOOST_CHECK(!AssetManager::isExcludedFromImport("res/textures/Missing_Texture.png"));
+    BOOST_CHECK(!AssetManager::isExcludedFromImport("res/models/cube.fbx"));
+    BOOST_CHECK(!AssetManager::isExcludedFromImport("res/.cache/config/fileBrowser.config"));
+    BOOST_CHECK(!AssetManager::isExcludedFromImport(""));
+
+    // 2. Test that attempting to register or reimport excluded paths fails gracefully
+    auto& manager = AssetManager::getInstance();
+    auto regOpt = manager.registerAsset("res/.cache/thumbnails/test_thumb.png");
+    BOOST_CHECK(!regOpt.has_value());
+
+    auto regOptWithLookup = manager.registerAsset("res/.cache/thumbnails/test_thumb.png", "test_thumb.png");
+    BOOST_CHECK(!regOptWithLookup.has_value());
+
+    ImportContext ctx("res/.cache/thumbnails/test_thumb.png", AssetType::Texture);
+    auto regCtxOpt = manager.registerAsset(ctx);
+    BOOST_CHECK(!regCtxOpt.has_value());
+
+    bool reimported = manager.reimportAsset(std::filesystem::path("res/.cache/thumbnails/test_thumb.png"));
+    BOOST_CHECK(!reimported);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

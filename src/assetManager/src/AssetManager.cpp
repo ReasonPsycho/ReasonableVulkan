@@ -57,6 +57,19 @@ namespace am {
         return instance;
     }
 
+    bool AssetManager::isExcludedFromImport(const std::filesystem::path& path)
+    {
+        if (path.empty()) return false;
+        std::string s = path.generic_string();
+        for (char& c : s) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        if (s.find(".cache/thumbnails") != std::string::npos || s.find(".cache/trash") != std::string::npos) {
+            return true;
+        }
+        return false;
+    }
+
     std::optional<boost::uuids::uuid> AssetManager::createAsset(AssetType assetType, std::string path) {
         std::filesystem::path p = std::filesystem::path(path).lexically_normal();
 
@@ -148,6 +161,11 @@ namespace am {
     std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path, std::string lookUpName)
     {
         std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        if (isExcludedFromImport(p))
+        {
+            spdlog::warn("Cannot register asset: path is excluded from import '{}'", path);
+            return std::nullopt;
+        }
         std::string normalizedPath = p.string();
 
         std::string extension = p.extension().string();
@@ -176,6 +194,11 @@ namespace am {
     std::optional<boost::uuids::uuid> AssetManager::registerAsset(std::string path)
     {
         std::filesystem::path p = std::filesystem::path(path).lexically_normal();
+        if (isExcludedFromImport(p))
+        {
+            spdlog::warn("Cannot register asset: path is excluded from import '{}'", path);
+            return std::nullopt;
+        }
         std::string normalizedPath = p.string();
 
         std::string extension = p.extension().string();
@@ -334,6 +357,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         // 2. Scan all .meta sidecars to discover newly added or modified assets
         for (const auto& entry : std::filesystem::recursive_directory_iterator(rootPath))
         {
+            if (isExcludedFromImport(entry.path())) continue;
             if (!entry.is_regular_file()) continue;
 
             const auto& path = entry.path();
@@ -760,6 +784,12 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     {
         importContext.importPath = std::filesystem::path(importContext.importPath).lexically_normal().string();
 
+        if (isExcludedFromImport(importContext.importPath))
+        {
+            spdlog::warn("Cannot register asset: path is excluded from import '{}'", importContext.importPath);
+            return std::nullopt;
+        }
+
         auto existingUuid = findAssetByImportContext(importContext);
         if (existingUuid.has_value())
         {
@@ -793,6 +823,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     {
         if (!event) return;
         auto filePath = event->filePath;
+        if (isExcludedFromImport(filePath)) return;
         auto ext = std::filesystem::path(filePath).extension().string();
 
         if (ext == ".meta")
@@ -883,6 +914,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     {
         if (!event) return;
         auto filePath = std::filesystem::path(event->filePath).lexically_normal();
+        if (isExcludedFromImport(filePath)) return;
         auto ext = filePath.extension().string();
 
         if (ext == ".meta")
@@ -955,6 +987,7 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         // 1. Scan for any raw shader source files and .shaderImport files that are not registered
         for (const auto& entry : std::filesystem::recursive_directory_iterator(resPath, ec))
         {
+            if (isExcludedFromImport(entry.path())) continue;
             if (!entry.is_regular_file(ec)) continue;
             auto ext = entry.path().extension().string();
             if (ext == ".vert" || ext == ".frag" || ext == ".comp" || ext == ".geom" ||
@@ -1053,7 +1086,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     void AssetManager::handleFileDropped(const plt::FileDropEvent* event)
     {
+        if (!event) return;
         auto filePath = std::filesystem::path(event->filePath).lexically_normal();
+        if (isExcludedFromImport(filePath)) return;
         std::filesystem::path targetFolder = imguiFileBrowser ? fileBrowserInstance->currentPath : std::filesystem::path(resourceFolder);
         std::filesystem::path destPath = targetFolder / filePath.filename();
 
@@ -1480,6 +1515,11 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
     std::optional<boost::uuids::uuid> AssetManager::importAsset(ImportContext importContext, std::string lookUpName)
     {
         importContext.importPath = std::filesystem::path(importContext.importPath).lexically_normal().string();
+        if (isExcludedFromImport(importContext.importPath))
+        {
+            spdlog::warn("Cannot import asset: path is excluded from import '{}'", importContext.importPath);
+            return std::nullopt;
+        }
         try
         {
             // Create and load the asset to calculate its hash
@@ -1756,6 +1796,10 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
 
     bool AssetManager::reimportAsset(const std::filesystem::path& path)
     {
+        if (isExcludedFromImport(path)) {
+            return false;
+        }
+
         auto uuidOpt = getAssetUuidByPath(path);
         if (uuidOpt) {
             return reimportAsset(uuidOpt.value());

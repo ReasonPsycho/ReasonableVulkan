@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "d1e35fa8-831b-4172-b8ec-f349c21b29a2",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\grid_overlay.b_fs_shader",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\glsl\\entry\\grid_overlay.b_fs_shader",
   "type": "Shader",
   "lookUpName": "grid_overlay.fs_shader",
   "contentHash": 17736891274184336227,

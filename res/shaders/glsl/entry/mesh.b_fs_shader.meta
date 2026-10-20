@@ -3,13 +3,13 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "e721ec30-b18f-4ad2-9d08-8908a18c15b0",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\mesh.b_fs_shader",
+  "id": "f572c230-9493-4eed-97a3-6ace99b1673a",
+  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\shaders\\glsl\\entry\\mesh.b_fs_shader",
   "type": "Shader",
-  "lookUpName": "mesh.fs.shader",
+  "lookUpName": "mesh_1.shader",
   "contentHash": 2265336382465487539,
   "assetFactoryData": {
-    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\tests\\res\\shaders\\glsl\\entry\\mesh.frag",
+    "importPath": "res\\shaders\\glsl\\entry\\mesh.frag",
     "assetType": "Shader",
     "assimpIndex": 0
   }

@@ -154,6 +154,7 @@ namespace am {
         void RegisterAssetType();
 
         //Scanning & Metadata
+        static bool isExcludedFromImport(const std::filesystem::path& path);
         void scanResourceDirectory(const std::filesystem::path& rootPath);
         void checkAndRecompileOutdatedShaders() override;
         bool saveAssetMetadata(const boost::uuids::uuid& id) const override;
