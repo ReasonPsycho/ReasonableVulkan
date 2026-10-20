@@ -4,12 +4,12 @@
     "version": "1.0"
   },
   "id": "480875e5-3492-4fc3-b8f3-23cec4288bdf",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\shaders\\glsl\\entry\\shadowCubeMap.b_fs_shader",
+  "path": "res/shaders/glsl/entry/shadowCubeMap.b_fs_shader",
   "type": "Shader",
   "lookUpName": "shadowCubeMap_1.shader",
   "contentHash": 4148761421996070026,
   "assetFactoryData": {
-    "importPath": "res\\shaders\\glsl\\entry\\shadowCubeMap.frag",
+    "importPath": "res/shaders/glsl/entry/shadowCubeMap.frag",
     "assetType": "Shader",
     "assimpIndex": 0
   }

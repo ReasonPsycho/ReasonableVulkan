@@ -4,13 +4,13 @@
     "version": "1.0"
   },
   "id": "07889b02-6c63-4262-bc41-deb3070a2d51",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\models\\plane\\alley-brick-wall_albedo.b_texture",
+  "path": "res/models/plane/alley-brick-wall_albedo.b_texture",
   "type": "Texture",
   "lookUpName": "alley-brick-wall_albedo_0.texture",
-  "contentHash": 5876403154067738325,
+  "contentHash": 3651609447057979728,
   "thumbnailPath": ".cache/thumbnails/07889b02-6c63-4262-bc41-deb3070a2d51.png",
   "assetFactoryData": {
-    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\models\\plane\\alley-brick-wall_albedo.png",
+    "importPath": "res/models/plane/alley-brick-wall_albedo.png",
     "assetType": "Texture",
     "assimpIndex": 0
   }

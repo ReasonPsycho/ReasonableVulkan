@@ -16,6 +16,9 @@ namespace am {
     class Asset; // Forward declaration
     class AssetManager;
 
+    std::string NormalizePathToRelative(const std::string& inputPath, const std::string& baseResourceFolder = "");
+    std::string ResolveRelativePath(const std::string& inputPath, const std::string& baseResourceFolder = "");
+
     struct ImportContext {
         [[=JsonName{"importPath"}]] std::string importPath;
         [[=JsonName{"assetType"}]]  AssetType assetType = AssetType::Other;

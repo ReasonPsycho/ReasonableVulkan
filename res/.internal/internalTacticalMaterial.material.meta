@@ -4,7 +4,7 @@
     "version": "1.0"
   },
   "id": "3312cded-ae49-4868-8196-a8dfa9a17fac",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\.internal\\internalTacticalMaterial.material",
+  "path": "res/.internal/internalTacticalMaterial.material",
   "type": "Material",
   "lookUpName": "internalTacticalMaterial",
   "contentHash": 0,

@@ -4,12 +4,12 @@
     "version": "1.0"
   },
   "id": "3b47a25f-99f2-48d9-8326-309f93670f34",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\fonts\\Geist-Black.font",
+  "path": "res/fonts/Geist-Black.font",
   "type": "Font",
   "lookUpName": "Geist-Black.font",
   "contentHash": 14035270666908950742,
   "assetFactoryData": {
-    "importPath": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\fonts\\Geist-Black.ttf",
+    "importPath": "res/fonts/Geist-Black.ttf",
     "assetType": "Font",
     "assimpIndex": 0
   }

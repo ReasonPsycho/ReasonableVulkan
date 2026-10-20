@@ -29,6 +29,8 @@ namespace am
         virtual engine::EngineInterface* getEngine() const = 0;
         virtual void setEditor(editor::EditorInterface* editorInterface) = 0;
         virtual editor::EditorInterface* getEditor() const = 0;
+        virtual std::string getResourceFolder() const { return ""; }
+        virtual void setResourceFolder(const std::string& path) {}
         virtual std::optional<boost::uuids::uuid> getAssetUuidByPath(const std::filesystem::path& path) = 0;
 
         virtual std::optional<boost::uuids::uuid> createAsset(AssetType assetType, std::string path) = 0;
@@ -90,6 +92,7 @@ namespace am
         virtual bool reimportAsset(const std::filesystem::path& path) = 0;
 
         virtual void checkAndRecompileOutdatedShaders() {}
+        virtual void cleanupTestTempAssets() {}
     };
 
     inline std::shared_ptr<AssetInfo> ResolveAssetInfo(const boost::uuids::uuid& id, AssetManagerInterface* assetManager) {

@@ -4,12 +4,12 @@
     "version": "1.0"
   },
   "id": "20680e47-8ab2-43d4-b8cf-8838456ebfe0",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\.internal\\tests\\Sphere.material",
+  "path": "res/.internal/tests/Sphere.material",
   "type": "Material",
   "lookUpName": "Sphere_0a.material",
-  "contentHash": 6864802739313272055,
+  "contentHash": 931247031830880721,
   "assetFactoryData": {
-    "importPath": "res\\.internal\\tests\\Sphere.fbx",
+    "importPath": "res/.internal/tests/Sphere.fbx",
     "assetType": "Material",
     "assimpIndex": 0
   }

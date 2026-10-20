@@ -4,12 +4,12 @@
     "version": "1.0"
   },
   "id": "847369f6-156b-4b53-a7ff-156016d64c3f",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\.internal\\tests\\Plane.material",
+  "path": "res/.internal/tests/Plane.material",
   "type": "Material",
   "lookUpName": "Plane_0.material",
-  "contentHash": 4056282056264071001,
+  "contentHash": 5987743293541191172,
   "assetFactoryData": {
-    "importPath": "res\\.internal\\tests\\Plane.fbx",
+    "importPath": "res/.internal/tests/Plane.fbx",
     "assetType": "Material",
     "assimpIndex": 0
   }

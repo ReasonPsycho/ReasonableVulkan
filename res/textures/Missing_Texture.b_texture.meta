@@ -4,13 +4,13 @@
     "version": "1.0"
   },
   "id": "4893da0a-059f-4bb8-b780-84f29b7e6ec5",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res\\textures\\Missing_Texture.b_texture",
+  "path": "res/textures/Missing_Texture.b_texture",
   "type": "Texture",
   "lookUpName": "Missing_Texture_0.texture",
-  "contentHash": 2103556943625828512,
+  "contentHash": 6112323087987133169,
   "thumbnailPath": ".cache/thumbnails/4893da0a-059f-4bb8-b780-84f29b7e6ec5.png",
   "assetFactoryData": {
-    "importPath": "res\\textures\\Missing_Texture.png",
+    "importPath": "res/textures/Missing_Texture.png",
     "assetType": "Texture",
     "assimpIndex": 0
   }

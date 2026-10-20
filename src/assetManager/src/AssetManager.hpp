@@ -72,6 +72,9 @@ namespace am {
         engine::EngineInterface* getEngine() const override { return engine; }
         void setEditor(editor::EditorInterface* editorInterface) override;
         editor::EditorInterface* getEditor() const override { return editor; }
+        std::string getResourceFolder() const override { return resourceFolder; }
+        void setResourceFolder(const std::string& path) override { resourceFolder = std::filesystem::path(path).lexically_normal().string(); }
+        void registerPathToUuid(const std::string& rawPath, const boost::uuids::uuid& id);
         AssetManager(const AssetManager&) = delete;
         AssetManager& operator=(const AssetManager&) = delete;
         static AssetManager &getInstance();
@@ -159,6 +162,7 @@ namespace am {
         static bool isExcludedFromImport(const std::filesystem::path& path);
         void scanResourceDirectory(const std::filesystem::path& rootPath);
         void checkAndRecompileOutdatedShaders() override;
+        void cleanupTestTempAssets() override;
         bool saveAssetMetadata(const boost::uuids::uuid& id) const override;
         void saveAllAssetMetadata() const;
 
@@ -182,7 +186,7 @@ namespace am {
         engine::EngineInterface* engine = nullptr;
         editor::EditorInterface* editor = nullptr;
         plt::PlatformInterface* platform = nullptr;
-        std::string resourceFolder  = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
+        std::string resourceFolder  = "res";
         std::unordered_map<boost::uuids::uuid, std::unique_ptr<Asset>, boost::hash<boost::uuids::uuid>> assets;
         std::unordered_map<boost::uuids::uuid, std::shared_ptr<AssetInfo>, boost::hash<boost::uuids::uuid>> metadata;
         std::unordered_map<std::string, boost::uuids::uuid> lookupNamesToUUIDs;

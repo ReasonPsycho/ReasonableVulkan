@@ -4,12 +4,12 @@
     "version": "1.0"
   },
   "id": "a16c0b9d-44ae-4801-971d-0a0520a1167b",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\.internal\\tests\\Box.b_mesh",
+  "path": "res/.internal/tests/Box.b_mesh",
   "type": "Mesh",
   "lookUpName": "Box_0.mesh",
   "contentHash": 5038183172379787656,
   "assetFactoryData": {
-    "importPath": "res\\.internal\\tests\\Box.fbx",
+    "importPath": "res/.internal/tests/Box.fbx",
     "assetType": "Mesh",
     "assimpIndex": 0
   }

@@ -206,4 +206,56 @@ BOOST_AUTO_TEST_CASE(ThumbnailExclusionFromAutoImportTest) {
     BOOST_CHECK(!reimported);
 }
 
+BOOST_AUTO_TEST_CASE(RelativePathNormalizationAndSerializationTest) {
+    // 1. Test NormalizePathToRelative
+    BOOST_CHECK_EQUAL(NormalizePathToRelative("C:/project/out/build/debug/res/fonts/Geist-Black.ttf"), "res/fonts/Geist-Black.ttf");
+    BOOST_CHECK_EQUAL(NormalizePathToRelative("C:\\project\\out\\build\\debug\\res\\fonts\\Geist-Black.ttf"), "res/fonts/Geist-Black.ttf");
+    BOOST_CHECK_EQUAL(NormalizePathToRelative("C:/project/res/textures/Missing_Texture.png"), "res/textures/Missing_Texture.png");
+    BOOST_CHECK_EQUAL(NormalizePathToRelative("res\\textures\\Missing_Texture.png"), "res/textures/Missing_Texture.png");
+    BOOST_CHECK_EQUAL(NormalizePathToRelative("res/textures/Missing_Texture.png"), "res/textures/Missing_Texture.png");
+    BOOST_CHECK_EQUAL(NormalizePathToRelative("textures/Missing_Texture.png"), "res/textures/Missing_Texture.png");
+
+    // 2. Test ResolveRelativePath
+    std::string baseRes = "C:/project/res";
+    std::string resolved = ResolveRelativePath("res/fonts/Geist-Black.ttf", baseRes);
+    BOOST_CHECK(resolved.find("Geist-Black.ttf") != std::string::npos);
+
+    // 3. Test ImportContext operator== with relative vs absolute paths
+    ImportContext ctx1("res/textures/Missing_Texture.png", AssetType::Texture, 0);
+    ImportContext ctx2("C:/project/out/build/debug/res/textures/Missing_Texture.png", AssetType::Texture, 0);
+    BOOST_CHECK(ctx1 == ctx2);
+
+    // 4. Test AssetInfo serialization with relative paths
+    boost::uuids::uuid testId = boost::uuids::random_generator()();
+    AssetInfo info(
+        testId,
+        "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\fonts\\Geist-Black_atlas.b_texture",
+        AssetType::Texture,
+        123456,
+        ImportContext("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\fonts\\Geist-Black_atlas.png", AssetType::Texture, 0),
+        "Geist-Black_atlas.texture",
+        ".cache\\thumbnails\\test.png"
+    );
+
+    rapidjson::Document doc;
+    doc.SetObject();
+    auto& allocator = doc.GetAllocator();
+    info.SerializeAssetInfoToJson(doc, allocator);
+
+    BOOST_REQUIRE(doc.HasMember("path"));
+    BOOST_CHECK_EQUAL(doc["path"].GetString(), "res/fonts/Geist-Black_atlas.b_texture");
+
+    BOOST_REQUIRE(doc.HasMember("thumbnailPath"));
+    BOOST_CHECK_EQUAL(doc["thumbnailPath"].GetString(), ".cache/thumbnails/test.png");
+
+    BOOST_REQUIRE(doc.HasMember("assetFactoryData"));
+    BOOST_REQUIRE(doc["assetFactoryData"].HasMember("importPath"));
+    BOOST_CHECK_EQUAL(doc["assetFactoryData"]["importPath"].GetString(), "res/fonts/Geist-Black_atlas.png");
+
+    // 5. Test Deserialization from relative paths
+    AssetInfo deserialized = AssetInfo::DeserializeAssetInfoFromJson(doc);
+    BOOST_CHECK_EQUAL(deserialized.path, "res/fonts/Geist-Black_atlas.b_texture");
+    BOOST_CHECK_EQUAL(deserialized.importContext.importPath, "res/fonts/Geist-Black_atlas.png");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

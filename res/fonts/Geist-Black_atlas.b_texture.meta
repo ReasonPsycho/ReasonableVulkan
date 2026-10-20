@@ -4,13 +4,13 @@
     "version": "1.0"
   },
   "id": "72faa7b8-a82b-4c14-87d3-5bc65321532f",
-  "path": "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\out\\build\\debug\\res\\fonts\\Geist-Black_atlas.b_texture",
+  "path": "res/fonts/Geist-Black_atlas.b_texture",
   "type": "Texture",
   "lookUpName": "Geist-Black_atlas.texture",
   "contentHash": 1522236496241591653,
   "thumbnailPath": ".cache/thumbnails/72faa7b8-a82b-4c14-87d3-5bc65321532f.png",
   "assetFactoryData": {
-    "importPath": "res\\fonts\\Geist-Black_atlas.png",
+    "importPath": "res/fonts/Geist-Black_atlas.png",
     "assetType": "Texture",
     "assimpIndex": 0
   }

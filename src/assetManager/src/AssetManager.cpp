@@ -140,8 +140,7 @@ namespace am {
                 metadata.insert(std::make_pair(id, info));
             }
             lookupNamesToUUIDs.insert(std::make_pair(lookupName, id));
-            pathToUUID[std::filesystem::path(info->path).lexically_normal().string()] = id;
-            pathToUUID[std::filesystem::path(info->path).generic_string()] = id;
+            registerPathToUuid(info->path, id);
             assets[id] = std::move(newAsset);
             metadata[id]->loadedAsset = assets[id].get();
             saveAssetMetadata(id);
@@ -386,11 +385,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                         auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                         metadata[infoPtr->id] = infoPtr;
                         lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-                        pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
-                        pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                        registerPathToUuid(infoPtr->path, infoPtr->id);
                         if (!infoPtr->importContext.importPath.empty()) {
-                            pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
-                            pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                            registerPathToUuid(infoPtr->importContext.importPath, infoPtr->id);
                         }
                     }
                 }
@@ -412,6 +409,18 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         if (it == metadata.end()) {
             spdlog::error("Cannot save metadata: no asset found with id {}", boost::uuids::to_string(assetId));
             return false;
+        }
+
+        std::string pathStr = it->second->path;
+        if (pathStr.find(".internal/tests/temp") != std::string::npos ||
+            pathStr.find(".internal\\tests\\temp") != std::string::npos ||
+            pathStr.find("tests/temp") != std::string::npos ||
+            pathStr.find("tests\\temp") != std::string::npos)
+        {
+            std::error_code ec;
+            if (!std::filesystem::exists(pathStr, ec)) {
+                return false;
+            }
         }
 
         std::string metaPath = it->second->path + ".meta";
@@ -441,6 +450,41 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             saveAssetMetadata(id);
         }
         saveMetaCache();
+    }
+
+    void AssetManager::cleanupTestTempAssets()
+    {
+        std::vector<boost::uuids::uuid> idsToRemove;
+        for (const auto& [id, info] : metadata)
+        {
+            if (info && (info->path.find("tests/temp") != std::string::npos ||
+                         info->path.find("tests\\temp") != std::string::npos))
+            {
+                idsToRemove.push_back(id);
+            }
+        }
+
+        for (const auto& id : idsToRemove)
+        {
+            auto it = metadata.find(id);
+            if (it != metadata.end())
+            {
+                lookupNamesToUUIDs.erase(it->second->lookUpName);
+                for (auto pIt = pathToUUID.begin(); pIt != pathToUUID.end(); )
+                {
+                    if (pIt->second == id)
+                    {
+                        pIt = pathToUUID.erase(pIt);
+                    }
+                    else
+                    {
+                        ++pIt;
+                    }
+                }
+                assets.erase(id);
+                metadata.erase(it);
+            }
+        }
     }
 
     bool AssetManager::saveMetaCache(const std::string& cachePath) const
@@ -496,19 +540,21 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             const auto& obj = array[i];
             if (obj.IsObject() && obj.HasMember("id") && obj.HasMember("type")) {
                 auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(obj);
-                std::string actualAssetPath = assetInfo.path;
+                std::string resolvedPath = ResolveRelativePath(assetInfo.path, resourceFolder);
                 std::error_code ec;
-                if (!std::filesystem::exists(actualAssetPath, ec)) {
+                if (std::filesystem::exists(resolvedPath, ec)) {
+                    assetInfo.path = resolvedPath;
+                } else if (std::filesystem::exists(assetInfo.path, ec)) {
+                    assetInfo.path = std::filesystem::path(assetInfo.path).lexically_normal().string();
+                } else {
                     continue;
                 }
                 auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                 metadata[infoPtr->id] = infoPtr;
                 lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-                pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
-                pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                registerPathToUuid(infoPtr->path, infoPtr->id);
                 if (!infoPtr->importContext.importPath.empty()) {
-                    pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
-                    pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                    registerPathToUuid(infoPtr->importContext.importPath, infoPtr->id);
                 }
             }
         }
@@ -715,27 +761,56 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         const auto& metadataArray = document["metadata"].GetArray();
         for (const auto& assetInfoValue : metadataArray) {
             auto assetInfo = AssetInfo::DeserializeAssetInfoFromJson(assetInfoValue);
+            std::string resolvedPath = ResolveRelativePath(assetInfo.path, resourceFolder);
+            std::error_code ec;
+            if (std::filesystem::exists(resolvedPath, ec)) {
+                assetInfo.path = resolvedPath;
+            } else if (std::filesystem::exists(assetInfo.path, ec)) {
+                assetInfo.path = std::filesystem::path(assetInfo.path).lexically_normal().string();
+            }
             auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
             metadata[infoPtr->id] = infoPtr;
             lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-            pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
-            pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+            registerPathToUuid(infoPtr->path, infoPtr->id);
             if (!infoPtr->importContext.importPath.empty()) {
-                pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
-                pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                registerPathToUuid(infoPtr->importContext.importPath, infoPtr->id);
             }
         }
 
         return true;
     }
 
+    void AssetManager::registerPathToUuid(const std::string& rawPath, const boost::uuids::uuid& id)
+    {
+        if (rawPath.empty()) return;
+
+        std::filesystem::path p(rawPath);
+        pathToUUID[p.lexically_normal().string()] = id;
+        pathToUUID[p.generic_string()] = id;
+
+        std::string relPath = NormalizePathToRelative(rawPath, resourceFolder);
+        if (!relPath.empty()) {
+            pathToUUID[relPath] = id;
+            if (relPath.rfind("res/", 0) == 0 && relPath.length() > 4) {
+                pathToUUID[relPath.substr(4)] = id;
+            }
+        }
+
+        std::string resolved = ResolveRelativePath(rawPath, resourceFolder);
+        if (!resolved.empty()) {
+            std::filesystem::path resP(resolved);
+            pathToUUID[resP.lexically_normal().string()] = id;
+            pathToUUID[resP.generic_string()] = id;
+        }
+    }
 
     AssetManager::AssetManager() : AssetManagerInterface()
     {
-        if (std::filesystem::exists("res")) {
-            resourceFolder = std::filesystem::absolute("res").lexically_normal().string();
-        } else if (std::filesystem::exists("C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res")) {
-            resourceFolder = "C:\\Users\\redkc\\CLionProjects\\ReasonableVulkanPublic\\res";
+        std::error_code ec;
+        if (std::filesystem::exists("res", ec)) {
+            resourceFolder = std::filesystem::absolute("res", ec).lexically_normal().string();
+        } else {
+            resourceFolder = (std::filesystem::current_path(ec) / "res").lexically_normal().string();
         }
 
         fileBrowserInstance = std::make_unique<FileBrowser>(this);
@@ -844,11 +919,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                     metadata[infoPtr->id] = infoPtr;
                     lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-                    pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
-                    pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                    registerPathToUuid(infoPtr->path, infoPtr->id);
                     if (!infoPtr->importContext.importPath.empty()) {
-                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
-                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                        registerPathToUuid(infoPtr->importContext.importPath, infoPtr->id);
                     }
                 }
             }
@@ -935,11 +1008,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
                     auto infoPtr = std::make_shared<AssetInfo>(std::move(assetInfo));
                     metadata[infoPtr->id] = infoPtr;
                     lookupNamesToUUIDs[infoPtr->lookUpName] = infoPtr->id;
-                    pathToUUID[std::filesystem::path(infoPtr->path).lexically_normal().string()] = infoPtr->id;
-                    pathToUUID[std::filesystem::path(infoPtr->path).generic_string()] = infoPtr->id;
+                    registerPathToUuid(infoPtr->path, infoPtr->id);
                     if (!infoPtr->importContext.importPath.empty()) {
-                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).lexically_normal().string()] = infoPtr->id;
-                        pathToUUID[std::filesystem::path(infoPtr->importContext.importPath).generic_string()] = infoPtr->id;
+                        registerPathToUuid(infoPtr->importContext.importPath, infoPtr->id);
                     }
                 }
             }
@@ -1145,6 +1216,12 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
         };
 
         if (normalizePathStr(pA) == normalizePathStr(pB)) {
+            return true;
+        }
+
+        std::string relA = NormalizePathToRelative(pathA, resourceFolder);
+        std::string relB = NormalizePathToRelative(pathB, resourceFolder);
+        if (!relA.empty() && !relB.empty() && normalizePathStr(relA) == normalizePathStr(relB)) {
             return true;
         }
 
@@ -1591,11 +1668,9 @@ std::optional<std::shared_ptr<AssetInfo> > AssetManager::getAssetInfo(const boos
             assets[id] = std::move(newAsset);
             info->loadedAsset = assets[id].get();
             lookupNamesToUUIDs[lookUpName] = id;
-            pathToUUID[std::filesystem::path(info->path).lexically_normal().string()] = id;
-            pathToUUID[std::filesystem::path(info->path).generic_string()] = id;
+            registerPathToUuid(info->path, id);
             if (!info->importContext.importPath.empty()) {
-                pathToUUID[std::filesystem::path(info->importContext.importPath).lexically_normal().string()] = id;
-                pathToUUID[std::filesystem::path(info->importContext.importPath).generic_string()] = id;
+                registerPathToUuid(info->importContext.importPath, id);
             }
             saveAssetMetadata(id);
             if (info->type == AssetType::Material)
