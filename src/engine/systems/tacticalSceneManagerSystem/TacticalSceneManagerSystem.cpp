@@ -468,6 +468,10 @@ namespace engine::ecs {
     void TacticalSceneManagerSystem::Update(float deltaTime) {
         if (!scene) return;
 
+        if (enableTacticalCamera) {
+            UpdateCamera(deltaTime);
+        }
+
         if (selectedEntity != MAX_ENTITIES) {
             if (!scene->IsEntityActive(selectedEntity) || (requirePathfindingAgent && !scene->HasComponent<PathfindingAgent>(selectedEntity))) {
                 ClearSelection();
@@ -522,6 +526,279 @@ namespace engine::ecs {
             hudFontUuid = hudFontUuidOpt.value();
         }
         CreateSelectedPawnHUDEntities();
+        targetCameraTarget = cameraTarget;
+        targetCameraDistance = cameraDistance;
+        targetCameraYaw = cameraYaw;
+    }
+
+    void TacticalSceneManagerSystem::PanCamera(const glm::vec2& movementInput, float deltaTime, bool fast) {
+        if (glm::length(movementInput) < 1e-4f) return;
+        glm::vec2 normInput = glm::normalize(movementInput);
+        float speed = panSpeed * (fast ? fastPanMultiplier : 1.0f);
+        float yawRad = glm::radians(cameraYaw);
+        glm::vec3 forward = glm::vec3(-std::sin(yawRad), 0.0f, -std::cos(yawRad));
+        glm::vec3 right = glm::vec3(std::cos(yawRad), 0.0f, -std::sin(yawRad));
+
+        glm::vec3 delta = (forward * normInput.y + right * normInput.x) * speed * deltaTime;
+        targetCameraTarget += delta;
+        if (!enableSmoothing) {
+            cameraTarget = targetCameraTarget;
+        }
+    }
+
+    void TacticalSceneManagerSystem::PanCameraByPixels(float deltaX, float deltaY) {
+        if (std::abs(deltaX) < 1e-4f && std::abs(deltaY) < 1e-4f) return;
+        float yawRad = glm::radians(cameraYaw);
+        glm::vec3 forward = glm::vec3(-std::sin(yawRad), 0.0f, -std::cos(yawRad));
+        glm::vec3 right = glm::vec3(std::cos(yawRad), 0.0f, -std::sin(yawRad));
+
+        float factor = 0.0015f * cameraDistance;
+        glm::vec3 delta = (-right * deltaX + forward * deltaY) * factor;
+        targetCameraTarget += delta;
+        if (!enableSmoothing) {
+            cameraTarget = targetCameraTarget;
+        }
+    }
+
+    void TacticalSceneManagerSystem::RotateCameraLeft(float stepDegrees) {
+        targetCameraYaw -= stepDegrees;
+        if (!enableSmoothing) {
+            cameraYaw = targetCameraYaw;
+        }
+    }
+
+    void TacticalSceneManagerSystem::RotateCameraRight(float stepDegrees) {
+        targetCameraYaw += stepDegrees;
+        if (!enableSmoothing) {
+            cameraYaw = targetCameraYaw;
+        }
+    }
+
+    void TacticalSceneManagerSystem::RotateCameraYaw(float deltaYaw) {
+        targetCameraYaw += deltaYaw;
+        if (!enableSmoothing) {
+            cameraYaw = targetCameraYaw;
+        }
+    }
+
+    void TacticalSceneManagerSystem::ZoomCamera(float zoomDelta) {
+        targetCameraDistance = std::clamp(targetCameraDistance + zoomDelta, minCameraDistance, maxCameraDistance);
+        if (!enableSmoothing) {
+            cameraDistance = targetCameraDistance;
+        }
+    }
+
+    void TacticalSceneManagerSystem::ZoomIn(float amount) {
+        ZoomCamera(-amount);
+    }
+
+    void TacticalSceneManagerSystem::ZoomOut(float amount) {
+        ZoomCamera(amount);
+    }
+
+    void TacticalSceneManagerSystem::SetCameraPitch(float pitch) {
+        cameraPitch = std::clamp(pitch, minPitch, maxPitch);
+    }
+
+    void TacticalSceneManagerSystem::FocusOnPosition(const glm::vec3& targetPos, bool immediate) {
+        targetCameraTarget = targetPos;
+        if (immediate || !enableSmoothing) {
+            cameraTarget = targetPos;
+        }
+    }
+
+    void TacticalSceneManagerSystem::FocusOnEntity(Entity entity, bool immediate) {
+        if (!scene || entity == MAX_ENTITIES || !scene->IsEntityActive(entity)) return;
+        if (scene->HasComponent<TransformComponent>(entity)) {
+            FocusOnPosition(scene->GetComponent<TransformComponent>(entity).position, immediate);
+        }
+    }
+
+    void TacticalSceneManagerSystem::FocusOnSelected(bool immediate) {
+        if (HasSelectedEntity()) {
+            FocusOnEntity(selectedEntity, immediate);
+        }
+    }
+
+    void TacticalSceneManagerSystem::SetCameraTarget(const glm::vec3& target, bool immediate) {
+        targetCameraTarget = target;
+        if (immediate || !enableSmoothing) {
+            cameraTarget = target;
+        }
+    }
+
+    void TacticalSceneManagerSystem::SetCameraDistance(float distance, bool immediate) {
+        targetCameraDistance = std::clamp(distance, minCameraDistance, maxCameraDistance);
+        if (immediate || !enableSmoothing) {
+            cameraDistance = targetCameraDistance;
+        }
+    }
+
+    void TacticalSceneManagerSystem::SetCameraYaw(float yaw, bool immediate) {
+        targetCameraYaw = yaw;
+        if (immediate || !enableSmoothing) {
+            cameraYaw = yaw;
+        }
+    }
+
+    Entity TacticalSceneManagerSystem::GetActiveGameCameraEntity() const {
+        if (!scene) return MAX_ENTITIES;
+        for (auto [cameraEntity, camera, cameraTransform] : scene->GetActiveView<CameraComponent, TransformComponent>()) {
+            if (camera.active) {
+                return cameraEntity;
+            }
+        }
+        for (auto [cameraEntity, camera, cameraTransform] : scene->GetActiveView<CameraComponent, TransformComponent>()) {
+            return cameraEntity;
+        }
+        return MAX_ENTITIES;
+    }
+
+    void TacticalSceneManagerSystem::ApplyTacticalCameraToActiveCamera() {
+        if (!scene) return;
+        Entity camEnt = GetActiveGameCameraEntity();
+        if (camEnt == MAX_ENTITIES || !scene->HasComponent<TransformComponent>(camEnt)) {
+            return;
+        }
+
+        auto& trans = scene->GetComponent<TransformComponent>(camEnt);
+        float yawRad = glm::radians(cameraYaw);
+        float pitchRad = glm::radians(cameraPitch);
+
+        trans.position.x = cameraTarget.x + cameraDistance * std::cos(pitchRad) * std::sin(yawRad);
+        trans.position.y = cameraTarget.y + cameraDistance * std::sin(pitchRad);
+        trans.position.z = cameraTarget.z + cameraDistance * std::cos(pitchRad) * std::cos(yawRad);
+
+        glm::vec3 lookDir = glm::normalize(cameraTarget - trans.position);
+        trans.rotation = glm::quatLookAt(lookDir, glm::vec3(0.0f, 1.0f, 0.0f));
+        trans.isDirty = true;
+        computeLocalMatrix(trans);
+        trans.globalMatrix = trans.localMatrix;
+
+        if (scene->HasComponent<CameraComponent>(camEnt)) {
+            auto& cam = scene->GetComponent<CameraComponent>(camEnt);
+            updateViewMatrix(cam, trans.globalMatrix);
+        }
+    }
+
+    void TacticalSceneManagerSystem::UpdateCamera(float deltaTime) {
+        if (!enableTacticalCamera || !scene) return;
+
+        Entity camEnt = GetActiveGameCameraEntity();
+        if (camEnt != MAX_ENTITIES && scene->HasComponent<TransformComponent>(camEnt)) {
+            if (!cameraInitialized) {
+                auto& trans = scene->GetComponent<TransformComponent>(camEnt);
+                if (glm::length(cameraTarget) == 0.0f && (trans.position.x != 0.0f || trans.position.y != 0.0f || trans.position.z != 0.0f)) {
+                    glm::vec3 fwd = getForward(trans);
+                    if (std::abs(fwd.y) > 0.01f && trans.position.y > 0.0f) {
+                        float distToGround = trans.position.y / (-fwd.y);
+                        if (distToGround > 0.0f) {
+                            cameraTarget = trans.position + fwd * distToGround;
+                            cameraDistance = std::clamp(glm::length(trans.position - cameraTarget), minCameraDistance, maxCameraDistance);
+                            targetCameraTarget = cameraTarget;
+                            targetCameraDistance = cameraDistance;
+                        }
+                    }
+                }
+                cameraInitialized = true;
+            }
+        }
+
+        if (enableSmoothing && deltaTime > 0.0f) {
+            float t = std::clamp(smoothingSpeed * deltaTime, 0.0f, 1.0f);
+            cameraTarget = glm::mix(cameraTarget, targetCameraTarget, t);
+            cameraDistance = glm::mix(cameraDistance, targetCameraDistance, t);
+
+            float diffYaw = targetCameraYaw - cameraYaw;
+            while (diffYaw > 180.0f) diffYaw -= 360.0f;
+            while (diffYaw < -180.0f) diffYaw += 360.0f;
+            cameraYaw += diffYaw * t;
+        } else {
+            cameraTarget = targetCameraTarget;
+            cameraDistance = targetCameraDistance;
+            cameraYaw = targetCameraYaw;
+        }
+
+        cameraPitch = std::clamp(cameraPitch, minPitch, maxPitch);
+        cameraDistance = std::clamp(cameraDistance, minCameraDistance, maxCameraDistance);
+
+        while (cameraYaw >= 360.0f) { cameraYaw -= 360.0f; targetCameraYaw -= 360.0f; }
+        while (cameraYaw < 0.0f) { cameraYaw += 360.0f; targetCameraYaw += 360.0f; }
+
+        ApplyTacticalCameraToActiveCamera();
+    }
+
+    bool TacticalSceneManagerSystem::HandleGameWindowInput(float screenX, float screenY, float windowWidth, float windowHeight, float deltaTime, bool isHovered, bool isFocused) {
+        if (!enableTacticalCamera || !scene) return false;
+
+#ifdef ENABLE_IMGUI
+        ImGuiIO& io = ImGui::GetIO();
+        bool fast = io.KeyShift;
+
+        // 1. Keyboard Panning, Rotation, Zoom, Focus (when window is focused or hovered, and not typing text)
+        if ((isHovered || isFocused) && !io.WantTextInput) {
+            glm::vec2 moveDir{0.0f};
+            if (ImGui::IsKeyDown(ImGuiKey_W) || ImGui::IsKeyDown(ImGuiKey_UpArrow)) moveDir.y += 1.0f;
+            if (ImGui::IsKeyDown(ImGuiKey_S) || ImGui::IsKeyDown(ImGuiKey_DownArrow)) moveDir.y -= 1.0f;
+            if (ImGui::IsKeyDown(ImGuiKey_A) || ImGui::IsKeyDown(ImGuiKey_LeftArrow)) moveDir.x -= 1.0f;
+            if (ImGui::IsKeyDown(ImGuiKey_D) || ImGui::IsKeyDown(ImGuiKey_RightArrow)) moveDir.x += 1.0f;
+
+            if (glm::length(moveDir) > 0.0f) {
+                PanCamera(moveDir, deltaTime, fast);
+            }
+
+            if (ImGui::IsKeyPressed(ImGuiKey_Q)) {
+                RotateCameraLeft(rotationStepAngle);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_E)) {
+                RotateCameraRight(rotationStepAngle);
+            }
+
+            if (ImGui::IsKeyPressed(ImGuiKey_T) || ImGui::IsKeyPressed(ImGuiKey_PageUp)) {
+                ZoomIn(zoomSpeed);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_G) || ImGui::IsKeyPressed(ImGuiKey_PageDown)) {
+                ZoomOut(zoomSpeed);
+            }
+
+            if (ImGui::IsKeyPressed(ImGuiKey_F) || ImGui::IsKeyPressed(ImGuiKey_Home)) {
+                FocusOnSelected();
+            }
+        }
+
+        // 2. Screen Edge Panning (when mouse is hovered near viewport edge)
+        if (enableEdgePanning && isHovered && windowWidth > 0.0f && windowHeight > 0.0f) {
+            if (screenX >= 0.0f && screenX <= windowWidth && screenY >= 0.0f && screenY <= windowHeight) {
+                glm::vec2 edgeDir{0.0f};
+                if (screenX < edgePanMargin) edgeDir.x -= 1.0f;
+                if (screenX > windowWidth - edgePanMargin) edgeDir.x += 1.0f;
+                if (screenY < edgePanMargin) edgeDir.y += 1.0f;
+                if (screenY > windowHeight - edgePanMargin) edgeDir.y -= 1.0f;
+
+                if (glm::length(edgeDir) > 0.0f) {
+                    PanCamera(edgeDir, deltaTime, fast);
+                }
+            }
+        }
+
+        // 3. Mouse Wheel Zooming
+        if (isHovered && std::abs(io.MouseWheel) > 0.001f) {
+            ZoomCamera(-io.MouseWheel * zoomSpeed * (fast ? fastPanMultiplier : 1.0f));
+        }
+
+        // 4. Middle Mouse Button Panning Drag
+        if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
+            isMiddleMouseDragging = true;
+        }
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+            isMiddleMouseDragging = false;
+        }
+        if (isMiddleMouseDragging && (std::abs(io.MouseDelta.x) > 0.0f || std::abs(io.MouseDelta.y) > 0.0f)) {
+            PanCameraByPixels(io.MouseDelta.x, io.MouseDelta.y);
+        }
+#endif
+
+        return true;
     }
 
 #ifdef ENABLE_IMGUI
@@ -573,11 +850,40 @@ namespace engine::ecs {
                 ImGui::BulletText("Status: %s", agent.isMoving ? "Moving" : (agent.hasTarget ? "Pathing" : "Idle"));
             }
 
+            if (ImGui::Button("Focus Camera On Selected (F)")) {
+                FocusOnSelected();
+            }
+            ImGui::SameLine();
             if (ImGui::Button("Clear Selection")) {
                 ClearSelection();
             }
         } else {
             ImGui::TextDisabled("No agent currently selected.");
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "Tactical Camera Quick Actions");
+        if (ImGui::Button("Rotate Left (Q)")) {
+            RotateCameraLeft(rotationStepAngle);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Rotate Right (E)")) {
+            RotateCameraRight(rotationStepAngle);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Zoom In (T)")) {
+            ZoomIn(zoomSpeed);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Zoom Out (G)")) {
+            ZoomOut(zoomSpeed);
+        }
+
+        if (ImGui::Button("Reset Camera Target to Origin")) {
+            SetCameraTarget(glm::vec3(0.0f), true);
         }
 
         return changed;

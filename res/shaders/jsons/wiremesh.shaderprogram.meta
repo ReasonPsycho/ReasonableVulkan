@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "aac54cbf-0145-4e07-8ce5-af96255494b2",
+  "id": "d265a8f0-b36d-4f23-bacd-4ecd2e006503",
   "path": "res/shaders/jsons/wiremesh.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "wiremeshShader",
+  "lookUpName": "wiremesh.shaderprogram",
   "contentHash": 13645478322255162139,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/wiremesh.shaderImport",

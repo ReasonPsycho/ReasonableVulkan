@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "44de7483-e9c0-444b-a535-06bd5d0ef455",
+  "id": "fa53801f-2e4d-4f6e-b211-5db9fca57e4f",
   "path": "res/shaders/jsons/skybox.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "skybox.shaderprogram",
+  "lookUpName": "skyboxShader",
   "contentHash": 11037901660116856270,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/skybox.shaderImport",

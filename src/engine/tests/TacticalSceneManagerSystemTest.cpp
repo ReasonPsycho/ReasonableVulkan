@@ -421,4 +421,154 @@ BOOST_AUTO_TEST_CASE(TacticalSceneManagerSystemPawnHUDTest) {
     engine.RemoveScene("TacticalHUDScene");
 }
 
+BOOST_AUTO_TEST_CASE(TacticalCameraMovementPanningAndSpeedTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalCameraPanScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto manager = scene->GetSystem<TacticalSceneManagerSystem>();
+    BOOST_REQUIRE(manager != nullptr);
+
+    manager->enableSmoothing = false;
+    manager->SetCameraYaw(0.0f, true);
+    manager->SetCameraTarget(glm::vec3(0.0f, 0.0f, 0.0f), true);
+    manager->panSpeed = 10.0f;
+    manager->fastPanMultiplier = 2.0f;
+
+    // Yaw 0: Forward is (0, 0, -1), Right is (1, 0, 0)
+    // 1. Pan forward (0, 1) for 1 second -> delta = (0, 0, -10)
+    manager->PanCamera(glm::vec2(0.0f, 1.0f), 1.0f, false);
+    glm::vec3 target = manager->GetCameraTarget();
+    BOOST_CHECK_CLOSE(target.x, 0.0f, 0.01f);
+    BOOST_CHECK_CLOSE(target.y, 0.0f, 0.01f);
+    BOOST_CHECK_CLOSE(target.z, -10.0f, 0.01f);
+
+    // 2. Pan right (1, 0) for 1 second with fast multiplier (2x) -> delta = (20, 0, 0)
+    manager->PanCamera(glm::vec2(1.0f, 0.0f), 1.0f, true);
+    target = manager->GetCameraTarget();
+    BOOST_CHECK_CLOSE(target.x, 20.0f, 0.01f);
+    BOOST_CHECK_CLOSE(target.y, 0.0f, 0.01f);
+    BOOST_CHECK_CLOSE(target.z, -10.0f, 0.01f);
+
+    // 3. Pan by pixels (e.g. mouse drag)
+    manager->SetCameraDistance(10.0f, true);
+    glm::vec3 preDrag = manager->GetCameraTarget();
+    manager->PanCameraByPixels(100.0f, 50.0f);
+    glm::vec3 postDrag = manager->GetCameraTarget();
+    BOOST_CHECK(postDrag.x < preDrag.x); // Dragging right moves target left
+    BOOST_CHECK(postDrag.z < preDrag.z); // Dragging down moves target forward (-z)
+
+    engine.RemoveScene("TacticalCameraPanScene");
+}
+
+BOOST_AUTO_TEST_CASE(TacticalCameraRotationAndZoomTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalCameraRotZoomScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto manager = scene->GetSystem<TacticalSceneManagerSystem>();
+    BOOST_REQUIRE(manager != nullptr);
+
+    manager->enableSmoothing = false;
+    manager->SetCameraYaw(0.0f, true);
+    manager->SetCameraDistance(15.0f, true);
+    manager->minCameraDistance = 5.0f;
+    manager->maxCameraDistance = 30.0f;
+    manager->minPitch = 20.0f;
+    manager->maxPitch = 70.0f;
+
+    // 1. Rotation snapping (Q and E step rotations)
+    manager->RotateCameraRight(45.0f);
+    BOOST_CHECK_CLOSE(manager->GetCameraYaw(), 45.0f, 0.01f);
+
+    manager->RotateCameraLeft(90.0f);
+    BOOST_CHECK_CLOSE(manager->GetCameraYaw(), -45.0f, 0.01f);
+
+    // 2. Zoom controls & clamping
+    manager->ZoomIn(5.0f); // 15 - 5 = 10
+    BOOST_CHECK_CLOSE(manager->GetCameraDistance(), 10.0f, 0.01f);
+
+    manager->ZoomIn(100.0f); // Should clamp to minCameraDistance (5.0f)
+    BOOST_CHECK_CLOSE(manager->GetCameraDistance(), 5.0f, 0.01f);
+
+    manager->ZoomOut(100.0f); // Should clamp to maxCameraDistance (30.0f)
+    BOOST_CHECK_CLOSE(manager->GetCameraDistance(), 30.0f, 0.01f);
+
+    // 3. Pitch clamping
+    manager->SetCameraPitch(10.0f); // Clamped to minPitch (20.0f)
+    BOOST_CHECK_CLOSE(manager->GetCameraPitch(), 20.0f, 0.01f);
+
+    manager->SetCameraPitch(85.0f); // Clamped to maxPitch (70.0f)
+    BOOST_CHECK_CLOSE(manager->GetCameraPitch(), 70.0f, 0.01f);
+
+    engine.RemoveScene("TacticalCameraRotZoomScene");
+}
+
+BOOST_AUTO_TEST_CASE(TacticalCameraFocusAndActiveCameraSyncTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalCameraFocusScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto manager = scene->GetSystem<TacticalSceneManagerSystem>();
+    BOOST_REQUIRE(manager != nullptr);
+
+    // Create an active camera in the scene
+    Entity camEntity = scene->CreateEntity("TacticalGameCamera");
+    CameraComponent camComp;
+    camComp.active = true;
+    camComp.fov = 60.0f;
+    TransformComponent camTrans;
+    scene->AddComponent<CameraComponent>(camEntity, camComp);
+    scene->AddComponent<TransformComponent>(camEntity, camTrans);
+
+    // Create a pawn
+    Entity soldier = scene->CreateEntity("SoldierPawn");
+    TransformComponent soldierTrans;
+    soldierTrans.position = glm::vec3(12.0f, 0.0f, -8.0f);
+    computeLocalMatrix(soldierTrans);
+    scene->AddComponent<TransformComponent>(soldier, soldierTrans);
+    scene->AddComponent<PathfindingAgent>(soldier, PathfindingAgent{});
+    scene->AddComponent<PawnComponent>(soldier, PawnComponent{"Soldier", 100.0f, 100.0f});
+
+    manager->enableSmoothing = false;
+    manager->SetSelectedEntity(soldier);
+    BOOST_REQUIRE(manager->HasSelectedEntity());
+
+    // Focus on selected pawn
+    manager->FocusOnSelected(true);
+    BOOST_CHECK_CLOSE(manager->GetCameraTarget().x, 12.0f, 0.01f);
+    BOOST_CHECK_CLOSE(manager->GetCameraTarget().y, 0.0f, 0.01f);
+    BOOST_CHECK_CLOSE(manager->GetCameraTarget().z, -8.0f, 0.01f);
+
+    // Set camera distance and pitch/yaw
+    manager->SetCameraDistance(10.0f, true);
+    manager->SetCameraPitch(45.0f);
+    manager->SetCameraYaw(0.0f, true);
+
+    // Run system update -> should sync transform to active camera entity
+    manager->Update(0.016f);
+
+    const auto& updatedTrans = scene->GetComponent<TransformComponent>(camEntity);
+    // At yaw 0, pitch 45 deg, dist 10:
+    // pos = target + (0, 10*sin(45), 10*cos(45)) = (12, 7.071, -8 + 7.071) = (12, 7.071, -0.929)
+    float expectedY = 10.0f * std::sin(glm::radians(45.0f));
+    float expectedZ = -8.0f + 10.0f * std::cos(glm::radians(45.0f));
+
+    BOOST_CHECK_CLOSE(updatedTrans.position.x, 12.0f, 0.01f);
+    BOOST_CHECK_CLOSE(updatedTrans.position.y, expectedY, 0.01f);
+    BOOST_CHECK_CLOSE(updatedTrans.position.z, expectedZ, 0.01f);
+
+    // Test smoothing update
+    manager->enableSmoothing = true;
+    manager->smoothingSpeed = 10.0f;
+    manager->SetCameraTarget(glm::vec3(0.0f), false); // Sets targetCameraTarget without snapping
+    BOOST_CHECK_CLOSE(manager->GetCameraTarget().x, 12.0f, 0.01f); // Initially still at 12
+
+    manager->Update(0.02f); // Advance small time step -> should interpolate partway towards (0, 0, 0)
+    BOOST_CHECK(manager->GetCameraTarget().x < 12.0f);
+    BOOST_CHECK(manager->GetCameraTarget().x > 0.0f);
+
+    engine.RemoveScene("TacticalCameraFocusScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

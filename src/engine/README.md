@@ -141,6 +141,7 @@ Executes spatial navigation algorithms:
 Drives grid-based tactical mechanics:
 - **Grid Visualization**: Generates dynamic grid plane visual overlays and hover feedback.
 - **Turn & Action Orchestration**: Coordinates pawn movement ranges, attack targets, and turn cycles.
+- **Tactical Camera Controls (XCOM Style)**: Manages active game camera navigation with WASD panning, Q/E rotational snapping (45°/90°), mouse wheel zooming, middle-mouse drag panning, screen edge panning, and pawn centering/focusing with smooth interpolation.
 
 ### 4. Tooling & Scripting Support
 

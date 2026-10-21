@@ -1573,21 +1573,26 @@ void EditorSystem::Update(float deltaTime)
                 ImVec2 imagePos = ImGui::GetCursorScreenPos();
                 ImGui::Image((ImTextureID)gameTextureId, imageSize);
 
-                if (ImGui::IsItemHovered()) {
+                bool isImageHovered = ImGui::IsItemHovered();
+                bool isGameFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
+                if (auto selectionSystem = topEditableScene->GetSystem<TacticalSceneManagerSystem>()) { //TODO gonna need to do it also for main window but not right now
                     ImGuiIO& io = ImGui::GetIO();
                     float relX = io.MousePos.x - imagePos.x;
                     float relY = io.MousePos.y - imagePos.y;
-                    if (relX >= 0.0f && relX <= imageSize.x && relY >= 0.0f && relY <= imageSize.y) {
-                        if (auto selectionSystem = topEditableScene->GetSystem<TacticalSceneManagerSystem>()) {
-                            selectionSystem->HandleMouseMove(relX, relY, imageSize.x, imageSize.y);
-                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                                selectionSystem->HandleLeftClick(relX, relY, imageSize.x, imageSize.y);
-                            }
-                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-                                selectionSystem->HandleRightClick(relX, relY, imageSize.x, imageSize.y);
-                            }
+                    float dt = io.DeltaTime > 0.0f ? io.DeltaTime : 0.016f;
+
+                    if (isImageHovered && relX >= 0.0f && relX <= imageSize.x && relY >= 0.0f && relY <= imageSize.y) {
+                        selectionSystem->HandleMouseMove(relX, relY, imageSize.x, imageSize.y);
+                        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                            selectionSystem->HandleLeftClick(relX, relY, imageSize.x, imageSize.y);
+                        }
+                        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                            selectionSystem->HandleRightClick(relX, relY, imageSize.x, imageSize.y);
                         }
                     }
+
+                    selectionSystem->HandleGameWindowInput(relX, relY, imageSize.x, imageSize.y, dt, isImageHovered, isGameFocused);
                 }
             }
             ImGui::End();

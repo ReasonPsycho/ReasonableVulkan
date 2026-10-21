@@ -3,12 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "a53645ff-a286-45e2-911f-1bee41835ae6",
+  "id": "25c91251-e041-4f85-aed7-d42e7b647221",
   "path": "res/models/sphere/slum-wall-grunge_albedo.b_texture",
   "type": "Texture",
   "lookUpName": "slum-wall-grunge_albedo_0.texture",
   "contentHash": 7105347342929770158,
-  "thumbnailPath": ".cache/thumbnails/a53645ff-a286-45e2-911f-1bee41835ae6.png",
+  "thumbnailPath": ".cache/thumbnails/25c91251-e041-4f85-aed7-d42e7b647221.png",
   "assetFactoryData": {
     "importPath": "res/models/sphere/slum-wall-grunge_albedo.png",
     "assetType": "Texture",

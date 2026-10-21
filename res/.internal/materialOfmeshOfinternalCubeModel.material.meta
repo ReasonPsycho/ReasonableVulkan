@@ -3,11 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "ee0de7df-58d9-4de3-bf10-5c9dbd32f0fd",
+  "id": "3732df11-6986-410b-9225-4b5dfa998992",
   "path": "res/.internal/materialOfmeshOfinternalCubeModel.material",
   "type": "Material",
   "lookUpName": "materialOfmeshOfinternalCubeModel.material",
   "contentHash": 0,
+  "thumbnailPath": ".cache/thumbnails/3732df11-6986-410b-9225-4b5dfa998992.png",
   "assetFactoryData": {
     "importPath": "",
     "assetType": "Material",

@@ -3,12 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "d7c9222b-0e34-427f-939d-d938e69c28df",
+  "id": "4f68f887-eb8b-47f0-ad9c-4717285b321e",
   "path": "res/models/box/dark-wood-stain_albedo.b_texture",
   "type": "Texture",
-  "lookUpName": "dark-wood-stain_albedo_0.texture",
+  "lookUpName": "dark-wood-stain_albedo_0m.texture",
   "contentHash": 10768497058504868065,
-  "thumbnailPath": ".cache/thumbnails/d7c9222b-0e34-427f-939d-d938e69c28df.png",
+  "thumbnailPath": ".cache/thumbnails/4f68f887-eb8b-47f0-ad9c-4717285b321e.png",
   "assetFactoryData": {
     "importPath": "res/models/box/dark-wood-stain_albedo.png",
     "assetType": "Texture",

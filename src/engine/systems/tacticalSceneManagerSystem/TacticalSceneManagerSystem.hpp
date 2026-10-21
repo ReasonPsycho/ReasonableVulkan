@@ -54,6 +54,46 @@ namespace engine::ecs {
         bool HoverAtScreenPos(float screenX, float screenY, float windowWidth, float windowHeight);
         std::optional<glm::vec3> RaycastGroundTarget(float screenX, float screenY, float windowWidth, float windowHeight) const;
 
+        // Tactical Game Camera Movement (XCOM style)
+        // Panning: translates target across horizontal ground plane
+        void PanCamera(const glm::vec2& movementInput, float deltaTime, bool fast = false);
+        void PanCameraByPixels(float deltaX, float deltaY);
+
+        // Rotation: rotates camera around target
+        void RotateCameraLeft(float stepDegrees = 45.0f);
+        void RotateCameraRight(float stepDegrees = 45.0f);
+        void RotateCameraYaw(float deltaYaw);
+
+        // Zoom: distance between camera and target
+        void ZoomCamera(float zoomDelta);
+        void ZoomIn(float amount = 2.5f);
+        void ZoomOut(float amount = 2.5f);
+
+        // Tilt / Pitch
+        void SetCameraPitch(float pitch);
+        float GetCameraPitch() const { return cameraPitch; }
+
+        // Focus & Center
+        void FocusOnPosition(const glm::vec3& targetPos, bool immediate = false);
+        void FocusOnEntity(Entity entity, bool immediate = false);
+        void FocusOnSelected(bool immediate = false);
+
+        // Getters and Setters
+        glm::vec3 GetCameraTarget() const { return cameraTarget; }
+        void SetCameraTarget(const glm::vec3& target, bool immediate = false);
+        float GetCameraDistance() const { return cameraDistance; }
+        void SetCameraDistance(float distance, bool immediate = false);
+        float GetCameraYaw() const { return cameraYaw; }
+        void SetCameraYaw(float yaw, bool immediate = false);
+
+        // Camera updates and transforms
+        void UpdateCamera(float deltaTime);
+        void ApplyTacticalCameraToActiveCamera();
+        Entity GetActiveGameCameraEntity() const;
+
+        // Full Game Window Input processing (WASD, Q/E, Mouse Drag, Scroll, Edge Pan, Focus)
+        bool HandleGameWindowInput(float screenX, float screenY, float windowWidth, float windowHeight, float deltaTime, bool isHovered, bool isFocused);
+
         // HUD Panel Integration for Selected Pawn
         void CreateSelectedPawnHUDEntities(const glm::vec2& size = glm::vec2(200.0f, 20.0f), const glm::vec2& offset = glm::vec2(-100.0f, -60.0f), UIAnchor anchor = UIAnchor::BottomCenter);
         void DestroySelectedPawnHUDEntities();
@@ -100,6 +140,76 @@ namespace engine::ecs {
 
         [[=Tooltip{"Fallback ground Y coordinate for ray plane intersection"}]]
         float defaultGroundY{0.0f};
+
+        // Tactical Camera Configuration (XCOM Style)
+        [[=Tooltip{"Enable tactical camera control on active game camera"}]]
+        bool enableTacticalCamera{true};
+
+        [[=Tooltip{"Camera target focus point in world coordinates"}]]
+        glm::vec3 cameraTarget{0.0f, 0.0f, 0.0f};
+
+        [[=Range{1.0f, 100.0f, 0.5f}, =Tooltip{"Current camera distance from target"}]]
+        float cameraDistance{15.0f};
+
+        [[=Range{10.0f, 89.0f, 1.0f}, =Tooltip{"Camera pitch angle in degrees"}]]
+        float cameraPitch{50.0f};
+
+        [[=Range{-360.0f, 360.0f, 1.0f}, =Tooltip{"Camera yaw rotation angle in degrees"}]]
+        float cameraYaw{0.0f};
+
+        [[=Range{1.0f, 100.0f, 0.5f}, =Tooltip{"Camera panning speed in units/sec"}]]
+        float panSpeed{15.0f};
+
+        [[=Range{1.0f, 5.0f, 0.1f}, =Tooltip{"Multiplier when holding shift for fast pan"}]]
+        float fastPanMultiplier{2.0f};
+
+        [[=Range{0.5f, 20.0f, 0.5f}, =Tooltip{"Camera zoom speed per notch"}]]
+        float zoomSpeed{2.5f};
+
+        [[=Range{1.0f, 30.0f, 0.5f}, =Tooltip{"Minimum zoom distance"}]]
+        float minCameraDistance{3.0f};
+
+        [[=Range{10.0f, 200.0f, 1.0f}, =Tooltip{"Maximum zoom distance"}]]
+        float maxCameraDistance{50.0f};
+
+        [[=Range{10.0f, 85.0f, 1.0f}, =Tooltip{"Minimum pitch angle in degrees"}]]
+        float minPitch{15.0f};
+
+        [[=Range{10.0f, 89.0f, 1.0f}, =Tooltip{"Maximum pitch angle in degrees"}]]
+        float maxPitch{80.0f};
+
+        [[=Range{15.0f, 180.0f, 15.0f}, =Tooltip{"Rotation step angle in degrees for Q/E"}]]
+        float rotationStepAngle{45.0f};
+
+        [[=Range{10.0f, 360.0f, 5.0f}, =Tooltip{"Camera rotation speed in deg/s"}]]
+        float rotationSpeed{180.0f};
+
+        [[=Tooltip{"Enable screen edge panning"}]]
+        bool enableEdgePanning{true};
+
+        [[=Range{1.0f, 50.0f, 1.0f}, =Tooltip{"Screen edge panning trigger margin in pixels"}]]
+        float edgePanMargin{15.0f};
+
+        [[=Tooltip{"Enable smooth interpolation for camera movement"}]]
+        bool enableSmoothing{true};
+
+        [[=Range{1.0f, 30.0f, 0.5f}, =Tooltip{"Smoothing interpolation factor"}]]
+        float smoothingSpeed{10.0f};
+
+        [[=NonSerialized{}]]
+        glm::vec3 targetCameraTarget{0.0f, 0.0f, 0.0f};
+
+        [[=NonSerialized{}]]
+        float targetCameraDistance{15.0f};
+
+        [[=NonSerialized{}]]
+        float targetCameraYaw{0.0f};
+
+        [[=NonSerialized{}]]
+        bool isMiddleMouseDragging{false};
+
+        [[=NonSerialized{}]]
+        bool cameraInitialized{false};
 
         [[=NonSerialized{}, =ReadOnly{}]]
         Entity selectedEntity{MAX_ENTITIES};

@@ -3,11 +3,11 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "8fc4e4c4-5593-414c-b3d5-1fb03f418e7b",
+  "id": "a82c4210-911c-43f1-b1e7-248cd9b18361",
   "path": "res/shaders/jsons/grid_overlay.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "grid_overlay.shaderprogram",
-  "contentHash": 5035122063977609880,
+  "lookUpName": "gridOverlayShader",
+  "contentHash": 6512938127394812384,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/grid_overlay.shaderImport",
     "assetType": "ShaderProgram",

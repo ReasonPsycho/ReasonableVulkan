@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "cf172831-8da8-46a2-9c42-cc3f20b95771",
+  "id": "82dc6362-6bf7-4a1c-b71f-3ad89519fceb",
   "path": "res/shaders/jsons/shadowMap.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "shadowMap.shaderprogram",
+  "lookUpName": "shadowMapShader",
   "contentHash": 12432936510796057220,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/shadowMap.shaderImport",
