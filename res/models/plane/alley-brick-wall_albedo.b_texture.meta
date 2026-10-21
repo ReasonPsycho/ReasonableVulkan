@@ -3,12 +3,12 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "6ba3acad-d221-40d7-acd4-8b5e9ffbcaeb",
+  "id": "07889b02-6c63-4262-bc41-deb3070a2d51",
   "path": "res/models/plane/alley-brick-wall_albedo.b_texture",
   "type": "Texture",
-  "lookUpName": "alley-brick-wall_albedo_0c.texture",
+  "lookUpName": "alley-brick-wall_albedo_0.texture",
   "contentHash": 3651609447057979728,
-  "thumbnailPath": ".cache/thumbnails/6ba3acad-d221-40d7-acd4-8b5e9ffbcaeb.png",
+  "thumbnailPath": ".cache/thumbnails/07889b02-6c63-4262-bc41-deb3070a2d51.png",
   "assetFactoryData": {
     "importPath": "res/models/plane/alley-brick-wall_albedo.png",
     "assetType": "Texture",

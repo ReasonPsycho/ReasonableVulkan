@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "f572c230-9493-4eed-97a3-6ace99b1673a",
+  "id": "e721ec30-b18f-4ad2-9d08-8908a18c15b0",
   "path": "res/shaders/glsl/entry/mesh.b_fs_shader",
   "type": "Shader",
-  "lookUpName": "mesh_1.shader",
+  "lookUpName": "mesh.fs.shader",
   "contentHash": 2265336382465487539,
   "assetFactoryData": {
     "importPath": "res/shaders/glsl/entry/mesh.frag",

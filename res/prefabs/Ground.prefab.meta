@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "26187029-1c44-47e5-8574-0a1f1ff8d9f4",
+  "path": "res/prefabs/Ground.prefab",
+  "type": "Prefab",
+  "lookUpName": "Ground.prefab",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Prefab",
+    "assimpIndex": 0
+  }
+}

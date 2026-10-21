@@ -3,10 +3,10 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "0b9fb63e-dc40-4666-8e38-837f62e7f059",
+  "id": "9c3ba401-28db-4815-aeb7-30ab14a0565d",
   "path": "res/shaders/jsons/raycast.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "raycast.shaderprogram",
+  "lookUpName": "raycastShader",
   "contentHash": 8539904456255116551,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/raycast.shaderImport",

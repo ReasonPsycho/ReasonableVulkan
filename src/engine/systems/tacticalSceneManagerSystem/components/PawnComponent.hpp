@@ -7,6 +7,12 @@
 
 namespace engine::ecs
 {
+    enum class PawnAlliance
+    {
+        Player = 0,
+        Enemy = 1
+    };
+
     struct PawnComponent : public Component
     {
         [[=Tooltip{"Name of the pawn"}]]
@@ -17,6 +23,9 @@ namespace engine::ecs
 
         [[=Range{1.0f, 10000.0f, 1.0f}, =Tooltip{"Maximum health of the pawn"}]]
         float maxHealth{100.0f};
+
+        [[=Tooltip{"Alliance of the pawn"}]]
+       PawnAlliance orientation{PawnAlliance::Player};
 
         PawnComponent() = default;
         PawnComponent(std::string pawnName, float current, float max)

@@ -1,0 +1,16 @@
+﻿{
+  "_meta": {
+    "encoding": "UTF-8",
+    "version": "1.0"
+  },
+  "id": "983d5f06-5d11-4a68-86d7-4d597e726b8b",
+  "path": "res/prefabs/Pawn 2.prefab",
+  "type": "Prefab",
+  "lookUpName": "Pawn 2.prefab",
+  "contentHash": 0,
+  "assetFactoryData": {
+    "importPath": "",
+    "assetType": "Prefab",
+    "assimpIndex": 0
+  }
+}
