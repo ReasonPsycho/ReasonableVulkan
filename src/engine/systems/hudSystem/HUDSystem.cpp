@@ -65,6 +65,74 @@ namespace engine::ecs {
         return glm::vec2(totalWidth, fontSize);
     }
 
+    Entity HUDSystem::GetElementAt(float screenX, float screenY, float screenWidth, float screenHeight) const {
+        if (!scene || screenWidth <= 0.0f || screenHeight <= 0.0f) {
+            return MAX_ENTITIES;
+        }
+
+        struct Candidate {
+            Entity entity;
+            int layerDepth;
+        };
+        std::vector<Candidate> candidates;
+
+        for (auto [entity, hudElem] : scene->GetActiveView<HUDElementComponent>()) {
+            if (!hudElem.isVisible || !hudElem.isClickable) {
+                continue;
+            }
+
+            glm::vec2 anchoredPos = CalculateAnchoredPosition(
+                static_cast<UIAnchor>(hudElem.anchor),
+                hudElem.offset,
+                hudElem.size,
+                glm::vec2(screenWidth, screenHeight)
+            );
+
+            if (screenX >= anchoredPos.x && screenX <= anchoredPos.x + hudElem.size.x &&
+                screenY >= anchoredPos.y && screenY <= anchoredPos.y + hudElem.size.y) {
+                candidates.push_back({entity, hudElem.layerDepth});
+            }
+        }
+
+        if (candidates.empty()) {
+            return MAX_ENTITIES;
+        }
+
+        std::sort(candidates.begin(), candidates.end(), [](const Candidate& a, const Candidate& b) {
+            return a.layerDepth > b.layerDepth;
+        });
+
+        return candidates.front().entity;
+    }
+
+    Entity HUDSystem::GetElementAt(const glm::vec2& mousePos, const glm::vec2& screenSize) const {
+        return GetElementAt(mousePos.x, mousePos.y, screenSize.x, screenSize.y);
+    }
+
+    bool HUDSystem::HandleClick(float screenX, float screenY, float screenWidth, float screenHeight, int mouseButton) {
+        if (!scene || screenWidth <= 0.0f || screenHeight <= 0.0f) {
+            return false;
+        }
+
+        Entity hitEntity = GetElementAt(screenX, screenY, screenWidth, screenHeight);
+        if (hitEntity == MAX_ENTITIES) {
+            return false;
+        }
+
+        events::HUDClickEvent clickEvent{
+            .entity = hitEntity,
+            .mousePosition = glm::vec2(screenX, screenY),
+            .mouseButton = mouseButton
+        };
+
+        scene->PublishEvent(clickEvent);
+        return true;
+    }
+
+    bool HUDSystem::HandleClick(const glm::vec2& mousePos, const glm::vec2& screenSize, int mouseButton) {
+        return HandleClick(mousePos.x, mousePos.y, screenSize.x, screenSize.y, mouseButton);
+    }
+
     void HUDSystem::Update(float deltaTime) {
         if (!scene || !scene->engine.graphicsEngine || scene->engine.minimized) {
             return;

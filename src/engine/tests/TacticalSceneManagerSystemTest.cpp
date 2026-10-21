@@ -13,6 +13,7 @@
 #include "systems/gizmoSystem/GizmoSystem.hpp"
 #include "systems/hudSystem/components/HUDElementComponent.hpp"
 #include "systems/hudSystem/components/HUDTextComponent.hpp"
+#include "systems/hudSystem/HUDSystem.hpp"
 #include "ecs/components/NameComponent.hpp"
 
 using namespace engine;
@@ -569,6 +570,250 @@ BOOST_AUTO_TEST_CASE(TacticalCameraFocusAndActiveCameraSyncTest) {
     BOOST_CHECK(manager->GetCameraTarget().x > 0.0f);
 
     engine.RemoveScene("TacticalCameraFocusScene");
+}
+
+BOOST_AUTO_TEST_CASE(TacticalSceneManagerSystemShootActionAndUnitTargetingTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalShootTargetingScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto manager = scene->GetSystem<TacticalSceneManagerSystem>();
+    BOOST_REQUIRE(manager != nullptr);
+
+    // 1. Create a Player unit
+    Entity playerUnit = scene->CreateEntity("PlayerRanger");
+    TransformComponent playerTrans;
+    playerTrans.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    scene->AddComponent<TransformComponent>(playerUnit, playerTrans);
+    scene->AddComponent<PathfindingAgent>(playerUnit, PathfindingAgent{1});
+    PawnComponent playerPawn{"Ranger", 100.0f, 100.0f, PawnAlliance::Player};
+    playerPawn.attackDamage = 35.0f;
+    scene->AddComponent<PawnComponent>(playerUnit, playerPawn);
+
+    // 2. Create an Enemy unit
+    Entity enemyUnit = scene->CreateEntity("AlienSectoid");
+    TransformComponent enemyTrans;
+    enemyTrans.position = glm::vec3(5.0f, 0.0f, 5.0f);
+    scene->AddComponent<TransformComponent>(enemyUnit, enemyTrans);
+    scene->AddComponent<PathfindingAgent>(enemyUnit, PathfindingAgent{1});
+    PawnComponent enemyPawn{"Sectoid", 50.0f, 50.0f, PawnAlliance::Enemy};
+    scene->AddComponent<PawnComponent>(enemyUnit, enemyPawn);
+
+    // 3. Create a Neutral unit
+    Entity neutralUnit = scene->CreateEntity("Civilian");
+    TransformComponent neutralTrans;
+    neutralTrans.position = glm::vec3(-3.0f, 0.0f, 2.0f);
+    scene->AddComponent<TransformComponent>(neutralUnit, neutralTrans);
+    scene->AddComponent<PathfindingAgent>(neutralUnit, PathfindingAgent{1});
+    PawnComponent neutralPawn{"Civilian", 20.0f, 20.0f, PawnAlliance::Neutral};
+    scene->AddComponent<PawnComponent>(neutralUnit, neutralPawn);
+
+    // Verify all units retrieval
+    auto allUnits = manager->GetAllTacticalUnits();
+    BOOST_CHECK_EQUAL(allUnits.size(), 3);
+
+    // Select Player unit
+    manager->SetSelectedEntity(playerUnit);
+    BOOST_REQUIRE(manager->HasSelectedEntity());
+    BOOST_CHECK(!manager->IsShootModeActive());
+
+    // Targetable units from player's perspective (excludes self)
+    auto targetable = manager->GetTargetableUnits();
+    BOOST_CHECK_EQUAL(targetable.size(), 2);
+
+    auto targetableEnemies = manager->GetTargetableUnits(PawnAlliance::Enemy);
+    BOOST_CHECK_EQUAL(targetableEnemies.size(), 1);
+    BOOST_CHECK_EQUAL(targetableEnemies[0], enemyUnit);
+
+    // Toggle Shoot Mode -> should activate and auto-select enemy unit
+    manager->ToggleShootMode();
+    BOOST_CHECK(manager->IsShootModeActive());
+    BOOST_CHECK_EQUAL(manager->GetTargetUnit(), enemyUnit);
+
+    // Cycle targets
+    manager->CycleNextTarget();
+    BOOST_CHECK(manager->GetTargetUnit() != MAX_ENTITIES);
+    BOOST_CHECK(manager->GetTargetUnit() == neutralUnit || manager->GetTargetUnit() == enemyUnit);
+
+    manager->SelectTargetUnit(enemyUnit);
+    BOOST_CHECK_EQUAL(manager->GetTargetUnit(), enemyUnit);
+
+    // Execute Shoot on selected enemy target
+    bool shotResult = manager->ExecuteShoot();
+    BOOST_CHECK(shotResult);
+
+    const auto& updatedEnemy = scene->GetComponent<PawnComponent>(enemyUnit);
+    // 50 max HP - 35 attack damage = 15 HP remaining
+    BOOST_CHECK_CLOSE(updatedEnemy.currentHealth, 15.0f, 0.01f);
+    BOOST_CHECK(manager->lastShotFeedbackTimer > 0.0f);
+
+    // Shoot again to eliminate / clamp at 0 HP
+    manager->ExecuteShoot(enemyUnit);
+    const auto& deadEnemy = scene->GetComponent<PawnComponent>(enemyUnit);
+    BOOST_CHECK_CLOSE(deadEnemy.currentHealth, 0.0f, 0.01f);
+
+    // Exit Shoot Mode
+    manager->SetShootMode(false);
+    BOOST_CHECK(!manager->IsShootModeActive());
+
+    engine.RemoveScene("TacticalShootTargetingScene");
+}
+
+BOOST_AUTO_TEST_CASE(TacticalSceneManagerSystemHUDSystemIntegrationTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalHUDSystemIntegrationScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto manager = scene->GetSystem<TacticalSceneManagerSystem>();
+    BOOST_REQUIRE(manager != nullptr);
+
+    // 1. Create HUD entities using the HUD system
+    manager->CreateSelectedPawnHUDEntities(glm::vec2(240.0f, 20.0f), glm::vec2(-260.0f, -40.0f), UIAnchor::BottomRight);
+
+    BOOST_REQUIRE(manager->hudHealthBackgroundEntity != MAX_ENTITIES);
+    BOOST_REQUIRE(manager->hudHealthFillEntity != MAX_ENTITIES);
+    BOOST_REQUIRE(manager->hudNameTextEntity != MAX_ENTITIES);
+    BOOST_REQUIRE(manager->hudStatsTextEntity != MAX_ENTITIES);
+    BOOST_REQUIRE(manager->hudActionButtonEntity != MAX_ENTITIES);
+    BOOST_REQUIRE(manager->hudActionTextEntity != MAX_ENTITIES);
+    BOOST_REQUIRE(manager->hudTargetHeaderEntity != MAX_ENTITIES);
+    BOOST_REQUIRE(manager->hudFeedbackTextEntity != MAX_ENTITIES);
+    BOOST_CHECK(!manager->hudTargetCards.empty());
+
+    // Initially all HUD components should be hidden (no pawn selected)
+    auto& actBg = scene->GetComponent<HUDElementComponent>(manager->hudActionButtonEntity);
+    auto& actText = scene->GetComponent<HUDTextComponent>(manager->hudActionTextEntity);
+    auto& targetHeader = scene->GetComponent<HUDTextComponent>(manager->hudTargetHeaderEntity);
+    auto& feedbackText = scene->GetComponent<HUDTextComponent>(manager->hudFeedbackTextEntity);
+
+    BOOST_CHECK(!actBg.isVisible);
+    BOOST_CHECK(!actText.isVisible);
+    BOOST_CHECK(!targetHeader.isVisible);
+    BOOST_CHECK(!feedbackText.isVisible);
+
+    // 2. Create units
+    Entity ranger = scene->CreateEntity("RangerUnit");
+    scene->AddComponent<PathfindingAgent>(ranger, PathfindingAgent{1});
+    PawnComponent rangerPawn{"Ranger", 100.0f, 100.0f, PawnAlliance::Player};
+    rangerPawn.attackDamage = 30.0f;
+    scene->AddComponent<PawnComponent>(ranger, rangerPawn);
+
+    Entity alien = scene->CreateEntity("AlienUnit");
+    scene->AddComponent<PathfindingAgent>(alien, PathfindingAgent{1});
+    PawnComponent alienPawn{"Alien", 60.0f, 60.0f, PawnAlliance::Enemy};
+    scene->AddComponent<PawnComponent>(alien, alienPawn);
+
+    // Select Ranger -> right-side HUD and middle shoot button become visible
+    manager->SetSelectedEntity(ranger);
+    BOOST_CHECK(manager->HasSelectedEntity());
+
+    BOOST_CHECK(actBg.isVisible);
+    BOOST_CHECK(actText.isVisible);
+    BOOST_CHECK_EQUAL(actText.text, "SHOOT (1)");
+    BOOST_CHECK(!targetHeader.isVisible);
+
+    auto& statsComp = scene->GetComponent<HUDTextComponent>(manager->hudStatsTextEntity);
+    BOOST_CHECK(statsComp.isVisible);
+
+    // 3. Activate Shoot Mode -> action button changes to FIRE, target header and target cards become visible
+    manager->ToggleShootMode();
+    BOOST_CHECK(manager->IsShootModeActive());
+    BOOST_CHECK_EQUAL(actText.text, "FIRE (Space)");
+    BOOST_CHECK(targetHeader.isVisible);
+
+    // Check target card 0 for Alien enemy
+    BOOST_CHECK(manager->hudTargetCards[0].entityRef == alien);
+    auto& card0Bg = scene->GetComponent<HUDElementComponent>(manager->hudTargetCards[0].bgEntity);
+    auto& card0Text = scene->GetComponent<HUDTextComponent>(manager->hudTargetCards[0].textEntity);
+    BOOST_CHECK(card0Bg.isVisible);
+    BOOST_CHECK(card0Text.isVisible);
+
+    // 4. Execute Shoot -> feedback banner becomes visible
+    bool shotOk = manager->ExecuteShoot();
+    BOOST_CHECK(shotOk);
+    BOOST_CHECK(feedbackText.isVisible);
+    BOOST_CHECK(!feedbackText.text.empty());
+
+    // 5. Clear selection -> all HUD elements hidden
+    manager->ClearSelection();
+    BOOST_CHECK(!actBg.isVisible);
+    BOOST_CHECK(!actText.isVisible);
+    BOOST_CHECK(!targetHeader.isVisible);
+
+    engine.RemoveScene("TacticalHUDSystemIntegrationScene");
+}
+
+BOOST_AUTO_TEST_CASE(TacticalSceneManagerSystemHUDClickEventTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("TacticalHUDClickEventScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto manager = scene->GetSystem<TacticalSceneManagerSystem>();
+    BOOST_REQUIRE(manager != nullptr);
+
+    auto hudSystem = scene->GetSystem<HUDSystem>();
+    BOOST_REQUIRE(hudSystem != nullptr);
+
+    manager->CreateSelectedPawnHUDEntities(glm::vec2(240.0f, 20.0f), glm::vec2(-260.0f, -40.0f), UIAnchor::BottomRight);
+
+    // Create units
+    Entity ranger = scene->CreateEntity("RangerUnit");
+    scene->AddComponent<PathfindingAgent>(ranger, PathfindingAgent{1});
+    PawnComponent rangerPawn{"Ranger", 100.0f, 100.0f, PawnAlliance::Player};
+    rangerPawn.attackDamage = 40.0f;
+    scene->AddComponent<PawnComponent>(ranger, rangerPawn);
+
+    Entity alien1 = scene->CreateEntity("AlienUnit1");
+    scene->AddComponent<PathfindingAgent>(alien1, PathfindingAgent{1});
+    PawnComponent alienPawn1{"Alien1", 80.0f, 80.0f, PawnAlliance::Enemy};
+    scene->AddComponent<PawnComponent>(alien1, alienPawn1);
+
+    Entity alien2 = scene->CreateEntity("AlienUnit2");
+    scene->AddComponent<PathfindingAgent>(alien2, PathfindingAgent{1});
+    PawnComponent alienPawn2{"Alien2", 60.0f, 60.0f, PawnAlliance::Enemy};
+    scene->AddComponent<PawnComponent>(alien2, alienPawn2);
+
+    // Select Ranger
+    manager->SetSelectedEntity(ranger);
+    BOOST_REQUIRE(manager->HasSelectedEntity());
+    BOOST_CHECK(!manager->IsShootModeActive());
+
+    // 1. Simulate clicking the Shoot Action Button via EventDispatcher
+    scene->PublishEvent(events::HUDClickEvent{
+        .entity = manager->hudActionButtonEntity,
+        .mousePosition = glm::vec2(400.0f, 570.0f),
+        .mouseButton = 0
+    });
+
+    // Shoot mode should now be toggled ON
+    BOOST_CHECK(manager->IsShootModeActive());
+    BOOST_CHECK_EQUAL(manager->GetTargetUnit(), alien1);
+
+    // 2. Click target card 1 via HUDSystem::HandleClick at calculated screen position
+    glm::vec2 windowSize(800.0f, 600.0f);
+    auto& card1 = manager->hudTargetCards[1];
+    BOOST_REQUIRE(card1.entityRef == alien2);
+    auto& card1Bg = scene->GetComponent<HUDElementComponent>(card1.bgEntity);
+    glm::vec2 card1Pos = hudSystem->CalculateAnchoredPosition(
+        static_cast<UIAnchor>(card1Bg.anchor), card1Bg.offset, card1Bg.size, windowSize);
+
+    bool handled = manager->HandleLeftClick(card1Pos.x + 10.0f, card1Pos.y + 10.0f, windowSize.x, windowSize.y);
+    BOOST_CHECK(handled);
+    BOOST_CHECK_EQUAL(manager->GetTargetUnit(), alien2);
+
+    // 3. Click Shoot Action Button via HandleLeftClick to Execute Shot on alien2
+    auto& actBg = scene->GetComponent<HUDElementComponent>(manager->hudActionButtonEntity);
+    glm::vec2 actPos = hudSystem->CalculateAnchoredPosition(
+        static_cast<UIAnchor>(actBg.anchor), actBg.offset, actBg.size, windowSize);
+
+    handled = manager->HandleLeftClick(actPos.x + 20.0f, actPos.y + 10.0f, windowSize.x, windowSize.y);
+    BOOST_CHECK(handled);
+
+    // Alien2 took 40 damage: 80 - 40 = 40 HP
+    auto& ap2 = scene->GetComponent<PawnComponent>(alien2);
+    BOOST_CHECK_CLOSE(ap2.currentHealth, 20.0f, 0.001f); // 60 - 40 = 20 HP
+
+    engine.RemoveScene("TacticalHUDClickEventScene");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

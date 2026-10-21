@@ -142,6 +142,8 @@ Drives grid-based tactical mechanics:
 - **Grid Visualization**: Generates dynamic grid plane visual overlays and hover feedback.
 - **Turn & Action Orchestration**: Coordinates pawn movement ranges, attack targets, and turn cycles.
 - **Tactical Camera Controls (XCOM Style)**: Manages active game camera navigation with WASD panning, Q/E rotational snapping (45°/90°), mouse wheel zooming, middle-mouse drag panning, screen edge panning, and pawn centering/focusing with smooth interpolation.
+- **Tactical HUD & Action System (XCOM Style)**: Implements native 2D tactical UI via `HUDSystem` (`HUDElementComponent` and `HUDTextComponent`), providing right-aligned selected unit information (name, alliance badge, health bar, and combat stats), a centralized Shoot action button, and an expandable target selection bar displaying alliance-differentiated unit cards (Player/Ally, Enemy, Neutral) with real-time health, target cycling (Tab / Arrows / direct mouse clicks), and shooting execution with feedback banners.
+- **Event-Driven HUD Interaction**: Integrates with the engine's event system via `HUDClickEvent`, where clickable `HUDElementComponent` buttons are hit-tested by `HUDSystem` and dispatched to listeners in `TacticalSceneManagerSystem` for seamless, modular action toggling and unit targeting.
 
 ### 4. Tooling & Scripting Support
 

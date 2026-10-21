@@ -12,6 +12,8 @@
 #include "systems/pathfindingSystem/componets/PathfindingAgent.hpp"
 #include "systems/hudSystem/components/HUDElementComponent.hpp"
 #include "systems/hudSystem/components/HUDTextComponent.hpp"
+#include "events/Events.hpp"
+#include "events/EventDispatcher.hpp"
 
 namespace engine::ecs {
     struct TransformComponent;
@@ -20,6 +22,7 @@ namespace engine::ecs {
     class TacticalSceneManagerSystem : public System<TacticalSceneManagerSystem, PathfindingAgent> {
     public:
         explicit TacticalSceneManagerSystem(Scene* scene);
+        ~TacticalSceneManagerSystem() override;
 
         void Update(float deltaTime) override;
         void OnStart() override;
@@ -94,11 +97,24 @@ namespace engine::ecs {
         // Full Game Window Input processing (WASD, Q/E, Mouse Drag, Scroll, Edge Pan, Focus)
         bool HandleGameWindowInput(float screenX, float screenY, float windowWidth, float windowHeight, float deltaTime, bool isHovered, bool isFocused);
 
-        // HUD Panel Integration for Selected Pawn
-        void CreateSelectedPawnHUDEntities(const glm::vec2& size = glm::vec2(200.0f, 20.0f), const glm::vec2& offset = glm::vec2(-100.0f, -60.0f), UIAnchor anchor = UIAnchor::BottomCenter);
+        // HUD Panel Integration for Selected Pawn (Positioned to the right by default)
+        void CreateSelectedPawnHUDEntities(const glm::vec2& size = glm::vec2(200.0f, 20.0f), const glm::vec2& offset = glm::vec2(-220.0f, -40.0f), UIAnchor anchor = UIAnchor::BottomRight);
         void DestroySelectedPawnHUDEntities();
         void UpdatePawnHUD();
         void BindHUDEntities(Entity bgEntity, Entity fillEntity, Entity nameEntity = MAX_ENTITIES);
+
+        // Tactical Shoot Action & Unit Target Selection (XCOM style)
+        std::vector<Entity> GetAllTacticalUnits() const;
+        std::vector<Entity> GetTargetableUnits(std::optional<PawnAlliance> allianceFilter = std::nullopt) const;
+        bool IsShootModeActive() const { return isShootModeActive; }
+        void SetShootMode(bool active);
+        void ToggleShootMode();
+        Entity GetTargetUnit() const { return targetUnitEntity; }
+        void SelectTargetUnit(Entity target);
+        void ClearTargetUnit();
+        void CycleNextTarget();
+        void CyclePrevTarget();
+        bool ExecuteShoot(Entity target = MAX_ENTITIES);
 
 #ifdef ENABLE_IMGUI
         bool CustomDrawSettingsImGui(Scene* scenePtr);
@@ -122,6 +138,33 @@ namespace engine::ecs {
 
         [[=Tooltip{"Entity holding the HUD name text element"}]]
         Entity hudNameTextEntity{MAX_ENTITIES};
+
+        [[=Tooltip{"Entity holding the HUD stats text element"}]]
+        Entity hudStatsTextEntity{MAX_ENTITIES};
+
+        [[=Tooltip{"Entity holding the central HUD action button background"}]]
+        Entity hudActionButtonEntity{MAX_ENTITIES};
+
+        [[=Tooltip{"Entity holding the central HUD action button text"}]]
+        Entity hudActionTextEntity{MAX_ENTITIES};
+
+        [[=Tooltip{"Entity holding the target selection instruction header"}]]
+        Entity hudTargetHeaderEntity{MAX_ENTITIES};
+
+        [[=Tooltip{"Entity holding the shot feedback text banner"}]]
+        Entity hudFeedbackTextEntity{MAX_ENTITIES};
+
+        struct HUDTargetCardEntities {
+            Entity bgEntity{MAX_ENTITIES};
+            Entity fillEntity{MAX_ENTITIES};
+            Entity textEntity{MAX_ENTITIES};
+            Entity entityRef{MAX_ENTITIES};
+            glm::vec2 cachedOffset{0.0f};
+            glm::vec2 cachedSize{0.0f};
+        };
+
+        [[=NonSerialized{}]]
+        std::vector<HUDTargetCardEntities> hudTargetCards;
 
         [[=Tooltip{"Layer depth for HUD panel background"}]]
         int hudBackgroundLayerDepth{10};
@@ -213,6 +256,26 @@ namespace engine::ecs {
 
         [[=NonSerialized{}, =ReadOnly{}]]
         Entity selectedEntity{MAX_ENTITIES};
+
+        [[=NonSerialized{}]]
+        bool isShootModeActive{false};
+
+        [[=NonSerialized{}]]
+        Entity targetUnitEntity{MAX_ENTITIES};
+
+        [[=NonSerialized{}]]
+        Entity hoveredUnitEntity{MAX_ENTITIES};
+
+        [[=NonSerialized{}]]
+        float lastShotFeedbackTimer{0.0f};
+
+        [[=NonSerialized{}]]
+        std::string lastShotFeedbackText{""};
+
+        [[=NonSerialized{}]]
+        events::ListenerID hudClickListenerId{0};
+
+        void OnHUDClicked(const events::HUDClickEvent& ev);
 
     protected:
         void OnComponentAdded(ComponentID componentID, std::type_index type) override {}

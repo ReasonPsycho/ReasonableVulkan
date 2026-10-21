@@ -6,7 +6,7 @@
   "id": "5c40fcd0-42cb-4098-8372-ad76faaba452",
   "path": "res/shaders/jsons/pbr.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "pbrShader",
+  "lookUpName": "pbr.shaderprogram",
   "contentHash": 12406952476253162472,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/pbr.shaderImport",

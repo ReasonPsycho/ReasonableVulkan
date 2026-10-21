@@ -3,7 +3,7 @@
     "encoding": "UTF-8",
     "version": "1.0"
   },
-  "id": "520aedf1-363a-4584-a23c-d99f28fb465e",
+  "id": "a70be68f-ada2-45b4-abd7-4828d5a09100",
   "path": "res/shaders/glsl/entry/mesh.b_vs_shader",
   "type": "Shader",
   "lookUpName": "mesh.vs.shader",

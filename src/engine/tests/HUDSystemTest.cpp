@@ -231,4 +231,96 @@ BOOST_AUTO_TEST_CASE(HUDSystemTextComponentTest) {
     engine.RemoveScene("HUDTextScene");
 }
 
+BOOST_AUTO_TEST_CASE(HUDClickHandlingTest) {
+    Engine engine = CreateTestEngine();
+    auto scene = engine.CreateScene("HUDClickTestScene");
+    BOOST_REQUIRE(scene != nullptr);
+
+    auto hudSystem = scene->GetSystem<HUDSystem>();
+    BOOST_REQUIRE(hudSystem != nullptr);
+
+    // Track received HUDClickEvents
+    int clickCount = 0;
+    Entity clickedEntity = MAX_ENTITIES;
+    glm::vec2 clickedPos{0.0f};
+    int clickedButton = -1;
+
+    auto subId = scene->GetEventDispatcher().Subscribe<events::HUDClickEvent>([&](const events::HUDClickEvent& ev) {
+        clickCount++;
+        clickedEntity = ev.entity;
+        clickedPos = ev.mousePosition;
+        clickedButton = ev.mouseButton;
+    });
+
+    // 1. Create a non-clickable background element
+    Entity bgEntity = scene->CreateEntity("HUD_NonClickable_Bg");
+    HUDElementComponent bgComp;
+    bgComp.anchor = static_cast<int>(UIAnchor::TopLeft);
+    bgComp.offset = glm::vec2(0.0f, 0.0f);
+    bgComp.size = glm::vec2(400.0f, 300.0f);
+    bgComp.isClickable = false;
+    bgComp.layerDepth = 1;
+    scene->AddComponent<HUDElementComponent>(bgEntity, bgComp);
+
+    // 2. Create a clickable button inside the area
+    Entity btnEntity = scene->CreateEntity("HUD_Clickable_Button");
+    HUDElementComponent btnComp;
+    btnComp.anchor = static_cast<int>(UIAnchor::TopLeft);
+    btnComp.offset = glm::vec2(50.0f, 50.0f);
+    btnComp.size = glm::vec2(100.0f, 40.0f);
+    btnComp.isClickable = true;
+    btnComp.layerDepth = 5;
+    scene->AddComponent<HUDElementComponent>(btnEntity, btnComp);
+
+    // 3. Create a higher-priority overlapping button
+    Entity topBtnEntity = scene->CreateEntity("HUD_Top_Clickable_Button");
+    HUDElementComponent topBtnComp;
+    topBtnComp.anchor = static_cast<int>(UIAnchor::TopLeft);
+    topBtnComp.offset = glm::vec2(80.0f, 60.0f);
+    topBtnComp.size = glm::vec2(100.0f, 40.0f);
+    topBtnComp.isClickable = true;
+    topBtnComp.layerDepth = 10;
+    scene->AddComponent<HUDElementComponent>(topBtnEntity, topBtnComp);
+
+    glm::vec2 screenSize(800.0f, 600.0f);
+
+    // Click on empty area outside any element -> should return false, no event
+    bool hit = hudSystem->HandleClick(500.0f, 500.0f, screenSize.x, screenSize.y, 0);
+    BOOST_CHECK(!hit);
+    BOOST_CHECK_EQUAL(clickCount, 0);
+
+    // Click on non-clickable background (e.g. at (10, 10)) -> should return false, no event
+    hit = hudSystem->HandleClick(10.0f, 10.0f, screenSize.x, screenSize.y, 0);
+    BOOST_CHECK(!hit);
+    BOOST_CHECK_EQUAL(clickCount, 0);
+
+    // Click on btnEntity only (e.g. at (60, 60)) -> should hit btnEntity
+    hit = hudSystem->HandleClick(60.0f, 60.0f, screenSize.x, screenSize.y, 0);
+    BOOST_CHECK(hit);
+    BOOST_CHECK_EQUAL(clickCount, 1);
+    BOOST_CHECK_EQUAL(clickedEntity, btnEntity);
+    BOOST_CHECK_CLOSE(clickedPos.x, 60.0f, 0.001f);
+    BOOST_CHECK_CLOSE(clickedPos.y, 60.0f, 0.001f);
+    BOOST_CHECK_EQUAL(clickedButton, 0);
+
+    // Click on overlapping area (e.g. at (100, 70)) -> should hit topBtnEntity due to layerDepth 10 > 5
+    hit = hudSystem->HandleClick(100.0f, 70.0f, screenSize.x, screenSize.y, 1);
+    BOOST_CHECK(hit);
+    BOOST_CHECK_EQUAL(clickCount, 2);
+    BOOST_CHECK_EQUAL(clickedEntity, topBtnEntity);
+    BOOST_CHECK_EQUAL(clickedButton, 1);
+
+    // Test GetElementAt directly
+    Entity queried = hudSystem->GetElementAt(glm::vec2(100.0f, 70.0f), screenSize);
+    BOOST_CHECK_EQUAL(queried, topBtnEntity);
+
+    // Hide top button -> should now hit btnEntity
+    scene->GetComponent<HUDElementComponent>(topBtnEntity).isVisible = false;
+    queried = hudSystem->GetElementAt(glm::vec2(100.0f, 70.0f), screenSize);
+    BOOST_CHECK_EQUAL(queried, btnEntity);
+
+    scene->GetEventDispatcher().Unsubscribe<events::HUDClickEvent>(subId);
+    engine.RemoveScene("HUDClickTestScene");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -7,6 +7,7 @@
 
 #ifdef ENABLE_IMGUI
 #include <imgui.h>
+#include "IconsFontAwesome6.h"
 #endif
 
 #include "UUIDManager.hpp"
@@ -18,10 +19,51 @@
 #include "systems/pathfindingSystem/componets/GridFragment.hpp"
 #include "systems/tacticalGridSystem/TacticalGridSystem.hpp"
 #include "systems/gizmoSystem/GizmoSystem.hpp"
+#include "systems/hudSystem/HUDSystem.hpp"
 
 namespace engine::ecs {
 
     TacticalSceneManagerSystem::TacticalSceneManagerSystem(Scene* scene) : System(scene) {
+        if (scene) {
+            hudClickListenerId = scene->GetEventDispatcher().Subscribe<events::HUDClickEvent>(
+                [this](const events::HUDClickEvent& ev) {
+                    OnHUDClicked(ev);
+                }
+            );
+        }
+    }
+
+    TacticalSceneManagerSystem::~TacticalSceneManagerSystem() {
+        if (scene && hudClickListenerId != 0) {
+            scene->GetEventDispatcher().Unsubscribe<events::HUDClickEvent>(hudClickListenerId);
+            hudClickListenerId = 0;
+        }
+    }
+
+    void TacticalSceneManagerSystem::OnHUDClicked(const events::HUDClickEvent& ev) {
+        if (!scene || !HasSelectedEntity()) return;
+
+        if (ev.entity == hudActionButtonEntity) {
+            if (isShootModeActive) {
+                ExecuteShoot();
+            } else {
+                ToggleShootMode();
+            }
+            return;
+        }
+
+        if (isShootModeActive) {
+            for (const auto& card : hudTargetCards) {
+                if (ev.entity == card.bgEntity && card.entityRef != MAX_ENTITIES) {
+                    if (card.entityRef == targetUnitEntity) {
+                        ExecuteShoot(card.entityRef);
+                    } else {
+                        SelectTargetUnit(card.entityRef);
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     void TacticalSceneManagerSystem::SetSelectedEntity(Entity entity) {
@@ -38,11 +80,16 @@ namespace engine::ecs {
         } else {
             selectedEntity = MAX_ENTITIES;
         }
+        if (selectedEntity == MAX_ENTITIES || selectedEntity == targetUnitEntity) {
+            targetUnitEntity = MAX_ENTITIES;
+        }
         UpdatePawnHUD();
     }
 
     void TacticalSceneManagerSystem::ClearSelection() {
         selectedEntity = MAX_ENTITIES;
+        isShootModeActive = false;
+        targetUnitEntity = MAX_ENTITIES;
         UpdatePawnHUD();
     }
 
@@ -111,6 +158,26 @@ namespace engine::ecs {
         if (hudNameTextEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(hudNameTextEntity)) {
             hudNameTextEntity = MAX_ENTITIES;
         }
+        if (hudStatsTextEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(hudStatsTextEntity)) {
+            hudStatsTextEntity = MAX_ENTITIES;
+        }
+        if (hudActionButtonEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(hudActionButtonEntity)) {
+            hudActionButtonEntity = MAX_ENTITIES;
+        }
+        if (hudActionTextEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(hudActionTextEntity)) {
+            hudActionTextEntity = MAX_ENTITIES;
+        }
+        if (hudTargetHeaderEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(hudTargetHeaderEntity)) {
+            hudTargetHeaderEntity = MAX_ENTITIES;
+        }
+        if (hudFeedbackTextEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(hudFeedbackTextEntity)) {
+            hudFeedbackTextEntity = MAX_ENTITIES;
+        }
+        for (auto& card : hudTargetCards) {
+            if (card.bgEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(card.bgEntity)) card.bgEntity = MAX_ENTITIES;
+            if (card.fillEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(card.fillEntity)) card.fillEntity = MAX_ENTITIES;
+            if (card.textEntity != MAX_ENTITIES && scene && !scene->IsEntityActive(card.textEntity)) card.textEntity = MAX_ENTITIES;
+        }
     }
 
     void TacticalSceneManagerSystem::CreateSelectedPawnHUDEntities(const glm::vec2& size, const glm::vec2& offset, UIAnchor anchor) {
@@ -118,12 +185,13 @@ namespace engine::ecs {
 
         DestroySelectedPawnHUDEntities();
 
+        // 1. Right-side Selected Pawn Status Panel (Anchor: BottomRight by default)
         hudHealthBackgroundEntity = scene->CreateEntity("HUD_SelectedPawn_HP_Background");
         HUDElementComponent bgComp;
         bgComp.anchor = static_cast<int>(anchor);
         bgComp.offset = offset;
         bgComp.size = size;
-        bgComp.color = glm::vec4(0.15f, 0.15f, 0.15f, 0.9f);
+        bgComp.color = glm::vec4(0.12f, 0.15f, 0.2f, 0.9f);
         bgComp.layerDepth = hudBackgroundLayerDepth;
         bgComp.isVisible = false;
         scene->AddComponent<HUDElementComponent>(hudHealthBackgroundEntity, bgComp);
@@ -147,8 +215,103 @@ namespace engine::ecs {
         textComp.fontUuid = hudFontUuid;
         textComp.layerDepth = hudTextLayerDepth;
         textComp.isVisible = false;
-        textComp.fontUuid = hudFontUuid;
         scene->AddComponent<HUDTextComponent>(hudNameTextEntity, textComp);
+
+        hudStatsTextEntity = scene->CreateEntity("HUD_SelectedPawn_Stats_Text");
+        HUDTextComponent statsComp;
+        statsComp.anchor = static_cast<int>(anchor);
+        statsComp.offset = glm::vec2(offset.x, offset.y + size.y + 4.0f);
+        statsComp.fontSize = 13.0f;
+        statsComp.color = glm::vec4(0.75f, 0.82f, 0.9f, 1.0f);
+        statsComp.fontUuid = hudFontUuid;
+        statsComp.layerDepth = hudTextLayerDepth;
+        statsComp.isVisible = false;
+        scene->AddComponent<HUDTextComponent>(hudStatsTextEntity, statsComp);
+
+        // 2. Center Action Button (Shoot / Fire)
+        hudActionButtonEntity = scene->CreateEntity("HUD_Tactical_Action_Button");
+        HUDElementComponent actionBg;
+        actionBg.anchor = static_cast<int>(UIAnchor::BottomCenter);
+        actionBg.offset = glm::vec2(-80.0f, -55.0f);
+        actionBg.size = glm::vec2(160.0f, 40.0f);
+        actionBg.color = glm::vec4(0.65f, 0.15f, 0.15f, 0.95f);
+        actionBg.layerDepth = hudBackgroundLayerDepth;
+        actionBg.isVisible = false;
+        actionBg.isClickable = true;
+        scene->AddComponent<HUDElementComponent>(hudActionButtonEntity, actionBg);
+
+        hudActionTextEntity = scene->CreateEntity("HUD_Tactical_Action_Text");
+        HUDTextComponent actionText;
+        actionText.anchor = static_cast<int>(UIAnchor::BottomCenter);
+        actionText.offset = glm::vec2(-55.0f, -44.0f);
+        actionText.fontSize = 16.0f;
+        actionText.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        actionText.text = "SHOOT (1)";
+        actionText.fontUuid = hudFontUuid;
+        actionText.layerDepth = hudTextLayerDepth;
+        actionText.isVisible = false;
+        scene->AddComponent<HUDTextComponent>(hudActionTextEntity, actionText);
+
+        // 3. Center Target Mode Header
+        hudTargetHeaderEntity = scene->CreateEntity("HUD_Tactical_Target_Header");
+        HUDTextComponent targetHeader;
+        targetHeader.anchor = static_cast<int>(UIAnchor::BottomCenter);
+        targetHeader.offset = glm::vec2(-160.0f, -165.0f);
+        targetHeader.fontSize = 13.0f;
+        targetHeader.color = glm::vec4(1.0f, 0.85f, 0.2f, 1.0f);
+        targetHeader.text = "TARGETS (Click or Tab/Arrows to cycle)";
+        targetHeader.fontUuid = hudFontUuid;
+        targetHeader.layerDepth = hudTextLayerDepth;
+        targetHeader.isVisible = false;
+        scene->AddComponent<HUDTextComponent>(hudTargetHeaderEntity, targetHeader);
+
+        // 4. Center Target Cards (Pool of 8 card entities)
+        hudTargetCards.clear();
+        for (int i = 0; i < 8; ++i) {
+            HUDTargetCardEntities card;
+            card.bgEntity = scene->CreateEntity("HUD_Target_Card_Bg_" + std::to_string(i));
+            HUDElementComponent cBg;
+            cBg.anchor = static_cast<int>(UIAnchor::BottomCenter);
+            cBg.size = glm::vec2(105.0f, 42.0f);
+            cBg.color = glm::vec4(0.12f, 0.15f, 0.2f, 0.9f);
+            cBg.layerDepth = hudBackgroundLayerDepth;
+            cBg.isVisible = false;
+            cBg.isClickable = true;
+            scene->AddComponent<HUDElementComponent>(card.bgEntity, cBg);
+
+            card.fillEntity = scene->CreateEntity("HUD_Target_Card_Fill_" + std::to_string(i));
+            HUDElementComponent cFill;
+            cFill.anchor = static_cast<int>(UIAnchor::BottomCenter);
+            cFill.size = glm::vec2(95.0f, 4.0f);
+            cFill.color = glm::vec4(0.85f, 0.2f, 0.2f, 1.0f);
+            cFill.layerDepth = hudFillLayerDepth;
+            cFill.isVisible = false;
+            scene->AddComponent<HUDElementComponent>(card.fillEntity, cFill);
+
+            card.textEntity = scene->CreateEntity("HUD_Target_Card_Text_" + std::to_string(i));
+            HUDTextComponent cText;
+            cText.anchor = static_cast<int>(UIAnchor::BottomCenter);
+            cText.fontSize = 12.0f;
+            cText.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+            cText.fontUuid = hudFontUuid;
+            cText.layerDepth = hudTextLayerDepth;
+            cText.isVisible = false;
+            scene->AddComponent<HUDTextComponent>(card.textEntity, cText);
+
+            hudTargetCards.push_back(card);
+        }
+
+        // 5. Shot Feedback Banner Text
+        hudFeedbackTextEntity = scene->CreateEntity("HUD_Tactical_Feedback_Text");
+        HUDTextComponent feedText;
+        feedText.anchor = static_cast<int>(UIAnchor::BottomCenter);
+        feedText.offset = glm::vec2(-140.0f, -200.0f);
+        feedText.fontSize = 15.0f;
+        feedText.color = glm::vec4(1.0f, 0.9f, 0.3f, 1.0f);
+        feedText.fontUuid = hudFontUuid;
+        feedText.layerDepth = hudTextLayerDepth;
+        feedText.isVisible = false;
+        scene->AddComponent<HUDTextComponent>(hudFeedbackTextEntity, feedText);
 
         UpdatePawnHUD();
     }
@@ -156,20 +319,28 @@ namespace engine::ecs {
     void TacticalSceneManagerSystem::DestroySelectedPawnHUDEntities() {
         if (!scene) return;
 
-        if (hudHealthBackgroundEntity != MAX_ENTITIES && scene->IsEntityActive(hudHealthBackgroundEntity)) {
-            scene->DestroyEntity(hudHealthBackgroundEntity);
-        }
-        hudHealthBackgroundEntity = MAX_ENTITIES;
+        auto destroyEnt = [&](Entity& e) {
+            if (e != MAX_ENTITIES && scene->IsEntityActive(e)) {
+                scene->DestroyEntity(e);
+            }
+            e = MAX_ENTITIES;
+        };
 
-        if (hudHealthFillEntity != MAX_ENTITIES && scene->IsEntityActive(hudHealthFillEntity)) {
-            scene->DestroyEntity(hudHealthFillEntity);
-        }
-        hudHealthFillEntity = MAX_ENTITIES;
+        destroyEnt(hudHealthBackgroundEntity);
+        destroyEnt(hudHealthFillEntity);
+        destroyEnt(hudNameTextEntity);
+        destroyEnt(hudStatsTextEntity);
+        destroyEnt(hudActionButtonEntity);
+        destroyEnt(hudActionTextEntity);
+        destroyEnt(hudTargetHeaderEntity);
+        destroyEnt(hudFeedbackTextEntity);
 
-        if (hudNameTextEntity != MAX_ENTITIES && scene->IsEntityActive(hudNameTextEntity)) {
-            scene->DestroyEntity(hudNameTextEntity);
+        for (auto& card : hudTargetCards) {
+            destroyEnt(card.bgEntity);
+            destroyEnt(card.fillEntity);
+            destroyEnt(card.textEntity);
         }
-        hudNameTextEntity = MAX_ENTITIES;
+        hudTargetCards.clear();
     }
 
     void TacticalSceneManagerSystem::BindHUDEntities(Entity bgEntity, Entity fillEntity, Entity nameEntity) {
@@ -185,13 +356,20 @@ namespace engine::ecs {
         bool hasBg = (hudHealthBackgroundEntity != MAX_ENTITIES && scene->IsEntityActive(hudHealthBackgroundEntity) && scene->HasComponent<HUDElementComponent>(hudHealthBackgroundEntity));
         bool hasFill = (hudHealthFillEntity != MAX_ENTITIES && scene->IsEntityActive(hudHealthFillEntity) && scene->HasComponent<HUDElementComponent>(hudHealthFillEntity));
         bool hasName = (hudNameTextEntity != MAX_ENTITIES && scene->IsEntityActive(hudNameTextEntity) && scene->HasComponent<HUDTextComponent>(hudNameTextEntity));
-
-        if (!hasBg && !hasFill && !hasName) return;
+        bool hasStats = (hudStatsTextEntity != MAX_ENTITIES && scene->IsEntityActive(hudStatsTextEntity) && scene->HasComponent<HUDTextComponent>(hudStatsTextEntity));
+        bool hasActionBg = (hudActionButtonEntity != MAX_ENTITIES && scene->IsEntityActive(hudActionButtonEntity) && scene->HasComponent<HUDElementComponent>(hudActionButtonEntity));
+        bool hasActionText = (hudActionTextEntity != MAX_ENTITIES && scene->IsEntityActive(hudActionTextEntity) && scene->HasComponent<HUDTextComponent>(hudActionTextEntity));
+        bool hasHeader = (hudTargetHeaderEntity != MAX_ENTITIES && scene->IsEntityActive(hudTargetHeaderEntity) && scene->HasComponent<HUDTextComponent>(hudTargetHeaderEntity));
+        bool hasFeedback = (hudFeedbackTextEntity != MAX_ENTITIES && scene->IsEntityActive(hudFeedbackTextEntity) && scene->HasComponent<HUDTextComponent>(hudFeedbackTextEntity));
 
         if (showPawnHUD && HasSelectedEntity() && scene->HasComponent<PawnComponent>(selectedEntity)) {
             const auto& pawn = scene->GetComponent<PawnComponent>(selectedEntity);
-            float healthRatio = pawn.maxHealth > 0.0f ? std::clamp(pawn.currentHealth / pawn.maxHealth, 0.0f, 1.0f) : 0.0f;
+            float curHealth = pawn.currentHealth;
+            float maxHealth = pawn.maxHealth;
+            float healthRatio = maxHealth > 0.0f ? std::clamp(curHealth / maxHealth, 0.0f, 1.0f) : 0.0f;
+            PawnAlliance alliance = pawn.orientation;
 
+            // 1. Right Side: Unit Health & Name
             if (hasBg) {
                 auto& bgComp = scene->GetComponent<HUDElementComponent>(hudHealthBackgroundEntity);
                 bgComp.isVisible = true;
@@ -213,23 +391,154 @@ namespace engine::ecs {
             if (hasName) {
                 auto& textComp = scene->GetComponent<HUDTextComponent>(hudNameTextEntity);
                 textComp.isVisible = true;
-                if (!pawn.name.empty()) {
-                    textComp.text = pawn.name;
-                } else if (scene->HasComponent<NameComponent>(selectedEntity)) {
-                    textComp.text = scene->GetComponent<NameComponent>(selectedEntity).name;
+                std::string pName = !pawn.name.empty() ? pawn.name : (scene->HasComponent<NameComponent>(selectedEntity) ? scene->GetComponent<NameComponent>(selectedEntity).name : "Pawn");
+                textComp.text = pName;
+                textComp.color = (alliance == PawnAlliance::Player) ? glm::vec4(0.3f, 0.75f, 1.0f, 1.0f) :
+                                 ((alliance == PawnAlliance::Enemy) ? glm::vec4(1.0f, 0.35f, 0.35f, 1.0f) : glm::vec4(1.0f, 0.85f, 0.25f, 1.0f));
+            }
+
+            if (hasStats) {
+                auto& statsComp = scene->GetComponent<HUDTextComponent>(hudStatsTextEntity);
+                statsComp.isVisible = true;
+                std::string allianceTag = (alliance == PawnAlliance::Player) ? "[PLAYER]" : ((alliance == PawnAlliance::Enemy) ? "[ENEMY]" : "[NEUT]");
+                char statBuf[64];
+                snprintf(statBuf, sizeof(statBuf), "%s %.0f/%.0f HP | DMG: %.0f", allianceTag.c_str(), curHealth, maxHealth, pawn.attackDamage);
+                statsComp.text = statBuf;
+            }
+
+            // 2. Middle: Single Shoot / Fire Button
+            if (hasActionBg) {
+                auto& actBg = scene->GetComponent<HUDElementComponent>(hudActionButtonEntity);
+                actBg.isVisible = true;
+                actBg.color = isShootModeActive ? glm::vec4(0.85f, 0.2f, 0.2f, 0.95f) : glm::vec4(0.65f, 0.15f, 0.15f, 0.9f);
+            }
+            if (hasActionText) {
+                auto& actText = scene->GetComponent<HUDTextComponent>(hudActionTextEntity);
+                actText.isVisible = true;
+                actText.text = isShootModeActive ? "FIRE (Space)" : "SHOOT (1)";
+            }
+
+            // 3. Middle: Target Cards & Header (when in Shoot Mode)
+            auto targetableUnits = GetTargetableUnits();
+            if (isShootModeActive) {
+                if (hasHeader) {
+                    auto& headComp = scene->GetComponent<HUDTextComponent>(hudTargetHeaderEntity);
+                    headComp.isVisible = true;
+                    headComp.text = targetableUnits.empty() ? "No targetable units" : "TARGETS (Click or Tab/Arrows to cycle)";
+                }
+
+                float cardW = 105.0f;
+                float cardH = 42.0f;
+                float spacing = 8.0f;
+                size_t numUnits = std::min(targetableUnits.size(), hudTargetCards.size());
+                float totalW = numUnits > 0 ? (numUnits * cardW + (numUnits - 1) * spacing) : cardW;
+                float startX = -totalW * 0.5f;
+                float startY = -120.0f;
+
+                for (size_t i = 0; i < hudTargetCards.size(); ++i) {
+                    auto& card = hudTargetCards[i];
+                    if (i < targetableUnits.size()) {
+                        Entity uEnt = targetableUnits[i];
+                        card.entityRef = uEnt;
+                        card.cachedOffset = glm::vec2(startX + i * (cardW + spacing), startY);
+                        card.cachedSize = glm::vec2(cardW, cardH);
+
+                        bool isTargeted = (uEnt == targetUnitEntity);
+
+                        PawnAlliance uAlliance = PawnAlliance::Enemy;
+                        std::string uName = "Target";
+                        float uCurHp = 100.0f, uMaxHp = 100.0f;
+                        if (scene->HasComponent<PawnComponent>(uEnt)) {
+                            const auto& pc = scene->GetComponent<PawnComponent>(uEnt);
+                            uAlliance = pc.orientation;
+                            if (!pc.name.empty()) uName = pc.name;
+                            uCurHp = pc.currentHealth;
+                            uMaxHp = pc.maxHealth;
+                        } else if (scene->HasComponent<NameComponent>(uEnt)) {
+                            uName = scene->GetComponent<NameComponent>(uEnt).name;
+                        }
+
+                        float uRatio = uMaxHp > 0.0f ? std::clamp(uCurHp / uMaxHp, 0.0f, 1.0f) : 0.0f;
+
+                        if (card.bgEntity != MAX_ENTITIES && scene->IsEntityActive(card.bgEntity) && scene->HasComponent<HUDElementComponent>(card.bgEntity)) {
+                            auto& cBg = scene->GetComponent<HUDElementComponent>(card.bgEntity);
+                            cBg.isVisible = true;
+                            cBg.offset = card.cachedOffset;
+                            cBg.size = card.cachedSize;
+                            cBg.color = isTargeted ? glm::vec4(0.45f, 0.28f, 0.15f, 0.95f) : glm::vec4(0.12f, 0.15f, 0.2f, 0.9f);
+                        }
+
+                        if (card.fillEntity != MAX_ENTITIES && scene->IsEntityActive(card.fillEntity) && scene->HasComponent<HUDElementComponent>(card.fillEntity)) {
+                            auto& cFill = scene->GetComponent<HUDElementComponent>(card.fillEntity);
+                            cFill.isVisible = true;
+                            cFill.offset = card.cachedOffset + glm::vec2(4.0f, cardH - 6.0f);
+                            cFill.size = glm::vec2((cardW - 8.0f) * uRatio, 4.0f);
+                            cFill.color = (uAlliance == PawnAlliance::Enemy) ? glm::vec4(0.85f, 0.2f, 0.2f, 1.0f) : glm::vec4(0.2f, 0.8f, 0.2f, 1.0f);
+                        }
+
+                        if (card.textEntity != MAX_ENTITIES && scene->IsEntityActive(card.textEntity) && scene->HasComponent<HUDTextComponent>(card.textEntity)) {
+                            auto& cText = scene->GetComponent<HUDTextComponent>(card.textEntity);
+                            cText.isVisible = true;
+                            cText.offset = card.cachedOffset + glm::vec2(4.0f, 4.0f);
+                            std::string tag = (uAlliance == PawnAlliance::Enemy) ? "[EN]" : ((uAlliance == PawnAlliance::Player) ? "[AL]" : "[NE]");
+                            std::string shortName = uName.length() > 6 ? uName.substr(0, 5) + "." : uName;
+                            cText.text = tag + " " + shortName + (isTargeted ? " *" : " " + std::to_string((int)uCurHp));
+                            cText.color = isTargeted ? glm::vec4(1.0f, 0.85f, 0.2f, 1.0f) :
+                                          ((uAlliance == PawnAlliance::Enemy) ? glm::vec4(1.0f, 0.4f, 0.4f, 1.0f) : glm::vec4(0.4f, 0.8f, 1.0f, 1.0f));
+                        }
+                    } else {
+                        card.entityRef = MAX_ENTITIES;
+                        if (card.bgEntity != MAX_ENTITIES && scene->IsEntityActive(card.bgEntity) && scene->HasComponent<HUDElementComponent>(card.bgEntity))
+                            scene->GetComponent<HUDElementComponent>(card.bgEntity).isVisible = false;
+                        if (card.fillEntity != MAX_ENTITIES && scene->IsEntityActive(card.fillEntity) && scene->HasComponent<HUDElementComponent>(card.fillEntity))
+                            scene->GetComponent<HUDElementComponent>(card.fillEntity).isVisible = false;
+                        if (card.textEntity != MAX_ENTITIES && scene->IsEntityActive(card.textEntity) && scene->HasComponent<HUDTextComponent>(card.textEntity))
+                            scene->GetComponent<HUDTextComponent>(card.textEntity).isVisible = false;
+                    }
+                }
+            } else {
+                if (hasHeader) {
+                    scene->GetComponent<HUDTextComponent>(hudTargetHeaderEntity).isVisible = false;
+                }
+                for (auto& card : hudTargetCards) {
+                    card.entityRef = MAX_ENTITIES;
+                    if (card.bgEntity != MAX_ENTITIES && scene->IsEntityActive(card.bgEntity) && scene->HasComponent<HUDElementComponent>(card.bgEntity))
+                        scene->GetComponent<HUDElementComponent>(card.bgEntity).isVisible = false;
+                    if (card.fillEntity != MAX_ENTITIES && scene->IsEntityActive(card.fillEntity) && scene->HasComponent<HUDElementComponent>(card.fillEntity))
+                        scene->GetComponent<HUDElementComponent>(card.fillEntity).isVisible = false;
+                    if (card.textEntity != MAX_ENTITIES && scene->IsEntityActive(card.textEntity) && scene->HasComponent<HUDTextComponent>(card.textEntity))
+                        scene->GetComponent<HUDTextComponent>(card.textEntity).isVisible = false;
+                }
+            }
+
+            // 4. Feedback Banner
+            if (hasFeedback) {
+                auto& feedComp = scene->GetComponent<HUDTextComponent>(hudFeedbackTextEntity);
+                if (lastShotFeedbackTimer > 0.0f && !lastShotFeedbackText.empty()) {
+                    feedComp.isVisible = true;
+                    feedComp.text = lastShotFeedbackText;
                 } else {
-                    textComp.text = "Pawn";
+                    feedComp.isVisible = false;
                 }
             }
         } else {
-            if (hasBg) {
-                scene->GetComponent<HUDElementComponent>(hudHealthBackgroundEntity).isVisible = false;
-            }
-            if (hasFill) {
-                scene->GetComponent<HUDElementComponent>(hudHealthFillEntity).isVisible = false;
-            }
-            if (hasName) {
-                scene->GetComponent<HUDTextComponent>(hudNameTextEntity).isVisible = false;
+            // Hide all HUD entities when no pawn selected
+            if (hasBg) scene->GetComponent<HUDElementComponent>(hudHealthBackgroundEntity).isVisible = false;
+            if (hasFill) scene->GetComponent<HUDElementComponent>(hudHealthFillEntity).isVisible = false;
+            if (hasName) scene->GetComponent<HUDTextComponent>(hudNameTextEntity).isVisible = false;
+            if (hasStats) scene->GetComponent<HUDTextComponent>(hudStatsTextEntity).isVisible = false;
+            if (hasActionBg) scene->GetComponent<HUDElementComponent>(hudActionButtonEntity).isVisible = false;
+            if (hasActionText) scene->GetComponent<HUDTextComponent>(hudActionTextEntity).isVisible = false;
+            if (hasHeader) scene->GetComponent<HUDTextComponent>(hudTargetHeaderEntity).isVisible = false;
+            if (hasFeedback) scene->GetComponent<HUDTextComponent>(hudFeedbackTextEntity).isVisible = false;
+            for (auto& card : hudTargetCards) {
+                card.entityRef = MAX_ENTITIES;
+                if (card.bgEntity != MAX_ENTITIES && scene->IsEntityActive(card.bgEntity) && scene->HasComponent<HUDElementComponent>(card.bgEntity))
+                    scene->GetComponent<HUDElementComponent>(card.bgEntity).isVisible = false;
+                if (card.fillEntity != MAX_ENTITIES && scene->IsEntityActive(card.fillEntity) && scene->HasComponent<HUDElementComponent>(card.fillEntity))
+                    scene->GetComponent<HUDElementComponent>(card.fillEntity).isVisible = false;
+                if (card.textEntity != MAX_ENTITIES && scene->IsEntityActive(card.textEntity) && scene->HasComponent<HUDTextComponent>(card.textEntity))
+                    scene->GetComponent<HUDTextComponent>(card.textEntity).isVisible = false;
             }
         }
     }
@@ -263,6 +572,11 @@ namespace engine::ecs {
     }
 
     bool TacticalSceneManagerSystem::HandleLeftClick(float screenX, float screenY, float windowWidth, float windowHeight) {
+        if (auto hudSys = scene ? scene->GetSystem<HUDSystem>() : nullptr) {
+            if (hudSys->HandleClick(screenX, screenY, windowWidth, windowHeight, 0)) {
+                return true;
+            }
+        }
         return SelectAtScreenPos(screenX, screenY, windowWidth, windowHeight);
     }
 
@@ -472,6 +786,10 @@ namespace engine::ecs {
             UpdateCamera(deltaTime);
         }
 
+        if (lastShotFeedbackTimer > 0.0f) {
+            lastShotFeedbackTimer = std::max(0.0f, lastShotFeedbackTimer - deltaTime);
+        }
+
         if (selectedEntity != MAX_ENTITIES) {
             if (!scene->IsEntityActive(selectedEntity) || (requirePathfindingAgent && !scene->HasComponent<PathfindingAgent>(selectedEntity))) {
                 ClearSelection();
@@ -513,11 +831,188 @@ namespace engine::ecs {
                             gizmoSystem->DrawCube(fgCenter, glm::vec3(fgWidth, barHeight * 0.9f, barDepth * 1.1f), healthColor, 0.0f);
                         }
                     }
+
+                    // Shoot targeting visualizer line & marker
+                    if (isShootModeActive) {
+                        Entity currentTarget = (targetUnitEntity != MAX_ENTITIES && scene->IsEntityActive(targetUnitEntity)) ? targetUnitEntity :
+                                               ((hoveredUnitEntity != MAX_ENTITIES && scene->IsEntityActive(hoveredUnitEntity)) ? hoveredUnitEntity : Entity(MAX_ENTITIES));
+                        if (currentTarget != MAX_ENTITIES && currentTarget != selectedEntity && scene->HasComponent<TransformComponent>(currentTarget)) {
+                            const auto& tTrans = scene->GetComponent<TransformComponent>(currentTarget);
+                            glm::vec3 startPos = trans.position + glm::vec3(0.0f, 0.8f, 0.0f);
+                            glm::vec3 endPos = tTrans.position + glm::vec3(0.0f, 0.8f, 0.0f);
+
+                            glm::vec3 targetColor(1.0f, 0.25f, 0.25f);
+                            if (scene->HasComponent<PawnComponent>(currentTarget)) {
+                                auto all = scene->GetComponent<PawnComponent>(currentTarget).orientation;
+                                if (all == PawnAlliance::Player) targetColor = glm::vec3(0.25f, 0.65f, 1.0f);
+                                else if (all == PawnAlliance::Neutral) targetColor = glm::vec3(1.0f, 0.8f, 0.2f);
+                            }
+                            gizmoSystem->DrawRay(startPos, endPos - startPos, targetColor, 0.0f);
+                            gizmoSystem->DrawCube(endPos, glm::vec3(0.6f, 0.6f, 0.6f), targetColor, 0.0f);
+                        }
+                    }
                 }
             }
         }
 
         UpdatePawnHUD();
+    }
+
+    std::vector<Entity> TacticalSceneManagerSystem::GetAllTacticalUnits() const {
+        std::vector<Entity> units;
+        if (!scene) return units;
+
+        for (auto [e, pawn] : scene->GetActiveView<PawnComponent>()) {
+            if (scene->IsEntityActive(e)) {
+                units.push_back(e);
+            }
+        }
+        for (auto [e, agent] : scene->GetActiveView<PathfindingAgent>()) {
+            if (scene->IsEntityActive(e) && std::find(units.begin(), units.end(), e) == units.end()) {
+                units.push_back(e);
+            }
+        }
+        return units;
+    }
+
+    std::vector<Entity> TacticalSceneManagerSystem::GetTargetableUnits(std::optional<PawnAlliance> allianceFilter) const {
+        std::vector<Entity> allUnits = GetAllTacticalUnits();
+        std::vector<Entity> filtered;
+        for (Entity e : allUnits) {
+            if (e == selectedEntity) continue;
+            if (!scene || !scene->IsEntityActive(e)) continue;
+
+            if (allianceFilter.has_value()) {
+                if (scene->HasComponent<PawnComponent>(e)) {
+                    if (scene->GetComponent<PawnComponent>(e).orientation == allianceFilter.value()) {
+                        filtered.push_back(e);
+                    }
+                }
+            } else {
+                filtered.push_back(e);
+            }
+        }
+        return filtered;
+    }
+
+    void TacticalSceneManagerSystem::SetShootMode(bool active) {
+        isShootModeActive = active;
+        if (isShootModeActive) {
+            if (targetUnitEntity == MAX_ENTITIES || targetUnitEntity == selectedEntity || !scene || !scene->IsEntityActive(targetUnitEntity)) {
+                auto enemies = GetTargetableUnits(PawnAlliance::Enemy);
+                if (!enemies.empty()) {
+                    targetUnitEntity = enemies[0];
+                } else {
+                    auto all = GetTargetableUnits();
+                    if (!all.empty()) {
+                        targetUnitEntity = all[0];
+                    } else {
+                        targetUnitEntity = MAX_ENTITIES;
+                    }
+                }
+            }
+        }
+        UpdatePawnHUD();
+    }
+
+    void TacticalSceneManagerSystem::ToggleShootMode() {
+        SetShootMode(!isShootModeActive);
+    }
+
+    void TacticalSceneManagerSystem::SelectTargetUnit(Entity target) {
+        if (target != MAX_ENTITIES && scene && scene->IsEntityActive(target)) {
+            targetUnitEntity = target;
+        } else {
+            targetUnitEntity = MAX_ENTITIES;
+        }
+        UpdatePawnHUD();
+    }
+
+    void TacticalSceneManagerSystem::ClearTargetUnit() {
+        targetUnitEntity = MAX_ENTITIES;
+        UpdatePawnHUD();
+    }
+
+    void TacticalSceneManagerSystem::CycleNextTarget() {
+        auto targets = GetTargetableUnits();
+        if (targets.empty()) {
+            targetUnitEntity = MAX_ENTITIES;
+            UpdatePawnHUD();
+            return;
+        }
+        if (targetUnitEntity == MAX_ENTITIES) {
+            targetUnitEntity = targets[0];
+            UpdatePawnHUD();
+            return;
+        }
+        auto it = std::find(targets.begin(), targets.end(), targetUnitEntity);
+        if (it != targets.end()) {
+            size_t idx = std::distance(targets.begin(), it);
+            targetUnitEntity = targets[(idx + 1) % targets.size()];
+        } else {
+            targetUnitEntity = targets[0];
+        }
+        UpdatePawnHUD();
+    }
+
+    void TacticalSceneManagerSystem::CyclePrevTarget() {
+        auto targets = GetTargetableUnits();
+        if (targets.empty()) {
+            targetUnitEntity = MAX_ENTITIES;
+            UpdatePawnHUD();
+            return;
+        }
+        if (targetUnitEntity == MAX_ENTITIES) {
+            targetUnitEntity = targets.back();
+            UpdatePawnHUD();
+            return;
+        }
+        auto it = std::find(targets.begin(), targets.end(), targetUnitEntity);
+        if (it != targets.end()) {
+            size_t idx = std::distance(targets.begin(), it);
+            targetUnitEntity = targets[(idx + targets.size() - 1) % targets.size()];
+        } else {
+            targetUnitEntity = targets.back();
+        }
+        UpdatePawnHUD();
+    }
+
+    bool TacticalSceneManagerSystem::ExecuteShoot(Entity target) {
+        if (!scene) return false;
+        Entity targetToShoot = (target != MAX_ENTITIES) ? target : targetUnitEntity;
+        if (targetToShoot == MAX_ENTITIES || !scene->IsEntityActive(targetToShoot)) {
+            return false;
+        }
+
+        float damage = 25.0f;
+        if (selectedEntity != MAX_ENTITIES && scene->HasComponent<PawnComponent>(selectedEntity)) {
+            damage = scene->GetComponent<PawnComponent>(selectedEntity).attackDamage;
+        }
+
+        std::string targetName = "Target";
+        if (scene->HasComponent<PawnComponent>(targetToShoot)) {
+            auto& tp = scene->GetComponent<PawnComponent>(targetToShoot);
+            tp.currentHealth = std::max(0.0f, tp.currentHealth - damage);
+            if (!tp.name.empty()) targetName = tp.name;
+        } else if (scene->HasComponent<NameComponent>(targetToShoot)) {
+            targetName = scene->GetComponent<NameComponent>(targetToShoot).name;
+        }
+
+        lastShotFeedbackText = "Shot " + targetName + " for " + std::to_string(static_cast<int>(damage)) + " DMG!";
+        lastShotFeedbackTimer = 3.0f;
+
+        if (selectedEntity != MAX_ENTITIES && scene->HasComponent<TransformComponent>(selectedEntity) && scene->HasComponent<TransformComponent>(targetToShoot)) {
+            if (auto gizmoSys = scene->GetSystem<GizmoSystem>()) {
+                const auto& sTrans = scene->GetComponent<TransformComponent>(selectedEntity);
+                const auto& tTrans = scene->GetComponent<TransformComponent>(targetToShoot);
+                glm::vec3 startPos = sTrans.position + glm::vec3(0.0f, 0.8f, 0.0f);
+                glm::vec3 endPos = tTrans.position + glm::vec3(0.0f, 0.8f, 0.0f);
+                gizmoSys->DrawRay(startPos, endPos - startPos, glm::vec3(1.0f, 0.9f, 0.2f), 5);
+            }
+        }
+
+        UpdatePawnHUD();
+        return true;
     }
 
     void TacticalSceneManagerSystem::OnStart() {
@@ -735,7 +1230,7 @@ namespace engine::ecs {
         ImGuiIO& io = ImGui::GetIO();
         bool fast = io.KeyShift;
 
-        // 1. Keyboard Panning, Rotation, Zoom, Focus (when window is focused or hovered, and not typing text)
+        // 1. Keyboard Panning, Rotation, Zoom, Focus, Shoot & Target Navigation
         if ((isHovered || isFocused) && !io.WantTextInput) {
             glm::vec2 moveDir{0.0f};
             if (ImGui::IsKeyDown(ImGuiKey_W) || ImGui::IsKeyDown(ImGuiKey_UpArrow)) moveDir.y += 1.0f;
@@ -763,6 +1258,28 @@ namespace engine::ecs {
 
             if (ImGui::IsKeyPressed(ImGuiKey_F) || ImGui::IsKeyPressed(ImGuiKey_Home)) {
                 FocusOnSelected();
+            }
+
+            // Shoot Mode hotkey: '1' or 'S' (when not moving)
+            if (HasSelectedEntity()) {
+                if (ImGui::IsKeyPressed(ImGuiKey_1)) {
+                    ToggleShootMode();
+                }
+
+                if (isShootModeActive) {
+                    if (ImGui::IsKeyPressed(ImGuiKey_Tab) || ImGui::IsKeyPressed(ImGuiKey_RightArrow)) {
+                        CycleNextTarget();
+                    }
+                    if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) {
+                        CyclePrevTarget();
+                    }
+                    if (ImGui::IsKeyPressed(ImGuiKey_Space) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+                        ExecuteShoot();
+                    }
+                    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                        SetShootMode(false);
+                    }
+                }
             }
         }
 
@@ -810,12 +1327,12 @@ namespace engine::ecs {
         ImGui::Spacing();
 
         if (hudHealthBackgroundEntity != MAX_ENTITIES || hudHealthFillEntity != MAX_ENTITIES || hudNameTextEntity != MAX_ENTITIES) {
-            ImGui::BulletText("HUD Health Panel: Bound");
+            ImGui::BulletText("HUD Health Panel: Bound (Right Side)");
             if (ImGui::Button("Destroy HUD Panel Entities")) {
                 DestroySelectedPawnHUDEntities();
             }
         } else {
-            if (ImGui::Button("Create Selected Pawn HUD Panel")) {
+            if (ImGui::Button("Create Selected Pawn HUD Panel (Right Side)")) {
                 CreateSelectedPawnHUDEntities();
             }
         }
@@ -840,6 +1357,10 @@ namespace engine::ecs {
                 ImGui::PushStyleColor(ImGuiCol_PlotHistogram, hpColor);
                 ImGui::ProgressBar(pct, ImVec2(-1.0f, 0.0f), overlay);
                 ImGui::PopStyleColor();
+
+                const char* allStr = (pawn.orientation == PawnAlliance::Player) ? "Player" :
+                                     ((pawn.orientation == PawnAlliance::Enemy) ? "Enemy" : "Neutral");
+                ImGui::BulletText("Alliance: %s | DMG: %.0f | Hit: %.0f%%", allStr, pawn.attackDamage, pawn.hitChance);
             } else {
                 ImGui::TextDisabled("No PawnComponent attached.");
             }
@@ -850,6 +1371,26 @@ namespace engine::ecs {
                 ImGui::BulletText("Status: %s", agent.isMoving ? "Moving" : (agent.hasTarget ? "Pathing" : "Idle"));
             }
 
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Tactical Shoot Action");
+            if (isShootModeActive) {
+                if (ImGui::Button("Cancel Shoot Mode (Esc)")) {
+                    SetShootMode(false);
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Execute Shot (Space)")) {
+                    ExecuteShoot();
+                }
+                if (targetUnitEntity != MAX_ENTITIES) {
+                    ImGui::BulletText("Current Target Entity: %llu", static_cast<unsigned long long>(targetUnitEntity));
+                }
+            } else {
+                if (ImGui::Button("Activate Shoot Mode (1)")) {
+                    SetShootMode(true);
+                }
+            }
+
+            ImGui::Spacing();
             if (ImGui::Button("Focus Camera On Selected (F)")) {
                 FocusOnSelected();
             }

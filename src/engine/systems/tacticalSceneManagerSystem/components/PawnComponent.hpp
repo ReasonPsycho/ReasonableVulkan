@@ -10,7 +10,8 @@ namespace engine::ecs
     enum class PawnAlliance
     {
         Player = 0,
-        Enemy = 1
+        Enemy = 1,
+        Neutral = 2
     };
 
     struct PawnComponent : public Component
@@ -25,15 +26,24 @@ namespace engine::ecs
         float maxHealth{100.0f};
 
         [[=Tooltip{"Alliance of the pawn"}]]
-       PawnAlliance orientation{PawnAlliance::Player};
+        PawnAlliance orientation{PawnAlliance::Player};
+
+        [[=Range{0.0f, 1000.0f, 1.0f}, =Tooltip{"Base attack damage for shooting"}]]
+        float attackDamage{25.0f};
+
+        [[=Range{0.0f, 100.0f, 1.0f}, =Tooltip{"Hit chance percentage (0-100)"}]]
+        float hitChance{75.0f};
+
+        [[=Range{1.0f, 100.0f, 1.0f}, =Tooltip{"Attack range in world units"}]]
+        float attackRange{20.0f};
 
         PawnComponent() = default;
-        PawnComponent(std::string pawnName, float current, float max)
-            : name(std::move(pawnName)), currentHealth(current), maxHealth(max) {}
-        PawnComponent(float current, float max)
-            : name("Pawn"), currentHealth(current), maxHealth(max) {}
-        explicit PawnComponent(float max)
-            : name("Pawn"), currentHealth(max), maxHealth(max) {}
+        PawnComponent(std::string pawnName, float current, float max, PawnAlliance alliance = PawnAlliance::Player)
+            : name(std::move(pawnName)), currentHealth(current), maxHealth(max), orientation(alliance) {}
+        PawnComponent(float current, float max, PawnAlliance alliance = PawnAlliance::Player)
+            : name("Pawn"), currentHealth(current), maxHealth(max), orientation(alliance) {}
+        explicit PawnComponent(float max, PawnAlliance alliance = PawnAlliance::Player)
+            : name("Pawn"), currentHealth(max), maxHealth(max), orientation(alliance) {}
     };
 }
 

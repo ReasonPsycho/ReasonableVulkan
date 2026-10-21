@@ -6,7 +6,7 @@
   "id": "1f5d4c63-94e7-4042-af56-cdd8df04dba6",
   "path": "res/shaders/jsons/shadowCubeMap.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "shadowCubeMapShader",
+  "lookUpName": "shadowCubeMap.shaderprogram",
   "contentHash": 1672924033608870228,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/shadowCubeMap.shaderImport",

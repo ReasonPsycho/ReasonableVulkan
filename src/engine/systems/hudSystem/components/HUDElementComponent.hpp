@@ -46,6 +46,9 @@ namespace engine::ecs {
         [[=Tooltip{"Visibility flag"}]]
         bool isVisible{true};
 
+        [[=Tooltip{"Whether this element can receive mouse click events"}]]
+        bool isClickable{false};
+
         HUDElementComponent() = default;
         HUDElementComponent(boost::uuids::uuid texUuid, glm::vec2 sz = {100.0f, 100.0f}, glm::vec2 off = {0.0f, 0.0f}, UIAnchor anch = UIAnchor::TopLeft)
             : anchor(static_cast<int>(anch)), offset(off), size(sz), textureUuid(texUuid) {}

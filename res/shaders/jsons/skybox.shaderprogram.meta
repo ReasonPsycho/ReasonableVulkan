@@ -6,7 +6,7 @@
   "id": "fa53801f-2e4d-4f6e-b211-5db9fca57e4f",
   "path": "res/shaders/jsons/skybox.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "skyboxShader",
+  "lookUpName": "skybox.shaderprogram",
   "contentHash": 11037901660116856270,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/skybox.shaderImport",

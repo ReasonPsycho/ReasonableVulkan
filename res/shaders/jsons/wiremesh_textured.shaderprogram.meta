@@ -6,7 +6,7 @@
   "id": "34af6297-3529-42eb-9335-56602739269d",
   "path": "res/shaders/jsons/wiremesh_textured.shaderprogram",
   "type": "ShaderProgram",
-  "lookUpName": "wiremeshTexturedShader",
+  "lookUpName": "wiremesh_textured.shaderprogram",
   "contentHash": 14735356005098455851,
   "assetFactoryData": {
     "importPath": "res/shaders/jsons/wiremesh_textured.shaderImport",
