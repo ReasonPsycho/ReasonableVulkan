@@ -70,6 +70,7 @@ Loads and serializes PBR material parameters:
 Loads 2D image textures (`.png`, `.jpg`, `.tga`):
 - Uses `stb_image` to parse image buffers, dimensions, channels (RGBA), and bit depth.
 - Supports cubemaps, normal maps, and HDR environment textures.
+- Fails on import if the source image file cannot be read from disk.
 
 #### `ShaderAsset`
 Compiles and manages individual GLSL shader stages (`.vert`, `.frag`, `.spv`, `.spdv`):

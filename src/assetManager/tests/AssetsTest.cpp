@@ -217,6 +217,12 @@ BOOST_AUTO_TEST_CASE(TextureAssetLoadingAndBinaryCacheTest) {
     std::filesystem::remove(binPath, ec);
 }
 
+BOOST_AUTO_TEST_CASE(TextureAssetImportFailureTest) {
+    auto id = boost::uuids::random_generator()();
+    ImportContext ctx("non_existent_texture_path_12345.png", AssetType::Texture);
+    BOOST_CHECK_THROW(TextureAsset tex(id, ctx), std::runtime_error);
+}
+
 BOOST_AUTO_TEST_CASE(MaterialAssetPropertiesAndSerializationTest) {
     auto id = boost::uuids::random_generator()();
     MaterialAsset mat(id, "dummy_mat.material");

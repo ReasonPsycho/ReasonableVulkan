@@ -12,6 +12,7 @@ The Engine module is the core orchestrator of the ReasonableVulkan engine, provi
 - **Hierarchical Scene Graph**: Parent-child relationships between entities with transform inheritance and dirty propagation.
 - **System-based Processing**: Modular system architecture for game logic, rendering, collision, HUD, and tactical grids.
 - **Component Type Safety**: Template-based component management with compile-time type checking and dynamic reflection.
+- **Static Reflection & Inspector**: C++26 static reflection for component serialization, deserialization, and ImGui inspector property editing (including enum-to-name combos and asset lookups).
 - **Entity Recycling**: Efficient generational entity ID management with reuse capabilities.
 - **Dynamic Scripting & Hot Reloading**: Runtime script attachment and dynamic DLL reloading without restarting the engine.
 - **Comprehensive Editor Infrastructure**: Command history for undo/redo, gizmo visualizers, and ImGui editor integration.

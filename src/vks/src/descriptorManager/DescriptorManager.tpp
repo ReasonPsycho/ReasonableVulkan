@@ -25,12 +25,16 @@ T* DescriptorManager::getOrLoadResource(const boost::uuids::uuid& assetId)
 template <typename T>
 T* DescriptorManager::getOrLoadResource(std::string lookUpName)
 {
-    auto id = assetManager->getAssetUuid(lookUpName);
-    if (id.has_value())
-    {
-        return getOrLoadResource<T>(id.value());
+    if constexpr (std::is_same_v<T, TextureDescriptor>) {
+        return getTexture(getOrLoadTexture(lookUpName));
     } else {
-        spdlog::error("Asset not found: {}", lookUpName);
-        throw std::runtime_error("Asset not found");
+        auto id = assetManager->getAssetUuid(lookUpName);
+        if (id.has_value())
+        {
+            return getOrLoadResource<T>(id.value());
+        } else {
+            spdlog::error("Asset not found: {}", lookUpName);
+            throw std::runtime_error("Asset not found");
+        }
     }
 }

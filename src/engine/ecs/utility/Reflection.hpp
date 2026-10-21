@@ -219,6 +219,44 @@ namespace engine::ecs
         return !annots.empty();
     }
 
+    template <typename Enum>
+    consteval auto enumerator_count() {
+        return std::meta::enumerators_of(^^Enum).size();
+    }
+
+    template <typename Enum>
+    consteval auto get_enumerators_array() {
+        auto vec = std::meta::enumerators_of(^^Enum);
+        constexpr std::size_t N = enumerator_count<Enum>();
+        MetaInfoArray<N> arr{};
+        for (std::size_t i = 0; i < vec.size(); ++i) {
+            arr.data[i] = vec[i];
+        }
+        return arr;
+    }
+
+    template <typename Enum>
+    constexpr std::string_view EnumToString(Enum value) {
+        static constexpr auto enums = get_enumerators_array<Enum>();
+        template for (constexpr auto e : enums) {
+            if (value == [:e:]) {
+                return std::meta::identifier_of(e);
+            }
+        }
+        return "Unknown";
+    }
+
+    template <typename Enum>
+    constexpr std::optional<Enum> StringToEnum(std::string_view name) {
+        static constexpr auto enums = get_enumerators_array<Enum>();
+        template for (constexpr auto e : enums) {
+            if (name == std::meta::identifier_of(e)) {
+                return [:e:];
+            }
+        }
+        return std::nullopt;
+    }
+
     template <std::meta::info entity>
     consteval bool is_nonSerialized() {
         return has_annotation<NonSerialized>(entity);
@@ -425,7 +463,14 @@ namespace engine::ecs
         } else if constexpr (std::is_same_v<RawT, bool>) {
             if (inVal.IsBool()) val = inVal.GetBool();
         } else if constexpr (std::is_enum_v<RawT>) {
-            if (inVal.IsInt()) val = static_cast<RawT>(inVal.GetInt());
+            if (inVal.IsInt()) {
+                val = static_cast<RawT>(inVal.GetInt());
+            } else if (inVal.IsString()) {
+                auto parsed = StringToEnum<RawT>(inVal.GetString());
+                if (parsed.has_value()) {
+                    val = *parsed;
+                }
+            }
         } else if constexpr (std::is_same_v<RawT, std::string>) {
             if (inVal.IsString()) val = inVal.GetString();
         } else if constexpr (std::is_same_v<RawT, boost::uuids::uuid>) {
@@ -678,10 +723,25 @@ namespace engine::ecs
             }, value);
         } else if constexpr (std::is_enum_v<RawT>) {
             if constexpr (isReadOnly) ImGui::BeginDisabled();
-            int currentVal = static_cast<int>(value);
-            if (ImGui::DragInt(name, &currentVal, 1.0f, static_cast<int>(minVal), static_cast<int>(maxVal))) {
-                value = static_cast<RawT>(currentVal);
-                changed = true;
+            std::string_view currentNameView = EnumToString(value);
+            std::string currentName(currentNameView);
+            if (ImGui::BeginCombo(name, currentName.c_str())) {
+                static constexpr auto enums = get_enumerators_array<RawT>();
+                template for (constexpr auto e : enums) {
+                    constexpr auto enumItemVal = [:e:];
+                    constexpr auto enumItemName = std::meta::identifier_of(e);
+                    bool isSelected = (value == enumItemVal);
+                    if (ImGui::Selectable(std::string(enumItemName).c_str(), isSelected)) {
+                        if (value != enumItemVal) {
+                            value = enumItemVal;
+                            changed = true;
+                        }
+                    }
+                    if (isSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
             }
             if constexpr (isReadOnly) ImGui::EndDisabled();
         } else if constexpr (std::is_class_v<RawT>) {

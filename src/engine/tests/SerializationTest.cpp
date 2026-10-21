@@ -319,4 +319,46 @@ BOOST_AUTO_TEST_CASE(ReflectionLookupNameAnnotationTest) {
     BOOST_CHECK(true);
 }
 
+BOOST_AUTO_TEST_CASE(ReflectionEnumTest) {
+    // 1. Test EnumToString
+    BOOST_CHECK_EQUAL(EnumToString(LightComponent::Type::Directional), "Directional");
+    BOOST_CHECK_EQUAL(EnumToString(LightComponent::Type::Point), "Point");
+    BOOST_CHECK_EQUAL(EnumToString(LightComponent::Type::Spot), "Spot");
+    BOOST_CHECK_EQUAL(EnumToString(static_cast<LightComponent::Type>(999)), "Unknown");
+
+    // 2. Test StringToEnum
+    auto parsedDir = StringToEnum<LightComponent::Type>("Directional");
+    BOOST_REQUIRE(parsedDir.has_value());
+    BOOST_CHECK(*parsedDir == LightComponent::Type::Directional);
+
+    auto parsedPoint = StringToEnum<LightComponent::Type>("Point");
+    BOOST_REQUIRE(parsedPoint.has_value());
+    BOOST_CHECK(*parsedPoint == LightComponent::Type::Point);
+
+    auto parsedSpot = StringToEnum<LightComponent::Type>("Spot");
+    BOOST_REQUIRE(parsedSpot.has_value());
+    BOOST_CHECK(*parsedSpot == LightComponent::Type::Spot);
+
+    auto parsedInvalid = StringToEnum<LightComponent::Type>("NonExistent");
+    BOOST_CHECK(!parsedInvalid.has_value());
+
+    // 3. Test enumerator count and array
+    static_assert(enumerator_count<LightComponent::Type>() == 3);
+    constexpr auto enums = get_enumerators_array<LightComponent::Type>();
+    static_assert(enums.size() == 3);
+
+    // 4. Test deserialization from string enum
+    struct EnumTestComp : public Component {
+        LightComponent::Type lightType{LightComponent::Type::Point};
+    };
+
+    rapidjson::Document doc;
+    doc.SetObject();
+    doc.AddMember("lightType", "Spot", doc.GetAllocator());
+
+    EnumTestComp comp;
+    DeserializeTypeFromJson(comp, doc);
+    BOOST_CHECK(comp.lightType == LightComponent::Type::Spot);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

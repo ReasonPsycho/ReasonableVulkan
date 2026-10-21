@@ -70,6 +70,7 @@ Central descriptor set and GPU resource registry:
 - **Layout Management**: Maintains descriptor set layouts for scene uniforms, materials, meshes, lights, and bindless textures.
 - **Resource Pooling**: Contains typed `ResourcePool` instances for models, meshes, shaders, materials, and textures.
 - **Slot Allocation**: Manages sequential registration slots for textures and materials, mapping UUIDs to generational handles.
+- **Missing Texture Fallback**: When loading texture descriptors via `getOrLoadTexture`, automatically falls back to `Missing_Texture.png` if an asset is not found or fails to load.
 
 #### `ResourcePool<T, Tag>`
 A generic, type-safe, generational resource container:

@@ -1410,8 +1410,33 @@ namespace vks
         if (it != uuidToTextureMap.end()) return it->second;
 
         auto assetInfo = assetManager->getAssetInfo(assetId);
-        if (!assetInfo.has_value()) throw std::runtime_error("Texture asset not found");
+        if (!assetInfo.has_value()) {
+            spdlog::warn("Texture asset not found for id: {}, looking for fallback Missing_Texture", boost::uuids::to_string(assetId));
+            auto missingId = assetManager->getAssetUuid("Missing_Texture_0.texture");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuid("Missing_Texture.texture");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuid("Missing_Texture.png");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuidByPath("res/textures/Missing_Texture.png");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuidByPath("res/.internal/textures/Missing_Texture.png");
+
+            if (missingId.has_value() && missingId.value() != assetId) {
+                return getOrLoadTexture(missingId.value());
+            }
+            throw std::runtime_error("Texture asset not found");
+        }
         auto assetPtr = assetInfo->get()->getAsset();
+        if (!assetPtr) {
+            spdlog::warn("Failed to get texture asset for id: {}, looking for fallback Missing_Texture", boost::uuids::to_string(assetId));
+            auto missingId = assetManager->getAssetUuid("Missing_Texture_0.texture");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuid("Missing_Texture.texture");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuid("Missing_Texture.png");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuidByPath("res/textures/Missing_Texture.png");
+            if (!missingId.has_value()) missingId = assetManager->getAssetUuidByPath("res/.internal/textures/Missing_Texture.png");
+
+            if (missingId.has_value() && missingId.value() != assetId) {
+                return getOrLoadTexture(missingId.value());
+            }
+            throw std::runtime_error("Texture asset not found");
+        }
 
         auto textureData = assetPtr->getAssetDataAs<am::TextureData>();
         bool isCube = (textureData && textureData->type == am::TextureType::TextureCube);
@@ -1491,6 +1516,13 @@ namespace vks
     gfx::TextureHandle DescriptorManager::getOrLoadTexture(const std::string& lookUpName) {
         auto id = assetManager->getAssetUuid(lookUpName);
         if (id.has_value()) return getOrLoadTexture(id.value());
+        spdlog::warn("Asset not found by lookup name '{}', falling back to Missing_Texture", lookUpName);
+        auto missingId = assetManager->getAssetUuid("Missing_Texture_0.texture");
+        if (!missingId.has_value()) missingId = assetManager->getAssetUuid("Missing_Texture.texture");
+        if (!missingId.has_value()) missingId = assetManager->getAssetUuid("Missing_Texture.png");
+        if (!missingId.has_value()) missingId = assetManager->getAssetUuidByPath("res/textures/Missing_Texture.png");
+        if (!missingId.has_value()) missingId = assetManager->getAssetUuidByPath("res/.internal/textures/Missing_Texture.png");
+        if (missingId.has_value()) return getOrLoadTexture(missingId.value());
         spdlog::error("Asset not found: {}", lookUpName);
         throw std::runtime_error("Asset not found");
     }
